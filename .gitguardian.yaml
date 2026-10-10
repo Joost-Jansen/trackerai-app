@@ -1,0 +1,6 @@
+# GitGuardian (the secret scan on pull requests). The tests log in with made-up
+# passwords for made-up users (alice, bob, anna); those are not secrets.
+version: 2
+secret:
+  ignored-paths:
+    - "**/tests/**"

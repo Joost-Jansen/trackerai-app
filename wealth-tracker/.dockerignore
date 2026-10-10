@@ -1,0 +1,46 @@
+# Keep the build context small and never bake state/secrets into the image.
+# Runtime state is bind-mounted (see docker-compose.yml).
+#
+# Patterns match the whole path relative to the context, so a bare `venv/`
+# would only match at the root — nested trees each need `**/`.
+.git/
+.gitignore
+venv/
+**/venv/
+**/node_modules/
+**/.next/
+**/*.tsbuildinfo
+__pycache__/
+**/__pycache__/
+*.pyc
+*.cpython-*.pyc
+.DS_Store
+
+# The frontend has its own build context (frontend/Dockerfile); nothing in it
+# belongs in the API image, whose Dockerfile COPYs the whole repo root.
+frontend/
+
+# Persistent state + secrets — provided via volumes/env, not the image.
+data/
+uploads/
+auth_config.yaml
+.env
+.env.*
+!.env.example
+*.db
+demo-data/
+holdings-canary.log
+.holdings-canary-month
+.github/
+
+# Not needed inside the image.
+docs/
+README.md
+deploy/
+
+# ...except the holdings canary. It runs *inside* the api container on purpose
+# (deploy/holdings-canary.sh): checking the issuer sites is only meaningful
+# against the app's own fetchers and dependencies, not a copy that can drift.
+# Later patterns win, so these two survive the deploy/ exclusion above.
+!deploy/check_holdings_sources.py
+!deploy/holdings_baseline.json

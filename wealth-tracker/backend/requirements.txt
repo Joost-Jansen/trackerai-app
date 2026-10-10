@@ -1,0 +1,15 @@
+# FastAPI backend dependencies.
+# The domain modules it imports (database.py, portfolio.py, etf_holdings.py,
+# issuer_holdings.py, charts.py, transaction_parser.py, dividend_parser.py)
+# live at the repo root — see ../requirements.txt for their dependencies
+# (pandas, yfinance, plotly, requests, openpyxl), which must also be
+# installed in this backend's environment/image.
+-r ../requirements.txt
+
+fastapi==0.142.2
+uvicorn[standard]==0.50.2
+python-multipart==0.0.32   # required by FastAPI for file uploads (UploadFile)
+pyjwt==2.13.0
+pyyaml==6.0.3
+cryptography==49.0.0   # RS256 for Enable Banking and encrypting bank connections (secret_box.py)
+psycopg[binary]==3.3.6   # Postgres for the users' data when WEALTH_DATABASE_URL is set (domain/db.py); the same pin as packages/accounts

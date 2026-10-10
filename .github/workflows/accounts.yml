@@ -1,0 +1,33 @@
+# packages/accounts: the shared account (login, two-step login, which apps someone uses).
+name: accounts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/accounts/**"
+      - ".github/workflows/accounts.yml"
+  pull_request:
+    paths:
+      - "packages/accounts/**"
+      - ".github/workflows/accounts.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -e "packages/accounts[test]"
+      - run: python -m pytest -q packages/accounts/tests

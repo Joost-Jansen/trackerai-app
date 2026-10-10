@@ -1,0 +1,111 @@
+/*
+ * The palette of wealth-tracker: warm paper, a walnut ink panel, terracotta.
+ * base.css and ds.css read only these names, so a brand is this one file: the neutral ladder, the brand
+ * ladder, the ink panel, the focus ring and the chart colours, light and dark.
+ */
+
+:root {
+  /* menu items on the ink panel */
+  --text-on-ink-nav: #C0B7A6;
+  --n-0:  #ffffff;
+  --n-25: #f9f8f4; /* paper — the page colour */
+  --n-50: #f3f1eb;
+  --n-100:#ece9e1;
+  --n-150:#e3dfd5;
+  --n-200:#e0dcd2; /* hairline */
+  --n-300:#c4beb1;
+  --n-400:#7f7867; /* 4,1:1 — asletters, placeholders */
+  --n-500:#6b6458; /* 5.5:1 — muted text */
+  --n-600:#5c564c; /* 6.8:1 — secondary text */
+  --n-700:#3d392f;
+  --n-800:#211e18; /* walnut black — the contrast anchor */
+  --n-900:#14120e; /* 17.6:1 — primary text */
+  --brand-50: #f6e9e0;
+  --brand-100:#ebd3c4;
+  --brand-300:#c98055;
+  --brand-500:#a9502f;
+  --brand-600:#8c3f23;
+  --brand-700:#6e301a;
+  --surface-ink:       #211e18;
+  --surface-ink-hover: #2c2822;
+  --surface-ink-active:#37322a;
+  --border-ink:        #35302a;
+  --text-on-ink:       #efebe1;
+  --text-on-ink-muted: #948b7b;
+  --ring-focus:      0 0 0 3px rgba(169, 80, 47, 0.2);
+  --chart-1: #a9502f; /* terracotta   — always your own line */
+  --chart-2: #211e18; /* walnut black — always the benchmark, dashed */
+  --chart-3: #6b7a4f; /* olive */
+  --chart-4: #a98545; /* ochre */
+  --chart-5: #667585; /* steenblauw */
+  --chart-6: #7a5c48; /* walnut */
+  --chart-band: rgba(169, 80, 47, 0.09);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --n-0:  #17150f;
+    --n-25: #15130e;
+    --n-50: #1e1b15;
+    --n-100:#262219;
+    --n-150:#2e2a20;
+    --n-200:#373227;
+    --n-300:#4a4436;
+    --n-400:#7b7462;
+    --n-500:#968e79;
+    --n-600:#b3aa93;
+    --n-700:#d2cab4;
+    --n-800:#ede7d8;
+    --n-900:#f7f2e6;
+    --brand-50: #2a1a12;
+    --brand-100:#3a2419;
+    --brand-300:#c98055;
+    --brand-500:#c4714b;
+    --brand-600:#d6875f;
+    --surface-ink:       #1b1813;
+    --surface-ink-hover: #262219;
+    --surface-ink-active:#2e2a20;
+    --border-ink:        #2e2a22;
+    --ring-focus: 0 0 0 3px rgba(196, 113, 75, 0.28);
+    --chart-1: #c4714b;
+    --chart-2: #d2cab4;
+    --chart-3: #9aa87c;
+    --chart-4: #c1a165;
+    --chart-5: #8496a6;
+    --chart-6: #a08672;
+    --chart-band: rgba(196, 113, 75, 0.12);
+  }
+}
+
+:root[data-theme="dark"] {
+  --n-0:  #17150f;
+  --n-25: #15130e;
+  --n-50: #1e1b15;
+  --n-100:#262219;
+  --n-150:#2e2a20;
+  --n-200:#373227;
+  --n-300:#4a4436;
+  --n-400:#7b7462;
+  --n-500:#968e79;
+  --n-600:#b3aa93;
+  --n-700:#d2cab4;
+  --n-800:#ede7d8;
+  --n-900:#f7f2e6;
+  --brand-50: #2a1a12;
+  --brand-100:#3a2419;
+  --brand-300:#c98055;
+  --brand-500:#c4714b;
+  --brand-600:#d6875f;
+  --surface-ink:       #1b1813;
+  --surface-ink-hover: #262219;
+  --surface-ink-active:#2e2a20;
+  --border-ink:        #2e2a22;
+  --ring-focus: 0 0 0 3px rgba(196, 113, 75, 0.28);
+  --chart-1: #c4714b;
+  --chart-2: #d2cab4;
+  --chart-3: #9aa87c;
+  --chart-4: #c1a165;
+  --chart-5: #8496a6;
+  --chart-6: #a08672;
+  --chart-band: rgba(196, 113, 75, 0.12);
+}

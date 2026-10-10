@@ -1,0 +1,9 @@
+# Each app keeps its own .gitignore; this one only covers the root.
+.DS_Store
+node_modules/
+__pycache__/
+.env
+
+# Left behind by `pip install` of a package under packages/
+build/
+*.egg-info/

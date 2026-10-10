@@ -1,0 +1,68 @@
+# The shared edge for health-tracker and stock-tracker on one server (lives in /srv/edge): one Cloudflare Tunnel and
+# one Caddy in front of both apps. Nothing listens on the LAN: cloudflared connects outwards, and Caddy's Tailscale
+# listeners are published on 127.0.0.1 only (`tailscale serve` on the host forwards to them).
+#
+# Containers it expects on the external network `edge` (placeholders; match your app compose files):
+#   health-api:8000   health-tracker's API (this repo's docker-compose.yml)
+#   health-web:3000   health-tracker's site
+#   stock-api:8000    stock-tracker API
+#   stock-web:3000    stock-tracker web (Next.js server)
+#
+# Once: docker network create --subnet 172.30.0.0/24 edge
+# Then: cp .env.example .env (DOMAIN), put the tunnel credentials and config in ./cloudflared/, `docker compose up -d`.
+name: edge
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  caddy:
+    image: caddy:2.11.7-alpine
+    container_name: edge-caddy
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env, e.g. example.org}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      - "127.0.0.1:8081:8081"  # Tailscale: health-tracker  (tailscale serve --bg --https=443 http://127.0.0.1:8081)
+      - "127.0.0.1:8082:8082"  # Tailscale: stock-tracker   (tailscale serve --bg --https=8443 http://127.0.0.1:8082)
+    networks:
+      edge:
+        ipv4_address: 172.30.0.10  # fixed: the apps trust forwarding headers from this address only (TRUSTED_PROXIES)
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *logging
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.0  # pinned: update on purpose, not with every pull
+    container_name: edge-cloudflared
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared:/etc/cloudflared:ro
+    networks:
+      - edge
+    depends_on:
+      - caddy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    logging: *logging
+
+networks:
+  edge:
+    external: true
+
+volumes:
+  caddy-data:
+  caddy-config:

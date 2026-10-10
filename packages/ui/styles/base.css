@@ -1,0 +1,694 @@
+/*
+ * The shared base of both apps (@trackerai/ui/styles/base.css): the Meridian tokens and the element rules. Each app
+ * imports it after Tailwind's layers and adds one palette, styles/brand-*.css (see the app's app/globals.css).
+ */
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ *    MERIDIAN: the shared tokens of both apps
+ *
+ *    The tokens from design_handoff_meridian_redesign/system/tokens/, taken over
+ *    verbatim. The names are the contract: every component reads them, and the
+ *    handoff package delivers its component layer (ds.css) on exactly these
+ *    names. Do not rename.
+ *
+ *    The idea in one sentence: a light paper ground with dark architectural
+ *    anchors and three pigments, each with a task it never shares — the brand
+ *    colour (terracotta, sage) is the brand, green is gain, red is loss. Warmth comes from contrast, not
+ *    from a tint over everything.
+ *
+ *    DEVIATION FROM THE PACKAGE (2026-08-15). Meridian prescribes muted olive and
+ *    oxblood for gain and loss. In practice those could not be told apart quickly
+ *    enough on a phone in daylight: you had to look twice whether a number was
+ *    up or down. The --moss-* and --oxblood-* ladders have therefore been raised
+ *    to real green and real red.
+ *
+ *    The token names stay, even though they no longer match the colour inside
+ *    them. That is on purpose: ds.css comes verbatim from the handoff package and
+ *    reads --moss-500, --oxblood-50/100/400. Renaming would put that file out of
+ *    step with the next version of the package. So read "moss" as "gain" and
+ *    "oxblood" as "loss".
+ *
+ *    What this costs, so it is known: red and terracotta are now closer in hue
+ *    than oxblood and terracotta were (wealth-tracker). On a small screen a brand accent and a
+ *    loss figure can therefore briefly look alike. Back to Meridian = restore
+ *    these two ladders; nothing else has changed.
+ *
+ *    At the bottom of this block is an alias layer: the names the app itself
+ *    already used (--bg, --surface, --brand, --pos, --neg, --c1..c6) keep
+ *    existing and point here from now on. That way the whole app changes colour
+ *    without a single className having to change.
+ *    ═══════════════════════════════════════════════════════════════════════════
+ */
+
+:root {
+  /* The neutral and brand ladders, the ink panel, the focus ring and the chart
+     colours are per app: styles/brand-terracotta.css, styles/brand-sage.css. */
+
+  /* ── green (gain) — was olive, see the head of this file ─ */
+  --moss-50:  #e2f3e8;
+  --moss-100: #c2e6cf;
+  --moss-400: #2f9e5c;
+  --moss-500: #157f3c;
+  --moss-600: #0e6b31;
+
+  /* ── red (loss) — was oxblood ───────────────────────── */
+  --oxblood-50: #fde8e8;
+  --oxblood-100:#f9cccc;
+  --oxblood-400:#d9484c;
+  --oxblood-500:#c81e26;
+  --oxblood-600:#ad141c;
+
+  /* ── ochre (warning, rare) ──────────────────────────── */
+  --amber-50: #f4ecd9;
+  --amber-500:#96702a;
+
+  /* ── semantic: surface ──────────────────────────────── */
+  --surface-page:      var(--n-25);
+  --surface-card:      var(--n-0);
+  --surface-sunken:    var(--n-50);
+  --surface-inset:     var(--n-100);
+  --surface-hover:     var(--n-100);
+  --surface-active:    var(--n-150);
+  --surface-inverse:   var(--n-800);
+  /*
+   * The fixed ink panel: does NOT follow the theme. The sidebar reads from
+   *      this, and so stays dark at night too.
+   */
+  --surface-brand:     var(--brand-500);
+  --surface-brand-soft:var(--brand-50);
+  --surface-gain-soft: var(--moss-50);
+  --surface-loss-soft: var(--oxblood-50);
+
+  /* ── semantic: text ─────────────────────────────────── */
+  --text-primary:   var(--n-900);
+  --text-secondary: var(--n-600);
+  --text-muted:     var(--n-500);
+  --text-faint:     var(--n-400);
+  --text-inverse:   var(--n-25);
+  --text-brand:     var(--brand-600);
+  --text-gain:      var(--moss-600);
+  --text-loss:      var(--oxblood-500);
+  --text-link:      var(--n-900);
+  --text-link-hover:var(--brand-600);
+
+  /* ── semantic: line ─────────────────────────────────── */
+  --border-hairline: var(--n-200);
+  --border-subtle:   var(--n-150);
+  --border-strong:   var(--n-300);
+  --border-inverse:  var(--n-700);
+  --border-focus:    var(--n-800);
+
+  /* ── semantic: data and charts ──────────────────────── */
+  --data-gain: var(--moss-500);
+  --data-loss: var(--oxblood-500);
+  --data-grid: var(--n-150);
+  --data-axis: var(--n-400);
+  --cat-1: #4f7a28;
+  --cat-2: #2266b8;
+  --cat-3: #986200;
+  --cat-4: #7b4f9e;
+  --cat-5: #a8452a;
+  --cat-6: #0f8f78;
+  --cat-other: #77736b;
+  --cat-label: #ffffff;
+
+  /* ── typography ─────────────────────────────────────── */
+  --font-display: var(--font-display-loaded), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-sans-loaded), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-mono-loaded), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --fs-hero:       68px;
+  --fs-display-lg: 44px;
+  --fs-display:    34px;
+  --fs-h1:         27px;
+  --fs-h2:         21px;
+  --fs-h3:         17px;
+  --fs-body-lg:    16px;
+  --fs-body:       15px;
+  --fs-sm:         13.5px;
+  --fs-xs:         12px;
+  --fs-micro:      11px;
+
+  --lh-tight:   1.12;
+  --lh-snug:    1.3;
+  --lh-normal:  1.5;
+  --lh-relaxed: 1.65;
+
+  --fw-light:    300;
+  --fw-regular:  400;
+  --fw-text:     400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+
+  --ls-display: -0.028em;
+  --ls-heading: -0.014em;
+  --ls-body:     0em;
+  --ls-caps:     0.09em;
+
+  --num-tabular: "tnum" 1, "lnum" 1;
+  --measure: 68ch;
+
+  /* ── space (4px grid) ───────────────────────────────── */
+  --sp-0:   0px;
+  --sp-1:   2px;
+  --sp-2:   4px;
+  --sp-3:   8px;
+  --sp-4:  12px;
+  --sp-5:  16px;
+  --sp-6:  20px;
+  --sp-7:  24px;
+  --sp-8:  32px;
+  --sp-9:  40px;
+  --sp-10: 48px;
+  --sp-11: 64px;
+  --sp-12: 80px;
+  --sp-13: 96px;
+
+  --gutter-page:   40px;
+  --gutter-card:   24px;
+  --gutter-dense:  16px;
+  --stack-section: 48px;
+  --stack-block:   24px;
+  --stack-tight:    8px;
+  --sidebar-w:    248px;
+  /*
+   * Wide enough for a laptop or monitor screen full of tables and charts; running
+   *      text keeps its own, shorter line length.
+   */
+  --content-max: 1600px;
+  --row-h:         44px;
+
+  /* ── corners — nothing above 10px, except pills ─────── */
+  --radius-xs:   2px;
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:  10px;
+  --radius-pill: 999px;
+
+  /* ── elevation: light, no lift. Warm tinted, short. ─── */
+  --shadow-none: none;
+  --shadow-hairline: inset 0 0 0 1px var(--border-hairline);
+  --shadow-1: 0 1px 2px rgba(33, 29, 22, 0.05);
+  --shadow-2: 0 2px 6px -2px rgba(33, 29, 22, 0.09), 0 1px 2px rgba(33, 29, 22, 0.05);
+  --shadow-3: 0 8px 20px -8px rgba(33, 29, 22, 0.16), 0 2px 6px -2px rgba(33, 29, 22, 0.07);
+  --shadow-4: 0 20px 48px -16px rgba(33, 29, 22, 0.22), 0 4px 10px -4px rgba(33, 29, 22, 0.08);
+
+  /* ── motion: confirms, never performs ───────────────── */
+  --dur-instant: 90ms;
+  --dur-fast:   150ms;
+  --dur-base:   220ms;
+  --dur-slow:   320ms;
+  --dur-chart:  480ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit:     cubic-bezier(0.4, 0, 1, 1);
+  --ease-entrance: cubic-bezier(0, 0, 0.2, 1);
+}
+
+/*
+ * ───────────────────────────────────────────────────────────────────────────
+ *    DARK — lamplight in a library, not a terminal. Never pure black, never
+ *    pure white.
+ *
+ *    Written down twice, on purpose, exactly as it was before:
+ *    · the @media block answers the operating system's preference as long as
+ *      the user has not chosen anything;
+ *    · the [data-theme] block is the button in the app, and must win in *both*
+ *      directions — so it comes after.
+ *    If you change a value here, change it in both.
+ *    ───────────────────────────────────────────────────────────────────────────
+ */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+
+
+    --moss-50:  #12251a;
+    --moss-100: #1a3826;
+    --moss-500: #4ec97d;
+    --moss-600: #6ad893;
+
+    --oxblood-50: #2b1416;
+    --oxblood-100:#401c20;
+    --oxblood-500:#ff7a80;
+    --oxblood-600:#ff9195;
+
+    --amber-50:  #2a2313;
+    --amber-500: #c1a165;
+
+    --surface-page:   var(--n-25);
+    --surface-card:   var(--n-50);
+    --surface-sunken: var(--n-0);
+    --surface-inverse:var(--n-800);
+    --text-inverse:   var(--n-25);
+    --cat-1: #6a9a3a;
+    --cat-2: #4a86dd;
+    --cat-3: #b08a18;
+    --cat-4: #9a72d6;
+    --cat-5: #d65040;
+    --cat-6: #1fa38c;
+    --cat-other: #a29a8c;
+    --cat-label: #14120e;
+
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-2: 0 2px 6px -2px rgba(0, 0, 0, 0.45);
+    --shadow-3: 0 8px 20px -8px rgba(0, 0, 0, 0.55);
+    --shadow-4: 0 20px 48px -16px rgba(0, 0, 0, 0.6);
+  }
+}
+
+:root[data-theme="dark"] {
+
+
+  --moss-50:  #12251a;
+  --moss-100: #1a3826;
+  --moss-500: #4ec97d;
+  --moss-600: #6ad893;
+
+  --oxblood-50: #2b1416;
+  --oxblood-100:#401c20;
+  --oxblood-500:#ff7a80;
+  --oxblood-600:#ff9195;
+
+  --amber-50:  #2a2313;
+  --amber-500: #c1a165;
+
+  --surface-page:   var(--n-25);
+  --surface-card:   var(--n-50);
+  --surface-sunken: var(--n-0);
+  --surface-inverse:var(--n-800);
+  --text-inverse:   var(--n-25);
+  --cat-1: #6a9a3a;
+  --cat-2: #4a86dd;
+  --cat-3: #b08a18;
+  --cat-4: #9a72d6;
+  --cat-5: #d65040;
+  --cat-6: #1fa38c;
+  --cat-other: #a29a8c;
+  --cat-label: #14120e;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 2px 6px -2px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 8px 20px -8px rgba(0, 0, 0, 0.55);
+  --shadow-4: 0 20px 48px -16px rgba(0, 0, 0, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-instant: 0ms;
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+    --dur-slow: 0ms;
+    --dur-chart: 0ms;
+  }
+}
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ *    ALIAS LAYER — the names the app already used, now pointing at Meridian.
+ *
+ *    Eleven thousand lines of frontend name --brand, --pos, --surface-2 and so
+ *    on; those are being cleaned up screen by screen. Until then every old name
+ *    points here, so the colours are right in one go and no page hangs halfway
+ *    between two palettes.
+ *
+ *    Two things change meaning, and that is the point of this design:
+ *    · --brand was green and *also* meant "up". Now it is the brand colour and only
+ *      means "brand" — one accent moment per screen.
+ *    · --pos/--neg are green and red. Meridian had olive and oxblood here,
+ *      precisely so brand and loss would not look alike; since 2026-08-15
+ *      readability on the phone wins over that separation. See the head of this
+ *      file for the trade-off and how to undo it.
+ *    ═══════════════════════════════════════════════════════════════════════════
+ */
+
+:root {
+  --bg:           var(--surface-page);
+  --surface:      var(--surface-card);
+  --surface-2:    var(--n-100);
+  --surface-sunk: var(--n-50);
+  --border:       var(--border-hairline);
+  --ink:          var(--n-900);
+  --ink-muted:    var(--text-muted);
+  --ink-faint:    var(--text-faint);
+
+  --brand:      var(--brand-500);
+  --brand-2:    var(--brand-300);
+  --brand-tint: var(--brand-50);
+
+  --pos:      var(--moss-500);
+  --pos-tint: var(--moss-50);
+  --neg:      var(--oxblood-500);
+  --neg-tint: var(--oxblood-50);
+  --warn:      var(--amber-500);
+  --warn-tint: var(--amber-50);
+  --info:      var(--chart-5);
+  --info-tint: var(--n-100);
+
+  /* Categorical palette: Meridian's six, in fixed order, never cycled. */
+  --c1: var(--chart-1);
+  --c2: var(--chart-4);
+  --c3: var(--chart-5);
+  --c4: var(--chart-3);
+  --c5: var(--chart-6);
+  --c6: var(--n-400);
+
+  --radius:    var(--radius-lg);
+  --radius-sm: var(--radius-md);
+  --shadow:    var(--shadow-2);
+
+  /*
+   * Tailwind cannot pass var() through its /50 opacity modifier — that form wants
+   *      rgb(R G B / a). These triples are therefore real numbers, and must move
+   *      along with the ladder above by hand.
+   */
+  --ink-rgb: 20 18 14;   /* --n-900 */
+  --pos-rgb: 21 127 60;  /* --moss-500 */
+  --neg-rgb: 200 30 38;  /* --oxblood-500 */
+  --approx-rgb: 150 112 42; /* --amber-500 */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink-rgb: 247 242 230;
+    --pos-rgb: 78 201 125;
+    --neg-rgb: 255 122 128;
+    --approx-rgb: 193 161 101;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ink-rgb: 247 242 230;
+  --pos-rgb: 78 201 125;
+  --neg-rgb: 255 122 128;
+  --approx-rgb: 193 161 101;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASIS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * iOS Safari inflates text in landscape unless this is pinned; the layout is
+ *    built on the CSS pixel and must not be rescaled from under us.
+ */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-text);
+  line-height: var(--lh-normal);
+  letter-spacing: var(--ls-body);
+  font-feature-settings: var(--num-tabular);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /*
+   * One long unbroken word (an ISIN, a fund name without hyphens) is what pushes
+   *      a block wider than a 390px screen and makes the whole page scroll
+   *      sideways. Break within a word only when it really does not fit.
+   */
+  overflow-wrap: break-word;
+}
+
+/* Meridian's own heading sizes, for headings without a Tailwind class. */
+h1,
+h2,
+h3,
+h4 {
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-heading);
+  line-height: var(--lh-snug);
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Focus is always visible: 1px ink outline at 2px distance. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 1px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+::selection {
+  background: var(--brand-100);
+  color: var(--n-900);
+}
+
+/*
+ * Touch: away with the grey flash and the 300 ms wait for double-tap zoom,
+ *    which makes every tap on a phone feel a beat late.
+ */
+button,
+a,
+summary,
+label,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+@media (max-width: 639px) {
+  /*
+   * iOS zooms in on the whole page as soon as a field is below 16px, and leaves
+   *      you zoomed in after that. Everything below `sm` gets 16px, whatever the
+   *      utility class on it.
+   */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* A bare 14px line is not a touch target a thumb hits reliably. */
+  summary {
+    padding-block: 0.375rem;
+  }
+}
+
+/*
+ * A horizontal rail that shows a scrollbar on a phone loses a row of pixels and
+ *    looks broken; the content itself is the hint that there is more.
+ */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * The card still exists, but only where a border really bounds something:
+ *    dialogs, floating layers. Hairline before shadow, space before hairline.
+ */
+.card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--gutter-card);
+}
+
+/* The display face: hero numbers and headings. Nowhere else. */
+.font-display {
+  font-family: var(--font-display);
+}
+
+/*
+ * A reference in running text. Ink with a hairline under it, the brand colour on hover
+ *    — not at rest. Otherwise one screen has six accent moments, and
+ *    then there is no accent any more.
+ */
+.ds-link {
+  color: var(--text-link);
+  border-bottom: 1px solid var(--border-strong);
+  transition: color var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard);
+}
+.ds-link:hover {
+  color: var(--text-link-hover);
+  border-bottom-color: var(--brand-300);
+}
+
+/*
+ * The legend of the distribution bar gets wider columns than the handoff
+ *    package prescribes: "Consument (cycl.)" with its percentage does not fit in
+ *    the 140px Meridian chose for English labels. An app adjustment, so here and
+ *    not in ds.css — that file must stay copyable one to one.
+ */
+.ds-alloc__legend {
+  grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
+}
+
+/*
+ * A section header may wrap. Meridian's screens have at most a period switch of
+ *    four buttons on the right; this app has seven (1D up to All), and those do
+ *    not fit next to the label on a phone. Without this rule they push the page
+ *    sideways instead of dropping to a second line.
+ */
+.ds-section__head {
+  flex-wrap: wrap;
+}
+
+/*
+ * ── Two kinds of rule, and the difference must be visible ──────────────
+ *    A rule under a section header says "a new subject starts here"; a rule
+ *    between two rows says "the next row starts here". On a wide screen that
+ *    difference did not need to be big — the side column stood in its own column
+ *    behind a vertical hairline, and that already separated the subjects. On a
+ *    phone that column drops away and everything stacks; then the two kinds of
+ *    rule turned out to look identical, and a row divider read as the start of a
+ *    new subject.
+ *
+ *    Hence these two rules:
+ *      · on a narrow screen every subject gets the ink rule, also the sections
+ *        drawn as "quiet" (hairline) when wide;
+ *      · a row divider *within* a section is one step lighter than the hairline.
+ *    One dark rule is therefore always a new subject.
+ */
+
+@media (max-width: 1023px) {
+  .ds-section--quiet .ds-section__head {
+    border-bottom-color: var(--n-800);
+  }
+}
+
+/*
+ * The row divider itself. One name instead of a loose borderTop in twenty
+ *    places, so the convention lives in one place and does not drift apart.
+ */
+.row-rule {
+  border-top: 1px solid var(--border-subtle);
+}
+.row-rule:first-child,
+.row-rule--none {
+  border-top: 0;
+}
+
+/*
+ * The hero number scales below sm. Meridian fixes --fs-hero at 68px, but that is
+ *    a size for a wide screen: "€148,401.00" is well over 430px wide at 68px and
+ *    falls off a 390px phone. 13vw keeps it on one line on every device and stays
+ *    simply 68 on a tablet.
+ */
+@media (max-width: 639px) {
+  .ds-hero {
+    font-size: min(var(--fs-hero), 13vw);
+  }
+}
+
+/* Every digit aligns, digit for digit. */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: var(--num-tabular);
+}
+
+/*
+ * Wide tables scroll themselves instead of the page — which counts most on the
+ *    phone this app was built for.
+ */
+.table-scroll {
+  overflow-x: auto;
+  /*
+   * Momentum scrolling on iOS, and a swipe that reaches the end of the table must
+   *      not pass the gesture on to the page (or to the browser's back navigation).
+   */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+/*
+ * Meridian's table: text left, every number right and tabular, one hairline per
+ *    row. No zebra, no vertical lines, no coloured cells.
+ */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  font-feature-settings: var(--num-tabular);
+  white-space: nowrap;
+}
+.data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-page);
+  text-align: left;
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 var(--gutter-dense) var(--sp-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.data-table td {
+  padding: var(--sp-4) var(--gutter-dense);
+  border-bottom: 1px solid var(--border-hairline);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+.data-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.data-table th:first-child,
+.data-table td:first-child {
+  padding-left: 0;
+}
+.data-table th:last-child,
+.data-table td:last-child {
+  padding-right: 0;
+}
+/* Numbers right-aligned, so digits align column-wise. */
+.data-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 639px) {
+  /*
+   * Denser on a phone: these tables are 8 to 11 columns wide and are read
+   *      scrolling sideways, so every millimetre of padding is a column you have to
+   *      swipe for.
+   */
+  .data-table {
+    font-size: var(--fs-xs);
+  }
+  .data-table th,
+  .data-table td {
+    padding: var(--sp-3) var(--sp-4);
+  }
+  /*
+   * The product name is by far the widest cell and inherits the table's nowrap,
+   *      so a fund name of 45 characters pushed every number one and a half swipes
+   *      to the right. Only that column wraps — the numbers each stay on one line,
+   *      and the first one is now in view together with the name.
+   */
+  .data-table th:first-child,
+  .data-table td:first-child {
+    white-space: normal;
+    min-width: 6rem;
+    max-width: 10rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

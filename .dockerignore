@@ -1,0 +1,22 @@
+# For the images built from the repo root (health-tracker's api/ and web/, wealth-tracker/frontend, trackerai/api,
+# trackerai/web): only what they COPY goes in. wealth-tracker's API image still builds from wealth-tracker/ with its own
+# .dockerignore.
+*
+!package.json
+!package-lock.json
+!packages/
+!health-tracker/web/
+!health-tracker/api/
+!health-tracker/tools/
+!health-tracker/scripts/seed_demo.py
+!wealth-tracker/frontend/
+!trackerai/api/requirements.txt
+!trackerai/api/app/
+!trackerai/web/
+**/node_modules/
+**/.next/
+health-tracker/web/out/
+**/__pycache__/
+**/*.tsbuildinfo
+**/.env*
+**/.DS_Store

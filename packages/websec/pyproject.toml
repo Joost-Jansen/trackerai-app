@@ -1,0 +1,17 @@
+[project]
+name = "trackerai-websec"
+version = "0.1.0"
+description = "Web security building blocks for every trackerai backend: client IP, rate limits, headers, CSRF, log redaction, upload guards."
+requires-python = ">=3.11"
+# Starlette comes with FastAPI in both apps; the modules only use it in tests.
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest", "httpx", "fastapi"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["trackerai_websec"]

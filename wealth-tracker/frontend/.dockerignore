@@ -1,0 +1,11 @@
+# Keep the web build context small. node_modules is reinstalled from
+# package-lock.json inside the image (npm ci), and .next would otherwise ship
+# a host-built tree into the builder stage.
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.env*.local
+.DS_Store
+Dockerfile
+.dockerignore

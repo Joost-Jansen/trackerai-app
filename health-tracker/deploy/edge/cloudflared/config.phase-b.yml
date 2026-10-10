@@ -1,0 +1,15 @@
+# Phase B: health-tracker is open to the people you invite (docs/SELF_HOSTING_PLAN.md section 9); stock-tracker stays
+# limited to MCP and the bank callback until its own hardening is done. Turn on in Cloudflare: Always Use HTTPS,
+# minimum TLS 1.2, the managed WAF rules, Bot Fight Mode, and rate-limit rules for /api/login, /api/register and
+# /api/mcp* (the apps' own limits are in memory and reset on a restart).
+tunnel: <TUNNEL-UUID>
+credentials-file: /etc/cloudflared/<TUNNEL-UUID>.json
+no-autoupdate: true
+
+ingress:
+  - hostname: health.example.org
+    service: http://caddy:80
+  - hostname: stocks.example.org
+    path: ^/api/(mcp(/.*)?|connections/enablebanking/callback)$
+    service: http://caddy:80
+  - service: http_status:404

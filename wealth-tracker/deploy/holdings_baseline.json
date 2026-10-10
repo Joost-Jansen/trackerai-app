@@ -1,0 +1,31 @@
+{
+  "_comment": "Holdings counts per source, recorded by check_holdings_sources.py --update-baseline. Refresh after registering a new fund.",
+  "counts": {
+    "index:aex": 30,
+    "index:euro_stoxx_50": 50,
+    "index:msci_acwi": 1682,
+    "index:msci_china": 576,
+    "index:msci_em": 770,
+    "index:msci_em_imi": 2991,
+    "index:msci_europe": 396,
+    "index:msci_india": 165,
+    "index:msci_japan": 168,
+    "index:msci_uk": 66,
+    "index:msci_usa": 527,
+    "index:msci_world": 1279,
+    "index:nasdaq_100": 103,
+    "index:sp500": 503,
+    "index:stoxx_600": 600,
+    "ishares:IE0008471009": 50,
+    "ishares:IE0031442068": 503,
+    "ishares:IE00B1XNHC34": 104,
+    "ishares:IE00B4K48X80": 396,
+    "ishares:IE00B4L5Y983": 1279,
+    "ishares:IE00B4L5YC18": 770,
+    "ishares:IE00B57X3V84": 572,
+    "proxy:NL0009272749": 30,
+    "spdr:IE00BYTRRD19": 134,
+    "vanguard:IE00B3XXRP09": 503,
+    "vanguard:catalog": 178
+  }
+}

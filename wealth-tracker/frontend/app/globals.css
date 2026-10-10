@@ -1,0 +1,20 @@
+/*
+ * wealth-tracker's stylesheet: the shared layers from @trackerai/ui in their order, then its own additions to the
+ * component layer (ds-wealth.css).
+ *
+ *   1. the component layer (ds.css, ds-wealth.css), before Tailwind, so a utility class still wins over a .ds-* class at equal
+ *      specificity;
+ *   2. Tailwind;
+ *   3. the shared tokens and element rules (base.css) and this app's palette (brand-terracotta.css).
+ *
+ * postcss-import (postcss.config.js) inlines these before Tailwind runs, so the order is exactly this.
+ */
+@import "@trackerai/ui/styles/ds.css";
+@import "./ds-wealth.css";
+
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+@import "@trackerai/ui/styles/base.css";
+@import "@trackerai/ui/styles/brand-terracotta.css";

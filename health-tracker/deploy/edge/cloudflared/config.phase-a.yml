@@ -1,0 +1,16 @@
+# Phase A: only what must be public goes through the tunnel; you use both sites over Tailscale.
+#   health-tracker: the MCP endpoint (claude.ai and other assistants connect from the internet)
+#   stock-tracker:  the MCP endpoint and the Enable Banking callback
+# Copy to ./config.yml next to the tunnel's credentials file (cloudflared tunnel create edge).
+tunnel: <TUNNEL-UUID>
+credentials-file: /etc/cloudflared/<TUNNEL-UUID>.json
+no-autoupdate: true
+
+ingress:
+  - hostname: health.example.org
+    path: ^/api/mcp(/.*)?$
+    service: http://caddy:80
+  - hostname: stocks.example.org
+    path: ^/api/(mcp(/.*)?|connections/enablebanking/callback)$
+    service: http://caddy:80
+  - service: http_status:404

@@ -1,0 +1,45 @@
+# The stock-tracker part of the shared edge Caddyfile (health-tracker's
+# deploy/edge, container `edge-caddy` on the docker network "edge").
+# Copy this block into that Caddyfile; replace the hostname.
+#
+# cloudflared (on the same "edge" network) sends every public request here over
+# plain http; Cloudflare terminates TLS. stock-api and stock-web are the
+# container names from this repo's docker-compose.yml.
+#
+# The api trusts forwarding headers only from TRUSTED_PROXIES: set that to the
+# edge network's subnet (e.g. 172.30.0.0/24 when created with
+# `docker network create --subnet 172.30.0.0/24 edge`).
+
+http://stocks.example.org {
+	# Upload limit at the edge too (the api enforces MAX_UPLOAD_MB itself):
+	# five files of 10 MB plus the multipart framing.
+	request_body {
+		max_size 60MB
+	}
+
+	@api path /api/*
+	handle @api {
+		reverse_proxy stock-api:8000
+	}
+	handle {
+		reverse_proxy stock-web:3000
+	}
+}
+
+# Private entrance over Tailscale (Tailscale Serve -> this port on the host).
+# Nobody here comes through Cloudflare, so a CF-Connecting-IP header can only be
+# forged: drop it, and the api counts the request by Caddy's own forwarded address.
+:8445 {
+	request_body {
+		max_size 60MB
+	}
+	@api path /api/*
+	handle @api {
+		reverse_proxy stock-api:8000 {
+			header_up -CF-Connecting-IP
+		}
+	}
+	handle {
+		reverse_proxy stock-web:3000
+	}
+}

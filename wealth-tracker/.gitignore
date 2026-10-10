@@ -1,0 +1,21 @@
+venv/
+.venv/
+uploads/
+# Verankerd op de repo-root. Zonder de schuine streep ervoor matcht "data/"
+# elke map die zo heet, op elke diepte — en dat slikte backend/tests/data/ op,
+# waardoor het golden-bestand van test_benchmark_series_parity.py wel gemaakt
+# maar nooit gecommit werd en vier tests jarenlang op FileNotFoundError stonden.
+# De databases in ./data blijven genegeerd, en *.db hieronder vangt een
+# eventuele losse database elders alsnog af.
+/data/
+auth_config.yaml
+.env
+__pycache__/
+*.pyc
+*.db
+*.cpython-*.pyc
+holdings-canary.log
+.holdings-canary-month
+
+# Het demo-account van scripts/seed_demo.py (README: "Try it locally")
+/demo-data/

@@ -1,0 +1,144 @@
+# wealth-tracker: the backend suite, and the frontend's type check, translation check,
+# script tests and production build, when wealth-tracker/ or packages/ changes.
+name: wealth-tracker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "wealth-tracker/**"
+      - "packages/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".dockerignore"
+      - ".github/workflows/wealth-tracker.yml"
+  pull_request:
+    paths:
+      - "wealth-tracker/**"
+      - "packages/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".dockerignore"
+      - ".github/workflows/wealth-tracker.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    defaults:
+      run:
+        working-directory: wealth-tracker
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # A Postgres for the tests of domain/db.py's Postgres half (step 11.7); the rest of the suite stays on SQLite.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: wealth
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Some day-boundary tests assume the app's time zone, as in the image.
+      TZ: Europe/Amsterdam
+      WEALTH_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/wealth
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            wealth-tracker/requirements.txt
+            wealth-tracker/backend/requirements.txt
+            wealth-tracker/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts
+      - run: python -m pytest backend/tests -q
+
+  backend-postgres:
+    # The same suite with the users' data in Postgres (WEALTH_DATABASE_URL, step 11.7): every test gets schemas of
+    # its own (tests/conftest.py); the few tests about SQLite itself are skipped.
+    defaults:
+      run:
+        working-directory: wealth-tracker
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: wealth
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TZ: Europe/Amsterdam
+      WEALTH_DATABASE_URL: postgresql://postgres:test@localhost:5432/wealth
+      WEALTH_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/wealth
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            wealth-tracker/requirements.txt
+            wealth-tracker/backend/requirements.txt
+            wealth-tracker/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts
+      - run: python -m pytest backend/tests -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: wealth-tracker/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      # One lockfile for the whole workspace, at the repo root.
+      - run: npm ci
+        working-directory: .
+      - run: npx tsc --noEmit -p .
+      - run: npm run check:i18n --workspace @trackerai/ui
+      - run: npm test --workspace @trackerai/ui
+      - run: npm run check:i18n
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+  image:
+    # The image builds from the repo root (the workspace and packages/); a broken COPY shows here, not on deploy.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: wealth-tracker/frontend/Dockerfile
+          push: false
+      # The API image too: it installs the shared account package (packages/accounts) from the repo root.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: wealth-tracker/backend/Dockerfile
+          push: false

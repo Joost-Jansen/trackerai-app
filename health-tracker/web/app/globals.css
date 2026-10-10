@@ -1,0 +1,61 @@
+/*
+ * health-tracker's stylesheet: the shared layers from @trackerai/ui in their order, then what only this app has.
+ *
+ *   1. the component layer (ds.css), before Tailwind, so a utility class still wins over a .ds-* class at equal
+ *      specificity;
+ *   2. Tailwind;
+ *   3. the shared tokens and element rules (base.css) and this app's palette (brand-sage.css).
+ *
+ * postcss-import (postcss.config.js) inlines these before Tailwind runs, so the order is exactly this.
+ */
+@import "@trackerai/ui/styles/ds.css";
+
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+@import "@trackerai/ui/styles/base.css";
+@import "@trackerai/ui/styles/brand-sage.css";
+
+/* ── heart-rate zones (training) ─────────────────────────────────────────────
+   Soft, from cool to warm: Z1 blue-grey, Z2 sage, Z3 sand, Z4 apricot,
+   Z5 soft red. Same order in every chart and on the map. */
+:root {
+  --zone-1: #a9bccb;
+  --zone-2: #8fc09f;
+  --zone-3: #e3c77e;
+  --zone-4: #e8a275;
+  --zone-5: #dc7f82;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --zone-1: #7f97aa;
+    --zone-2: #6fae86;
+    --zone-3: #d2b465;
+    --zone-4: #d98f5f;
+    --zone-5: #cf6d71;
+  }
+}
+:root[data-theme="dark"] {
+  --zone-1: #7f97aa;
+  --zone-2: #6fae86;
+  --zone-3: #d2b465;
+  --zone-4: #d98f5f;
+  --zone-5: #cf6d71;
+}
+
+/* ── map tiles (Leaflet, OpenStreetMap) ─────────────────────────────────
+   OSM tiles are bright. Light: mostly grey, a bit lighter and less contrast,
+   so the soft theme holds and the track and zone colours stand out. Dark:
+   inverted and rotated back in hue (water stays bluish), then muted. The
+   filter sits on the tile layer itself (className of L.tileLayer), so never
+   on lines, dots or tooltips. */
+.map-tiles {
+  filter: grayscale(0.65) brightness(1.06) contrast(0.88);
+}
+.map-tiles--dark {
+  filter: invert(1) hue-rotate(180deg) grayscale(0.7) brightness(0.82) contrast(0.88);
+}
+
+/* Otherwise Leaflet's own light grey background flashes in the dark theme while the tiles load. */
+.leaflet-container { background: var(--surface-sunken); }

@@ -1,0 +1,16 @@
+# Reverse proxy for the new FastAPI + Next.js stack (the "beta" rebuild).
+#
+# Puts the Next.js frontend and the FastAPI backend behind ONE origin, so the
+# browser only ever talks to one host: no CORS configuration needed, and the
+# httpOnly session cookie set by /api/auth/login works same-origin without
+# SameSite=None gymnastics. Listens on plain HTTP inside the compose network
+# — TLS is terminated by the Cloudflare Tunnel in front of this, same as the
+# existing stock-tracker/cloudflared pair (see docker-compose.yml).
+:80 {
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}

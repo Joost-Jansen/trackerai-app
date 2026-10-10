@@ -1,0 +1,7 @@
+/*
+ * trackerai-web's stylesheet: Tailwind's base layer (the element reset the marketing pages are written against) and
+ * the shared tokens and fonts (@trackerai/ui base.css). The pages' own styles are @trackerai/marketing/marketing.css.
+ * No brand palette: trackerai.nl is both trackers'.
+ */
+@import "tailwindcss/base";
+@import "@trackerai/ui/styles/base.css";

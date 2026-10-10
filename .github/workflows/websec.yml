@@ -1,0 +1,33 @@
+# packages/websec: the web security building blocks of every backend (CSRF, headers, rate limits, uploads, ...).
+name: websec
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/websec/**"
+      - ".github/workflows/websec.yml"
+  pull_request:
+    paths:
+      - "packages/websec/**"
+      - ".github/workflows/websec.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -e "packages/websec[test]"
+      - run: python -m pytest -q packages/websec/tests

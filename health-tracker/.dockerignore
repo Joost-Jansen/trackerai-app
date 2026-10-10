@@ -1,0 +1,10 @@
+# Only for builds with health-tracker/ as context (Dockerfile.sync); the main image builds from the repo root (../.dockerignore).
+.git
+.venv
+.env.dev
+.dev-credentials
+**/__pycache__
+.pytest_cache
+web/node_modules
+web/.next
+web/out

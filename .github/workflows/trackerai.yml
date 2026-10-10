@@ -1,0 +1,53 @@
+# trackerai: the API behind trackerai.nl (trackerai/api) and its image, when it or a package it installs changes.
+name: trackerai
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "trackerai/**"
+      - "packages/accounts/**"
+      - "packages/websec/**"
+      - ".dockerignore"
+      - ".github/workflows/trackerai.yml"
+  pull_request:
+    paths:
+      - "trackerai/**"
+      - "packages/accounts/**"
+      - "packages/websec/**"
+      - ".dockerignore"
+      - ".github/workflows/trackerai.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r trackerai/api/requirements-dev.txt packages/accounts packages/websec
+      - run: python -m pytest -q
+        working-directory: trackerai/api
+
+  image:
+    # The image builds from the repo root (packages/); a broken COPY shows here, not on deploy.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: trackerai/api/Dockerfile
+          push: false

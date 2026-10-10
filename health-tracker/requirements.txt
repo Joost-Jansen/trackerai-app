@@ -1,0 +1,7 @@
+# The optional sync cron image (Dockerfile.sync); same pins as api/requirements.txt.
+garminconnect==0.3.2
+requests==2.34.2
+fitdecode==0.11.0
+SQLAlchemy==2.1.3
+psycopg[binary]==3.3.6
+cryptography==49.0.0

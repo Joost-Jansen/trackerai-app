@@ -1,0 +1,20 @@
+# Dependencies of the domain modules in the repo root — database.py, portfolio.py,
+# charts.py, etf_holdings.py, issuer_holdings.py, the two parsers and
+# manage_users.py. These are shared with the FastAPI backend, which pulls this
+# file in from backend/requirements.txt.
+#
+# This was the Streamlit app's requirements file. That app (app.py, auth.py) is
+# retired and deleted, so streamlit, streamlit-authenticator and plotly went with
+# it: nothing renders in Python any more — the frontend draws every chart from
+# data. See CHART_MIGRATION_PLAN.md.
+#
+# Pinned to exact versions for reproducible, reviewable installs (all have
+# wheels for x86-64 and arm64, Python 3.11-3.13). Upgrade deliberately: bump a
+# version here, run the tests (CI does), deploy.
+pandas==3.0.6
+openpyxl==3.1.5   # required by pandas to read DeGiro .xlsx exports
+defusedxml==0.7.1 # openpyxl parses the xlsx XML with it when installed (no entity tricks)
+yfinance==1.7.0
+requests==2.34.2
+bcrypt==5.0.0     # manage_users.py hashes with it, as backend/app/core/security.py does
+regex==2026.9.29  # labelling-rule patterns run with a timeout (domain/money/safe_regex.py)

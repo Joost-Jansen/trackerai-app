@@ -1,0 +1,97 @@
+# health-tracker: a backend and a frontend job when health-tracker/ or packages/ changes.
+name: health-tracker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "health-tracker/**"
+      - "packages/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".dockerignore"
+      - ".github/workflows/health-tracker.yml"
+  pull_request:
+    paths:
+      - "health-tracker/**"
+      - "packages/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".dockerignore"
+      - ".github/workflows/health-tracker.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    defaults:
+      run:
+        working-directory: health-tracker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            health-tracker/requirements-dev.txt
+            health-tracker/requirements.txt
+            health-tracker/api/requirements.txt
+      - name: Install
+        run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts
+      # A clean environment: tests/test_web_requirements.py checks that the API image's api/requirements.txt has
+      # everything the app imports (it only fails locally when other packages happen to be installed).
+      - name: Tests
+        run: python -m pytest -q tests
+
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: health-tracker/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      # One lockfile for the whole workspace, at the repo root.
+      - run: npm ci
+        working-directory: .
+      - name: Type check
+        run: npx tsc --noEmit -p .
+      - name: Translations (shared package)
+        run: npm run check:i18n --workspace @trackerai/ui
+      - name: Shared UI tests
+        run: npm test --workspace @trackerai/ui
+      - name: Translations
+        run: npm run check:i18n
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+  image:
+    # The images build from the repo root (the workspace and packages/); a broken COPY shows here, not on deploy.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        file: [health-tracker/api/Dockerfile, health-tracker/web/Dockerfile]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          push: false

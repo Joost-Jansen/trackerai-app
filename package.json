@@ -1,0 +1,11 @@
+{
+  "name": "trackerai",
+  "private": true,
+  "description": "trackerai.nl, health-tracker and wealth-tracker with their shared packages; one npm workspace and one lockfile.",
+  "workspaces": [
+    "health-tracker/web",
+    "wealth-tracker/frontend",
+    "trackerai/web",
+    "packages/*"
+  ]
+}

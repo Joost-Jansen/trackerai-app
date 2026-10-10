@@ -1,0 +1,150 @@
+# stock-tracker (and wealth-tracker) in Docker: the FastAPI `api` and the
+# Next.js `web`. Nothing is published on the host by default.
+#
+# Two ways to run it (docs/SELF_HOSTING.md, docs/DEPLOY.md):
+#
+#   Mini PC, behind the shared edge (default). api and web join the external
+#   docker network "edge", where the shared Caddy (container `edge-caddy`, from
+#   health-tracker's deploy/edge) routes /api/* to stock-api:8000 and the rest
+#   to stock-web:3000, and the shared cloudflared tunnel reaches that Caddy.
+#   Builds on the box itself:
+#       docker network create --subnet 172.30.0.0/24 edge   # once, shared
+#       docker compose up -d --build
+#
+#   The original Raspberry Pi setup (profile "pi"): its own Caddy (beta-proxy,
+#   127.0.0.1:8502 for Tailscale Serve) and its own Cloudflare Tunnel. Images
+#   are built on a Mac and shipped (deploy/deploy.sh); the Pi never builds:
+#       docker compose --profile pi up -d --no-build api web beta-proxy
+#   (deploy/update.sh; the tunnel container is started on its own, once.)
+#   The Pi needs the "edge" network too (`docker network create edge`, once),
+#   or EDGE_NETWORK set to another existing network.
+#
+# Persistent state is the bind-mounted ./data folder: per-user SQLite
+# databases, feedback.db, the audit log and auth_config.yaml (moved into
+# ./data so it can be written atomically; see docs/DEPLOY.md for the one-line
+# migration from the old single-file mount).
+#
+# Secrets and settings come from .env (see .env.example); never commit it.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  api:
+    build:
+      # The trackerai repository root, for the shared packages/ (packages/accounts).
+      context: ..
+      dockerfile: wealth-tracker/backend/Dockerfile
+    image: stock-tracker-api:${IMAGE_TAG:-local}
+    container_name: stock-api
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+    environment:
+      DATA_DIR: /app/data
+      AUTH_CONFIG_PATH: /app/data/auth_config.yaml
+      # Required secrets
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?set APP_ENCRYPTION_KEY in .env (docs/SELF_HOSTING.md)}
+      # Public URL and proxy
+      PUBLIC_ORIGINS: ${PUBLIC_ORIGINS:-}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      # Privacy
+      PRIVACY_CONTROLLER: ${PRIVACY_CONTROLLER:-}
+      PRIVACY_CONTACT: ${PRIVACY_CONTACT:-}
+      # Limits
+      SESSION_DAYS: ${SESSION_DAYS:-30}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+      UPLOAD_RETENTION_DAYS: ${UPLOAD_RETENTION_DAYS:-0}
+      # Integrations
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+      ALPHAVANTAGE_API_KEY: ${ALPHAVANTAGE_API_KEY:-}
+      OPENFIGI_API_KEY: ${OPENFIGI_API_KEY:-}
+      NTFY_TOPIC_URL: ${NTFY_TOPIC_URL:-}
+      ENABLEBANKING_API_URL: ${ENABLEBANKING_API_URL:-}
+      # Only for the very first start on an empty ./data (core/bootstrap.py).
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Timestamps in local time (the image carries tzdata).
+      TZ: ${TZ:-Europe/Amsterdam}
+      # Keep every account's prices current while the market is open.
+      PRICE_REFRESH: "on"
+    expose:
+      - "8000"
+    # A ceiling so a bad day here is not a bad day for the rest of the box.
+    # Imports read whole spreadsheets into pandas; 1g leaves room for that.
+    # On the 1.3 GB Pi set API_MEM_LIMIT=512m in .env.
+    mem_limit: ${API_MEM_LIMIT:-1g}
+    cpus: 1.5
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').getcode()==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    networks:
+      - default
+      - edge
+    logging: *logging
+
+  web:
+    build:
+      # The repo root: the npm workspace and packages/.
+      context: ..
+      dockerfile: wealth-tracker/frontend/Dockerfile
+      args:
+        # Not used behind Caddy (it routes /api/* itself); for a setup without it.
+        API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8000}
+    image: stock-tracker-web:${IMAGE_TAG:-local}
+    container_name: stock-web
+    restart: unless-stopped
+    expose:
+      - "3000"
+    mem_limit: ${WEB_MEM_LIMIT:-512m}
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/login',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    networks:
+      - default
+      - edge
+    logging: *logging
+
+  # --- The original Raspberry Pi setup only (profile "pi") -------------------
+  # Its own proxy on 127.0.0.1:8502 (Tailscale Serve) and its own tunnel. On
+  # the mini PC the shared edge does both; leave these off there.
+  beta-proxy:
+    profiles: ["pi"]
+    image: caddy:${CADDY_VERSION:-2.11.7}-alpine
+    container_name: stock-tracker-beta-proxy
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8502:80"
+    volumes:
+      - ./deploy/Caddyfile.beta:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - api
+      - web
+    logging: *logging
+
+  cloudflared:
+    profiles: ["pi"]
+    image: cloudflare/cloudflared:${CLOUDFLARED_VERSION:-2026.10.0}
+    container_name: cloudflared-stock-tracker
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:-}
+    depends_on:
+      - beta-proxy
+    logging: *logging
+
+networks:
+  edge:
+    external: true
+    name: ${EDGE_NETWORK:-edge}

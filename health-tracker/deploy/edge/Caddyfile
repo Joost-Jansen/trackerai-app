@@ -1,0 +1,118 @@
+# The shared edge: routes by hostname to health-tracker and stock-tracker, limits request bodies per path, keeps MCP
+# tokens out of the access log. Container names are placeholders, see docker-compose.yml next to this file.
+#
+# Listeners:
+#   :80    only cloudflared reaches it (the Cloudflare Tunnel; Cloudflare sets CF-Connecting-IP to the visitor)
+#   :8081  health-tracker over Tailscale  (`tailscale serve` on the host -> 127.0.0.1:8081)
+#   :8082  stock-tracker over Tailscale   (-> 127.0.0.1:8082)
+# On the Tailscale listeners nobody vouches for CF-Connecting-IP, so Caddy OVERWRITES it with the address it sees;
+# otherwise anyone on the tailnet could set the header and dodge the apps' per-IP limits. The apps trust the header
+# only from this Caddy (TRUSTED_PROXIES=172.30.0.10).
+#
+# TLS ends at Cloudflare and at Tailscale; inside the docker network Caddy speaks plain http (auto_https off). The
+# apps set their own security headers (per-page CSP from each web app); Caddy only drops its Server header.
+{
+	auto_https off
+	admin 127.0.0.1:2019
+	servers {
+		# Requests come from cloudflared or tailscale serve: the client address is in their headers, not the socket.
+		trusted_proxies static 172.30.0.0/24 127.0.0.1/32
+	}
+}
+
+# --- health-tracker ----------------------------------------------------------------------------------------------
+
+(health) {
+	log {
+		output stdout
+		format json
+	}
+	# The token of /api/mcp/<token> is a password: no access log line for those paths.
+	log_skip /api/mcp/*
+	header -Server
+
+	# Body limits per path, a little above the app's own (api/main.py BodyLimitMiddleware):
+	handle /api/apple/upload/* {
+		request_body {
+			max_size 40MB
+		}
+		reverse_proxy health-api:8000
+	}
+	handle /api/apple/import {
+		# the single-request upload: over the tunnel Cloudflare stops it at 100 MB anyway; Tailscale has no such cap
+		request_body {
+			max_size 2100MB
+		}
+		reverse_proxy health-api:8000
+	}
+	handle /api/activities/upload {
+		request_body {
+			max_size 30MB
+		}
+		reverse_proxy health-api:8000
+	}
+	# the rest of the API, and the OAuth metadata agents read
+	@api path /api/* /.well-known/*
+	handle @api {
+		request_body {
+			max_size 8MB
+		}
+		reverse_proxy health-api:8000
+	}
+	handle {
+		request_body {
+			max_size 1MB
+		}
+		reverse_proxy health-web:3000
+	}
+}
+
+# --- stock-tracker -----------------------------------------------------------------------------------------------
+
+(stocks) {
+	log {
+		output stdout
+		format json
+	}
+	log_skip /api/mcp/*
+	log_skip /api/mcp
+	header -Server
+
+	handle /api/* {
+		request_body {
+			max_size 15MB
+		}
+		reverse_proxy stock-api:8000
+	}
+	handle {
+		request_body {
+			max_size 1MB
+		}
+		reverse_proxy stock-web:3000
+	}
+}
+
+# --- the tunnel (cloudflared -> caddy:80) ------------------------------------------------------------------------
+
+http://health.{$DOMAIN}:80 {
+	import health
+}
+
+# wealth-tracker's web serves both the app and the front door.
+http://wealth.{$DOMAIN}:80, http://{$DOMAIN}:80, http://www.{$DOMAIN}:80 {
+	import stocks
+}
+
+# --- Tailscale (tailscale serve on the host -> 127.0.0.1:8081 / :8082) -----------------------------------------------
+
+http://:8081 {
+	request_header CF-Connecting-IP {remote_host}
+	request_header -X-Forwarded-For
+	import health
+}
+
+http://:8082 {
+	request_header CF-Connecting-IP {remote_host}
+	request_header -X-Forwarded-For
+	import stocks
+}

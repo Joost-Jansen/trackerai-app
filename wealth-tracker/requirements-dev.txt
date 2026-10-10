@@ -1,0 +1,8 @@
+# Development/test-only dependencies (not needed to run the app itself).
+-r backend/requirements.txt
+pytest==9.1.1
+# starlette.testclient imports this at module level, so without it every test
+# that takes the `client` fixture fails at collection — backend/tests/conftest.py
+# imports TestClient before any test runs. Test-only: the app itself never
+# makes outgoing HTTP through it.
+httpx2==2.13.1

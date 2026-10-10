@@ -1,0 +1,42 @@
+# For backend/Dockerfile, built from the trackerai repository root: wealth-tracker/
+# (as the API's /app) and the shared Python packages. Never state or secrets.
+*
+!wealth-tracker/
+!packages/accounts/
+!packages/websec/
+packages/*/*.egg-info/
+
+**/.git/
+**/venv/
+**/node_modules/
+**/.next/
+**/*.tsbuildinfo
+**/__pycache__/
+**/*.pyc
+**/.DS_Store
+**/.pytest_cache/
+
+# The frontend has its own image (frontend/Dockerfile).
+wealth-tracker/frontend/
+
+# Persistent state + secrets: provided via volumes/env, not the image.
+wealth-tracker/data/
+wealth-tracker/uploads/
+wealth-tracker/auth_config.yaml
+**/.env
+**/.env.*
+!wealth-tracker/.env.example
+**/*.db
+wealth-tracker/demo-data/
+wealth-tracker/holdings-canary.log
+wealth-tracker/.holdings-canary-month
+wealth-tracker/.github/
+
+# Not needed inside the image.
+wealth-tracker/docs/
+wealth-tracker/README.md
+wealth-tracker/deploy/
+
+# ...except the holdings canary, which runs inside the api container (deploy/holdings-canary.sh).
+!wealth-tracker/deploy/check_holdings_sources.py
+!wealth-tracker/deploy/holdings_baseline.json
