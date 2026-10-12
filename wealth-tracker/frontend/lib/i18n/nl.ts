@@ -1564,6 +1564,7 @@ export const nl: Record<string, string> = {
   "Too little history for a pattern yet": "Nog te weinig historie voor een patroon",
   "Top 5 in ETF's": "Top-5 in ETF's",
   "Total": "Totaal",
+  "over these {0} months": "over deze {0} maanden",
   "Total (€)": "Totaal (€)",
   "Total P/L": "Totale W/V",
   "Total return": "Totaalrendement",
