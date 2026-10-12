@@ -315,10 +315,14 @@ def fetch(conn: sqlite3.Connection, *, http=None, today: date | None = None,
             report["errors"].append(tr("The consent at {0} has expired; give consent again.", t['bank']))
             continue
         try:
-            for link in conn.execute("SELECT * FROM bank_consent_accounts WHERE consent_id = ?",
-                                       (t["id"],)).fetchall():
+            links = conn.execute("SELECT * FROM bank_consent_accounts WHERE consent_id = ?", (t["id"],)).fetchall()
+            # A consent that reads nothing must say so: "0 new" would look like a bank without news.
+            if not links:
+                report["errors"].append(tr("{0}: no accounts are linked to this consent; give consent again.", t["bank"]))
+            for link in links:
                 account = accounts.load_account(conn, link["account_id"])
                 if account is None:
+                    report["errors"].append(tr("{0}: a linked account no longer exists here; give consent again.", t["bank"]))
                     continue
                 last = conn.execute("SELECT MAX(date) FROM bank_transactions WHERE account_id = ?",
                                        (account["id"],)).fetchone()[0]
@@ -333,6 +337,10 @@ def fetch(conn: sqlite3.Connection, *, http=None, today: date | None = None,
                 if balance:
                     accounts.set_balance(conn, account["id"], balance[0], balance[1], source="sync")
                     report["balances"] += 1
+                # Counts only, never amounts or descriptions: enough to see where a fetch stopped.
+                print(f"[bank-fetch] {t['bank']} ···{(account['iban'] or link['account_uid'])[-4:]}: since {from_date} "
+                      f"{len(raw)} from the bank, {len(rules)} readable, {len(new)} on or after the last day, {saved} new, "
+                      f"balance {'yes' if balance else 'no'}", flush=True)
                 # A balance fetched earlier that counted payments that were still pending then
                 # and are booked now: correct it.
                 accounts.restore_pending(conn, account["id"])
@@ -342,6 +350,7 @@ def fetch(conn: sqlite3.Connection, *, http=None, today: date | None = None,
         except enablebanking.ErrorNote as e:
             conn.execute("UPDATE bank_consents SET error = ? WHERE id = ?", (str(e)[:500], t["id"]))
             report["errors"].append(f"{t['bank']}: {e}")
+            print(f"[bank-fetch] {t['bank']}: {e}", flush=True)
     conn.commit()
 
     categorization.seed(conn)

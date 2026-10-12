@@ -121,6 +121,8 @@ NL: dict[str, str] = {
     "The app relies on how “{0}” counts; it can't be changed.": "De app rekent erop hoe “{0}” telt; dat kan niet veranderen.",
     "The benchmark prices could not be fetched from Yahoo Finance. Try again in a few minutes.": "De benchmarkkoersen konden niet bij Yahoo Finance worden opgehaald. Probeer het over een paar minuten opnieuw.",
     "The consent at {0} has expired; give consent again.": "De toestemming bij {0} is verlopen; geef opnieuw toestemming.",
+    "{0}: no accounts are linked to this consent; give consent again.": "{0}: aan deze toestemming hangt geen rekening; geef opnieuw toestemming.",
+    "{0}: a linked account no longer exists here; give consent again.": "{0}: een gekoppelde rekening bestaat hier niet meer; geef opnieuw toestemming.",
     "The same name as on your transfers between your own accounts.": "Dezelfde naam als bij je overboekingen tussen eigen rekeningen.",
     "There is already a category called '{0}'.": "Er is al een categorie die '{0}' heet.",
     "There is already a category ‘{0}’.": "Er is al een categorie ‘{0}’.",

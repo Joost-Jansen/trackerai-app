@@ -216,6 +216,20 @@ def test_fetching_again_duplicates_nothing(captured_state, pem, bank):
     assert client.post("/api/connections/enablebanking/fetch").json()["added"] == 0
 
 
+def test_a_fetch_that_reads_no_account_says_so(captured_state, pem, bank):
+    """An account deleted here while its consent stays (its link goes with it): not "0 new" as if the bank had
+    nothing, but an error."""
+    client = captured_state
+    _login(client)
+    _set_up(client, pem)
+    _link(client)
+    account = next(x for x in client.get("/api/accounts").json()["accounts"] if x["iban"] == IBAN)
+    assert client.delete(f"/api/accounts/{account['id']}").status_code == 200
+    report = client.post("/api/connections/enablebanking/fetch").json()
+    assert report["accounts"] == 0 and report["added"] == 0
+    assert len(report["errors"]) == 1 and report["errors"][0].startswith("Voorbeeldbank: ")
+
+
 def test_next_to_an_earlier_csv_import_nothing_doubles(captured_state, pem, bank):
     """First an export uploaded up to and including the 2nd, then connected: the 2nd
     itself does not come in again, what came after does.
