@@ -106,7 +106,8 @@ def test_the_overview_has_betas_measure_and_accounts(admin):
 def test_weekly_is_twelve_iso_weeks_zero_filled(admin):
     today = date.today()
     monday = today - timedelta(days=today.weekday())
-    _bank("bob", today, monday, monday - timedelta(weeks=7) + timedelta(days=3), monday - timedelta(weeks=20))
+    # dict.fromkeys: on a Monday, today and this Monday are one day, so one row
+    _bank("bob", *dict.fromkeys([today, monday, monday - timedelta(weeks=7) + timedelta(days=3), monday - timedelta(weeks=20)]))
     _bank("alice", monday - timedelta(weeks=11))
     weekly = admin.get("/api/admin/tracker").json()["weekly"]
     assert [w["week"] for w in weekly] == [(monday - timedelta(weeks=n)).isoformat() for n in range(11, -1, -1)]
