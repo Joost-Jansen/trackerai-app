@@ -177,6 +177,16 @@ export default function NetWorthPage() {
   // A year at a time: more only when the period holds more and you ask for it.
   const inView = allMonths ? newestFirst : newestFirst.slice(0, MONTHS_IN_VIEW);
   const hasSplit = inView.some((r) => r.split !== null && r.split.saved !== null);
+  // The months in view added up: what the change and each of its parts came to over them (the running month included).
+  const sum = (pick: (r: (typeof inView)[number]) => number | null | undefined) => {
+    const values = inView.map(pick).filter((v): v is number => v != null);
+    return values.length > 0 ? values.reduce((s, v) => s + v, 0) : null;
+  };
+  const totals = {
+    months: inView.filter((r) => r.difference !== null).length,
+    change: sum((r) => r.difference),
+    parts: [sum((r) => r.split?.saved), sum((r) => r.split?.market), sum((r) => r.split?.bank), sum((r) => r.split?.debt)],
+  };
   // The transactions behind a number: that month, those categories. Market and
   // Debt have none (holdings and debt balances), so they get no link. Bank & cash
   // leaves out the internal categories whose other side is elsewhere in net worth
@@ -520,6 +530,25 @@ export default function NetWorthPage() {
                   </Fragment>
                 ))}
               </tbody>
+              {totals.months > 1 && totals.change !== null && (
+                <tfoot>
+                  <tr style={{ borderTop: "1px solid var(--border-strong)" }}>
+                    <td className="py-1.5 font-semibold">
+                      {tr("Total")}
+                      <span className="block text-xs font-normal text-ink-muted">{trx("over these {0} months", totals.months)}</span>
+                    </td>
+                    <td />
+                    <td className="num whitespace-nowrap py-1.5 text-right font-semibold" style={TONE(totals.change)}>{SIGNED(totals.change)}</td>
+                    {hasSplit ? (
+                      totals.parts.map((v, k) => (
+                        <td key={k} className="num whitespace-nowrap py-1.5 text-right font-semibold" style={TONE(v)}>{v === null ? "–" : SIGNED(v)}</td>
+                      ))
+                    ) : (
+                      <><td /><td /></>
+                    )}
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
           {newestFirst.length > MONTHS_IN_VIEW && (
