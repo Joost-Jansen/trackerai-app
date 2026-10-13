@@ -83,6 +83,7 @@ READ_TOOLS = [
 ]
 
 WRITE_TOOLS = [
+    {"name": "refresh_data", "description": "Fetch today's figures, as the Update button in the app does: refresh every price, and fetch new transactions and balances through the bank connection when the user has one. Takes up to a minute. Use it before an answer that depends on today's numbers when prices or bank data look old (get_overview shows prices_of).", "inputSchema": _obj()},
     {"name": "label_transactions", "description": "Give transactions a category, by hand: it wins over the rules. Leaving it empty (category null) puts them back to what the rules find. Use list_categories for the valid names.", "inputSchema": _obj({
         "ids": {"type": "array", "items": {"type": "integer"}, "description": "Transaction ids"},
         "category": {"type": ["string", "null"], "description": "Existing category, or null"},
@@ -184,7 +185,7 @@ def feedback_md(items: list[dict]) -> str:
 
 def instructions(scope: str) -> str:
     rights = (
-        "You may read and write: label transactions, set budgets, add and delete labelling rules, change categories (name, group, type), the month layout, the shared-costs category and fixed costs, enter and delete balances and add transactions. Only do that when the user asks for it, and say what you changed."
+        "You may read and write: refresh prices and bank data (refresh_data), label transactions, set budgets, add and delete labelling rules, change categories (name, group, type), the month layout, the shared-costs category and fixed costs, enter and delete balances and add transactions. Only do that when the user asks for it, and say what you changed."
         if scope == "write" else
         "You may only read; this token cannot change anything."
     )
@@ -546,6 +547,15 @@ class Server:
             })
 
         # --- write (scope bijhouden) ----------------------------------------
+
+        if name == "refresh_data":
+            out: dict = {}
+            for part, path in (("prices", "/api/prices/refresh"), ("bank", "/api/connections/enablebanking/fetch")):
+                try:
+                    out[part] = await self._api("POST", path)
+                except ToolError as e:  # no bank connection, Money off, a bank that refuses: say so, keep the rest
+                    out[part] = {"error": str(e)}
+            return _dump(out)
 
         if name == "label_transactions":
             ids = [int(i) for i in args.get("ids") or []]

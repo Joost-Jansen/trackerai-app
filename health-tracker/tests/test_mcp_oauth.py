@@ -32,11 +32,11 @@ def test_read_only_health_and_revocation(engine, tmp_path):
     client, accounts, token, gid = health(engine, tmp_path)
     tools = rpc(client, 'tools/list').json()['result']['tools']
     names = {t['name'] for t in tools}
-    assert 'list_activities' in names and not {'add_log', 'create_plan', 'update_doc', 'list_feedback'} & names
+    assert 'list_activities' in names and not {'add_log', 'create_plan', 'update_doc', 'list_feedback', 'sync_now'} & names
     assert all(t['securitySchemes'] == [{'type': 'oauth2', 'scopes': ['health:read']}] for t in tools)
     read = rpc(client, 'tools/call', name='list_activities', arguments={}).json()['result']
     assert not read['isError'] and 'Ochtendloop' in read['content'][0]['text']
-    for name in ['add_log', 'create_plan', 'replace_plan_sessions', 'set_plan_status', 'update_doc']:
+    for name in ['add_log', 'create_plan', 'replace_plan_sessions', 'set_plan_status', 'update_doc', 'sync_now']:
         assert rpc(client, 'tools/call', name=name, arguments={}).json()['result']['isError']
     assert client.get('/api/me').status_code == 403
     assert client.post('/api/mcp/' + token, json={}).status_code == 401

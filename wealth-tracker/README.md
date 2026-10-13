@@ -325,7 +325,8 @@ worth page, `net_worth.split` in `backend/domain/money/net_worth.py` mirrors `fr
 `get_spending`, `get_budget`, `list_transactions`, `get_unlabelled`, `list_categories` (with type, role and locks),
 `get_fixed_costs`, `get_settings` (month layout, shared-costs category), `list_accounts`.
 
-With the bookkeeping scope also: `label_transactions`, `set_budget`, `add_category_rule`, `delete_rule`,
+With the bookkeeping scope also: `refresh_data` (refreshes prices and fetches through the bank connection, as the
+Update button does; the connection itself stays browser-only), `label_transactions`, `set_budget`, `add_category_rule`, `delete_rule`,
 `set_category_type`, `rename_category`, `move_category`, `set_month_layout`, `set_shared_costs_category`,
 `set_fixed_cost`, `set_balance` and `add_transaction` (positive amount = expense, negative = income). Each tool calls the existing endpoint in-process with the
 token, so the same per-account isolation and beta flags apply. Only a SHA-256 of a token is stored; account numbers
