@@ -22,7 +22,7 @@ from trackerai_accounts import Accounts, Config, connect as connect_accounts, cr
 from trackerai_accounts import open_accounts, session as account_session
 from trackerai_accounts.config import front_door_origins
 
-from api import account, agent_tokens, apple, connections, daily, errors, example, feedback, mcp, onboarding, routes_api, settings_api, tracker_admin, uploads, users, zones_api
+from api import account, agent_tokens, apple, connections, daily, errors, example, feedback, gear, mcp, onboarding, routes_api, settings_api, tracker_admin, uploads, users, zones_api
 from trackerai_websec import log_redact
 from trackerai_websec.csrf import OriginCheckMiddleware
 from trackerai_websec.headers import SecurityHeadersMiddleware
@@ -227,6 +227,9 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
         out = activity_detail(activity_id, s.activities, s.streams, s.zones, s.routes)
         if out is None:
             raise ApiError(404, "activity_not_found")
+        links = db.gear_links(u.scope)
+        out["gear"] = gear.gear_of(links, db.list_gear(u.scope), activity_id)
+        out["gear_chosen"] = activity_id in (db.get_setting(u.scope, db.GEAR_NONE_KEY) or []) or any(x["source"] == "manual" for x in out["gear"])
         return out
 
     @app.patch("/api/activities/{activity_id}")
@@ -263,6 +266,7 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
     app.include_router(apple.make_router(current_user, app.state.apple))
     app.include_router(onboarding.make_router(current_user, runner, app.state.apple))
     app.include_router(account.make_router(current_user))
+    app.include_router(gear.make_router(current_user, today))
     app.include_router(feedback.make_router(engine, accounts, current_user))
     app.include_router(tracker_admin.make_router(engine, accounts, current_user, today))
     app.include_router(mcp.make_router(today, current_user, token_user, guards, accounts, runner))

@@ -64,7 +64,8 @@ def derive(scope: db.Scope) -> dict:
         candidates += asks
     db.save_routes(scope, routes)
     db.set_setting(scope, "route_candidates", {"candidates": candidates})
-    return {"zones_updated": changed, "routes": counts, "candidates": len(candidates)}
+    gear = db.apply_gear_defaults(scope)  # new activities get the default gear of their sport
+    return {"zones_updated": changed, "routes": counts, "candidates": len(candidates), "gear_defaults": gear}
 
 
 if __name__ == "__main__":

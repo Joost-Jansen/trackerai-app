@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 from api.errors import ApiError
+from api.gear import gear_of, overview as gear_overview
 from trackerai_accounts.oauth import OAuth, PREFIX
 from api.dashboard import build_dashboard, today_form_pct, today_tsb
 from api.daily import as_markdown as day_md, day_view
@@ -84,6 +85,7 @@ TOOLS = [
         "gemiddeld, laatste 2 uur slaap tegen de rest) en een tabel per half uur met hartslag, stress, Body Battery, ademhaling, SpO2 en slaapfase.",
         "inputSchema": {"type": "object", "properties": {"day": _str("YYYY-MM-DD, de dag waarop je wakker werd; standaard de laatste dag met data")}},
     },
+    {"name": "list_gear", "description": "Materiaal (schoenen, fiets, ...): kilometers, limiet om te vervangen, status (ok, soon = bijna, replace = vervangen, retired = buiten gebruik), laatst gebruikt, km laatste 30 dagen en voor welke sport het de standaard is. Uit Garmin of zelf toegevoegd.", "inputSchema": {"type": "object", "properties": {}}},
     {"name": "get_trends", "description": "Vorm (CTL/ATL/TSB, laatste 60 dagen), volume per week, tempo in Z2, VO2max, herstel per week, records, wedstrijden, voorspelde wedstrijdtijden en inzichten.", "inputSchema": {"type": "object", "properties": {}}},
     {"name": "get_plan", "description": "Het actieve trainingsschema als tabel, per sessie met status (gedaan, gemist, vandaag, gepland, rust), wat er gedaan is en een voorgesteld rondje. Een activiteit tot 2 dagen voor of na een open sessie van dezelfde sport telt voor die sessie; Gedaan km per week telt alle activiteiten van de sporten in het schema.", "inputSchema": {"type": "object", "properties": {}}},
     {
@@ -238,6 +240,18 @@ def activity_md(a: dict) -> str:
     return "\n".join(out)
 
 
+GEAR_STATE_NL = {"ok": "ok", "soon": "bijna vervangen", "replace": "vervangen", "retired": "buiten gebruik"}
+
+
+def gear_md(items: list[dict]) -> str:
+    if not items:
+        return "Geen materiaal. Garmin-materiaal komt mee met de sync; zelf toevoegen kan op de site onder Historie, Materiaal."
+    out = ["| Id | Naam | Soort | km | Limiet | Status | Laatst | km 30 d | Standaard voor | Bron |", "|---|---|---|---|---|---|---|---|---|---|"]
+    out += [f"| {g['id']} | {g['name']} | {g['kind']} | {g['total_km']} | {g['limit_km'] or '-'} | {GEAR_STATE_NL[g['state']]} | {g['last_used'] or '-'} | "
+            f"{g['km_30d']} | {', '.join(g['default_for']) or '-'} | {g['source']} |" for g in items]
+    return "\n".join(out)
+
+
 def plan_md(plan: dict | None) -> str:
     if not plan:
         return "Geen actief schema."
@@ -340,7 +354,10 @@ class Server:
             a = activity_detail(str(args.get("id", "")), s.activities, s.streams, s.zones, s.routes)
             if a is None:
                 raise ToolError(f"Activiteit {args.get('id')} niet gevonden; gebruik list_activities voor de ids.")
-            return activity_md(a)
+            used = gear_of(db.gear_links(self.engine), db.list_gear(self.engine), a["id"])
+            return activity_md(a) + (f"\nMateriaal: {', '.join(g['name'] for g in used)}" if used else "")
+        if name == "list_gear":
+            return gear_md(gear_overview(self.engine, s.activities, today)["gear"])
         if name == "get_day":
             try:
                 day = date.fromisoformat(args["day"]) if args.get("day") else None

@@ -212,6 +212,10 @@ More (types in `web/lib/training.ts`):
 | GET | `/api/routes?sport=run\|ride`, `/api/routes/suggest?km=&sport=&tolerance=&start=`, GET/PATCH `/api/routes/{id}` | routes (`r<n>` runs, `f<n>` rides; `median_pace` for runs, `median_speed_kmh` for rides) and suggestions of one sport (`km` ≤ 300); summaries include `distance_variants` |
 | GET | `/api/routes/candidates?sport=run\|ride` | `{candidates: [{sport, outcome: same\|candidate, confidence, reason_code, reason, a, b}], last_sync}`; each side `{id, kind: route\|activity, name, distance_km, runs, last_run?\|date?, track (≤ 150 points)}`; answered pairs are left out |
 | POST | `/api/routes/candidates` | body `{a, b, same}`; records the decision (setting `route_decisions`), applies a merge right away; returns `{applied, applied_on_next_sync, route, remaining}`; 404 if the pair is not open |
+| GET | `/api/gear` | `{gear: Gear[], defaults: {sport: gear_id}, sports}` (api/gear.py, `web/lib/gear.ts`); per item `total_km` = `start_km` + what Garmin counted on activities not here + the linked activities, `limit_km` (`limit_from: own\|garmin\|default`, 700 km for shoes), `state: ok\|soon\|replace\|retired` (soon from 85%), uses, first/last use, km in 30 days; sorted by what needs attention |
+| POST/PATCH/DELETE | `/api/gear`, `/api/gear/{id}` | `{kind: shoes\|bike\|other, name, brand?, model?, start_km?, max_km?, since?, retired_on?, notes?, default_for?: sports}` (one default per sport: the newest takes it over); DELETE only gear added here (409 `garmin_gear`); `gear_name_required`, `gear_not_found` |
+| GET | `/api/gear/{id}/activities` | what it was used on, newest first, with `source: manual\|garmin\|default` |
+| PUT | `/api/activities/{id}/gear` | `{gear_ids: [...]}` the user's choice, `[]` none, `null` automatic again (Garmin, else the sport's default); the activity detail carries `gear` and `gear_chosen` |
 
 ### Example data (first-run walk)
 
@@ -233,7 +237,7 @@ and real data never share the cache.
 `Authorization: Bearer <agent token>`, or `POST /api/mcp/<agent token>` for clients that cannot send headers. Tokens
 only (no session cookie); 20 failed tokens per IP in 15 minutes; the path token is masked in the logs.
 Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `get_plan`, `create_plan` and `replace_plan_sessions`
-(markdown/CSV table, `preview`), `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, `sync_now`
+(markdown/CSV table, `preview`), `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, `list_gear`, `sync_now`
 (the site's sync from api/sync_runner.py, waits up to `SYNC_WAIT_S` and then reports; a longer sync runs on). MCP calls are
 answered in a threadpool, so a waiting sync never blocks the server.
 Results are markdown text (trends as JSON). Writes are authored `agent`.

@@ -241,7 +241,28 @@ class GarminClient:
             raise RateLimited("Garmin rate limit") from err
 
     def activities(self, start: date, end: date) -> list[dict]:
-        return self._call(self.api.get_activities_by_date, start.isoformat(), end.isoformat(), None, "asc")
+        out = self._call(self.api.get_activities_by_date, start.isoformat(), end.isoformat(), None, "asc")
+        self._owner = next((a.get("ownerId") for a in out or [] if a.get("ownerId")), getattr(self, "_owner", None))
+        return out
+
+    def gear(self) -> list[dict]:
+        """The user's gear in Garmin Connect (shoes, bikes, ...), with what Garmin counted on it and the activities it
+        was used on, in the shape db.save_garmin_gear takes. Three calls per item; a handful of items per user."""
+        owner = getattr(self, "_owner", None)
+        if not owner:  # nothing new this run: Garmin's profile number comes with any activity
+            latest = self._call(self.api.get_activities, 0, 1) or []
+            owner = latest[0].get("ownerId") if latest else None
+        if not owner:
+            return []
+        out = []
+        for g in self._call(self.api.get_gear, str(owner)) or []:
+            uuid = g.get("uuid")
+            if not uuid:
+                continue
+            stats = self._call(self.api.get_gear_stats, uuid) or {}
+            used = self._call(self.api.get_gear_activities, uuid, 1000)
+            out.append(garmin_gear(g, stats, used))
+        return out
 
     def splits(self, activity_id) -> dict:
         return self._call(self.api.get_activity_splits, str(activity_id))
@@ -285,6 +306,29 @@ class GarminClient:
 
     def tokens(self) -> str:
         return self.api.client.dumps()
+
+
+GARMIN_GEAR_KINDS = {"shoes": "shoes", "bike": "bike", "bicycle": "bike"}
+
+
+def garmin_gear(g: dict, stats: dict, used: list | None) -> dict:
+    """One item of Garmin's gear list (with its stats and activities) as db.save_garmin_gear takes it."""
+    brand = g.get("gearMakeName") if (g.get("gearMakeName") or "").lower() not in ("", "other") else None
+    model = g.get("gearModelName") if (g.get("gearModelName") or "").lower() not in ("", "other") else None
+    name = g.get("displayName") or g.get("customMakeModel") or " ".join(x for x in (brand, model) if x) or "Garmin"
+    km = lambda m: round(m / 1000, 1) if m else None  # noqa: E731
+    return {
+        "uuid": g["uuid"],
+        "kind": GARMIN_GEAR_KINDS.get((g.get("gearTypeName") or "").lower(), "other"),
+        "name": name, "brand": brand, "model": model,
+        "status": "retired" if (g.get("gearStatusName") or "").lower() == "retired" else "active",
+        "date_begin": (g.get("dateBegin") or "")[:10] or None,
+        "date_end": (g.get("dateEnd") or "")[:10] or None,
+        "max_km": km(g.get("maximumMeters")),
+        "total_km": km(stats.get("totalDistance")) or 0,
+        "activities": stats.get("totalActivities") or 0,
+        "activity_ids": None if used is None else [a.get("activityId") for a in used if a.get("activityId")],
+    }
 
 
 def is_multisport(activity: dict) -> bool:
@@ -478,6 +522,14 @@ def run_db_sync(s: db.Scope, key: str, env_tokens: str | None, client_factory=No
                     raise
                 print(f"garmin: opgeslagen sessie werkt niet meer ({type(err).__name__}), probeer GARMINTOKENS")
         print(f"garmin: {sync_garmin(DbSink(s), client, state, today, since, read_streams, progress)} activiteiten")
+        if hasattr(client, "gear"):  # clients without it (tests, old fakes) skip it
+            try:
+                progress("garmin_gear")
+                print(f"garmin materiaal: {db.save_garmin_gear(s, client.gear())}")
+            except RateLimited:
+                raise
+            except Exception as err:  # noqa: BLE001  gear is an extra: the rest of the sync stands
+                print(f"garmin materiaal: niet opgehaald ({type(err).__name__}: {err})")
     except _NoGarmin:
         if stored:
             failed.append("garmin")

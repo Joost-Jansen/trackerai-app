@@ -1,5 +1,6 @@
 // Types and formatting for training data. Times as 1:05 (h:mm), pace as 5:20/km.
 
+import type { ActivityGear } from "@/lib/gear";
 import { SPORTS, effortKind } from "@/lib/sports";
 
 export const ZONES = ["Z1", "Z2", "Z3", "Z4", "Z5"] as const;
@@ -202,6 +203,9 @@ export type ActivityDetail = ActivitySummary & {
   route: null | { id: string; name?: string; distance_km?: number; history: RouteRun[] };
   prev_id: string | null;
   next_id: string | null;
+  gear: ActivityGear[];
+  /** The user chose the gear here (or "none"): the default and Garmin no longer decide. */
+  gear_chosen: boolean;
 };
 
 export type Heatmap = { tracks: [number, number][][] };
