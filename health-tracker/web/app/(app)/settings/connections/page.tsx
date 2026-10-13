@@ -16,7 +16,7 @@ import { errorText, useFormat, useT } from "@/lib/i18n";
 
 type Status = {
   garmin: { connected: boolean; readable: boolean | null; connected_at: string | null; last_sync: string | null; last_failed: string[]; syncing: boolean;
-    progress: { step: "garmin_activities" | "garmin_wellness" | "wahoo" | "derive"; done: number | null; total: number | null } | null };
+    progress: { step: "garmin_activities" | "garmin_wellness" | "garmin_gear" | "wahoo" | "derive"; done: number | null; total: number | null } | null };
   wahoo: { available: boolean; connected: boolean; readable: boolean | null; connected_at: string | null; last_workout_day: string | null; failed: boolean };
 };
 
@@ -157,6 +157,7 @@ function SyncProgress({ p }: { p: Status["garmin"]["progress"] }) {
   const label = !p ? m.starting
     : p.step === "garmin_activities" ? m.garminActivities(p.done, p.total)
     : p.step === "garmin_wellness" ? m.garminWellness(p.done, p.total)
+    : p.step === "garmin_gear" ? m.garminGear
     : p.step === "wahoo" ? m.wahoo(p.done, p.total)
     : m.derive;
   return (

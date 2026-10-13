@@ -16,6 +16,7 @@ import LineChart from "@trackerai/ui/charts/LineChart";
 import { api } from "@/lib/api";
 import { routeName, useFormat, useT, type Format, type Messages } from "@/lib/i18n";
 import { SportBadge } from "@/components/plan/SportIcon";
+import ActivityGear from "@/components/history/ActivityGear";
 import DistanceCorrection from "@/components/history/DistanceCorrection";
 import { effortKind } from "@/lib/sports";
 import { type ActivityDetail, zoneShare } from "@/lib/training";
@@ -128,6 +129,7 @@ function Detail({ id }: { id: string }) {
           {a.avg_cadence_spm ? <Stat label={t.activity.cadence} value={`${a.avg_cadence_spm}`} note={t.activity.stepsPerMin} /> : a.vo2max ? <Stat label="VO2max" value={a.vo2max} /> : null}
         </div>
         <div className="mt-3"><DistanceCorrection a={a} /></div>
+        <div className="mt-3"><ActivityGear a={a} /></div>
       </Card>
 
       {a.same_day.length > 0 && (

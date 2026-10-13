@@ -42,6 +42,12 @@ four-week average.
 heart-rate / pace / altitude chart (hover the chart, see the spot on the map), km splits, laps, aerobic decoupling and how
 this run compares with earlier runs on the same route. A heatmap tab draws every route you ever ran.
 
+**Gear.** How far your shoes and bike have gone and when they are due for replacement (History, Gear). Gear from Garmin
+Connect comes along with the sync, with its kilometres and the activities it was used on; you can also add your own,
+with the kilometres it had before, a replacement limit (700 km for running shoes unless you or Garmin set one) and a
+default per sport. On an activity you see what it used and why (chosen, from Garmin, or the default) and can change it;
+Today warns when something is nearly worn or past its limit.
+
 ![Activity detail: route coloured by zone, time in zones, insights and the heart-rate, pace and altitude chart](docs/screenshots/activity.jpg)
 
 **Trends.** Your sport and body over time, in three tabs. Training: fitness/fatigue/form (CTL/ATL/TSB) with race markers, VO2max,
@@ -345,7 +351,7 @@ Garmin is never called in tests: the sync takes an injectable client and FIT rea
 
 The site is an MCP server at `/api/mcp` (streamable HTTP, stateless, JSON responses). Create a token under
 Settings, Agents; it is shown once. Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `get_plan`,
-`create_plan`, `replace_plan_sessions`, `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, and
+`create_plan`, `replace_plan_sessions`, `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, `list_gear`, and
 `sync_now` (fetches new data from Garmin and Wahoo, as the button on the site does, so your agent works with today's data).
 
 Any MCP client works: the token goes in `Authorization: Bearer <token>`, or in the URL (`https://<your-domain>/api/mcp/<token>`) for a client

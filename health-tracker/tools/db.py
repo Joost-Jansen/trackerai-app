@@ -221,6 +221,39 @@ routes = Table(
     PrimaryKeyConstraint("user_id", "id"),
 )
 
+gear = Table(
+    # Shoes, a bike, anything an activity wears out. From Garmin (garmin_uuid, garmin: what Garmin says about it) or
+    # added on the site. Distance is computed (api/gear.py): start_km + what Garmin counted before the activities here +
+    # the activities linked in activity_gear.
+    "gear",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", Integer, nullable=False, index=True),
+    Column("kind", String(20), nullable=False),  # shoes | bike | other
+    Column("name", String(100), nullable=False),
+    Column("brand", String(60)),
+    Column("model", String(80)),
+    Column("start_km", Float, nullable=False, default=0),  # used before it was tracked here (and not in Garmin)
+    Column("max_km", Float),  # replace at; None: Garmin's limit, else the kind's default (api/gear.py)
+    Column("since", String(10)),  # in use from: default gear only fills in activities from this day
+    Column("retired_on", String(10)),
+    Column("notes", Text),
+    Column("garmin_uuid", String(64)),
+    Column("garmin", JSON),  # {name, kind, total_km, activities, max_km, status, date_begin, date_end} as Garmin last said
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+activity_gear = Table(
+    # Which gear an activity used. source: garmin (as set in Garmin Connect), manual (chosen on the site; wins over
+    # the rest) or default (the sport's default gear, for an activity no other source gave gear).
+    "activity_gear",
+    meta,
+    Column("user_id", Integer, nullable=False, index=True),
+    Column("activity_id", String(80), nullable=False),
+    Column("gear_id", Integer, nullable=False),
+    Column("source", String(10), nullable=False),
+    PrimaryKeyConstraint("user_id", "activity_id", "gear_id", "source"),
+)
+
 admin_audit = Table(
     # What admins did: who, what, to whom, when. Shown at the bottom of the admin page.
     "admin_audit",
@@ -250,7 +283,7 @@ feedback = Table(
     Column("updated_at", DateTime(timezone=True)),
 )
 
-USER_TABLES = (activities, streams, fit_files, wellness, intraday, settings, documents, entries, plan_links, plans, routes, feedback)
+USER_TABLES = (activities, streams, fit_files, wellness, intraday, settings, documents, entries, plan_links, plans, routes, feedback, gear, activity_gear)
 SESSION_FIELDS = ("date", "sport", "kind", "distance_km", "duration_min", "target_zone", "description", "route_id")
 
 
@@ -590,7 +623,7 @@ def export_tables(s: Scope):
     with s.engine.connect() as conn:
         user = conn.execute(select(users).where(users.c.id == uid)).mappings().first()
         yield "account", [{k: _jsonable(v) for k, v in _user_row(user).items()}] if user else []
-        for t in (activities, streams, wellness, intraday, documents, entries, plans, plan_links, routes):
+        for t in (activities, streams, wellness, intraday, documents, entries, plans, plan_links, routes, gear, activity_gear):
             yield t.name, ({k: _jsonable(v) for k, v in r.items() if k != "user_id"} for r in conn.execute(select(t).where(t.c.user_id == uid)).mappings())
         yield "settings", ({"key": r["key"], "value": r["value"]} for r in conn.execute(select(settings).where(settings.c.user_id == uid)).mappings()
                            if r["key"] not in SECRET_SETTINGS)
@@ -972,6 +1005,154 @@ def intraday_days(s: Scope) -> list[str]:
     """The days with intraday data, oldest first."""
     with s.engine.connect() as conn:
         return [d for (d,) in conn.execute(select(intraday.c.day).where(intraday.c.user_id == s.user_id).order_by(intraday.c.day))]
+
+
+# --- gear -------------------------------------------------------------------------------------------------------
+
+GEAR_KINDS = ("shoes", "bike", "other")
+GEAR_FIELDS = ("kind", "name", "brand", "model", "start_km", "max_km", "since", "retired_on", "notes")
+GEAR_DEFAULTS_KEY = "gear_defaults"  # setting: {sport: gear id}, the gear a new activity of that sport gets
+GEAR_NONE_KEY = "gear_none"  # setting: activity ids the user cleared by hand (no gear, not even a default)
+
+
+def list_gear(s: Scope) -> list[dict]:
+    with s.engine.connect() as conn:
+        rows = conn.execute(select(gear).where(gear.c.user_id == s.user_id).order_by(gear.c.id)).mappings().all()
+    return [{k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in r.items() if k != "user_id"} for r in rows]
+
+
+def get_gear(s: Scope, gid: int) -> dict | None:
+    return next((g for g in list_gear(s) if g["id"] == gid), None)
+
+
+def create_gear(s: Scope, **fields) -> dict:
+    values = {k: fields[k] for k in (*GEAR_FIELDS, "garmin_uuid", "garmin") if k in fields}
+    values.setdefault("start_km", 0)
+    with s.engine.begin() as conn:
+        gid = conn.execute(insert(gear).values(user_id=s.user_id, created_at=_now(), **values)).inserted_primary_key[0]
+    return get_gear(s, gid)
+
+
+def update_gear(s: Scope, gid: int, **fields) -> dict | None:
+    values = {k: v for k, v in fields.items() if k in (*GEAR_FIELDS, "garmin")}
+    with s.engine.begin() as conn:
+        n = conn.execute(update(gear).where(gear.c.user_id == s.user_id, gear.c.id == gid).values(**values)).rowcount if values else 1
+    return get_gear(s, gid) if n else None
+
+
+def delete_gear(s: Scope, gid: int) -> bool:
+    with s.engine.begin() as conn:
+        conn.execute(delete(activity_gear).where(activity_gear.c.user_id == s.user_id, activity_gear.c.gear_id == gid))
+        n = conn.execute(delete(gear).where(gear.c.user_id == s.user_id, gear.c.id == gid)).rowcount
+    defaults = {k: v for k, v in (get_setting(s, GEAR_DEFAULTS_KEY) or {}).items() if v != gid}
+    set_setting(s, GEAR_DEFAULTS_KEY, defaults)
+    return bool(n)
+
+
+def gear_links(s: Scope) -> list[dict]:
+    """Which gear each activity used, as it counts: the user's choice (manual, also "none") wins over Garmin's, and
+    Garmin's over the sport's default. Every source keeps its rows, so going back to automatic needs no new sync."""
+    with s.engine.connect() as conn:
+        rows = [dict(r) for r in conn.execute(select(activity_gear.c.activity_id, activity_gear.c.gear_id, activity_gear.c.source)
+                                               .where(activity_gear.c.user_id == s.user_id)).mappings()]
+    cleared = set(get_setting(s, GEAR_NONE_KEY) or [])
+    rank = {"manual": 0, "garmin": 1, "default": 2}
+    best: dict[str, int] = {}
+    for r in rows:
+        best[r["activity_id"]] = min(best.get(r["activity_id"], 9), rank.get(r["source"], 9))
+    return [r for r in rows if r["activity_id"] not in cleared and rank.get(r["source"], 9) == best[r["activity_id"]]]
+
+
+def set_activity_gear(s: Scope, aid: str, gear_ids: list[int] | None) -> None:
+    """The gear the user chose for an activity: a list replaces what Garmin or the default gave, [] means none, None
+    hands the activity back to them."""
+    uid = s.user_id
+    with s.engine.begin() as conn:
+        mine = {g for (g,) in conn.execute(select(gear.c.id).where(gear.c.user_id == uid))}
+        conn.execute(delete(activity_gear).where(activity_gear.c.user_id == uid, activity_gear.c.activity_id == aid, activity_gear.c.source == "manual"))
+        for gid in dict.fromkeys(gear_ids or []):
+            if gid in mine:
+                conn.execute(insert(activity_gear).values(user_id=uid, activity_id=aid, gear_id=gid, source="manual"))
+    cleared = [a for a in (get_setting(s, GEAR_NONE_KEY) or []) if a != aid]
+    if gear_ids == []:
+        cleared.append(aid)
+    set_setting(s, GEAR_NONE_KEY, cleared)
+
+
+def _garmin_ids(conn, uid: int) -> dict[str, str]:
+    """Garmin's activity id -> the id here, for the activities Garmin gave."""
+    out = {}
+    for aid, data in conn.execute(select(activities.c.id, activities.c.data).where(activities.c.user_id == uid)).all():
+        gid = (((data or {}).get("sources") or {}).get("garmin") or {}).get("id")
+        if gid is not None:
+            out[str(gid)] = aid
+    return out
+
+
+def save_garmin_gear(s: Scope, items: list[dict]) -> dict:
+    """Garmin's gear (tools/sync.py GarminClient.gear) into the user's gear: new items added, Garmin's facts refreshed
+    (name, retired, distance, limit) without overwriting what the user changed here, and the activities Garmin links to
+    each item linked here too (source garmin; the user's own choice on an activity still wins, see gear_links)."""
+    uid = s.user_id
+    added = linked = 0
+    with s.engine.begin() as conn:
+        mine = {r["garmin_uuid"]: dict(r) for r in conn.execute(select(gear).where(gear.c.user_id == uid, gear.c.garmin_uuid.isnot(None))).mappings()}
+        by_garmin = _garmin_ids(conn, uid)
+        for item in items:
+            facts = {k: item.get(k) for k in ("name", "kind", "total_km", "activities", "max_km", "status", "date_begin", "date_end")}
+            row = mine.get(item["uuid"])
+            if row is None:
+                gid = conn.execute(insert(gear).values(
+                    user_id=uid, kind=item.get("kind") or "other", name=(item.get("name") or "Garmin")[:100], brand=item.get("brand"),
+                    model=item.get("model"), start_km=0, since=item.get("date_begin"), garmin_uuid=item["uuid"], garmin=facts,
+                    retired_on=(item.get("date_end") or date.today().isoformat()) if item.get("status") == "retired" else None,
+                    created_at=_now())).inserted_primary_key[0]
+                added += 1
+            else:
+                gid = row["id"]
+                values = {"garmin": facts}
+                old = row.get("garmin") or {}
+                if item.get("status") == "retired" and not row.get("retired_on"):
+                    values["retired_on"] = item.get("date_end") or date.today().isoformat()
+                elif item.get("status") != "retired" and old.get("status") == "retired" and row.get("retired_on"):
+                    values["retired_on"] = None  # brought back into use in Garmin
+                if row["name"] == (old.get("name") or row["name"]) and item.get("name"):
+                    values["name"] = item["name"][:100]  # not renamed here: follow Garmin's name
+                conn.execute(update(gear).where(gear.c.id == gid).values(**values))
+            if item.get("activity_ids") is None:
+                continue  # Garmin did not say this time: keep the links as they are
+            conn.execute(delete(activity_gear).where(activity_gear.c.user_id == uid, activity_gear.c.gear_id == gid, activity_gear.c.source == "garmin"))
+            for gaid in dict.fromkeys(str(x) for x in item["activity_ids"]):
+                aid = by_garmin.get(gaid)
+                if aid:
+                    conn.execute(insert(activity_gear).values(user_id=uid, activity_id=aid, gear_id=gid, source="garmin"))
+                    linked += 1
+    return {"added": added, "linked": linked}
+
+
+def apply_gear_defaults(s: Scope) -> int:
+    """Default gear per sport for every activity that got gear from nowhere else: from the gear's `since` day, and
+    not after it was retired. Recomputed in full, so changing a default or a date reaches earlier activities too."""
+    uid = s.user_id
+    defaults = {sport: gid for sport, gid in (get_setting(s, GEAR_DEFAULTS_KEY) or {}).items() if gid}
+    cleared = set(get_setting(s, GEAR_NONE_KEY) or [])
+    with s.engine.begin() as conn:
+        conn.execute(delete(activity_gear).where(activity_gear.c.user_id == uid, activity_gear.c.source == "default"))
+        if not defaults:
+            return 0
+        items = {r["id"]: r for r in conn.execute(select(gear.c.id, gear.c.since, gear.c.retired_on).where(gear.c.user_id == uid)).mappings()}
+        has = {a for (a,) in conn.execute(select(activity_gear.c.activity_id).where(activity_gear.c.user_id == uid, activity_gear.c.source != "default"))}
+        n = 0
+        for aid, sport, start in conn.execute(select(activities.c.id, activities.c.sport, activities.c.start_local).where(activities.c.user_id == uid)).all():
+            g = items.get(defaults.get(sport))
+            if not g or aid in has or aid in cleared:
+                continue
+            day = start[:10]
+            if (g["since"] and day < g["since"]) or (g["retired_on"] and day > g["retired_on"]):
+                continue
+            conn.execute(insert(activity_gear).values(user_id=uid, activity_id=aid, gear_id=g["id"], source="default"))
+            n += 1
+    return n
 
 
 def get_setting(s: Scope, key: str):

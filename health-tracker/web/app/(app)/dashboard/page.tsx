@@ -9,6 +9,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@trackerai/ui/components/Card";
 import { Columns } from "@/components/ds";
 import ZoneBar from "@/components/ZoneBar";
+import GearNotice from "@/components/dashboard/GearNotice";
 import OnboardingCard from "@/components/onboarding/Checklist";
 import EasyShare from "@/components/zones/EasyShare";
 import PeriodNav from "@/components/zones/PeriodNav";
@@ -118,6 +119,8 @@ export default function DashboardPage() {
       ) : (
         <p className="text-[12.5px] text-ink-muted">{m.lastSync(lastSync)}</p>
       )}
+
+      <GearNotice />
 
       <OnboardingCard />
 

@@ -92,6 +92,10 @@ MESSAGES: dict[str, str] = {
     "invalid_step": "een stap is een getal vanaf 0",
     "unknown_banner": "onbekende banner; kies uit: {options}",
     "unknown_page": "onbekende pagina; kies uit: {options}",
+    # gear (api/gear.py)
+    "gear_not_found": "materiaal niet gevonden",
+    "gear_name_required": "geef het materiaal een naam en soort",
+    "garmin_gear": "dit materiaal komt uit Garmin: zet het op buiten gebruik in plaats van het te verwijderen",
     # plans (api/plans.py)
     "plan_not_found": "schema niet gevonden",
     "invalid_date": "ongeldige datum: {date}",

@@ -1,9 +1,9 @@
 "use client";
 
 // History: all activities, filterable by sport, period and name, grouped per month.
-// Second view: the heatmap of all routes.
+// Second view: the heatmap of all routes. Third: gear and its kilometres (#gear in the address, so a link can open it).
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ import { Tabs } from "@/components/ds";
 import { api } from "@/lib/api";
 import { SportBadge } from "@/components/plan/SportIcon";
 import FitUpload from "@/components/history/FitUpload";
+import GearView from "@/components/history/GearView";
 import { useFormat, useT } from "@/lib/i18n";
 import { type ActivityListItem, type Heatmap, ZONE_COLOUR, ZONES } from "@/lib/training";
 
@@ -135,10 +136,20 @@ function HeatView() {
 export default function HistoryPage() {
   const t = useT();
   const [view, setView] = useState("list");
+  useEffect(() => {
+    const fromHash = () => setView(["heat", "gear"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "list");
+    fromHash();
+    window.addEventListener("hashchange", fromHash);
+    return () => window.removeEventListener("hashchange", fromHash);
+  }, []);
+  function choose(id: string) {
+    setView(id);
+    history.replaceState(null, "", id === "list" ? location.pathname : `#${id}`);
+  }
   return (
     <div className="flex flex-col gap-4">
-      <Tabs items={[{ id: "list", label: t.history.tabs.list }, { id: "heat", label: t.history.tabs.heat }]} value={view} onChange={setView} />
-      {view === "list" ? <ListView /> : <HeatView />}
+      <Tabs items={(["list", "heat", "gear"] as const).map((id) => ({ id, label: t.history.tabs[id] }))} value={view} onChange={choose} />
+      {view === "list" ? <ListView /> : view === "heat" ? <HeatView /> : <GearView />}
     </div>
   );
 }
