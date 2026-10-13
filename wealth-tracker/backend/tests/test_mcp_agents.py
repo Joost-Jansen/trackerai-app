@@ -138,6 +138,31 @@ def test_token_never_reaches_tokens_admin_or_bank_connection(client):
     assert agent.get("/api/auth/me").json()["is_admin"] is False
 
 
+def test_refreshing_needs_write_and_reaches_no_more_of_the_bank_connection(client):
+    """Prices and a fetch through the existing bank connection: what the Update button does. Never the
+    connection itself (its keys, consents and overview)."""
+    _login(client)
+    read = _agent(client, _token(client, "read"))
+    assert read.post("/api/prices/refresh").status_code == 403
+    assert read.post("/api/connections/enablebanking/fetch").status_code == 403
+    write = _agent(client, _token(client, "write"))
+    assert write.post("/api/prices/refresh").status_code == 200
+    assert write.post("/api/connections/enablebanking/fetch").status_code != 403  # no connection yet: not a 403
+    assert write.get("/api/connections").status_code == 403
+    assert write.delete("/api/connections/enablebanking").status_code == 403
+
+
+def test_mcp_refresh_data_refreshes_prices_and_says_why_the_bank_was_not(client):
+    import json
+
+    _login(client)
+    write = _agent(client, _token(client, "write"))
+    res = _call(write, "refresh_data")
+    out = json.loads(res["content"][0]["text"])
+    assert "updated_count" in out["prices"]
+    assert "error" in out["bank"]  # nothing connected in this test
+
+
 def test_unknown_scope_is_refused(client):
     _login(client)
     assert client.post("/api/agent-tokens", json={"scope": "everything"}).status_code == 400
@@ -157,7 +182,7 @@ def test_mcp_initialize_and_tool_list_follow_the_scope(client):
             "get_bank_corrections", "list_balances"} <= names
     writes = {"label_transactions", "set_budget", "add_category_rule", "delete_rule", "set_category_type",
               "rename_category", "move_category", "set_month_layout", "set_shared_costs_category",
-              "set_fixed_cost", "set_balance", "add_transaction", "delete_balance"}
+              "set_fixed_cost", "set_balance", "add_transaction", "delete_balance", "refresh_data"}
     assert not names & writes
 
     write = _agent(client, _token(client, "write"))

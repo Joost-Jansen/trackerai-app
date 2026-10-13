@@ -265,6 +265,6 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
     app.include_router(account.make_router(current_user))
     app.include_router(feedback.make_router(engine, accounts, current_user))
     app.include_router(tracker_admin.make_router(engine, accounts, current_user, today))
-    app.include_router(mcp.make_router(today, current_user, token_user, guards, accounts))
+    app.include_router(mcp.make_router(today, current_user, token_user, guards, accounts, runner))
 
     return app

@@ -345,7 +345,8 @@ Garmin is never called in tests: the sync takes an injectable client and FIT rea
 
 The site is an MCP server at `/api/mcp` (streamable HTTP, stateless, JSON responses). Create a token under
 Settings, Agents; it is shown once. Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `get_plan`,
-`create_plan`, `replace_plan_sessions`, `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`.
+`create_plan`, `replace_plan_sessions`, `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, and
+`sync_now` (fetches new data from Garmin and Wahoo, as the button on the site does, so your agent works with today's data).
 
 Any MCP client works: the token goes in `Authorization: Bearer <token>`, or in the URL (`https://<your-domain>/api/mcp/<token>`) for a client
 that only takes a URL. The token is then part of that URL, so treat the URL as a password; revoke the token on the site

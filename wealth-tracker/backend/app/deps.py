@@ -44,7 +44,9 @@ class CurrentUser:
 # What an agent token with scope "write" may change: bookkeeping, nothing
 # else. That is labelling, budgets, rules (adding and deleting one), a
 # category's name, group and type, the month layout and the other settings of
-# Spending and Net worth, a balance on an account and a manual transaction.
+# Spending and Net worth, a balance on an account and a manual transaction; and
+# refreshing what comes in by itself (prices, and the bank connection the user set
+# up in the browser), so an agent works with today's figures.
 # Everything not listed here (uploads, deleting transactions, categories or
 # accounts, creating accounts or categories, bank connections, admin) stays
 # browser-only. A "read" token changes nothing at all.
@@ -63,11 +65,15 @@ AGENT_WRITES = [
     ("PUT", re.compile(r"^/api/accounts/\d+/balance$")),
     ("DELETE", re.compile(r"^/api/accounts/\d+/balance/\d{4}-\d{2}-\d{2}$")),  # a wrong balance
     ("POST", re.compile(r"^/api/bank-transactions$")),  # a manual transaction
+    ("POST", re.compile(r"^/api/prices/refresh$")),
+    ("POST", re.compile(r"^/api/connections/enablebanking/fetch$")),
 ]
 # Never for an agent, not even to read: account and token management (export,
 # deletion, two-step login), admin, and the bank connection (its keys and
-# consent flow, also under its old Dutch path).
-AGENT_BLOCKED = re.compile(r"^/api/(admin|agent-tokens|connections|koppelingen|account|auth/(change-password|delete))(/|$)")
+# consent flow, also under its old Dutch path). Fetching through a connection that
+# already exists is the one exception (AGENT_WRITES).
+AGENT_BLOCKED = re.compile(
+    r"^/api/(admin|agent-tokens|connections(?!/enablebanking/fetch$)|koppelingen|account|auth/(change-password|delete))(/|$)")
 
 
 def resolve_agent_token(request: Request, token: str, cfg: dict) -> tuple[str, dict]:

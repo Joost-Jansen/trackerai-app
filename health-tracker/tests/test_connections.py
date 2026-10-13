@@ -99,6 +99,24 @@ def test_sync_now_runs_the_users_sync(make, engine):  # noqa: F811
     assert db.get_setting(db.Scope(engine, 1), "sync_state")["last_sync_local"]
 
 
+def test_an_agent_can_sync_through_mcp(make, engine):  # noqa: F811
+    app, c, key = make()
+
+    def sync_now(token):
+        agent = TestClient(app, headers={"Authorization": f"Bearer {token}"})
+        res = agent.post("/api/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                                           "params": {"name": "sync_now", "arguments": {}}}).json()["result"]
+        return res["content"][0]["text"], res["isError"]
+
+    write = c.post("/api/agent-tokens", json={"name": "w"}).json()["token"]  # a read-only connection is OAuth (test_mcp_oauth)
+    text, err = sync_now(write)
+    assert err and "Koppelingen" in text  # nothing connected yet
+    db.set_setting(db.Scope(engine, 1), "garmin_tokens", encrypt("tok", key))
+    text, err = sync_now(write)
+    assert not err and text.startswith("Sync klaar") and "nieuwe activiteit" in text
+    assert "Ochtendloop" in [a["name"] for a in db.load_activities(db.Scope(engine, 1))]
+
+
 def test_daily_runner_picks_connected_users_not_synced_today(engine):  # noqa: F811
     from api.users import Stores
 

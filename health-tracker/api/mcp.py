@@ -11,11 +11,13 @@ Tools read and write the same data as the website: what an agent changes, the us
 from __future__ import annotations
 
 import json
+import threading
 from datetime import date
 from typing import Callable
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from api.errors import ApiError
 from trackerai_accounts.oauth import OAuth, PREFIX
@@ -27,7 +29,7 @@ from api.readiness import as_text as readiness_text, readiness
 from api.routes_api import suggest
 from api.trends import build_trends
 from trackerai_websec import log_redact
-from tools import db
+from tools import db, wahoo
 from tools.sports import effort_kind
 from tools.summarize import last_90_days_md, this_week_md
 
@@ -100,6 +102,11 @@ TOOLS = [
         "inputSchema": {"type": "object", "properties": {"status": {"type": "string", "enum": ["active", "finished", "stopped"], "description": "active (actief), finished (afgerond) of stopped (gestopt)"}, "plan_id": {"type": "integer"}}, "required": ["status"]},
     },
     {
+        "name": "sync_now",
+        "description": "Haal nu nieuwe data op uit Garmin (en Wahoo), zoals de knop op de site: activiteiten, slaap en herstel. Wacht tot ongeveer een minuut; loopt de sync langer, dan meldt het waar hij is en kun je sync_now later opnieuw aanroepen (dat start geen tweede). Gebruik het als de laatste sync (get_context) niet van vandaag is.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
         "name": "add_log",
         "description": "Schrijf een logentry (kind=log: vraag, belangrijkste data, besluit/advies van deze sessie) of een analyse (kind=analysis). Markdown.",
         "inputSchema": {"type": "object", "properties": {"title": _str("onderwerp"), "body": _str("markdown"), "kind": {"type": "string", "enum": ["log", "analysis"], "default": "log"}, "day": _str("YYYY-MM-DD, standaard vandaag")}, "required": ["title", "body"]},
@@ -119,7 +126,8 @@ TOOLS = [
 ]
 
 
-WRITE_NAMES = {"create_plan", "replace_plan_sessions", "set_plan_status", "add_log", "update_doc", "update_feedback"}
+WRITE_NAMES = {"create_plan", "replace_plan_sessions", "set_plan_status", "add_log", "update_doc", "update_feedback", "sync_now"}
+SYNC_WAIT_S = 55  # what an MCP call waits for a sync; a longer one keeps running in the background
 
 
 class ToolError(Exception):
@@ -260,8 +268,9 @@ def plan_md(plan: dict | None) -> str:
 class Server:
     """Answers MCP messages for one user (an api.users.User): their data, written as `agent`."""
 
-    def __init__(self, user, today: Callable[[], date]):
+    def __init__(self, user, today: Callable[[], date], runner=None):
         self.user = user
+        self.runner = runner  # api.sync_runner.SyncRunner: sync_now
         self.store = user.store
         self.engine = user.scope  # every db call takes the user's scope
         self.today = today
@@ -275,6 +284,30 @@ class Server:
     def _full(self, plan: dict | None) -> dict | None:
         return enrich(plan, self.store.activities, self.store.routes, self.today()) if plan else None
 
+    def _sync(self) -> str:
+        """The site's sync (api/connections.py), from here: start it, wait a while, say what came in."""
+        if self.runner is None:
+            raise ToolError("Synchroniseren kan hier niet.")
+        if not db.get_setting(self.engine, "garmin_tokens") and not db.get_setting(self.engine, wahoo.TOKENS_KEY):
+            raise ToolError("Geen Garmin of Wahoo gekoppeld: koppel op de site onder Instellingen, Koppelingen.")
+        uid = self.user.id
+        if uid in self.runner.running:
+            step = (self.runner.progress.get(uid) or {}).get("step") or "bezig"
+            return f"Er loopt al een sync (sinds {self.runner.running[uid]}, stap: {step}). Roep sync_now over een minuut opnieuw aan."
+        before = len(self.store.activities)
+        worker = threading.Thread(target=self.runner.sync_user, args=(uid,), name=f"sync-{uid}", daemon=True)
+        worker.start()
+        worker.join(SYNC_WAIT_S)
+        if worker.is_alive():
+            step = (self.runner.progress.get(uid) or {}).get("step") or "bezig"
+            return f"De sync loopt nog (stap: {step}) en gaat op de achtergrond door. Roep sync_now over een minuut opnieuw aan voor de uitkomst."
+        self.store.invalidate()
+        state = db.get_setting(self.engine, "sync_state") or {}
+        failed = state.get("last_failed") or []
+        new = len(self.store.activities) - before
+        return (f"Sync klaar: laatste sync {state.get('last_sync_local') or '-'}, {new} nieuwe activiteit{'en' if new != 1 else ''}."
+                + (f" Mislukt: {', '.join(failed)}." if failed else ""))
+
     def call(self, name: str, args: dict, who: str) -> str:
         if name in WRITE_NAMES and getattr(self.user, "agent_scope", "write") == "read":
             raise ToolError("This connection only has read access.")
@@ -282,6 +315,8 @@ class Server:
         for field, most in (("title", 200), ("race", 200), ("goal", 5000)):  # as the columns in tools/db.py
             if isinstance(args.get(field), str) and len(args[field]) > most:
                 raise ToolError(f"{field} is langer dan {most} tekens")
+        if name == "sync_now":
+            return self._sync()
         if name == "get_context":
             profile, goals = db.get_document(self.engine, "profile"), db.get_document(self.engine, "goals")
             dash = build_dashboard(s.activities, s.wellness, s.zones, today, s.last_sync, s.rhr_fallback)
@@ -432,7 +467,8 @@ class Server:
         return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32601, "message": f"method not found: {method}"}}
 
 
-def make_router(today: Callable[[], date], bearer_user: Callable[[Request], object], token_user: Callable[[str], object | None], guards=None, accounts=None) -> APIRouter:
+def make_router(today: Callable[[], date], bearer_user: Callable[[Request], object], token_user: Callable[[str], object | None], guards=None, accounts=None,
+                runner=None) -> APIRouter:
     """`bearer_user(request)` authenticates the header (raises 401) and returns the User; `token_user(token)` checks a
     token from the path. Each request is answered for that user only. Only tokens: a browser session cookie is no way
     in (the CSRF origin check leaves /api/mcp out, because MCP clients are not browsers). Failed tokens count against
@@ -441,17 +477,18 @@ def make_router(today: Callable[[], date], bearer_user: Callable[[Request], obje
     log_redact.install()  # access logs print the path: keep the token of /api/mcp/<token> out of them
 
     async def serve(request: Request, user) -> Response:
-        server, who = Server(user, today), user.author
+        server, who = Server(user, today, runner), user.author
         try:
             body = await request.json()
         except ValueError:
             return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}}, status_code=400)
         if isinstance(body, list):
-            out = [x for x in (server.handle(m, who) for m in body if isinstance(m, dict)) if x]
+            # In a thread: the tools read the database, and sync_now waits for Garmin.
+            out = [x for x in [await run_in_threadpool(server.handle, m, who) for m in body if isinstance(m, dict)] if x]
             return JSONResponse(out) if out else Response(status_code=202)
         if not isinstance(body, dict):
             return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "invalid request"}}, status_code=400)
-        res = server.handle(body, who)
+        res = await run_in_threadpool(server.handle, body, who)
         return JSONResponse(res) if res else Response(status_code=202)
 
     @r.post("/api/mcp")
