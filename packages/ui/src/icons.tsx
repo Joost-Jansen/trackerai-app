@@ -360,6 +360,16 @@ export function PlusIcon(props: IconProps) {
   );
 }
 
+/** Take a photo: a camera body with its lens. */
+export function CameraIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4.5 7.5h3l1.5-2h6l1.5 2h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </Icon>
+  );
+}
+
 /** Nutrition: a fork and a knife, side by side. Shared: wealth-tracker can use it for food spending too. */
 export function UtensilsIcon(props: IconProps) {
   return (

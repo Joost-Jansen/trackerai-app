@@ -1,0 +1,17 @@
+[project]
+name = "trackerai-ai"
+version = "0.1.0"
+description = "One Claude client for every trackerai backend: the Messages API call, timeout and retries, refusals, structured output and token counts."
+requires-python = ">=3.11"
+# The same pin in both apps' requirements; bump them together.
+dependencies = ["anthropic==1.11.0"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["trackerai_ai"]

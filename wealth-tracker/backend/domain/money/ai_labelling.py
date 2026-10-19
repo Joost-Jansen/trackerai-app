@@ -27,7 +27,7 @@ import sqlite3
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
-import requests
+import trackerai_ai
 
 from domain.money import bank_transactions
 from domain.money import categorization
@@ -47,7 +47,6 @@ _DIRECTION_SINCE = "2026-09-15T15:10:00+00:00"
 MODEL_THOROUGH = "claude-sonnet-5"
 THOROUGH_VERSION = f"{MODEL_THOROUGH}#1"
 THOROUGH_PER_RUN = 15
-_URL = "https://api.anthropic.com/v1/messages"
 # One request to Claude per API call: the website does not wait forever, and 40
 # transactions is plenty of time for Haiku. The page starts the next round itself
 # and shows what is happening.
@@ -174,23 +173,16 @@ def _ask_claude(items: list[dict], categories: list[dict], *, extra: str = "", m
 
 
 def _api(body: dict) -> dict:
-    """One request to the Messages API with a required tool; returns what Claude
-    filled in for that tool.
+    """One request to the Messages API with a required tool (through the shared
+    client, packages/ai); returns what Claude filled in for that tool.
     """
     try:
-        answer = requests.post(_URL, json=body, timeout=90, headers={
-            "x-api-key": os.environ["ANTHROPIC_API_KEY"],
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        })
-    except requests.RequestException as e:
-        raise AiError(tr("Claude could not be reached. Try again later.")) from e
-    if answer.status_code != 200:
-        raise AiError(tr("Claude returned an error ({0}). Check the API key and the credit.", answer.status_code))
-    for block in answer.json().get("content", []):
-        if block.get("type") == "tool_use":
-            return block.get("input", {}) or {}
-    return {}
+        result = trackerai_ai.ask(body, timeout=90, retries=1)
+    except trackerai_ai.AiError as e:
+        if e.code in ("unreachable", "unavailable"):
+            raise AiError(tr("Claude could not be reached. Try again later.")) from e
+        raise AiError(tr("Claude returned an error ({0}). Check the API key and the credit.", e.status or e.code)) from e
+    return result.tool_input(body["tool_choice"]["name"])
 
 
 def _valid(answers: list, ids: set[int], valid: set[str]) -> dict[int, tuple[str, float, str | None]]:

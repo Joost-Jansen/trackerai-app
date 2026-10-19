@@ -77,12 +77,15 @@ export type NutritionDay = {
   burn_kcal: number | null;
   source: { version: string | null; nl: string | null; en: string | null };
   foods_ready: boolean;
+  /** Photo analysis is on for this user and the server can do it. */
+  ai: boolean;
+  kcal_target: number | null;
 };
 
 /** The Voeding vandaag card on /api/dashboard (`nutrition`): null without the beta. */
 export type NutritionBlock =
-  | ({ empty: false } & Pick<NutritionDay, "today" | "meals" | "totals" | "per_kg" | "targets" | "context" | "last_meal" | "burn_kcal">)
-  | { empty: true; today: string; targets: Targets; context: NutritionContext | null };
+  | ({ empty: false } & Pick<NutritionDay, "today" | "meals" | "totals" | "per_kg" | "targets" | "context" | "last_meal" | "burn_kcal" | "ai">)
+  | { empty: true; today: string; targets: Targets; context: NutritionContext | null; ai: boolean };
 
 export type Food = {
   ref: string;
@@ -117,8 +120,74 @@ export type DraftItem = {
   snapshot?: Nutrients;
   snapshotGrams?: number;
   portion_g?: number | null;
-  estimated?: boolean;
+  /** Where the amount came from: Claude's estimate, your usual portion, or you (touching it makes it yours). */
+  grams_source?: GramsSource;
+  grams_ai?: number | null;
+  grams_low?: number | null;
+  grams_high?: number | null;
+  confidence?: number | null;
+  /** From a photo: what Claude saw ("havermout") and the other foods it could be. */
+  label?: string;
+  alternatives?: Food[];
 };
+
+/** An item Claude saw on a photo, matched to a food (api/nutrition.py POST /photo, tools/nutrition/match.py). */
+export type PhotoItem = {
+  label_nl: string;
+  label_en: string | null;
+  kind: "food" | "drink" | "sauce" | "fat";
+  grams: number;
+  grams_ai: number;
+  grams_low: number;
+  grams_high: number;
+  grams_source: GramsSource;
+  confidence: number;
+  food: Food | null;
+  alternatives: Food[];
+};
+
+export type PhotoDraft = {
+  photo_id: number | null;
+  ai_run_id: number | null;
+  /** Why the analysis gave nothing (unreachable, refused, ...); the photo is kept and search takes over. */
+  failed: string | null;
+  items: PhotoItem[];
+  hidden_extras: { label_nl: string; label_en: string | null; grams: number; food: Food | null }[];
+  moment_guess: Moment | null;
+};
+
+export type Template = {
+  id: number;
+  name: string;
+  moment: Moment | null;
+  items: { food_ref: string; name: string; unit: Unit; grams: number; per_100?: Nutrients | null }[];
+  position: number;
+};
+
+export type NutritionSettings = {
+  ai: boolean;
+  photos: "30d" | "keep" | "never";
+  kcal_target: number | null;
+  ai_available: boolean;
+  weight_kg: number | null;
+  day_types: Record<DayType, { carbs_per_kg: [number, number]; protein_per_kg: [number, number] }>;
+};
+
+/** How the editor starts: from scratch, a photo's draft, a barcode, a favourite or yesterday's meal. */
+export type EditorStart = {
+  input: Meal["input"];
+  items: DraftItem[];
+  moment?: Moment | null;
+  eaten_at?: string;
+  photo?: { id: number | null; preview: string | null };
+  ai_run_id?: number | null;
+  extras?: PhotoDraft["hidden_extras"];
+  /** What Claude saw but no food matched: offered as a search. */
+  unmatched?: string[];
+  failed?: string | null;
+};
+
+export const photoUrl = (id: number) => `/api/nutrition/photos/${id}`;
 
 /** What `grams` of an item hold, as the server will compute it (tools/nutrition/nutrients.py scale). */
 export function itemNutrients(item: DraftItem): Nutrients {

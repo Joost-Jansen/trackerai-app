@@ -9,7 +9,7 @@ import Link from "next/link";
 import Card from "@trackerai/ui/components/Card";
 import { PlusIcon } from "@trackerai/ui/icons";
 import { Button } from "@/components/ds";
-import MealEditor from "@/components/nutrition/MealEditor";
+import AddMealSheet from "@/components/nutrition/AddMealSheet";
 import MealRow from "@/components/nutrition/MealRow";
 import { ContextLine, TargetBars } from "@/components/nutrition/parts";
 import { useFormat, useT } from "@/lib/i18n";
@@ -47,7 +47,7 @@ export default function NutritionCard({ block }: { block: NutritionBlock }) {
           </p>
         </div>
       )}
-      {adding && <MealEditor day={block.today} onClose={() => setAdding(false)} />}
+      {adding && <AddMealSheet day={block.today} ai={block.ai} onClose={() => setAdding(false)} />}
     </Card>
   );
 }

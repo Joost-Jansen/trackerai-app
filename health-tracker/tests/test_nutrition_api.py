@@ -135,3 +135,103 @@ def test_dashboard_block(client, engine):  # noqa: F811
     block = client.get("/api/dashboard").json()["nutrition"]
     assert block["empty"] is False and block["totals"]["energy_kcal"] == 296 and len(block["meals"]) == 1
     assert block["per_kg"]["carbs"] == 0.6
+
+
+# --- phase 2: photos, barcode, favourites, settings -------------------------------------------------------------
+
+from tests.test_nutrition_match import RECORDED, Stub, jpeg  # noqa: E402
+from tools.nutrition import off, recognize  # noqa: E402
+
+
+@pytest.fixture
+def ai(monkeypatch):
+    """A server with a key and Claude answering RECORDED."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    real = recognize.trackerai_ai.ask
+    monkeypatch.setattr(recognize.trackerai_ai, "ask", lambda body, **kw: real(body, **{**kw, "client": Stub(RECORDED)}))
+
+
+def test_photo_analysis_is_opt_in(client, engine, monkeypatch):  # noqa: F811
+    beta(engine)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    assert client.get("/api/nutrition/settings").json()["ai_available"] is False
+    assert client.put("/api/nutrition/settings", json={"ai": True}).json()["code"] == "nutrition_ai_unavailable"
+    assert client.post("/api/nutrition/photo", content=jpeg()).json()["code"] == "nutrition_ai_unavailable"
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    r = client.post("/api/nutrition/photo", content=jpeg())
+    assert r.status_code == 403 and r.json()["code"] == "nutrition_ai_off"  # the server can, the user did not switch it on
+    out = client.put("/api/nutrition/settings", json={"ai": True, "photos": "keep", "kcal_target": 2600}).json()
+    assert (out["ai"], out["photos"], out["kcal_target"], out["ai_available"]) == (True, "keep", 2600, True)
+    assert out["day_types"]["race"]["carbs_per_kg"] == [8.0, 12.0]
+    assert client.put("/api/nutrition/settings", json={"clear_kcal_target": True}).json()["kcal_target"] is None
+    assert client.put("/api/nutrition/settings", json={"photos": "always"}).status_code == 422
+
+
+def test_from_photo_to_saved_meal(app, client, engine, ai):  # noqa: F811
+    beta(engine)
+    client.post("/api/nutrition/admin/nevo", content=SAMPLE)
+    client.put("/api/nutrition/settings", json={"ai": True})
+    assert client.post("/api/nutrition/photo", content=b"GIF89a").json()["code"] == "photo_invalid"
+    d = client.post("/api/nutrition/photo", content=jpeg()).json()
+    assert d["failed"] is None and d["photo_id"] and d["ai_run_id"] and d["moment_guess"] == "breakfast"
+    assert [i["food"]["ref"] for i in d["items"]] == ["nevo:9001", "nevo:9002", "nevo:9003"]
+    stored = client.get(f"/api/nutrition/photos/{d['photo_id']}")
+    assert stored.headers["content-type"] == "image/jpeg" and b"Exif" not in stored.content and b"GPS" not in stored.content
+    items = [{"food_ref": i["food"]["ref"], "grams": i["grams"], "grams_source": i["grams_source"], "grams_ai": i["grams_ai"],
+              "grams_low": i["grams_low"], "grams_high": i["grams_high"], "confidence": i["confidence"]} for i in d["items"]]
+    items[0].update(grams=50, grams_source="user")  # corrected the oats
+    meal = client.post("/api/nutrition/meals", json={"day": "2026-10-19", "eaten_at": "07:45", "moment": "breakfast", "input": "photo",
+                                                     "photo_id": d["photo_id"], "ai_run_id": d["ai_run_id"], "items": items}).json()
+    assert meal["photo_id"] == d["photo_id"] and [i["grams_source"] for i in meal["items"]] == ["user", "ai", "ai"]
+    assert meal["items"][0]["grams_ai"] == 65
+    # someone else sees nothing of it, and cannot attach the photo to their own meal
+    client.patch("/api/trackerai/admin/registration", json={"registration": "open"})
+    anna, _ = register(app)
+    beta(engine, anna.get("/api/me").json()["id"])
+    assert anna.get(f"/api/nutrition/photos/{d['photo_id']}").status_code == 404
+    r = anna.post("/api/nutrition/meals", json={"day": "2026-10-19", "eaten_at": "08:00", "moment": "breakfast", "photo_id": d["photo_id"],
+                                                "items": [{"food_ref": "nevo:9001", "grams": 50}]})
+    assert r.status_code == 404 and r.json()["code"] == "photo_not_found"
+    # deleting the meal deletes the photo
+    client.delete(f"/api/nutrition/meals/{meal['id']}")
+    assert client.get(f"/api/nutrition/photos/{d['photo_id']}").status_code == 404
+
+
+def test_a_failed_analysis_keeps_the_photo(client, engine, monkeypatch):  # noqa: F811
+    beta(engine)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    client.put("/api/nutrition/settings", json={"ai": True})
+
+    def down(body, **kw):
+        raise recognize.trackerai_ai.AiError("unreachable", "timeout")
+
+    monkeypatch.setattr(recognize.trackerai_ai, "ask", down)
+    d = client.post("/api/nutrition/photo", content=jpeg()).json()
+    assert d["failed"] == "unreachable" and d["items"] == [] and client.get(f"/api/nutrition/photos/{d['photo_id']}").status_code == 200
+
+
+def test_barcode(client, engine, monkeypatch):  # noqa: F811
+    beta(engine)
+    monkeypatch.setattr(off, "fetch", lambda ean: {"product_name": "Skyr", "nutriments": {"energy-kcal_100g": 63, "proteins_100g": 11}}
+                        if ean == "4006381333931" else None)
+    assert client.get("/api/nutrition/foods/barcode/123").json()["code"] == "invalid_barcode"
+    assert client.get("/api/nutrition/foods/barcode/4006381333931").json()["per_100"]["protein_g"] == 11
+    assert client.get("/api/nutrition/foods/barcode/5000112637922").status_code == 404
+
+    def broken(ean):
+        raise off.LookupFailed("timeout")
+
+    monkeypatch.setattr(off, "fetch", broken)
+    assert client.get("/api/nutrition/foods/barcode/5000112637922").json()["code"] == "barcode_lookup_failed"
+
+
+def test_favourites_api(client, engine):  # noqa: F811
+    beta(engine)
+    client.post("/api/nutrition/admin/nevo", content=SAMPLE)
+    t = client.post("/api/nutrition/templates", json={"name": "Pap", "moment": "breakfast", "items": [{"food_ref": "nevo:9001", "grams": 60}]})
+    assert t.status_code == 201
+    tid = t.json()["id"]
+    assert client.patch(f"/api/nutrition/templates/{tid}", json={"name": "Havermoutpap"}).json()["name"] == "Havermoutpap"
+    assert client.get("/api/nutrition/again", params={"moment": "breakfast"}).json()["favourites"][0]["id"] == tid
+    assert client.delete(f"/api/nutrition/templates/{tid}").json() == {"ok": True}
+    assert client.patch(f"/api/nutrition/templates/{tid}", json={"name": "x"}).json()["code"] == "template_not_found"

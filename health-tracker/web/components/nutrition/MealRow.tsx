@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { UtensilsIcon } from "@trackerai/ui/icons";
 import { useFormat, useT } from "@/lib/i18n";
-import type { Meal } from "@/lib/nutrition";
+import { photoUrl, type Meal } from "@/lib/nutrition";
 
 export default function MealRow({ meal, onEdit, compact = false, showMoment = true }: { meal: Meal; onEdit?: (m: Meal) => void; compact?: boolean; showMoment?: boolean }) {
   const t = useT().nutrition;
@@ -14,9 +14,14 @@ export default function MealRow({ meal, onEdit, compact = false, showMoment = tr
   return (
     <li className="border-t border-border py-2.5 first:border-t-0">
       <div className="grid grid-cols-[40px_1fr_auto] items-center gap-x-3">
-        <span aria-hidden className="grid h-10 w-10 place-items-center rounded-md bg-[var(--surface-sunken)] text-[var(--text-faint)]">
-          <UtensilsIcon width={18} height={18} />
-        </span>
+        {meal.photo_id ? (
+          // eslint-disable-next-line @next/next/no-img-element -- the user's own photo, from the API
+          <img src={photoUrl(meal.photo_id)} alt="" loading="lazy" className="h-10 w-10 rounded-md object-cover" />
+        ) : (
+          <span aria-hidden className="grid h-10 w-10 place-items-center rounded-md bg-[var(--surface-sunken)] text-[var(--text-faint)]">
+            <UtensilsIcon width={18} height={18} />
+          </span>
+        )}
         <button type="button" className="min-w-0 text-left" onClick={() => setOpen(!open)} aria-expanded={open} title={open ? t.meal.close : t.meal.open}>
           <span className="block text-[12px] tabular-nums text-ink-muted">{showMoment ? `${meal.eaten_at} · ${t.moments[meal.moment]}` : meal.eaten_at}</span>
           <span className={`block text-[13px] ${compact ? "truncate" : ""}`}>{names}</span>
