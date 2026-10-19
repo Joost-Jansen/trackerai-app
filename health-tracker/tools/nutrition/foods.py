@@ -21,9 +21,12 @@ import unicodedata
 import weakref
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from datetime import datetime, timezone
+
+from sqlalchemy import delete, insert, select, update
 
 from tools import db
+from tools.nutrition.nutrients import KEYS, with_salt
 
 RELOAD_S = 600
 SOURCES = ("nevo", "off", "usda", "user")
@@ -191,3 +194,78 @@ def search(s: db.Scope, query: str, limit: int = 20, history: dict[str, int] | N
         scored.append((sc, e))
     scored.sort(key=lambda x: (-x[0], x[1].food["name"]))
     return [{**e.food, "uses": history.get(e.ref, 0)} for _, e in scored[:limit]]
+
+
+# --- your own foods (Mijn voeding) ---------------------------------------------------------------------------
+
+MAX_USER_FOODS = 500
+LIMITS = {"energy_kcal": 900.0}  # per 100: no food holds more than pure fat; everything else at most 100 g (or its mg/µg)
+
+
+class FoodError(ValueError):
+    def __init__(self, code: str, **params):
+        super().__init__(code)
+        self.code, self.params = code, params
+
+
+def _per_100(values: dict) -> dict:
+    out = {}
+    for k in KEYS:
+        v = values.get(k)
+        if v is None:
+            out[k] = None
+            continue
+        v = float(v)
+        top = LIMITS.get(k, 100.0 if k.endswith("_g") else 100000.0)
+        if not 0 <= v <= top:
+            raise FoodError("food_value_range", field=k, max=top)
+        out[k] = round(v, 3)
+    if out.get("energy_kcal") is None:
+        raise FoodError("food_energy_required")
+    return with_salt(out)
+
+
+def create_user_food(s: db.Scope, *, name: str | None = None, brand: str | None = None, unit: str | None = None,
+                     default_portion_g: float | None = None, per_100: dict | None = None) -> dict:
+    name = (name or "").strip()
+    if not name:
+        raise FoodError("food_name_required")
+    if (unit or "g") not in ("g", "ml"):
+        raise FoodError("invalid_choice", options="g, ml")
+    if len(user_foods(s)) >= MAX_USER_FOODS:
+        raise FoodError("too_many_foods", max=MAX_USER_FOODS)
+    with s.engine.begin() as conn:
+        fid = conn.execute(insert(db.user_foods).values(user_id=s.user_id, name_nl=name[:200], brand=(brand or "").strip()[:100] or None,
+                                                        unit=unit or "g", per_100=_per_100(per_100 or {}), default_portion_g=default_portion_g,
+                                                        created_at=datetime.now(timezone.utc))).inserted_primary_key[0]
+    return get(s, ref_of("user", fid))
+
+
+def change_user_food(s: db.Scope, fid: int, **fields) -> dict | None:
+    if get(s, ref_of("user", fid)) is None:
+        return None
+    values: dict = {}
+    if "name" in fields:
+        if not (fields["name"] or "").strip():
+            raise FoodError("food_name_required")
+        values["name_nl"] = fields["name"].strip()[:200]
+    if "brand" in fields:
+        values["brand"] = (fields["brand"] or "").strip()[:100] or None
+    if "unit" in fields:
+        if fields["unit"] not in ("g", "ml"):
+            raise FoodError("invalid_choice", options="g, ml")
+        values["unit"] = fields["unit"]
+    if "default_portion_g" in fields:
+        values["default_portion_g"] = fields["default_portion_g"]
+    if fields.get("per_100") is not None:
+        values["per_100"] = _per_100(fields["per_100"])
+    if values:
+        with s.engine.begin() as conn:
+            conn.execute(update(db.user_foods).where(db.user_foods.c.user_id == s.user_id, db.user_foods.c.id == fid).values(**values))
+    return get(s, ref_of("user", fid))
+
+
+def delete_user_food(s: db.Scope, fid: int) -> bool:
+    with s.engine.begin() as conn:
+        return bool(conn.execute(delete(db.user_foods).where(db.user_foods.c.user_id == s.user_id, db.user_foods.c.id == fid)).rowcount)
+

@@ -55,7 +55,9 @@ It calls `/api/trackerai/admin/*` (packages/accounts), the shared admin routes u
 `/api/hub/{health|wealth}/...`, which trackerai-api (`app/hub.py`) forwards to that tracker's own
 `/api/admin/tracker`, `/api/admin/tracker/betas/{account_id}`, `/api/admin/feedback[/{id}]` and
 `/api/feedback/{id}/screenshot` (health at `HEALTH_API_URL`, wealth at `WEALTH_API_URL`).
-A tracker that is not connected or does not answer gets a quiet note; the rest keeps working.
+A tracker that is not connected or does not answer gets a quiet note; the rest keeps working. A tracker may add
+`facts` to `/api/admin/tracker`: `[{label: {en, nl}, value, note?: {en, nl}}]`, key figures shown as tiles under the
+overview with the tracker's name (health-tracker: its photo analysis this month and how accurate it is).
 
 The same page is each tracker's own admin page (health-tracker `/settings/admin/`, wealth-tracker `/admin`), so a single
 self-hosted tracker has one too: `trackers` names the trackers it manages and the base of their API

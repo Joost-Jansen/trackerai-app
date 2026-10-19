@@ -2,7 +2,8 @@
 (the same answers in every tracker, see the hub's contract):
 
     GET   /api/admin/tracker                       beta features, workouts per week, per account its workouts, betas
-                                                   and stored activity files (`disk_bytes`, as the users list's files_bytes)
+                                                   and stored activity files (`disk_bytes`, as the users list's files_bytes),
+                                                   and `facts`: key figures (Voeding's photo analysis, tools/nutrition/accuracy.py)
     PATCH /api/admin/tracker/betas/{account_id}    one beta feature on or off for an account
 
 Admins only, logged in on the site (like the other admin routes). Accounts are the shared trackerai accounts' ids;
@@ -22,6 +23,7 @@ from api import betas
 from api.errors import ApiError
 from api.users import APP
 from tools import db
+from tools.nutrition import accuracy as nutrition_accuracy
 
 WEEKS = 12
 MEASURE = {"en": "workouts", "nl": "trainingen"}
@@ -82,6 +84,7 @@ def make_router(engine, accounts: Accounts, current_user: Callable, today: Calla
             "measure": MEASURE,
             "weekly": weekly(db.activities_per_day(engine, day - timedelta(days=day.weekday(), weeks=WEEKS - 1)), day),
             "accounts": [entry(aid, uid, stored[uid], totals, files) for aid, uid in linked if uid in stored],
+            "facts": nutrition_accuracy.facts(engine, day),  # Voeding: photo analyses this month and how accurate they are
             "disk_bytes_total": sum(files.values()),  # every user's, like `weekly`
         }
 

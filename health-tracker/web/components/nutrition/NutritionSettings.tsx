@@ -48,6 +48,11 @@ export default function NutritionSettings() {
           <option value="keep">{t.keepAlways}</option>
           <option value="never">{t.keepNever}</option>
         </Select>
+        <Select label={t.norms} hint={t.normsHint} value={s.norms ?? "none"} onChange={(e) => put({ norms: e.target.value })} className="max-w-xs">
+          <option value="none">{t.normsNone}</option>
+          <option value="men">{t.normsMen}</option>
+          <option value="women">{t.normsWomen}</option>
+        </Select>
         <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); const v = f.parse(kcal ?? ""); put(v ? { kcal_target: Math.round(v) } : { clear_kcal_target: true }); setKcal(null); }}>
           <Input label={t.kcalTarget} hint={t.kcalHint} inputMode="numeric" className="w-40" value={kcal ?? (s.kcal_target != null ? String(s.kcal_target) : "")}
             onChange={(e) => setKcal(e.target.value)} />

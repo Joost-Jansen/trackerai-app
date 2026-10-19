@@ -40,7 +40,7 @@ from api.errors import ApiError
 from api.dashboard import max_by_sport, resting_hr
 from api.plans import enrich
 from tools import db
-from tools.nutrition import foods, match, meals, nevo, off, photos, recognize, targets
+from tools.nutrition import foods, match, meals, nevo, off, photos, recognize, references, targets, usda
 from tools.analytics import fitness_series
 from tools.nutrition.nutrients import KCAL_PER_G, energy_split
 from trackerai_websec.uploads import UploadTooLarge, read_limited
@@ -48,8 +48,8 @@ from trackerai_websec.uploads import UploadTooLarge, read_limited
 FEATURE = "nutrition"
 NEVO_MAX_BYTES = 40 * 1024 * 1024  # RIVM's zip is about 27 MB (the CSV inside 1.7 MB)
 MAX_RANGE_DAYS = 400
-SETTINGS_KEY = "nutrition"  # setting: {ai, photos, kcal_target}
-DEFAULTS = {"ai": False, "photos": "30d", "kcal_target": None}
+SETTINGS_KEY = "nutrition"  # setting: {ai, photos, kcal_target, norms}
+DEFAULTS = {"ai": False, "photos": "30d", "kcal_target": None, "norms": None}  # norms: men | women (tools/nutrition/references.py)
 PHOTO_KEEP = ("30d", "keep", "never")
 
 
@@ -94,6 +94,19 @@ class SettingsIn(BaseModel):
     photos: str | None = Field(None, max_length=8)
     kcal_target: int | None = Field(None, ge=800, le=8000)
     clear_kcal_target: bool = False
+    norms: str | None = Field(None, max_length=8)
+
+
+class PortionIn(BaseModel):
+    grams: float = Field(gt=0, le=meals.MAX_GRAMS)
+
+
+class UserFoodIn(BaseModel):
+    name: str | None = Field(None, max_length=200)
+    brand: str | None = Field(None, max_length=100)
+    unit: str | None = Field(None, max_length=2)
+    default_portion_g: float | None = Field(None, gt=0, le=meals.MAX_GRAMS)
+    per_100: dict[str, float | None] | None = None
 
 
 class MealPatch(BaseModel):
@@ -127,6 +140,13 @@ def with_values(scope, templates: list[dict]) -> list[dict]:
                 cache[it["food_ref"]] = foods.get(scope, it["food_ref"])
             it["per_100"] = (cache[it["food_ref"]] or {}).get("per_100")
     return templates
+
+
+def micros(scope, totals: dict, today: date) -> dict:
+    """The Vitamins and minerals table: amounts against the Dutch norms the user chose (men's or women's)."""
+    group = settings_of(scope)["norms"]
+    years = references.age((db.get_setting(scope, "profile_facts") or {}).get("birth_year"), today)
+    return {"group": group, "rows": references.table(totals, group, years), "source": references.SOURCE}
 
 
 def settings_of(scope) -> dict:
@@ -173,6 +193,7 @@ def day_view(u, day: date, today: date, now_hhmm: str | None = None, sessions: l
         "foods_ready": version is not None,
         "ai": ai_on(s),
         "kcal_target": settings_of(s)["kcal_target"],
+        "micros": micros(s, totals, today),
     }
 
 
@@ -222,7 +243,9 @@ def trends(u, today: date, days: int) -> dict:
             "unsat_fat_share": round((t["mufa_g"] + t["pufa_g"]) * KCAL_PER_G["fat_g"] / kcal, 3) if logged and kcal else None,
             "iron_mg": t["iron_mg"] if logged else None,
         })
-    return {"days": rows, "weight_kg": weight, "covered": sum(r["covered"] for r in rows)}
+    group = settings_of(s)["norms"]
+    iron = references.norm("iron_mg", group, references.age((db.get_setting(s, "profile_facts") or {}).get("birth_year"), today))
+    return {"days": rows, "weight_kg": weight, "covered": sum(r["covered"] for r in rows), "iron_reference": iron[1] if iron else None}
 
 
 def dashboard_block(u, today: date, now_hhmm: str, sessions: list[dict]) -> dict | None:
@@ -302,7 +325,10 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
 
     @r.get("/api/nutrition/foods/search")
     def search(q: str = Query("", max_length=100), limit: int = Query(20, ge=1, le=50), u=Depends(member)):
-        found = foods.search(u.scope, q, limit, meals.history(u.scope))
+        history = meals.history(u.scope)
+        found = foods.search(u.scope, q, limit, history)
+        if len(found) < usda.FEW and usda.fill(u.scope, q):  # NEVO lacks it: USDA, when the server has a key
+            found = foods.search(u.scope, q, limit, history)
         mine = meals.portions(u.scope, [f["ref"] for f in found])
         return [{**f, "portion_g": (mine.get(f["ref"]) or {}).get("grams") or f.get("default_portion_g")} for f in found]
 
@@ -430,10 +456,66 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
             new["kcal_target"] = body.kcal_target
         if body.clear_kcal_target:
             new["kcal_target"] = None
+        if body.norms is not None:
+            if body.norms not in (*references.GROUPS, "none"):
+                raise ApiError(422, "invalid_choice", options="men, women, none")
+            new["norms"] = None if body.norms == "none" else body.norms
         db.set_setting(u.scope, SETTINGS_KEY, new)
         if new["photos"] != current["photos"]:
             photos.retention_changed(u.scope, new["photos"])
         return settings_view(u)
+
+    # --- My foods: your usual portions, your own products, what you scanned ---
+
+    @r.get("/api/nutrition/portions")
+    def list_portions(u=Depends(member)):
+        out = []
+        for ref, p in sorted(meals.portions(u.scope).items(), key=lambda x: -x[1]["uses"]):
+            f = foods.get(u.scope, ref)
+            if f:
+                out.append({"ref": ref, "name": f["name"], "name_en": f.get("name_en"), "source": f["source"], "unit": f["unit"], **p})
+        return out
+
+    @r.put("/api/nutrition/portions/{ref}")
+    def set_portion(ref: str, body: PortionIn, u=Depends(member)):
+        if foods.get(u.scope, ref) is None:
+            raise ApiError(404, "food_not_found", ref=ref)
+        meals.set_portion(u.scope, ref, body.grams)
+        return {"ok": True}
+
+    @r.delete("/api/nutrition/portions/{ref}")
+    def reset_portion(ref: str, u=Depends(member)):
+        meals.reset_portion(u.scope, ref)
+        return {"ok": True}
+
+    @r.get("/api/nutrition/user-foods")
+    def list_user_foods(u=Depends(member)):
+        mine = foods.user_foods(u.scope)
+        scanned = [f for ref in meals.history(u.scope) if ref.startswith("off:") for f in [foods.get(u.scope, ref)] if f]
+        return {"own": mine, "scanned": sorted(scanned, key=lambda f: f["name"].lower())}
+
+    @r.post("/api/nutrition/user-foods", status_code=201)
+    def add_user_food(body: UserFoodIn, u=Depends(member)):
+        try:
+            return foods.create_user_food(u.scope, **body.model_dump(exclude_none=True))
+        except foods.FoodError as e:
+            raise ApiError(422, e.code, **e.params) from None
+
+    @r.patch("/api/nutrition/user-foods/{fid}")
+    def change_user_food(fid: int, body: UserFoodIn, u=Depends(member)):
+        try:
+            out = foods.change_user_food(u.scope, fid, **body.model_dump(exclude_unset=True))
+        except foods.FoodError as e:
+            raise ApiError(422, e.code, **e.params) from None
+        if out is None:
+            raise ApiError(404, "food_not_found", ref=f"user:{fid}")
+        return out
+
+    @r.delete("/api/nutrition/user-foods/{fid}")
+    def remove_user_food(fid: int, u=Depends(member)):
+        if not foods.delete_user_food(u.scope, fid):
+            raise ApiError(404, "food_not_found", ref=f"user:{fid}")
+        return {"ok": True}  # logged meals keep their snapshot
 
     @r.post("/api/nutrition/admin/nevo")
     async def import_nevo(request: Request, u=Depends(admin)):

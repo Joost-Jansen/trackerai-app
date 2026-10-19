@@ -155,6 +155,10 @@ MESSAGES: dict[str, str] = {
     "template_name_required": "geef de favoriet een naam",
     "too_many_templates": "maximaal {max} favorieten",
     "template_not_found": "favoriet niet gevonden",
+    "food_name_required": "geef het product een naam",
+    "food_energy_required": "vul in hoeveel kcal er per 100 in zit",
+    "food_value_range": "{field} tussen 0 en {max} per 100",
+    "too_many_foods": "maximaal {max} eigen producten",
 }
 
 
