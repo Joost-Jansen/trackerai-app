@@ -124,6 +124,8 @@ export type DaySeriesKey = "hr" | "stress" | "bb" | "resp" | "spo2";
  *  `day`; the evening before is negative. `summary` is the day's wellness row (tools/store.py wellness_from_garmin),
  *  `normals` the 60-day medians before the day. */
 export type HealthDay = {
+  /** Voeding (beta): the evening before this night, from 19:00 (tools/nutrition/report.py evening). */
+  evening?: { day: string; last_meal: string; alcohol_units: number; kcal: number; late_large: boolean; minute: number } | null;
   day: string;
   prev: string | null;
   next: string | null;

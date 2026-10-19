@@ -69,6 +69,7 @@ export default function DayTimeline({
   stagesTitle,
   ariaLabel,
   rangeLabel,
+  marks = [],
 }: {
   from: number;
   to: number;
@@ -80,6 +81,8 @@ export default function DayTimeline({
   ariaLabel: string;
   /** Label row without a cursor: the panel's range, "41–73". */
   rangeLabel: (lo: string, hi: string) => string;
+  /** Moments to mark across the panels, with a short label above them (the last meal of the evening, Voeding). */
+  marks?: { minute: number; label: string }[];
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(720);
@@ -108,6 +111,7 @@ export default function DayTimeline({
     nextSleepStart != null && nextSleepStart < to && { start: nextSleepStart, end: to },
   ].filter((b): b is { start: number; end: number } => !!b && b.end > b.start);
   const stageAt = (m: number) => sleep?.stages.find((s) => s.start <= m && m < s.end)?.stage;
+  const shownMarks = marks.filter((k) => k.minute >= from && k.minute <= to);
 
   function locate(clientX: number) {
     const rect = box.current?.getBoundingClientRect();
@@ -138,6 +142,16 @@ export default function DayTimeline({
       onTouchMove={(e) => locate(e.touches[0].clientX)}
       // no onTouchEnd: after a tap the values stay readable; tapping elsewhere (blur) clears them
     >
+      {shownMarks.length > 0 && (
+        <div className="relative h-4 text-[11px] text-ink-muted" style={{ width: plotW }}>
+          {shownMarks.map((k) => (
+            <span key={k.minute} className="absolute top-0 whitespace-nowrap tabular-nums"
+              style={x(k.minute) > plotW * 0.6 ? { right: plotW - x(k.minute) } : { left: x(k.minute) }}>
+              {k.label}
+            </span>
+          ))}
+        </div>
+      )}
       {sleep && (
         <div>
           <div className="flex items-baseline justify-between text-[11.5px] text-ink-muted">
@@ -193,6 +207,9 @@ export default function DayTimeline({
             <svg width={w} height={PANEL_H} className="block overflow-visible" role="img" aria-label={p.label}>
               {bands.map((b, i) => (
                 <rect key={i} x={x(b.start)} width={x(b.end) - x(b.start)} y={0} height={PANEL_H} fill="var(--chart-band)" />
+              ))}
+              {shownMarks.map((k) => (
+                <line key={k.minute} x1={x(k.minute)} x2={x(k.minute)} y1={0} y2={PANEL_H} stroke="var(--macro-alcohol)" strokeWidth={1} strokeDasharray="3 3" />
               ))}
               <g className="ds-chart__grid">
                 <line x1="0" x2={plotW} y1={y(hi)} y2={y(hi)} />
