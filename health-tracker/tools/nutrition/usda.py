@@ -26,7 +26,7 @@ from tools.nutrition.nutrients import KEYS, with_salt
 
 URL = "https://api.nal.usda.gov/fdc/v1/foods/search"
 FEW = 3
-MIN_QUERY = 3
+MIN_QUERY = 4  # a word, not the first letters of one
 TIMEOUT_S = 4
 PAGE = 8
 CACHE_S = 3600
@@ -68,6 +68,19 @@ def fetch(query: str) -> list[dict]:
                                   "dataType": "Foundation,SR Legacy"}, timeout=TIMEOUT_S)
     r.raise_for_status()
     return r.json().get("foods") or []
+
+
+def fill_later(s: db.Scope, query: str) -> bool:
+    """fill() in the background, so a search never waits for USDA; True when a lookup was started. The picker asks
+    again a moment later and then finds what came in."""
+    q = foods.norm(query)
+    if not enabled() or len(q) < MIN_QUERY:
+        return False
+    with _lock:
+        if time.monotonic() - _asked.get(q, -CACHE_S) < CACHE_S:
+            return False
+    threading.Thread(target=fill, args=(s, query), name="usda", daemon=True).start()
+    return True
 
 
 def fill(s: db.Scope, query: str, fetcher=None) -> int:

@@ -266,6 +266,21 @@ def change_user_food(s: db.Scope, fid: int, **fields) -> dict | None:
 
 
 def delete_user_food(s: db.Scope, fid: int) -> bool:
+    """The product, its usual portion and its place in favourites (a favourite left empty goes too). Logged meals keep
+    their snapshot."""
+    ref = ref_of("user", fid)
     with s.engine.begin() as conn:
-        return bool(conn.execute(delete(db.user_foods).where(db.user_foods.c.user_id == s.user_id, db.user_foods.c.id == fid)).rowcount)
+        if not conn.execute(delete(db.user_foods).where(db.user_foods.c.user_id == s.user_id, db.user_foods.c.id == fid)).rowcount:
+            return False
+        conn.execute(delete(db.portion_memory).where(db.portion_memory.c.user_id == s.user_id, db.portion_memory.c.food_ref == ref))
+        for tid, items in conn.execute(select(db.meal_templates.c.id, db.meal_templates.c["items"]).where(db.meal_templates.c.user_id == s.user_id)).all():
+            kept = [it for it in items or [] if it.get("food_ref") != ref]
+            if len(kept) == len(items or []):
+                continue
+            q = db.meal_templates.c
+            if kept:
+                conn.execute(update(db.meal_templates).where(q.user_id == s.user_id, q.id == tid).values(items=kept))
+            else:
+                conn.execute(delete(db.meal_templates).where(q.user_id == s.user_id, q.id == tid))
+    return True
 

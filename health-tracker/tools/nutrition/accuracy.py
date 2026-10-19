@@ -11,6 +11,8 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date
 from statistics import median
+import time
+import weakref
 
 from sqlalchemy import func, select
 
@@ -58,13 +60,32 @@ def stats(engine, today: date) -> dict:
     }
 
 
+def _nl(n: int) -> str:
+    return f"{n:,}".replace(",", ".")  # 12.345, as Dutch writes thousands
+
+
+_cache: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()  # engine -> (today, when, facts)
+CACHE_S = 300  # the hub's overview loads often; these figures move with new meals only
+
+
 def facts(engine, today: date) -> list[dict]:
-    """The hub's key figures for Voeding (the shared admin page shows `facts` under each tracker)."""
+    """The hub's key figures for Voeding (the shared admin page shows `facts` under each tracker), at most five
+    minutes old."""
+    hit = _cache.get(engine)
+    if hit and hit[0] == today and time.monotonic() - hit[1] < CACHE_S:
+        return hit[2]
+    out = _facts(engine, today)
+    _cache[engine] = (today, time.monotonic(), out)
+    return out
+
+
+def _facts(engine, today: date) -> list[dict]:
     s = stats(engine, today)
     pct = lambda v: "-" if v is None else f"{round(v * 100)}%"  # noqa: E731
     out = [
         {"label": {"en": "Photo analyses this month", "nl": "Foto-analyses deze maand"}, "value": str(s["runs_month"]),
-         "note": {"en": f"{s['tokens_in_month']:,} tokens in, {s['tokens_out_month']:,} out", "nl": f"{s['tokens_in_month']:,} tokens in, {s['tokens_out_month']:,} uit".replace(",", ".")}},
+         "note": {"en": f"{s['tokens_in_month']:,} tokens in, {s['tokens_out_month']:,} out",
+                  "nl": f"{_nl(s['tokens_in_month'])} tokens in, {_nl(s['tokens_out_month'])} uit"}},
         {"label": {"en": "Photo items corrected", "nl": "Foto-items gecorrigeerd"}, "value": str(s["corrected"]),
          "note": {"en": f"{s['kept']} kept as estimated, {s['memory']} from the usual portion", "nl": f"{s['kept']} geschat gelaten, {s['memory']} uit de gebruikelijke portie"}},
     ]

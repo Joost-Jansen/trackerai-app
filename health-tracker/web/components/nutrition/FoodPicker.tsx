@@ -3,7 +3,7 @@
 // Search a food: NEVO, cached Open Food Facts and your own foods (GET /api/nutrition/foods/search), with what you ate
 // lately while the box is empty. A tap picks it; the editor then sets the amount.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SearchIcon } from "@trackerai/ui/icons";
 import { api } from "@/lib/api";
@@ -32,6 +32,14 @@ export default function FoodPicker({ onPick, autoFocus = false, initial = "" }: 
     staleTime: 60_000,
   });
   const recent = useQuery({ queryKey: ["nutrition-recent"], queryFn: () => api.get<Food[]>("/api/nutrition/foods/recent") });
+  // Few results: the server may be looking further (USDA, in the background); ask once more a moment later.
+  const asked = useRef(new Set<string>());
+  useEffect(() => {
+    if (q.length < 4 || !search.data || search.data.length >= 3 || asked.current.has(q)) return;
+    asked.current.add(q);
+    const id = setTimeout(() => search.refetch(), 2500);
+    return () => clearTimeout(id);
+  }, [q, search.data]); // eslint-disable-line react-hooks/exhaustive-deps
   // Search mode as soon as there is text, also in the moment before the debounced query runs.
   const searching = text.trim().length > 0;
   const pending = searching && (q !== text.trim() || search.isFetching);

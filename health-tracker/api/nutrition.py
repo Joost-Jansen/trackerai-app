@@ -51,6 +51,8 @@ MAX_RANGE_DAYS = 400
 SETTINGS_KEY = "nutrition"  # setting: {ai, photos, kcal_target, norms}
 DEFAULTS = {"ai": False, "photos": "30d", "kcal_target": None, "norms": None}  # norms: men | women (tools/nutrition/references.py)
 PHOTO_KEEP = ("30d", "keep", "never")
+SCANNED_KEY = "nutrition_scanned"  # setting: the products this user scanned, newest first
+MAX_SCANNED = 100
 
 
 class ItemIn(BaseModel):
@@ -327,8 +329,8 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
     def search(q: str = Query("", max_length=100), limit: int = Query(20, ge=1, le=50), u=Depends(member)):
         history = meals.history(u.scope)
         found = foods.search(u.scope, q, limit, history)
-        if len(found) < usda.FEW and usda.fill(u.scope, q):  # NEVO lacks it: USDA, when the server has a key
-            found = foods.search(u.scope, q, limit, history)
+        if len(found) < usda.FEW:
+            usda.fill_later(u.scope, q)  # NEVO lacks it: USDA in the background, when the server has a key
         mine = meals.portions(u.scope, [f["ref"] for f in found])
         return [{**f, "portion_g": (mine.get(f["ref"]) or {}).get("grams") or f.get("default_portion_g")} for f in found]
 
@@ -360,6 +362,8 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
             raise ApiError(404, "barcode_no_nutrients") from None
         if food is None:
             raise ApiError(404, "barcode_not_found")
+        seen = [r for r in (db.get_setting(u.scope, SCANNED_KEY) or []) if r != food["ref"]]
+        db.set_setting(u.scope, SCANNED_KEY, [food["ref"], *seen][:MAX_SCANNED])  # for My foods, also when not logged
         mine = meals.portions(u.scope, [food["ref"]])
         return {**food, "portion_g": (mine.get(food["ref"]) or {}).get("grams") or food.get("default_portion_g")}
 
@@ -491,7 +495,8 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
     @r.get("/api/nutrition/user-foods")
     def list_user_foods(u=Depends(member)):
         mine = foods.user_foods(u.scope)
-        scanned = [f for ref in meals.history(u.scope) if ref.startswith("off:") for f in [foods.get(u.scope, ref)] if f]
+        refs = dict.fromkeys([*(db.get_setting(u.scope, SCANNED_KEY) or []), *(r for r in meals.history(u.scope) if r.startswith("off:"))])
+        scanned = [f for ref in refs for f in [foods.get(u.scope, ref)] if f]
         return {"own": mine, "scanned": sorted(scanned, key=lambda f: f["name"].lower())}
 
     @r.post("/api/nutrition/user-foods", status_code=201)

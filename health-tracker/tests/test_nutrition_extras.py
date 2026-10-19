@@ -82,7 +82,12 @@ def test_my_own_products(client):
     meal = client.post("/api/nutrition/meals", json={"day": "2026-10-19", "eaten_at": "08:00", "moment": "breakfast",
                                                      "items": [{"food_ref": food["ref"], "grams": 50}]}).json()
     assert client.get("/api/nutrition/user-foods").json()["own"][0]["name"] == "Muesli van de markt"
+    client.post("/api/nutrition/templates", json={"name": "Muesli", "items": [{"food_ref": food["ref"], "grams": 50}]})
+    client.post("/api/nutrition/templates", json={"name": "Mix", "items": [{"food_ref": food["ref"], "grams": 50}, {"food_ref": "nevo:9002", "grams": 100}]})
     assert client.delete(f"/api/nutrition/user-foods/{fid}").json() == {"ok": True}
+    favourites = client.get("/api/nutrition/templates").json()  # the product left them; the one only it was in went too
+    assert [(t["name"], [i["food_ref"] for i in t["items"]]) for t in favourites] == [("Mix", ["nevo:9002"])]
+    assert client.get("/api/nutrition/portions").json() == []
     day = client.get("/api/nutrition/day").json()
     assert day["meals"][0]["id"] == meal["id"] and day["totals"]["energy_kcal"] == 200  # the snapshot stays
     assert "en andere gegevens" in day["source"]["nl"]
@@ -125,9 +130,27 @@ def test_accuracy_for_the_hub(engine):  # noqa: F811
     assert (st["runs_month"], st["tokens_in_month"], st["corrected"], st["kept"], st["memory"]) == (1, 1000, 5, 1, 1)
     assert st["by_group"] == [{"group": "Cereal products", "items": 5, "median_error": 0.167}]  # |60-50|/60, 0, 20/120, 20/70, 20/100
     facts = accuracy.facts(engine, TODAY)
+    assert facts[0]["note"]["nl"] == "1.000 tokens in, 200 uit"
     assert facts[0]["value"] == "1" and facts[-1]["label"]["en"] == "Gram error: Cereal products" and facts[-1]["value"] == "17%"
 
 
 def test_the_hub_shows_the_facts(client):
     out = client.get("/api/admin/tracker").json()
     assert out["facts"][0]["label"] == {"en": "Photo analyses this month", "nl": "Foto-analyses deze maand"}
+
+
+def test_scanned_products_are_listed_also_when_not_logged(client, monkeypatch):
+    from tools.nutrition import off
+
+    monkeypatch.setattr(off, "fetch", lambda ean: {"product_name": "Skyr", "nutriments": {"energy-kcal_100g": 63}})
+    client.get("/api/nutrition/foods/barcode/4006381333931")
+    assert [f["ref"] for f in client.get("/api/nutrition/user-foods").json()["scanned"]] == ["off:4006381333931"]
+
+
+def test_usda_never_holds_up_a_search(engine, monkeypatch):  # noqa: F811
+    started = []
+    monkeypatch.setenv("FDC_API_KEY", "test")
+    monkeypatch.setattr(usda.threading, "Thread", lambda target, args, **kw: type("T", (), {"start": lambda self: started.append(args[1])})())
+    s = db.Scope(engine, 1)
+    assert usda.fill_later(s, "zzqx onbekend") and started == ["zzqx onbekend"]
+    assert not usda.fill_later(s, "zzq")  # shorter than a word
