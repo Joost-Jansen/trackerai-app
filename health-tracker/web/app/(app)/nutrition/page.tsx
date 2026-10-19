@@ -3,7 +3,7 @@
 // Voeding, Dag: one day at a time (today by default, another through ?day= like Slaap & lichaam): the day's training,
 // totals against its targets, the energy split and the meals by moment. Behind the nutrition beta (lib/nav.ts).
 
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@trackerai/ui/components/Card";
@@ -70,7 +70,8 @@ function DayView() {
   const { locale } = useLocale();
   const router = useRouter();
   const [editing, setEditing] = useState<Meal | null>(null);
-  const [adding, setAdding] = useState<false | "choose" | "photo">(false);
+  const [adding, setAdding] = useState<false | "choose" | File>(false);
+  const camera = useRef<HTMLInputElement>(null);
   const q = useQuery({
     queryKey: ["nutrition-day", day],
     queryFn: () => api.get<NutritionDay>(`/api/nutrition/day${day ? `?day=${day}` : ""}`),
@@ -136,10 +137,15 @@ function DayView() {
       />
       {source && <p className="text-[11.5px] text-ink-muted">{source}</p>}
       {editing && <MealEditor day={d.day} meal={editing} onClose={() => setEditing(null)} />}
-      {adding && <AddMealSheet day={d.day} ai={d.ai} start={adding === "photo" ? "photo" : undefined} onClose={() => setAdding(false)} />}
+      {adding && <AddMealSheet day={d.day} ai={d.ai} file={adding instanceof File ? adding : null} onClose={() => setAdding(false)} />}
       {d.ai && d.foods_ready && (
-        // On a phone, logging is one tap from the page: the camera, bottom right above the safe area.
-        <button type="button" aria-label={t.add.photo} onClick={() => setAdding("photo")}
+        // On a phone, logging is one tap from the page: the camera, bottom right above the safe area. The file input is
+        // clicked inside the tap itself; iOS opens no camera for a click that comes later.
+        <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setAdding(f); }} />
+      )}
+      {d.ai && d.foods_ready && (
+        <button type="button" aria-label={t.add.photo} onClick={() => camera.current?.click()}
           className="fixed right-4 z-30 grid h-14 w-14 place-items-center rounded-full bg-[var(--surface-brand)] text-[var(--text-inverse)] shadow-lg sm:hidden"
           style={{ bottom: "calc(1rem + env(safe-area-inset-bottom))" }}>
           <CameraIcon width={22} height={22} />

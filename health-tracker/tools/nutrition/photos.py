@@ -5,7 +5,8 @@ so a location never reaches the database whatever sent the file: JPEG APP1 (EXIF
 PNG text, time and eXIf chunks. Pixels are not touched, so no image library is needed.
 
 Keeping (the user's setting `photos`): "30d" (default) deletes a photo 30 days after it was taken, "keep" never, and
-"never" stores none at all (the analysis still sees it, the meal has no photo). Deleting a meal deletes its photo.
+"never" stores none at all (the analysis still sees it, the meal has no photo). A photo is pending until a saved meal
+claims it (`attach`): one whose review was cancelled is deleted after PENDING_HOURS. Deleting a meal deletes its photo.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from tools import db
 
 MAX_BYTES = 8 * 1024 * 1024
 KEEP_DAYS = {"30d": 30, "keep": None}
+PENDING_HOURS = 24
 JPEG, PNG = b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n"
 JPEG_DROP = {0xE1, 0xED, 0xFE}  # APP1 (EXIF, XMP), APP13 (IPTC), COM
 PNG_KEEP = {b"IHDR", b"PLTE", b"IDAT", b"IEND", b"tRNS", b"gAMA", b"cHRM", b"sRGB", b"iCCP", b"sBIT", b"pHYs", b"bKGD"}
@@ -93,15 +95,28 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _expiry(created: datetime, keep: str) -> datetime | None:
+    days = KEEP_DAYS.get(keep, 30)
+    return created + timedelta(days=days) if days else None
+
+
 def save(s: db.Scope, mime: str, data: bytes, keep: str = "30d") -> int | None:
-    """Store a cleaned photo by the user's setting; None when they keep no photos."""
+    """Store a cleaned photo, pending until a meal claims it; None when the user keeps no photos."""
     if keep == "never":
         return None
-    days = KEEP_DAYS.get(keep, 30)
     now = _now()
     with s.engine.begin() as conn:
         return conn.execute(insert(db.meal_photos).values(user_id=s.user_id, mime=mime, data=data, created_at=now,
-                                                          expires_at=now + timedelta(days=days) if days else None)).inserted_primary_key[0]
+                                                          expires_at=now + timedelta(hours=PENDING_HOURS))).inserted_primary_key[0]
+
+
+def attach(s: db.Scope, photo_id: int, keep: str) -> None:
+    """A saved meal claims the photo: from now on it is kept by the user's setting."""
+    with s.engine.begin() as conn:
+        created = conn.execute(select(db.meal_photos.c.created_at).where(db.meal_photos.c.user_id == s.user_id, db.meal_photos.c.id == photo_id)).scalar_one_or_none()
+        if created is not None:
+            created = created if created.tzinfo else created.replace(tzinfo=timezone.utc)
+            conn.execute(db.meal_photos.update().where(db.meal_photos.c.id == photo_id).values(expires_at=_expiry(created, keep)))
 
 
 def load(s: db.Scope, photo_id: int) -> tuple[str, bytes] | None:
@@ -143,8 +158,8 @@ def retention_changed(s: db.Scope, keep: str) -> None:
                 conn.execute(delete(db.meal_photos).where(db.meal_photos.c.user_id == s.user_id))
                 conn.execute(db.meals.update().where(db.meals.c.user_id == s.user_id, db.meals.c.photo_id.in_(ids)).values(photo_id=None))
             return
-        days = KEEP_DAYS.get(keep, 30)
-        for pid, created in conn.execute(select(db.meal_photos.c.id, db.meal_photos.c.created_at).where(db.meal_photos.c.user_id == s.user_id)).all():
+        claimed = select(db.meals.c.photo_id).where(db.meals.c.user_id == s.user_id, db.meals.c.photo_id.isnot(None))
+        for pid, created in conn.execute(select(db.meal_photos.c.id, db.meal_photos.c.created_at)
+                                         .where(db.meal_photos.c.user_id == s.user_id, db.meal_photos.c.id.in_(claimed))).all():
             created = created if created.tzinfo else created.replace(tzinfo=timezone.utc)
-            conn.execute(db.meal_photos.update().where(db.meal_photos.c.id == pid)
-                         .values(expires_at=created + timedelta(days=days) if days else None))
+            conn.execute(db.meal_photos.update().where(db.meal_photos.c.id == pid).values(expires_at=_expiry(created, keep)))

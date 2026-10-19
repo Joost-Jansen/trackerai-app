@@ -39,6 +39,10 @@ class LookupFailed(Exception):
     pass
 
 
+class NoNutrients(Exception):
+    """Open Food Facts knows the product, without energy per 100 g (nothing to count with)."""
+
+
 def valid_ean(ean: str) -> bool:
     """8, 12, 13 or 14 digits with a correct GS1 check digit."""
     if not re.fullmatch(r"\d{8}|\d{12,14}", ean or ""):
@@ -51,7 +55,7 @@ def valid_ean(ean: str) -> bool:
 
 def user_agent() -> str:
     contact = os.environ.get("OFF_CONTACT", "").strip()  # an e-mail address of whoever runs this installation, optional
-    return f"trackerai-health/1.0 ({contact or 'https://github.com/Joost-Jansen/trackerai-app'})"
+    return f"trackerai-health/1.0 ({contact})" if contact else "trackerai-health/1.0"
 
 
 def fetch(ean: str) -> dict | None:
@@ -69,7 +73,8 @@ def fetch(ean: str) -> dict | None:
 
 
 def to_food(ean: str, product: dict) -> dict | None:
-    """A foods row for a product, None without a name or without energy per 100 (nothing to count with)."""
+    """A foods row for a product, None without a name or without energy per 100 (nothing to count with). Open Food
+    Facts gives `*_100g` also for a product labelled per serving, when it knows the serving size."""
     n = product.get("nutriments") or {}
     per_100 = {}
     for key, (field, factor) in FACTOR.items():
@@ -79,7 +84,7 @@ def to_food(ean: str, product: dict) -> dict | None:
         except (TypeError, ValueError):
             per_100[key] = None
     name = (product.get("product_name_nl") or product.get("product_name") or "").strip()
-    if not name or per_100.get("energy_kcal") is None or (product.get("nutrition_data_per") or "100g") != "100g":
+    if not name or per_100.get("energy_kcal") is None:
         return None
     unit = "ml" if (product.get("product_quantity_unit") or "").lower() == "ml" else "g"
     serving = product.get("serving_quantity")
@@ -102,11 +107,14 @@ def lookup(s: db.Scope, ean: str, fetcher=None) -> dict | None:
     if cached:
         return cached
     product = (fetcher or fetch)(ean)
-    row = to_food(ean, product) if product else None
-    if row is None:
+    if not product:
         return None
+    row = to_food(ean, product)
+    if row is None:
+        raise NoNutrients(ean)
     with s.engine.begin() as conn:
         if conn.execute(select(db.foods.c.id).where(db.foods.c.source == "off", db.foods.c.source_code == ean)).first() is None:
             conn.execute(insert(db.foods).values(**row))
-    foods.invalidate()
-    return foods.get(s, foods.ref_of("off", ean))
+    food = foods.get(s, foods.ref_of("off", ean))
+    foods.add(s.engine, food)  # into the loaded index, instead of reading the whole table again
+    return food

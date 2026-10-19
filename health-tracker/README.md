@@ -283,6 +283,7 @@ Every push to your fork's `main` redeploys the service whose watch paths it touc
 | `FEEDBACK_NTFY_URL` | api | no | An [ntfy](https://ntfy.sh) topic URL: a ping to your phone when someone sends feedback. Only the kind and a link go out, never the text | `https://ntfy.sh/<a long random topic>` |
 | `ANTHROPIC_API_KEY` | api | for photo analysis | The Claude API key for Nutrition's photo analysis. Without it the option is not offered; each user switches it on themselves | `sk-ant-...` |
 | `NUTRITION_MODEL`, `NUTRITION_EFFORT` | api | no | The model and effort for meal photos | `claude-sonnet-5-5`, `medium` (defaults) |
+| `NUTRITION_DAILY_PHOTOS` | api | no | Photos one user may have analysed per 24 hours (each is a paid call) | `40` (default) |
 | `OFF_CONTACT` | api | no | An e-mail address in the User-Agent of Open Food Facts barcode lookups, as Open Food Facts asks | `you@example.org` |
 | `WAHOO_CLIENT_ID`, `WAHOO_CLIENT_SECRET` | api, sync | for Wahoo | The app from Wahoo's developer portal (scopes `workouts_read offline_data user_read`). Without them the Wahoo card says it is not set up | developers.wahooligan.com |
 | `WAHOO_REDIRECT_URI` | api | no | The callback registered at Wahoo; default: this server's `/api/connections/wahoo/callback` | `https://<your-app>/api/connections/wahoo/callback` |

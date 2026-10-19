@@ -192,9 +192,22 @@ def test_from_photo_to_saved_meal(app, client, engine, ai):  # noqa: F811
     r = anna.post("/api/nutrition/meals", json={"day": "2026-10-19", "eaten_at": "08:00", "moment": "breakfast", "photo_id": d["photo_id"],
                                                 "items": [{"food_ref": "nevo:9001", "grams": 50}]})
     assert r.status_code == 404 and r.json()["code"] == "photo_not_found"
+    # a run is only yours to refer to
+    r = anna.post("/api/nutrition/meals", json={"day": "2026-10-19", "eaten_at": "08:00", "moment": "breakfast", "ai_run_id": d["ai_run_id"],
+                                                "items": [{"food_ref": "nevo:9001", "grams": 50}]})
+    assert r.status_code == 201 and r.json()["ai_run_id"] is None
     # deleting the meal deletes the photo
     client.delete(f"/api/nutrition/meals/{meal['id']}")
     assert client.get(f"/api/nutrition/photos/{d['photo_id']}").status_code == 404
+
+
+def test_photo_analysis_has_a_daily_limit(client, engine, ai, monkeypatch):  # noqa: F811
+    beta(engine)
+    client.post("/api/nutrition/admin/nevo", content=SAMPLE)
+    client.put("/api/nutrition/settings", json={"ai": True})
+    monkeypatch.setenv("NUTRITION_DAILY_PHOTOS", "2")
+    assert [client.post("/api/nutrition/photo", content=jpeg()).status_code for _ in range(3)] == [200, 200, 429]
+    assert client.post("/api/nutrition/photo", content=jpeg()).json()["code"] == "nutrition_ai_limit"
 
 
 def test_a_failed_analysis_keeps_the_photo(client, engine, monkeypatch):  # noqa: F811
@@ -217,6 +230,8 @@ def test_barcode(client, engine, monkeypatch):  # noqa: F811
     assert client.get("/api/nutrition/foods/barcode/123").json()["code"] == "invalid_barcode"
     assert client.get("/api/nutrition/foods/barcode/4006381333931").json()["per_100"]["protein_g"] == 11
     assert client.get("/api/nutrition/foods/barcode/5000112637922").status_code == 404
+    monkeypatch.setattr(off, "fetch", lambda ean: {"product_name": "Water", "nutriments": {}})
+    assert client.get("/api/nutrition/foods/barcode/5000112637922").json()["code"] == "barcode_no_nutrients"
 
     def broken(ean):
         raise off.LookupFailed("timeout")

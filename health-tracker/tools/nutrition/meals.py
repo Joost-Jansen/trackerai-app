@@ -7,7 +7,7 @@ again when it still exists, else from the item's own snapshot.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import delete, func, insert, select, update
 
@@ -304,8 +304,6 @@ def delete_template(s: db.Scope, tid: int) -> bool:
 def again(s: db.Scope, day: str, moment: str) -> dict:
     """What to log again in one tap: favourites (those of this moment first) and the meals of the same moment the day
     before ("like yesterday")."""
-    from datetime import date, timedelta
-
     yesterday = (date.fromisoformat(day) - timedelta(days=1)).isoformat()
     favourites = sorted(templates(s), key=lambda t: (t.get("moment") != moment, t["position"]))
     return {"favourites": favourites, "yesterday": [m for m in between(s, yesterday, yesterday) if m["moment"] == moment]}

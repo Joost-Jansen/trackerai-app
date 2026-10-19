@@ -204,12 +204,15 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
     def create(body: MealIn, u=Depends(member)):
         if body.photo_id is not None and not photos.owns(u.scope, body.photo_id):
             raise ApiError(404, "photo_not_found")
+        run_id = body.ai_run_id if body.ai_run_id is not None and recognize.owns_run(u.scope, body.ai_run_id) else None
         try:
-            return meals.create(u.scope, day=body.day, eaten_at=body.eaten_at, moment=body.moment, input=body.input, note=body.note,
-                                items=[i.model_dump(exclude_none=True) for i in body.items], photo_id=body.photo_id,
-                                ai_run_id=body.ai_run_id if body.photo_id is not None or body.input == "photo" else None)
+            meal = meals.create(u.scope, day=body.day, eaten_at=body.eaten_at, moment=body.moment, input=body.input, note=body.note,
+                                items=[i.model_dump(exclude_none=True) for i in body.items], photo_id=body.photo_id, ai_run_id=run_id)
         except meals.MealError as e:
             raise _meal_error(e) from None
+        if body.photo_id is not None:
+            photos.attach(u.scope, body.photo_id, settings_of(u.scope)["photos"])
+        return meal
 
     @r.patch("/api/nutrition/meals/{meal_id}")
     def change(meal_id: int, body: MealPatch, u=Depends(member)):
@@ -267,6 +270,8 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
             food = off.lookup(u.scope, ean)
         except off.LookupFailed:
             raise ApiError(502, "barcode_lookup_failed") from None
+        except off.NoNutrients:
+            raise ApiError(404, "barcode_no_nutrients") from None
         if food is None:
             raise ApiError(404, "barcode_not_found")
         mine = meals.portions(u.scope, [food["ref"]])
@@ -276,8 +281,11 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
     async def photo(request: Request, u=Depends(member)):
         if not trackerai_ai.available():
             raise ApiError(403, "nutrition_ai_unavailable")
-        if not settings_of(u.scope)["ai"]:
+        mine = settings_of(u.scope)
+        if not mine["ai"]:
             raise ApiError(403, "nutrition_ai_off")
+        if recognize.runs_last_day(u.scope) >= recognize.daily_limit():
+            raise ApiError(429, "nutrition_ai_limit", max=recognize.daily_limit())
         try:
             data = await read_limited(request.stream(), photos.MAX_BYTES)
             mime, image = photos.clean(data)
@@ -285,7 +293,7 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
             raise ApiError(413, "upload_too_large", max_mb=photos.MAX_BYTES // (1024 * 1024)) from None
         except photos.PhotoError:
             raise ApiError(422, "photo_invalid") from None
-        photo_id = photos.save(u.scope, mime, image, settings_of(u.scope)["photos"])
+        photo_id = photos.save(u.scope, mime, image, mine["photos"])
         try:
             run_id, answer = recognize.recognise(u.scope, mime, image)
         except trackerai_ai.AiError as e:

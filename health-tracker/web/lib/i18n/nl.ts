@@ -228,6 +228,8 @@ export const nl = {
 
   /** Error codes of the API (api/errors.py), with the same parameters. */
   errors: {
+    barcode_no_nutrients: "Open Food Facts kent dit product, maar zonder voedingswaarden per 100 gram. Zoek het of voeg het zelf toe.",
+    nutrition_ai_limit: (p: { max: number }) => `Maximaal ${p.max} foto's per dag. Zoek de rest, of probeer het morgen.`,
     nutrition_ai_unavailable: "Foto-analyse kan niet op deze server.",
     nutrition_ai_off: "Zet foto-analyse eerst aan bij Zones en profiel.",
     photo_invalid: "Dit is geen JPEG- of PNG-foto.",

@@ -177,7 +177,7 @@ def _api(body: dict) -> dict:
     client, packages/ai); returns what Claude filled in for that tool.
     """
     try:
-        result = trackerai_ai.ask(body, timeout=90, retries=1)
+        result = trackerai_ai.ask(body, timeout=90, retries=0)  # as before: one try, the page starts the next round
     except trackerai_ai.AiError as e:
         if e.code in ("unreachable", "unavailable"):
             raise AiError(tr("Claude could not be reached. Try again later.")) from e

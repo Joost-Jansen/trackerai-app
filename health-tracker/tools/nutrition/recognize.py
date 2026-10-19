@@ -13,10 +13,10 @@ from __future__ import annotations
 
 import base64
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import trackerai_ai
-from sqlalchemy import insert
+from sqlalchemy import func, insert, select
 
 from tools import db
 
@@ -136,6 +136,27 @@ def tidy(answer: dict) -> dict:
         "reference_object": answer.get("reference_object") if answer.get("reference_object") in REFERENCES else "none",
         "moment_guess": answer.get("moment_guess") if answer.get("moment_guess") in MOMENTS else None,
     }
+
+
+def daily_limit() -> int:
+    """How many photos one user may have analysed in 24 hours (each is a paid call): NUTRITION_DAILY_PHOTOS, default 40."""
+    try:
+        return max(1, int(os.environ.get("NUTRITION_DAILY_PHOTOS") or 40))
+    except ValueError:
+        return 40
+
+
+def runs_last_day(s: db.Scope) -> int:
+    since = datetime.now(timezone.utc) - timedelta(days=1)
+    with s.engine.connect() as conn:
+        return conn.execute(select(func.count()).select_from(db.nutrition_ai_runs)
+                            .where(db.nutrition_ai_runs.c.user_id == s.user_id, db.nutrition_ai_runs.c.created_at >= since)).scalar_one()
+
+
+def owns_run(s: db.Scope, run_id: int) -> bool:
+    with s.engine.connect() as conn:
+        return conn.execute(select(db.nutrition_ai_runs.c.id).where(db.nutrition_ai_runs.c.user_id == s.user_id,
+                                                                     db.nutrition_ai_runs.c.id == run_id)).first() is not None
 
 
 def log_run(s: db.Scope, result, answer: dict | None, error: str | None = None) -> int:

@@ -61,14 +61,22 @@ def test_photos_lose_their_metadata_and_only_images_pass():
 
 
 def test_photo_keeping_follows_the_setting(s):
-    mime, data = photos.clean(jpeg())
-    assert photos.save(s, mime, data, "never") is None
-    kept, month = photos.save(s, mime, data, "keep"), photos.save(s, mime, data, "30d")
-    assert photos.load(s, kept)[1] == data and photos.load(db.Scope(s.engine, 2), kept) is None
     from datetime import datetime, timedelta, timezone
 
-    assert photos.purge_expired(s.engine, datetime.now(timezone.utc) + timedelta(days=31)) == 1
+    mime, data = photos.clean(jpeg())
+    assert photos.save(s, mime, data, "never") is None
+    kept, month, orphan = (photos.save(s, mime, data, k) for k in ("keep", "30d", "keep"))
+    assert photos.load(s, kept)[1] == data and photos.load(db.Scope(s.engine, 2), kept) is None
+    for pid, keep in ((kept, "keep"), (month, "30d")):  # claimed by a saved meal
+        meals.create(s, day="2026-10-19", eaten_at="08:00", moment="breakfast", input="photo", photo_id=pid,
+                     items=[{"food_ref": "nevo:9001", "grams": 60}])
+        photos.attach(s, pid, keep)
+    now = datetime.now(timezone.utc)
+    assert photos.purge_expired(s.engine, now + timedelta(days=2)) == 1  # the photo of a cancelled review: a day
+    assert photos.load(s, orphan) is None and photos.load(s, month) and photos.load(s, kept)
+    assert photos.purge_expired(s.engine, now + timedelta(days=31)) == 1
     assert photos.load(s, month) is None and photos.load(s, kept)
+    assert meals.between(s, "2026-10-19", "2026-10-19")[1]["photo_id"] is None  # the meal stays, without its photo
     photos.retention_changed(s, "never")
     assert photos.load(s, kept) is None
 
@@ -149,6 +157,8 @@ def test_open_food_facts_mapping_and_cache(s):
     assert (p["sodium_mg"], p["salt_g"], p["calcium_mg"], p["vit_d_ug"], p["fiber_g"]) == (40, 0.1, 120, 0.2, None)
     assert off.lookup(s, "4006381333931", fetcher)["name"] == "Skyr naturel" and calls == ["4006381333931"]  # cached
     assert foods.search(s, "skyr")[0]["ref"] == "off:4006381333931"
+    with pytest.raises(off.NoNutrients):
+        off.lookup(s, "5000112637922", lambda ean: {"product_name": "Water", "nutriments": {}})
     beer = off.to_food("1", {"product_name": "Pils", "product_quantity_unit": "ml", "nutriments": {"energy-kcal_100g": 42, "alcohol_100g": 5}})
     assert beer["unit"] == "ml" and beer["per_100"]["alcohol_g"] == 3.945  # 5 % vol x 0.789 g/ml
     assert off.to_food("1", {"product_name": "No energy", "nutriments": {}}) is None

@@ -6,7 +6,8 @@
 //   Zoeken   NEVO, your own foods and what you ate lately.
 //   Barcode  a package's EAN from Open Food Facts: read from a photo where the browser can, else typed.
 //   Opnieuw  your favourites and the same moment yesterday, in one tap.
-// `start="photo"` skips the choice and opens the camera at once (the floating camera button on the Day tab).
+// `file`: a photo the page already took (the floating camera button on the Day tab opens the camera inside the tap
+// itself, which iOS requires); the sheet then goes straight to analysing it.
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -113,7 +114,7 @@ function Barcode({ onFound }: { onFound: (food: Food) => void }) {
   );
 }
 
-export default function AddMealSheet({ day, ai, onClose, start }: { day: string; ai: boolean; onClose: () => void; start?: "photo" }) {
+export default function AddMealSheet({ day, ai, onClose, file }: { day: string; ai: boolean; onClose: () => void; file?: File | null }) {
   const tt = useT();
   const t = tt.nutrition.add;
   const { locale } = useLocale();
@@ -123,25 +124,34 @@ export default function AddMealSheet({ day, ai, onClose, start }: { day: string;
   const [error, setError] = useState<string | null>(null);
   const camera = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (start === "photo") camera.current?.click();
-  }, [start]);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
-  async function photo(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
+  async function analyse(photo: File) {
     setError(null);
-    setPreview(URL.createObjectURL(file));
+    const url = URL.createObjectURL(photo); // the one preview: revoked when the sheet closes
+    setPreview(url);
     setStep("analysing");
     try {
-      const draft = await api.upload<PhotoDraft>("/api/nutrition/photo", await preparePhoto(file));
-      setEditor(photoStart(draft, draft.photo_id ? null : URL.createObjectURL(file), locale, photoTime(file) ?? undefined));
+      const draft = await api.upload<PhotoDraft>("/api/nutrition/photo", await preparePhoto(photo));
+      setEditor(photoStart(draft, draft.photo_id ? null : url, locale, photoTime(photo) ?? undefined));
     } catch (err) {
       setError(errorText(err, tt, t.failed));
       setStep("choose");
     }
+  }
+
+  const started = useRef(false);
+  useEffect(() => {
+    if (file && !started.current) {
+      started.current = true;
+      analyse(file);
+    }
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function picked(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (f) analyse(f);
   }
 
   if (editor) return <MealEditor day={day} start={editor} onClose={onClose} />;
@@ -150,7 +160,7 @@ export default function AddMealSheet({ day, ai, onClose, start }: { day: string;
   return (
     <Dialog open onClose={onClose} title={title}
       actions={<Button variant="ghost" onClick={step === "choose" || step === "analysing" ? onClose : () => setStep("choose")}>{step === "choose" || step === "analysing" ? t.close : t.back}</Button>}>
-      <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={photo} />
+      <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={picked} />
       {step === "choose" && (
         <div className="grid gap-2 sm:grid-cols-2">
           <Option title={t.photo} text={ai ? t.photoText : t.photoOff} onClick={() => camera.current?.click()} disabled={!ai} />

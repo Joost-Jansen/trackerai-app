@@ -150,6 +150,8 @@ MESSAGES: dict[str, str] = {
     "invalid_barcode": "geen geldige barcode",
     "barcode_not_found": "Open Food Facts kent deze barcode niet",
     "barcode_lookup_failed": "Open Food Facts is nu niet bereikbaar; probeer het later opnieuw",
+    "barcode_no_nutrients": "Open Food Facts kent dit product, maar zonder voedingswaarden per 100 gram",
+    "nutrition_ai_limit": "maximaal {max} foto's per dag; zoek de rest of probeer het morgen",
     "template_name_required": "geef de favoriet een naam",
     "too_many_templates": "maximaal {max} favorieten",
     "template_not_found": "favoriet niet gevonden",

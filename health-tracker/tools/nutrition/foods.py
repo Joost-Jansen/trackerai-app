@@ -103,6 +103,12 @@ class _Index:
             self.by_engine[engine] = (time.monotonic(), entries)
         return entries
 
+    def add(self, engine, food: dict) -> None:
+        with self.lock:
+            hit = self.by_engine.get(engine)
+            if hit is not None and not any(e.ref == food["ref"] for e in hit[1]):
+                self.by_engine[engine] = (hit[0], [*hit[1], _entry(food, None)])
+
     def clear(self):
         with self.lock:
             self.by_engine.clear()
@@ -113,6 +119,11 @@ _index = _Index()
 
 def invalidate() -> None:
     _index.clear()
+
+
+def add(engine, food: dict) -> None:
+    """One new global food (an Open Food Facts product) into the loaded index."""
+    _index.add(engine, food)
 
 
 def user_foods(s: db.Scope) -> list[dict]:

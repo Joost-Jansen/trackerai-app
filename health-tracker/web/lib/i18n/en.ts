@@ -236,6 +236,8 @@ export const en: Messages = {
   },
 
   errors: {
+    barcode_no_nutrients: "Open Food Facts knows this product, but without nutrient values per 100 grams. Search it or add it yourself.",
+    nutrition_ai_limit: (p: { max: number }) => `At most ${p.max} photos a day. Search the rest, or try again tomorrow.`,
     nutrition_ai_unavailable: "Photo analysis is not available on this server.",
     nutrition_ai_off: "Switch photo analysis on under Zones and profile first.",
     photo_invalid: "This is not a JPEG or PNG photo.",
