@@ -8,8 +8,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Card from "@trackerai/ui/components/Card";
 import { Button, Checkbox, Input } from "@/components/ds";
 import { api } from "@/lib/api";
+import NutritionSettings from "@/components/nutrition/NutritionSettings";
 import { errorText, useT } from "@/lib/i18n";
-import { ZONE_COLOUR, ZONES } from "@/lib/training";
+import { ZONE_COLOUR, ZONES, type Me } from "@/lib/training";
 
 type SportZone = { max_hr: number; bounds: number[]; estimate?: boolean };
 type ZonesResp = { percent: number[]; zones: Record<string, SportZone>; suggested_max: Record<string, number | null>; estimate_offset: Record<string, number> };
@@ -149,11 +150,13 @@ function FactsCard() {
 export default function ZonesPage() {
   const t = useT();
   const q = useQuery({ queryKey: ["settings-zones"], queryFn: () => api.get<ZonesResp>("/api/settings/zones") });
+  const me = useQuery({ queryKey: ["me"], queryFn: () => api.get<Me>("/api/me") });
   if (!q.data) return <p className="text-sm text-ink-muted">{t.common.loading}</p>;
   return (
     <div className="flex flex-col gap-4">
       <ZonesCard data={q.data} />
       <FactsCard />
+      {me.data?.betas?.includes("nutrition") && <NutritionSettings />}
     </div>
   );
 }

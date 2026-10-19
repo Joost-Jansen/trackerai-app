@@ -160,6 +160,7 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
         "/api/apple/import": apple.MAX_BYTES + 1024,
         "/api/apple/upload": apple.CHUNK_BYTES + 1024,
         "/api/nutrition/admin/nevo": nutrition.NEVO_MAX_BYTES + 1024,
+        "/api/nutrition/photo": nutrition.photos.MAX_BYTES + 1024,
     })
     app.add_middleware(SecurityHeadersMiddleware, csp=API_CSP, hsts=settings.cookie_secure)
     app.state.engine, app.state.stores, app.state.examples, app.state.accounts = engine, stores, examples, accounts
@@ -182,6 +183,7 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
             while not stop.wait(60):
                 try:
                     purge()
+                    nutrition.photos.purge_expired(engine)  # meal photos past the time their owner keeps them
                 except Exception as e:  # noqa: BLE001 - the next sweep tries again
                     print(f"purge: {e!r}", flush=True)
 

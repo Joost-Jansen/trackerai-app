@@ -3,13 +3,14 @@
 // Voeding, Dag: one day at a time (today by default, another through ?day= like Slaap & lichaam): the day's training,
 // totals against its targets, the energy split and the meals by moment. Behind the nutrition beta (lib/nav.ts).
 
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@trackerai/ui/components/Card";
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@trackerai/ui/icons";
+import { CameraIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@trackerai/ui/icons";
 import { Button, Columns, IconButton } from "@/components/ds";
 import EnergySplit from "@/components/nutrition/EnergySplit";
+import AddMealSheet from "@/components/nutrition/AddMealSheet";
 import MealEditor from "@/components/nutrition/MealEditor";
 import MealRow from "@/components/nutrition/MealRow";
 import { ContextLine, TargetBars } from "@/components/nutrition/parts";
@@ -68,7 +69,9 @@ function DayView() {
   const f = useFormat();
   const { locale } = useLocale();
   const router = useRouter();
-  const [editing, setEditing] = useState<Meal | null | "new">(null);
+  const [editing, setEditing] = useState<Meal | null>(null);
+  const [adding, setAdding] = useState<false | "choose" | File>(false);
+  const camera = useRef<HTMLInputElement>(null);
   const q = useQuery({
     queryKey: ["nutrition-day", day],
     queryFn: () => api.get<NutritionDay>(`/api/nutrition/day${day ? `?day=${day}` : ""}`),
@@ -104,7 +107,7 @@ function DayView() {
             className="h-8 rounded border border-border bg-surface px-2 text-[13px] tabular-nums text-[var(--text-primary)]" />
           <IconButton label={tt.texts.trends.timeFilter.next} size="sm" icon={<ChevronRightIcon width={15} height={15} />} disabled={d.day >= d.today}
             onClick={() => go(addDays(d.day, 1))} />
-          <Button variant="primary" size="sm" className="ml-2" disabled={!d.foods_ready} onClick={() => setEditing("new")} icon={<PlusIcon width={14} height={14} />}>
+          <Button variant="primary" size="sm" className="ml-2" disabled={!d.foods_ready} onClick={() => setAdding("choose")} icon={<PlusIcon width={14} height={14} />}>
             {t.today.add}
           </Button>
         </div>
@@ -133,7 +136,21 @@ function DayView() {
         ]}
       />
       {source && <p className="text-[11.5px] text-ink-muted">{source}</p>}
-      {editing && <MealEditor day={d.day} meal={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && <MealEditor day={d.day} meal={editing} onClose={() => setEditing(null)} />}
+      {adding && <AddMealSheet day={d.day} ai={d.ai} file={adding instanceof File ? adding : null} onClose={() => setAdding(false)} />}
+      {d.ai && d.foods_ready && (
+        // On a phone, logging is one tap from the page: the camera, bottom right above the safe area. The file input is
+        // clicked inside the tap itself; iOS opens no camera for a click that comes later.
+        <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setAdding(f); }} />
+      )}
+      {d.ai && d.foods_ready && (
+        <button type="button" aria-label={t.add.photo} onClick={() => camera.current?.click()}
+          className="fixed right-4 z-30 grid h-14 w-14 place-items-center rounded-full bg-[var(--surface-brand)] text-[var(--text-inverse)] shadow-lg sm:hidden"
+          style={{ bottom: "calc(1rem + env(safe-area-inset-bottom))" }}>
+          <CameraIcon width={22} height={22} />
+        </button>
+      )}
     </div>
   );
 }

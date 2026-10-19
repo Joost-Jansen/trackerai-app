@@ -19,11 +19,11 @@ function useDebounced<T>(value: T, ms: number): T {
   return v;
 }
 
-export default function FoodPicker({ onPick, autoFocus = false }: { onPick: (food: Food) => void; autoFocus?: boolean }) {
+export default function FoodPicker({ onPick, autoFocus = false, initial = "" }: { onPick: (food: Food) => void; autoFocus?: boolean; initial?: string }) {
   const t = useT().nutrition;
   const f = useFormat();
   const { locale } = useLocale();
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initial);
   const q = useDebounced(text.trim(), 200);
   const search = useQuery({
     queryKey: ["nutrition-search", q],

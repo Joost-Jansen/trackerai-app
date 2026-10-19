@@ -23,6 +23,7 @@ make the secrets). The README's table lists every variable. In short:
 | Privacy | `PRIVACY_CONTROLLER`, `PRIVACY_CONTACT` (shown on /privacy) |
 | Limits | `MAX_UPLOAD_MB`, `APPLE_IMPORT_MAX_MB`, `APPLE_CHUNK_MB`, `APPLE_UPLOAD_TTL_MIN` |
 | Integrations | `WAHOO_CLIENT_ID`, `WAHOO_CLIENT_SECRET`, `WAHOO_REDIRECT_URI`, `FEEDBACK_NTFY_URL`, `SYNC_IN_WEB`, `TZ` |
+| Nutrition (beta) | `ANTHROPIC_API_KEY` (photo analysis), `NUTRITION_MODEL`, `NUTRITION_EFFORT`, `NUTRITION_DAILY_PHOTOS`, `OFF_CONTACT`; the NEVO food table is imported by an admin (`docs/DEVELOPMENT.md`, Nutrition) |
 | Development only | `ALLOW_INSECURE_DEFAULTS`, `TRAINING_USER`, `TRAINING_PASSWORD_HASH` |
 
 The web service refuses to start without `APP_ENCRYPTION_KEY` or with a short JWT secret (unless

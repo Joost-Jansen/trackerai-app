@@ -4,6 +4,7 @@
 !wealth-tracker/
 !packages/accounts/
 !packages/websec/
+!packages/ai/
 packages/*/*.egg-info/
 
 **/.git/

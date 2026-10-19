@@ -45,7 +45,7 @@ jobs:
             health-tracker/requirements.txt
             health-tracker/api/requirements.txt
       - name: Install
-        run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts
+        run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts ../packages/ai
       # A clean environment: tests/test_web_requirements.py checks that the API image's api/requirements.txt has
       # everything the app imports (it only fails locally when other packages happen to be installed).
       - name: Tests

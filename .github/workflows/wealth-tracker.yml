@@ -61,7 +61,7 @@ jobs:
             wealth-tracker/requirements.txt
             wealth-tracker/backend/requirements.txt
             wealth-tracker/requirements-dev.txt
-      - run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts
+      - run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts ../packages/ai
       - run: python -m pytest backend/tests -q
 
   backend-postgres:
@@ -96,7 +96,7 @@ jobs:
             wealth-tracker/requirements.txt
             wealth-tracker/backend/requirements.txt
             wealth-tracker/requirements-dev.txt
-      - run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts
+      - run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts ../packages/ai
       - run: python -m pytest backend/tests -q
 
   frontend:

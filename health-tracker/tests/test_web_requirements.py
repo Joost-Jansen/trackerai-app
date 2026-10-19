@@ -29,7 +29,7 @@ def test_everything_the_web_app_imports_is_in_api_requirements():
         if mod in sys.stdlib_module_names or mod in ("api", "tools", "scripts", "__main__") or mod not in dists:
             continue
         needed.update(d.lower().replace("_", "-") for d in dists[mod])
-    have = listed() | {"trackerai-accounts", "trackerai-websec"}  # from packages/ in this repository: the Dockerfile installs them
+    have = listed() | {"trackerai-accounts", "trackerai-websec", "trackerai-ai"}  # from packages/ in this repository: the Dockerfile installs them
     # installed as dependencies of listed packages (not imported directly by our code) are fine to be absent
     from importlib.metadata import requires
 

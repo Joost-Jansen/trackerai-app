@@ -7,7 +7,7 @@ again when it still exists, else from the item's own snapshot.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import delete, func, insert, select, update
 
@@ -221,3 +221,89 @@ def last_meal(meals: list[dict]) -> str | None:
     """The time of the day's last meal or drink (HH:MM), None without meals."""
     return max((m["eaten_at"] for m in meals), default=None)
 
+
+
+# --- favourites and "again" -----------------------------------------------------------------------------------
+
+MAX_TEMPLATES = 100
+TEMPLATE_FIELDS = ("food_ref", "name", "unit", "grams")
+
+
+def _template_items(s: db.Scope, items: list[dict]) -> list[dict]:
+    if not items:
+        raise MealError("meal_empty")
+    if len(items) > MAX_ITEMS:
+        raise MealError("meal_too_many_items", max=MAX_ITEMS)
+    out = []
+    for it in items:
+        food = foods.get(s, it.get("food_ref") or "")
+        if food is None:
+            raise MealError("food_not_found", ref=it.get("food_ref") or "")
+        grams = float(it.get("grams") or 0)
+        if not 0 < grams <= MAX_GRAMS:
+            raise MealError("invalid_grams", max=int(MAX_GRAMS))
+        out.append({"food_ref": food["ref"], "name": str(it.get("name") or food["name"])[:200], "unit": food["unit"], "grams": round(grams, 1)})
+    return out
+
+
+def templates(s: db.Scope) -> list[dict]:
+    with s.engine.connect() as conn:
+        rows = conn.execute(select(db.meal_templates).where(db.meal_templates.c.user_id == s.user_id)
+                            .order_by(db.meal_templates.c.position, db.meal_templates.c.id)).mappings().all()
+    return [{k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in r.items() if k != "user_id"} for r in rows]
+
+
+def create_template(s: db.Scope, *, name: str, items: list[dict], moment: str | None = None) -> dict:
+    name = (name or "").strip()
+    if not name:
+        raise MealError("template_name_required")
+    if moment is not None and moment not in MOMENTS:
+        raise MealError("invalid_choice", options=", ".join(MOMENTS))
+    mine = templates(s)
+    if len(mine) >= MAX_TEMPLATES:
+        raise MealError("too_many_templates", max=MAX_TEMPLATES)
+    values = _template_items(s, items)
+    with s.engine.begin() as conn:
+        tid = conn.execute(insert(db.meal_templates).values(user_id=s.user_id, name=name[:100], moment=moment, items=values,
+                                                            position=len(mine), created_at=_now())).inserted_primary_key[0]
+    return next(t for t in templates(s) if t["id"] == tid)
+
+
+def change_template(s: db.Scope, tid: int, *, name: str | None = None, moment: str | None = None, items: list[dict] | None = None,
+                    position: int | None = None) -> dict | None:
+    mine = templates(s)
+    if not any(t["id"] == tid for t in mine):
+        return None
+    values: dict = {}
+    if name is not None:
+        if not name.strip():
+            raise MealError("template_name_required")
+        values["name"] = name.strip()[:100]
+    if moment is not None:
+        if moment not in MOMENTS:
+            raise MealError("invalid_choice", options=", ".join(MOMENTS))
+        values["moment"] = moment
+    if items is not None:
+        values["items"] = _template_items(s, items)
+    with s.engine.begin() as conn:
+        if values:
+            conn.execute(update(db.meal_templates).where(db.meal_templates.c.user_id == s.user_id, db.meal_templates.c.id == tid).values(**values))
+        if position is not None:  # move it, renumber the rest
+            order = [t["id"] for t in mine if t["id"] != tid]
+            order.insert(max(0, min(position, len(order))), tid)
+            for i, t in enumerate(order):
+                conn.execute(update(db.meal_templates).where(db.meal_templates.c.user_id == s.user_id, db.meal_templates.c.id == t).values(position=i))
+    return next(t for t in templates(s) if t["id"] == tid)
+
+
+def delete_template(s: db.Scope, tid: int) -> bool:
+    with s.engine.begin() as conn:
+        return bool(conn.execute(delete(db.meal_templates).where(db.meal_templates.c.user_id == s.user_id, db.meal_templates.c.id == tid)).rowcount)
+
+
+def again(s: db.Scope, day: str, moment: str) -> dict:
+    """What to log again in one tap: favourites (those of this moment first) and the meals of the same moment the day
+    before ("like yesterday")."""
+    yesterday = (date.fromisoformat(day) - timedelta(days=1)).isoformat()
+    favourites = sorted(templates(s), key=lambda t: (t.get("moment") != moment, t["position"]))
+    return {"favourites": favourites, "yesterday": [m for m in between(s, yesterday, yesterday) if m["moment"] == moment]}

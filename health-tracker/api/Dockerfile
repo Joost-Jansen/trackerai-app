@@ -9,10 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends tzdata && rm -r
 WORKDIR /app
 COPY health-tracker/api/requirements.txt api/requirements.txt
 RUN pip install -r api/requirements.txt
-# The shared packages: the account (login, two-step login) and the web security building blocks
+# The shared packages: the account (login, two-step login), the web security building blocks and the Claude client
 COPY packages/accounts /tmp/accounts
 COPY packages/websec /tmp/websec
-RUN pip install /tmp/websec /tmp/accounts && rm -rf /tmp/websec /tmp/accounts
+COPY packages/ai /tmp/ai
+RUN pip install /tmp/websec /tmp/accounts /tmp/ai && rm -rf /tmp/websec /tmp/accounts /tmp/ai
 COPY health-tracker/api/ api/
 COPY health-tracker/tools/ tools/
 COPY health-tracker/scripts/seed_demo.py scripts/seed_demo.py

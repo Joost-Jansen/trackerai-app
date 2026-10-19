@@ -23,10 +23,13 @@ const GAP = 6; // between the trigger and the panel
 export default function InfoPopover({
   label,
   children,
+  trigger,
 }: {
   /** What the button announces to a screen reader, e.g. "Explanation transaction costs". */
   label: string;
   children: React.ReactNode;
+  /** What the button shows instead of the info icon (a status dot, say); the label still names it. */
+  trigger?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -85,7 +88,7 @@ export default function InfoPopover({
           open ? "text-brand" : "text-ink-muted"
         }`}
       >
-        <InfoIcon className="h-[13px] w-[13px]" />
+        {trigger ?? <InfoIcon className="h-[13px] w-[13px]" />}
       </button>
       {open && pos && (
         <span

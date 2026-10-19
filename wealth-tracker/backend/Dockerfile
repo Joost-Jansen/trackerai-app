@@ -30,10 +30,11 @@ ENV TZ=Europe/Amsterdam
 COPY wealth-tracker/requirements.txt ./requirements.txt
 COPY wealth-tracker/backend/requirements.txt ./backend/requirements.txt
 RUN pip install -r backend/requirements.txt
-# The shared packages: the trackerai account (login, two-step login) and the web security building blocks
+# The shared packages: the trackerai account (login, two-step login), the web security building blocks and the Claude client
 COPY packages/accounts /tmp/accounts
 COPY packages/websec /tmp/websec
-RUN pip install /tmp/websec /tmp/accounts && rm -rf /tmp/websec /tmp/accounts
+COPY packages/ai /tmp/ai
+RUN pip install /tmp/websec /tmp/accounts /tmp/ai && rm -rf /tmp/websec /tmp/accounts /tmp/ai
 
 COPY wealth-tracker/ .
 

@@ -53,7 +53,10 @@ Today warns when something is nearly worn or past its limit.
 carbohydrate and protein per kilo body weight against a range that follows your training: what you did that day, what
 the plan says for it, and the day before a race or a session over three hours. Today gets a Nutrition card with the
 same bars and a line such as "Tomorrow long run 20 km: aim for 5-7 g/kg carbohydrate today". Your usual portion of a
-food is learnt from what you enter. No calorie target and no red numbers: it is bookkeeping, not a diet. The nutrient
+food is learnt from what you enter. With photo analysis switched on (your choice, per account), a photo of your plate
+is enough: Claude names the foods and estimates the grams, you check and correct them, and the amounts you set teach
+your usual portion. Packaged products come from Open Food Facts by barcode, and a favourite or "same as yesterday" logs
+a meal in one tap. No calorie target unless you set one, and no red numbers: it is bookkeeping, not a diet. The nutrient
 values always come from the food table, never from guesses; NEVO's data is not in this repository (RIVM allows linking
 to it, not handing it out): an admin imports it once per release (`docs/DEVELOPMENT.md`, Nutrition).
 
@@ -278,6 +281,10 @@ Every push to your fork's `main` redeploys the service whose watch paths it touc
 | `TRAINING_USER`, `TRAINING_PASSWORD_HASH` | api | no | Alternative bootstrap: creates this admin on an empty database at startup, instead of registering in the browser. Ignored once any user exists | a bcrypt hash: `python -c "import bcrypt, getpass; print(bcrypt.hashpw(getpass.getpass().encode(), bcrypt.gensalt()).decode())"` |
 | `TRAINING_AGENT_TOKEN_HASH` | api | no | Legacy: SHA-256 of one agent token for the first admin. Prefer tokens created on the site | `tools/set_agent_token.py` |
 | `FEEDBACK_NTFY_URL` | api | no | An [ntfy](https://ntfy.sh) topic URL: a ping to your phone when someone sends feedback. Only the kind and a link go out, never the text | `https://ntfy.sh/<a long random topic>` |
+| `ANTHROPIC_API_KEY` | api | for photo analysis | The Claude API key for Nutrition's photo analysis. Without it the option is not offered; each user switches it on themselves | `sk-ant-...` |
+| `NUTRITION_MODEL`, `NUTRITION_EFFORT` | api | no | The model and effort for meal photos | `claude-sonnet-5-5`, `medium` (defaults) |
+| `NUTRITION_DAILY_PHOTOS` | api | no | Photos one user may have analysed per 24 hours (each is a paid call) | `40` (default) |
+| `OFF_CONTACT` | api | no | An e-mail address in the User-Agent of Open Food Facts barcode lookups, as Open Food Facts asks | `you@example.org` |
 | `WAHOO_CLIENT_ID`, `WAHOO_CLIENT_SECRET` | api, sync | for Wahoo | The app from Wahoo's developer portal (scopes `workouts_read offline_data user_read`). Without them the Wahoo card says it is not set up | developers.wahooligan.com |
 | `WAHOO_REDIRECT_URI` | api | no | The callback registered at Wahoo; default: this server's `/api/connections/wahoo/callback` | `https://<your-app>/api/connections/wahoo/callback` |
 | `GARMINTOKENS` | sync | no | Legacy: an initial Garmin session for the first admin, used by the cron service if the stored one is missing or stale. Prefer connecting on the site | `tools/setup_garmin.py` |

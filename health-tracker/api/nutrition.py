@@ -7,7 +7,17 @@ Behind the beta feature `nutrition` (api/betas.py): every route answers 403 nutr
     PATCH  /api/nutrition/meals/{id}           change its day, time, moment, note or items (items replace the old ones)
     DELETE /api/nutrition/meals/{id}           the meal, its items and its photo
     GET    /api/nutrition/foods/search?q=      NEVO, cached Open Food Facts and your own foods, best first
+    GET    /api/nutrition/foods/barcode/{ean}  a packaged product from Open Food Facts (cached after the first time)
+    POST   /api/nutrition/photo                analyse a meal photo (raw JPEG/PNG body): a draft for the review screen;
+                                               only the photo is stored, by the user's setting; needs photo analysis on
+    GET    /api/nutrition/photos/{id}          a meal photo, own only
+    GET    /api/nutrition/again?day=&moment=   favourites and the same moment yesterday, to log again in one tap
+    GET/POST/PATCH/DELETE /api/nutrition/templates[/{id}]   favourites
+    GET/PUT /api/nutrition/settings            photo analysis on/off, how long photos are kept, an optional kcal target
     POST   /api/nutrition/admin/nevo           admins: import a NEVO-online release (the CSV or RIVM's zip as the body)
+
+Photo analysis sends the photo (without metadata) to Anthropic: off by default, switched on per user, and only offered
+when the server has ANTHROPIC_API_KEY (tools/nutrition/recognize.py).
 
 Items: {food_ref, grams, grams_source?} plus, from a photo, {grams_ai, grams_low, grams_high, confidence}. Nutrient
 values always come from the food table (tools/nutrition/foods.py), never from the request.
@@ -18,20 +28,24 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from typing import Callable
 
-from fastapi import APIRouter, Depends, Query, Request
+import trackerai_ai
+from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel, Field
 
 from api import betas
 from api.errors import ApiError
 from api.plans import enrich
 from tools import db
-from tools.nutrition import foods, meals, nevo, targets
+from tools.nutrition import foods, match, meals, nevo, off, photos, recognize, targets
 from tools.nutrition.nutrients import energy_split
 from trackerai_websec.uploads import UploadTooLarge, read_limited
 
 FEATURE = "nutrition"
 NEVO_MAX_BYTES = 40 * 1024 * 1024  # RIVM's zip is about 27 MB (the CSV inside 1.7 MB)
 MAX_RANGE_DAYS = 400
+SETTINGS_KEY = "nutrition"  # setting: {ai, photos, kcal_target}
+DEFAULTS = {"ai": False, "photos": "30d", "kcal_target": None}
+PHOTO_KEEP = ("30d", "keep", "never")
 
 
 class ItemIn(BaseModel):
@@ -53,6 +67,28 @@ class MealIn(BaseModel):
     input: str = Field("search", max_length=10)
     note: str | None = Field(None, max_length=2000)
     items: list[ItemIn] = Field(max_length=meals.MAX_ITEMS)
+    photo_id: int | None = None
+    ai_run_id: int | None = None
+
+
+class TemplateItem(BaseModel):
+    food_ref: str = Field(max_length=60)
+    name: str | None = Field(None, max_length=200)
+    grams: float
+
+
+class TemplateIn(BaseModel):
+    name: str | None = Field(None, max_length=100)
+    moment: str | None = Field(None, max_length=12)
+    items: list[TemplateItem] | None = Field(None, max_length=meals.MAX_ITEMS)
+    position: int | None = Field(None, ge=0, le=1000)
+
+
+class SettingsIn(BaseModel):
+    ai: bool | None = None
+    photos: str | None = Field(None, max_length=8)
+    kcal_target: int | None = Field(None, ge=800, le=8000)
+    clear_kcal_target: bool = False
 
 
 class MealPatch(BaseModel):
@@ -75,6 +111,26 @@ def _parse_day(value: str | None, today: date) -> date:
 def _meal_error(e: meals.MealError) -> ApiError:
     status = 404 if e.code == "food_not_found" else 422
     return ApiError(status, e.code, **e.params)
+
+
+def with_values(scope, templates: list[dict]) -> list[dict]:
+    """Favourites with each item's values per 100 from the food table, so the editor can add them up."""
+    cache: dict[str, dict | None] = {}
+    for t in templates:
+        for it in t["items"]:
+            if it["food_ref"] not in cache:
+                cache[it["food_ref"]] = foods.get(scope, it["food_ref"])
+            it["per_100"] = (cache[it["food_ref"]] or {}).get("per_100")
+    return templates
+
+
+def settings_of(scope) -> dict:
+    return {**DEFAULTS, **(db.get_setting(scope, SETTINGS_KEY) or {})}
+
+
+def ai_on(scope) -> bool:
+    """Photo analysis: the user switched it on and the server has a key."""
+    return bool(settings_of(scope)["ai"]) and trackerai_ai.available()
 
 
 def weight_of(scope) -> float | None:
@@ -110,6 +166,8 @@ def day_view(u, day: date, today: date, now_hhmm: str | None = None, sessions: l
         "burn_kcal": (u.store.wellness.get(day.isoformat()) or {}).get("total_kcal"),  # Garmin's estimate, when synced
         "source": {"version": version, "nl": nevo.attribution(version, "nl", others), "en": nevo.attribution(version, "en", others)},
         "foods_ready": version is not None,
+        "ai": ai_on(s),
+        "kcal_target": settings_of(s)["kcal_target"],
     }
 
 
@@ -120,8 +178,8 @@ def dashboard_block(u, today: date, now_hhmm: str, sessions: list[dict]) -> dict
         return None
     view = day_view(u, today, today, now_hhmm, sessions)
     if not view["meals"]:
-        return {"empty": True, "today": today.isoformat(), "targets": view["targets"], "context": view["context"]}
-    return {k: view[k] for k in ("today", "meals", "totals", "per_kg", "targets", "context", "last_meal", "burn_kcal")} | {"empty": False}
+        return {"empty": True, "today": today.isoformat(), "targets": view["targets"], "context": view["context"], "ai": view["ai"]}
+    return {k: view[k] for k in ("today", "meals", "totals", "per_kg", "targets", "context", "last_meal", "burn_kcal", "ai")} | {"empty": False}
 
 
 def make_router(current_user: Callable, today: Callable[[], date], now: Callable[[], datetime]) -> APIRouter:
@@ -144,11 +202,17 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
 
     @r.post("/api/nutrition/meals", status_code=201)
     def create(body: MealIn, u=Depends(member)):
+        if body.photo_id is not None and not photos.owns(u.scope, body.photo_id):
+            raise ApiError(404, "photo_not_found")
+        run_id = body.ai_run_id if body.ai_run_id is not None and recognize.owns_run(u.scope, body.ai_run_id) else None
         try:
-            return meals.create(u.scope, day=body.day, eaten_at=body.eaten_at, moment=body.moment, input=body.input, note=body.note,
-                                items=[i.model_dump(exclude_none=True) for i in body.items])
+            meal = meals.create(u.scope, day=body.day, eaten_at=body.eaten_at, moment=body.moment, input=body.input, note=body.note,
+                                items=[i.model_dump(exclude_none=True) for i in body.items], photo_id=body.photo_id, ai_run_id=run_id)
         except meals.MealError as e:
             raise _meal_error(e) from None
+        if body.photo_id is not None:
+            photos.attach(u.scope, body.photo_id, settings_of(u.scope)["photos"])
+        return meal
 
     @r.patch("/api/nutrition/meals/{meal_id}")
     def change(meal_id: int, body: MealPatch, u=Depends(member)):
@@ -197,6 +261,119 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
             if f:
                 out.append({**f, "uses": n, "portion_g": (mine.get(ref) or {}).get("grams") or f.get("default_portion_g")})
         return out
+
+    @r.get("/api/nutrition/foods/barcode/{ean}")
+    def barcode(ean: str, u=Depends(member)):
+        if not off.valid_ean(ean):
+            raise ApiError(422, "invalid_barcode")
+        try:
+            food = off.lookup(u.scope, ean)
+        except off.LookupFailed:
+            raise ApiError(502, "barcode_lookup_failed") from None
+        except off.NoNutrients:
+            raise ApiError(404, "barcode_no_nutrients") from None
+        if food is None:
+            raise ApiError(404, "barcode_not_found")
+        mine = meals.portions(u.scope, [food["ref"]])
+        return {**food, "portion_g": (mine.get(food["ref"]) or {}).get("grams") or food.get("default_portion_g")}
+
+    @r.post("/api/nutrition/photo")
+    async def photo(request: Request, u=Depends(member)):
+        if not trackerai_ai.available():
+            raise ApiError(403, "nutrition_ai_unavailable")
+        mine = settings_of(u.scope)
+        if not mine["ai"]:
+            raise ApiError(403, "nutrition_ai_off")
+        if recognize.runs_last_day(u.scope) >= recognize.daily_limit():
+            raise ApiError(429, "nutrition_ai_limit", max=recognize.daily_limit())
+        try:
+            data = await read_limited(request.stream(), photos.MAX_BYTES)
+            mime, image = photos.clean(data)
+        except UploadTooLarge:
+            raise ApiError(413, "upload_too_large", max_mb=photos.MAX_BYTES // (1024 * 1024)) from None
+        except photos.PhotoError:
+            raise ApiError(422, "photo_invalid") from None
+        photo_id = photos.save(u.scope, mime, image, mine["photos"])
+        try:
+            run_id, answer = recognize.recognise(u.scope, mime, image)
+        except trackerai_ai.AiError as e:
+            # the photo is kept: the review screen falls back to search with it
+            return {"photo_id": photo_id, "ai_run_id": None, "failed": e.code, "items": [], "hidden_extras": [], "moment_guess": None}
+        return {"photo_id": photo_id, "ai_run_id": run_id, "failed": None, **match.draft(u.scope, answer)}
+
+    @r.get("/api/nutrition/photos/{photo_id}")
+    def photo_file(photo_id: int, u=Depends(member)):
+        found = photos.load(u.scope, photo_id)
+        if found is None:
+            raise ApiError(404, "photo_not_found")
+        mime, data = found
+        return Response(data, media_type=mime, headers={"Cache-Control": "private, max-age=86400"})
+
+    @r.get("/api/nutrition/again")
+    def again(day: str | None = None, moment: str = Query("breakfast", max_length=12), u=Depends(member)):
+        if moment not in meals.MOMENTS:
+            raise ApiError(422, "invalid_choice", options=", ".join(meals.MOMENTS))
+        out = meals.again(u.scope, _parse_day(day, today()).isoformat(), moment)
+        return {**out, "favourites": with_values(u.scope, out["favourites"])}
+
+    @r.get("/api/nutrition/templates")
+    def list_templates(u=Depends(member)):
+        return with_values(u.scope, meals.templates(u.scope))
+
+    @r.post("/api/nutrition/templates", status_code=201)
+    def add_template(body: TemplateIn, u=Depends(member)):
+        try:
+            return meals.create_template(u.scope, name=body.name or "", moment=body.moment,
+                                         items=[i.model_dump(exclude_none=True) for i in body.items or []])
+        except meals.MealError as e:
+            raise _meal_error(e) from None
+
+    @r.patch("/api/nutrition/templates/{tid}")
+    def change_template(tid: int, body: TemplateIn, u=Depends(member)):
+        try:
+            out = meals.change_template(u.scope, tid, name=body.name, moment=body.moment, position=body.position,
+                                        items=[i.model_dump(exclude_none=True) for i in body.items] if body.items is not None else None)
+        except meals.MealError as e:
+            raise _meal_error(e) from None
+        if out is None:
+            raise ApiError(404, "template_not_found")
+        return out
+
+    @r.delete("/api/nutrition/templates/{tid}")
+    def remove_template(tid: int, u=Depends(member)):
+        if not meals.delete_template(u.scope, tid):
+            raise ApiError(404, "template_not_found")
+        return {"ok": True}
+
+    def settings_view(u) -> dict:
+        weight = weight_of(u.scope)
+        return {**settings_of(u.scope), "ai_available": trackerai_ai.available(), "weight_kg": weight,
+                "day_types": {k: {"carbs_per_kg": list(v["carbs"]), "protein_per_kg": list(v["protein"])} for k, v in targets.DAY_TYPES.items()}}
+
+    @r.get("/api/nutrition/settings")
+    def get_settings(u=Depends(member)):
+        return settings_view(u)
+
+    @r.put("/api/nutrition/settings")
+    def put_settings(body: SettingsIn, u=Depends(member)):
+        current = settings_of(u.scope)
+        new = dict(current)
+        if body.ai is not None:
+            if body.ai and not trackerai_ai.available():
+                raise ApiError(403, "nutrition_ai_unavailable")
+            new["ai"] = body.ai
+        if body.photos is not None:
+            if body.photos not in PHOTO_KEEP:
+                raise ApiError(422, "invalid_choice", options=", ".join(PHOTO_KEEP))
+            new["photos"] = body.photos
+        if body.kcal_target is not None:
+            new["kcal_target"] = body.kcal_target
+        if body.clear_kcal_target:
+            new["kcal_target"] = None
+        db.set_setting(u.scope, SETTINGS_KEY, new)
+        if new["photos"] != current["photos"]:
+            photos.retention_changed(u.scope, new["photos"])
+        return settings_view(u)
 
     @r.post("/api/nutrition/admin/nevo")
     async def import_nevo(request: Request, u=Depends(admin)):
