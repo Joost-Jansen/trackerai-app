@@ -86,13 +86,15 @@ def plan_sessions(u, today: date) -> list[dict]:
     return enrich(plan, u.store.activities, u.store.routes, today)["sessions"] if plan else []
 
 
-def day_view(u, day: date, today: date, now_hhmm: str | None = None) -> dict:
-    """Everything the Dag tab and Vandaag show of one day."""
+def day_view(u, day: date, today: date, now_hhmm: str | None = None, sessions: list[dict] | None = None) -> dict:
+    """Everything the Dag tab and Vandaag show of one day. `sessions`: the active plan's sessions as api.plans.enrich
+    gives them, when the caller has them already (/api/dashboard)."""
     s = u.scope
     logged = meals.between(s, day.isoformat(), day.isoformat())
     totals = meals.day_totals(logged)
     weight = weight_of(s)
-    target = targets.for_day(day, today, u.store.activities, plan_sessions(u, today), weight)
+    sessions = plan_sessions(u, today) if sessions is None else sessions
+    target = targets.for_day(day, today, u.store.activities, sessions, weight)
     version = nevo.current_version(s.engine)
     others = any(not it["food_ref"].startswith("nevo:") for m in logged for it in m["items"])
     return {
@@ -111,12 +113,12 @@ def day_view(u, day: date, today: date, now_hhmm: str | None = None) -> dict:
     }
 
 
-def dashboard_block(u, today: date, now_hhmm: str) -> dict | None:
+def dashboard_block(u, today: date, now_hhmm: str, sessions: list[dict]) -> dict | None:
     """The Voeding vandaag card: None without the beta or before the first meal ever (the card drops out, like other
     cards with nothing to say; the sidebar leads there); `empty` when nothing is logged today yet (one line, no bars)."""
     if not betas.enabled(u.scope.engine, u.id, FEATURE) or not meals.history(u.scope):
         return None
-    view = day_view(u, today, today, now_hhmm)
+    view = day_view(u, today, today, now_hhmm, sessions)
     if not view["meals"]:
         return {"empty": True, "today": today.isoformat(), "targets": view["targets"], "context": view["context"]}
     return {k: view[k] for k in ("today", "meals", "totals", "per_kg", "targets", "context", "last_meal", "burn_kcal")} | {"empty": False}

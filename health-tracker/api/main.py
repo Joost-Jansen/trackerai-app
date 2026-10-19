@@ -201,13 +201,14 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
         out = build_dashboard(s.activities, s.wellness, s.zones, day, s.last_sync, s.rhr_fallback)
         out["readiness"] = readiness(s.wellness, day, today_tsb(out["form"]), today_form_pct(out["form"]), s.rhr_fallback)
         plan = db.active_plan(u.scope)
+        sessions = []
         if plan:
             sessions = enrich(plan, s.activities, s.routes, day)["sessions"]
             out["upcoming"] = [x for x in sessions if x["date"] >= day.isoformat()][:12]  # Today shows as many as fit
             out["plan_title"] = plan["title"]
             out["plan_week"] = plan_week(sessions, s.activities, day, sync_day(s.last_sync))
             out["race"] = next_race(plan, sessions, day)
-        out["nutrition"] = nutrition.dashboard_block(u, day, now().strftime("%H:%M"))
+        out["nutrition"] = nutrition.dashboard_block(u, day, now().strftime("%H:%M"), sessions)
         return out
 
     cache: dict = {}

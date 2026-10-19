@@ -62,7 +62,7 @@ export default function MealEditor({ day, meal, onClose }: { day: string; meal?:
     setError(null);
     const body = {
       day: when, eaten_at: time, moment,
-      items: items.map((i) => (i.id ? { id: i.id, grams: i.grams, ...(i.estimated ? {} : { grams_source: "user" }) } : { food_ref: i.food_ref, name: i.name, grams: i.grams })),
+      items: items.map((i) => (i.id ? { id: i.id, grams: i.grams } : { food_ref: i.food_ref, name: i.name, grams: i.grams })),
     };
     try {
       if (meal) await api.patch(`/api/nutrition/meals/${meal.id}`, body);

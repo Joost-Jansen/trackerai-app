@@ -124,6 +124,14 @@ def test_the_usual_portion_learns_from_what_you_set_not_from_estimates(engine):
     _breakfast(s, 500, source="ai")
     assert meals.portions(s)["nevo:9001"]["grams"] == 72.0
     assert meals.history(s)["nevo:9001"] == 3
+    # an edit teaches only what it changed: saving untouched items again, or moving the time, leaves the portion be
+    m = _breakfast(s, 100)
+    before = meals.portions(s)["nevo:9001"]
+    meals.change(s, m["id"], eaten_at="09:00", items=[{"id": i["id"]} for i in m["items"]])
+    meals.change(s, m["id"], items=[{"id": i["id"], "grams": i["grams"]} for i in m["items"]])
+    assert meals.portions(s)["nevo:9001"] == before
+    meals.change(s, m["id"], items=[{"id": m["items"][0]["id"], "grams": 40}, {"id": m["items"][1]["id"]}])
+    assert meals.portions(s)["nevo:9001"]["uses"] == before["uses"] + 1
 
 
 def test_meal_checks(engine):

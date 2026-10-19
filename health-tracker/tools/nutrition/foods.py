@@ -18,6 +18,7 @@ import re
 import threading
 import time
 import unicodedata
+import weakref
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -87,19 +88,19 @@ def _entry(food: dict, synonyms: str | None) -> Indexed:
 class _Index:
     def __init__(self):
         self.lock = threading.Lock()
-        self.by_engine: dict[int, tuple[float, list[Indexed]]] = {}
+        # by the engine itself, held weakly: an id() could be reused by a later engine with other foods
+        self.by_engine: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 
     def entries(self, engine) -> list[Indexed]:
-        key = id(engine)
         with self.lock:
-            hit = self.by_engine.get(key)
+            hit = self.by_engine.get(engine)
             if hit and time.monotonic() - hit[0] < RELOAD_S:
                 return hit[1]
         with engine.connect() as conn:
             rows = [dict(r) for r in conn.execute(select(db.foods)).mappings()]
         entries = [_entry(_public(r, r["source"], r["source_code"]), r.get("synonyms")) for r in rows]
         with self.lock:
-            self.by_engine[key] = (time.monotonic(), entries)
+            self.by_engine[engine] = (time.monotonic(), entries)
         return entries
 
     def clear(self):
@@ -141,17 +142,14 @@ def _score(entry: Indexed, terms: list[str], phrase: str) -> float | None:
     """None when a query word matches no word of the food; higher is better."""
     score = 0.0
     for t in terms:
-        hits = [i for i, w in enumerate(entry.words) if w.startswith(t)]
-        inside = 0.5
+        hits, weight = [i for i, w in enumerate(entry.words) if w.startswith(t)], 1.0
         if not hits and len(t) >= INSIDE_MIN:
-            hits = [i for i, w in enumerate(entry.words) if t in w]
-        else:
-            inside = 1.0
+            hits, weight = [i for i, w in enumerate(entry.words) if t in w], 0.5  # inside a compound counts for less
         if not hits:
             return None
         first = hits[0]
         exact = entry.words[first] == t
-        score += inside * ((3.0 if first < entry.name_words else 1.0) + (1.0 if exact else 0.0) + (0.5 if first == 0 else 0.0))
+        score += weight * ((3.0 if first < entry.name_words else 1.0) + (1.0 if exact else 0.0) + (0.5 if first == 0 else 0.0))
     name, synonyms = entry.phrases[0], entry.phrases[1:]
     if name == phrase:
         score += 5

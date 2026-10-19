@@ -19,14 +19,16 @@ export default function MacroBar({ label, grams, range, perKg, perKgRange, colou
   const top = Math.max(range ? range[1] * 1.15 : 0, grams * 1.05, 1);
   const within = range != null && grams >= range[0] && grams <= range[1];
   const pct = (v: number) => `${Math.min(100, (v / top) * 100)}%`;
-  const aria = range ? t.rangeAria(label, f.num(grams), f.num(range[0]), f.num(range[1])) : t.noRangeAria(label, f.num(grams));
+  const aria = range
+    ? `${t.rangeAria(label, f.num(grams), f.num(range[0]), f.num(range[1]))}${within ? `, ${t.inRange}` : ""}`
+    : t.noRangeAria(label, f.num(grams));
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between gap-3 text-[12.5px]">
         <span className="flex items-baseline gap-2">
           <span className="text-ink-muted">{label}</span>
           <span className="font-display text-[20px] font-light leading-none tabular-nums">{f.num(grams)} g</span>
-          {within && <CheckIcon width={13} height={13} className="self-center text-[var(--moss-500)]" aria-label={t.inRange} />}
+          {within && <CheckIcon width={13} height={13} className="self-center text-[var(--moss-500)]" />}
         </span>
         <span className="tabular-nums text-ink-muted">
           {perKg != null && <span className="text-[var(--text-primary)]">{t.perKg(f.num(perKg, 1))}</span>}

@@ -18,7 +18,8 @@ export default function GramField({ value, unit, portion, estimated = false, lab
   const t = useT().nutrition.editor;
   const f = useFormat();
   const max = Math.max(500, Math.ceil((value * 2) / 50) * 50, portion ? Math.ceil((portion * 2.5) / 50) * 50 : 0);
-  const set = (v: number) => onChange(Math.max(1, Math.min(5000, Math.round(v))));
+  // to 0.1 g like the server stores it, so "2,5" g of oil can be typed (the slider moves in whole steps)
+  const set = (v: number) => onChange(Math.max(0.1, Math.min(5000, Math.round(v * 10) / 10)));
   // The field keeps what you type (also an empty box halfway); a valid number goes through at once.
   const [text, setText] = useState(f.input(value));
   useEffect(() => {
@@ -30,7 +31,7 @@ export default function GramField({ value, unit, portion, estimated = false, lab
         <input
           type="range"
           aria-label={label}
-          min={1}
+          min={0}
           max={max}
           step={5}
           value={Math.min(value, max)}

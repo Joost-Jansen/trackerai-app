@@ -137,7 +137,7 @@ def change(s: db.Scope, meal_id: int, *, items: list[dict] | None = None, **fiel
         if len(items) > MAX_ITEMS:
             raise MealError("meal_too_many_items", max=MAX_ITEMS)
         old = {it["id"]: it for it in meal["items"]}
-        values = []
+        values, taught = [], []
         for i, it in enumerate(items):
             before = old.get(it.get("id"))
             if before is not None:
@@ -148,6 +148,8 @@ def change(s: db.Scope, meal_id: int, *, items: list[dict] | None = None, **fiel
                 if it["grams"] != before["grams"] and "grams_source" not in given:
                     it["grams_source"] = "user"  # the user moved the slider: no longer an estimate
             values.append(_item_values(s, it, i, before))
+            if before is None or values[-1]["grams"] != before["grams"] or values[-1]["food_ref"] != before["food_ref"]:
+                taught.append(values[-1])  # untouched items taught their amount when they were saved
     with s.engine.begin() as conn:
         conn.execute(update(db.meals).where(db.meals.c.user_id == s.user_id, db.meals.c.id == meal_id).values(updated_at=_now(), **fields))
         if values is not None:
@@ -155,7 +157,7 @@ def change(s: db.Scope, meal_id: int, *, items: list[dict] | None = None, **fiel
             for v in values:
                 conn.execute(insert(db.meal_items).values(meal_id=meal_id, **v))
     if values is not None:
-        learn(s, values, merged["day"])
+        learn(s, taught, merged["day"])
     return get(s, meal_id)
 
 

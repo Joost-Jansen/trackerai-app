@@ -13,15 +13,10 @@ import EnergySplit from "@/components/nutrition/EnergySplit";
 import MealEditor from "@/components/nutrition/MealEditor";
 import MealRow from "@/components/nutrition/MealRow";
 import { ContextLine, TargetBars } from "@/components/nutrition/parts";
+import { addDays } from "@/components/plan/plan";
 import { api } from "@/lib/api";
 import { useFormat, useLocale, useT } from "@/lib/i18n";
 import { MOMENTS, type Meal, type NutrientKey, type NutritionDay } from "@/lib/nutrition";
-
-const shift = (iso: string, days: number) => {
-  const d = new Date(`${iso}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-};
 
 function Figure({ label, value, unit, detail }: { label: string; value: string; unit?: string; detail?: string }) {
   return (
@@ -103,12 +98,12 @@ function DayView() {
           </p>
         </div>
         <div className="flex items-center gap-1">
-          <IconButton label={tt.texts.trends.timeFilter.previous} size="sm" icon={<ChevronLeftIcon width={15} height={15} />} onClick={() => go(shift(d.day, -1))} />
+          <IconButton label={tt.texts.trends.timeFilter.previous} size="sm" icon={<ChevronLeftIcon width={15} height={15} />} onClick={() => go(addDays(d.day, -1))} />
           <input type="date" aria-label={t.day.pickDay} value={d.day} max={d.today}
             onChange={(e) => /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) && go(e.target.value)}
             className="h-8 rounded border border-border bg-surface px-2 text-[13px] tabular-nums text-[var(--text-primary)]" />
           <IconButton label={tt.texts.trends.timeFilter.next} size="sm" icon={<ChevronRightIcon width={15} height={15} />} disabled={d.day >= d.today}
-            onClick={() => go(shift(d.day, 1))} />
+            onClick={() => go(addDays(d.day, 1))} />
           <Button variant="primary" size="sm" className="ml-2" disabled={!d.foods_ready} onClick={() => setEditing("new")} icon={<PlusIcon width={14} height={14} />}>
             {t.today.add}
           </Button>
