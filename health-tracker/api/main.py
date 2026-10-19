@@ -22,7 +22,7 @@ from trackerai_accounts import Accounts, Config, connect as connect_accounts, cr
 from trackerai_accounts import open_accounts, session as account_session
 from trackerai_accounts.config import front_door_origins
 
-from api import account, agent_tokens, apple, connections, daily, errors, example, feedback, gear, mcp, onboarding, routes_api, settings_api, tracker_admin, uploads, users, zones_api
+from api import account, agent_tokens, apple, connections, daily, errors, example, feedback, gear, mcp, nutrition, onboarding, routes_api, settings_api, tracker_admin, uploads, users, zones_api
 from trackerai_websec import log_redact
 from trackerai_websec.csrf import OriginCheckMiddleware
 from trackerai_websec.headers import SecurityHeadersMiddleware
@@ -78,6 +78,10 @@ class Settings:
 
 def today():
     return datetime.now(TZ).date()
+
+
+def now():
+    return datetime.now(TZ)
 
 
 def insecure_allowed() -> bool:
@@ -155,6 +159,7 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
         "/api/activities/upload": uploads.MAX_BYTES + 1024,
         "/api/apple/import": apple.MAX_BYTES + 1024,
         "/api/apple/upload": apple.CHUNK_BYTES + 1024,
+        "/api/nutrition/admin/nevo": nutrition.NEVO_MAX_BYTES + 1024,
     })
     app.add_middleware(SecurityHeadersMiddleware, csp=API_CSP, hsts=settings.cookie_secure)
     app.state.engine, app.state.stores, app.state.examples, app.state.accounts = engine, stores, examples, accounts
@@ -202,6 +207,7 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
             out["plan_title"] = plan["title"]
             out["plan_week"] = plan_week(sessions, s.activities, day, sync_day(s.last_sync))
             out["race"] = next_race(plan, sessions, day)
+        out["nutrition"] = nutrition.dashboard_block(u, day, now().strftime("%H:%M"))
         return out
 
     cache: dict = {}
@@ -267,6 +273,7 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
     app.include_router(onboarding.make_router(current_user, runner, app.state.apple))
     app.include_router(account.make_router(current_user))
     app.include_router(gear.make_router(current_user, today))
+    app.include_router(nutrition.make_router(current_user, today, now))
     app.include_router(feedback.make_router(engine, accounts, current_user))
     app.include_router(tracker_admin.make_router(engine, accounts, current_user, today))
     app.include_router(mcp.make_router(today, current_user, token_user, guards, accounts, runner))

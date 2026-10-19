@@ -1,6 +1,6 @@
 """Beta features: switched on per user by an admin, from the admin hub at trackerai.nl/admin (api/tracker_admin.py).
 
-health-tracker has none yet. To add one, put it in BETA_FEATURES (display order) with its name in both languages:
+To add one, put it in BETA_FEATURES (display order) with its name in both languages:
 
     {"id": "new_trends", "name": {"en": "New trends page", "nl": "Nieuwe trendspagina"}},
 
@@ -12,7 +12,9 @@ from __future__ import annotations
 
 from tools import db
 
-BETA_FEATURES: list[dict] = []
+BETA_FEATURES: list[dict] = [
+    {"id": "nutrition", "name": {"en": "Nutrition", "nl": "Voeding"}},  # meals, food search, training-aware targets
+]
 
 
 def ids() -> list[str]:

@@ -134,6 +134,15 @@ MESSAGES: dict[str, str] = {
     "feedback_status": "status is een van {options}",
     # the admin hub (api/tracker_admin.py)
     "unknown_beta": "onbekende bètafunctie; kies uit: {options}",
+    # nutrition (api/nutrition.py)
+    "nutrition_off": "Voeding staat niet aan voor dit account",
+    "meal_not_found": "maaltijd niet gevonden",
+    "meal_empty": "een maaltijd heeft minstens één voedingsmiddel",
+    "meal_too_many_items": "maximaal {max} voedingsmiddelen per maaltijd",
+    "food_not_found": "voedingsmiddel niet gevonden: {ref}",
+    "invalid_grams": "hoeveelheid tussen 0 en {max} gram",
+    "invalid_time": "ongeldige tijd: {time}",
+    "nevo_format": "geen NEVO-online bestand: {reason}",
 }
 
 

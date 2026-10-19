@@ -26,6 +26,7 @@ OLD_PATHS = {
     "/help/handleiding/": "/help/guide/",
     "/health/": "/dashboard/body/",
     "/health/over-time/": "/trends/recovery/",
+    "/voeding/": "/nutrition/",  # not an old page: the Dutch name works as an address, like the ones above
 }
 
 

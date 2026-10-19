@@ -50,7 +50,7 @@ def hub(app, engine):  # noqa: F811
 def test_tracker_overview(hub):
     admin, _, ids = hub
     out = admin.get("/api/admin/tracker").json()
-    assert out["app"] == "health" and out["betas"] == [] and out["measure"] == {"en": "workouts", "nl": "trainingen"}
+    assert out["app"] == "health" and out["betas"] == betas.BETA_FEATURES and out["measure"] == {"en": "workouts", "nl": "trainingen"}
     weeks = out["weekly"]
     assert len(weeks) == 12 and weeks[0]["week"] == "2026-07-20" and weeks[-1]["week"] == "2026-10-05"
     assert all(date.fromisoformat(w["week"]).weekday() == 0 for w in weeks)
@@ -112,7 +112,7 @@ def test_beta_errors(hub):
     r = admin.patch("/api/admin/tracker/betas/9999", json={"feature": "new_trends", "enabled": True})
     assert r.status_code == 404 and r.json()["code"] == "account_not_found"
     r = admin.patch(f"/api/admin/tracker/betas/{ids['anna']}", json={"feature": "new_trends", "enabled": True})
-    assert r.status_code == 422 and r.json()["code"] == "unknown_beta"  # health-tracker has no beta features yet
+    assert r.status_code == 422 and r.json()["code"] == "unknown_beta"  # not one of health-tracker's beta features
     assert admin.patch(f"/api/admin/tracker/betas/{ids['anna']}", json={"feature": "new_trends"}).status_code == 422
 
 

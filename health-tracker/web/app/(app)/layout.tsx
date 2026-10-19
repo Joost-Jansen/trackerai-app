@@ -53,7 +53,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
   if (needsGate(me.data)) return <AccountGate me={me.data} />;
 
-  const nav = localizeNav(NAV, t);
+  const nav = localizeNav(NAV, t, me.data.betas);
   const item = findItem(nav, pathname);
   const shown = (item?.tabs ?? []).filter((t) => !t.adminOnly || me.data.is_admin);
   const active = shown.filter((t) => pathname.startsWith(t.href)).sort((a, b) => b.href.length - a.href.length)[0]?.id;

@@ -342,6 +342,34 @@ export function ClipboardIcon(props: IconProps) {
   );
 }
 
+/** Done, within range: a plain tick. */
+export function CheckIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </Icon>
+  );
+}
+
+/** Add one: a plus. */
+export function PlusIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 5v14M5 12h14" />
+    </Icon>
+  );
+}
+
+/** Nutrition: a fork and a knife, side by side. Shared: wealth-tracker can use it for food spending too. */
+export function UtensilsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M7 3.5v17M4.5 3.5V8a2.5 2.5 0 0 0 5 0V3.5" />
+      <path d="M17 20.5V3.5c-2 0-3.5 2.2-3.5 5.5v3.5H17" />
+    </Icon>
+  );
+}
+
 /** Health: a heart with a pulse line through it. */
 export function HeartIcon(props: IconProps) {
   return (

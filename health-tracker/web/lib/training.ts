@@ -1,5 +1,6 @@
 // Types and formatting for training data. Times as 1:05 (h:mm), pace as 5:20/km.
 
+import type { NutritionBlock } from "@/lib/nutrition";
 import type { ActivityGear } from "@/lib/gear";
 import { SPORTS, effortKind } from "@/lib/sports";
 
@@ -95,6 +96,8 @@ export type Dashboard = {
   plan_week?: PlanWeekSummary;
   race?: NextRace | null;
   readiness?: Readiness | null;
+  /** Voeding vandaag: null without the nutrition beta (api/nutrition.py dashboard_block). */
+  nutrition?: NutritionBlock | null;
 };
 
 /** Codes and numbers; the text comes from T.today.readiness (api/readiness.py). */

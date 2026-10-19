@@ -12,6 +12,8 @@ export type NavItem = {
   icon: string;
   tabs?: NavTab[];
   extraPaths?: string[];
+  /** Only for users with this beta feature (api/betas.py, `betas` from /api/me); remove the field to make it permanent. */
+  beta?: string;
 };
 
 export type NavGroup = { label?: string; items: NavItem[] };
@@ -32,6 +34,7 @@ export const NAV: NavGroup[] = [
       { id: "routes", label: "", href: "/routes/", icon: "route" },
       { id: "history", label: "", href: "/history/", icon: "map" },
       { id: "plan", label: "", href: "/plan/", icon: "clipboard" },
+      { id: "nutrition", label: "", href: "/nutrition/", icon: "utensils", beta: "nutrition", tabs: [tab("day", "/nutrition/")] },
       {
         id: "log",
         label: "",
@@ -66,11 +69,13 @@ export const NAV: NavGroup[] = [
   },
 ];
 
-/** NAV with the names in the user's language. */
-export function localizeNav(groups: NavGroup[], t: Messages): NavGroup[] {
+/** NAV with the names in the user's language, without the beta items the user does not have. */
+export function localizeNav(groups: NavGroup[], t: Messages, betas: string[] = []): NavGroup[] {
   return groups.map((g) => ({
     ...g,
-    items: g.items.map((i) => ({ ...i, label: t.nav.items[i.id], tabs: i.tabs?.map((x) => ({ ...x, label: t.nav.tabs[x.id] })) })),
+    items: g.items
+      .filter((i) => !i.beta || betas.includes(i.beta))
+      .map((i) => ({ ...i, label: t.nav.items[i.id], tabs: i.tabs?.map((x) => ({ ...x, label: t.nav.tabs[x.id] })) })),
   }));
 }
 

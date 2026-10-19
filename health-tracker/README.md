@@ -48,6 +48,15 @@ with the kilometres it had before, a replacement limit (700 km for running shoes
 default per sport. On an activity you see what it used and why (chosen, from Garmin, or the default) and can change it;
 Today warns when something is nearly worn or past its limit.
 
+**Nutrition** (beta, switched on per account in the admin hub). Log a meal by searching the Dutch food table NEVO-online
+(RIVM) and setting the amounts; the app adds up energy, carbohydrate, protein, fat, fibre, alcohol and salt and shows
+carbohydrate and protein per kilo body weight against a range that follows your training: what you did that day, what
+the plan says for it, and the day before a race or a session over three hours. Today gets a Nutrition card with the
+same bars and a line such as "Tomorrow long run 20 km: aim for 5-7 g/kg carbohydrate today". Your usual portion of a
+food is learnt from what you enter. No calorie target and no red numbers: it is bookkeeping, not a diet. The nutrient
+values always come from the food table, never from guesses; NEVO's data is not in this repository (RIVM allows linking
+to it, not handing it out): an admin imports it once per release (`docs/DEVELOPMENT.md`, Nutrition).
+
 ![Activity detail: route coloured by zone, time in zones, insights and the heart-rate, pace and altitude chart](docs/screenshots/activity.jpg)
 
 **Trends.** Your sport and body over time, in three tabs. Training: fitness/fatigue/form (CTL/ATL/TSB) with race markers, VO2max,

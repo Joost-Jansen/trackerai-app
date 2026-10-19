@@ -391,6 +391,7 @@ def wellness_from_garmin(sleep: dict | None, hrv: dict | None, summary: dict | N
             "intensity_vigorous_min": vigorous,
             "floors": num(summary.get("floorsAscended")) if summary.get("floorsAscended") is not None else None,
             "active_kcal": num(summary.get("activeKilocalories")),
+            "total_kcal": num(summary.get("totalKilocalories")),  # resting + active: the burn Voeding sets intake against
             "readiness_score": ready.get("score"),
             "readiness_level": ready.get("level"),
         }
