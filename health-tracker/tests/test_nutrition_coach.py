@@ -127,3 +127,15 @@ def test_the_table_parser():
     assert warnings == ["regel 3: geen hoeveelheid in gram"]
     assert parse("x\ny", TODAY, "09:00")[1] == ["kolommen Voedingsmiddel en Gram zijn verplicht"]
     assert parse("| Voedingsmiddel | Gram | Moment |\n|---|---|---|\n| banaan | 1 | brunch |", TODAY, "09:00")[1] == ["regel 2: onbekend moment 'brunch'"]  # counted as the table reads, header first
+
+
+def test_log_meal_is_all_or_nothing_and_teaches_no_portion(client, engine):  # noqa: F811
+    on(engine)
+    s = db.Scope(engine, 1)
+    table = "| Voedingsmiddel | Gram | Tijd | Dag |\n|---|---|---|---|\n| havermout | 60 | 07:30 | 2026-10-19 |\n| banaan | 9000 | 12:30 | 2026-10-19 |"
+    text, err = call(client, "log_meal", table=table)
+    assert err and "Niets opgeslagen" in text and "invalid_grams" in text
+    assert meals.between(s, "2026-10-19", "2026-10-19") == []
+    call(client, "log_meal", table=table.replace("9000", "120"))
+    assert [i["grams_source"] for m in meals.between(s, "2026-10-19", "2026-10-19") for i in m["items"]] == ["agent", "agent"]
+    assert meals.portions(s) == {}  # an assistant's amounts are not your usual portion

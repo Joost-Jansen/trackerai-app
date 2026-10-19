@@ -91,19 +91,20 @@ def day_md(day_meals: list[dict], target: dict) -> str:
     return "\n".join(out)
 
 
-def range_md(s: db.Scope, start: date, end: date, activities: list[dict], sessions: list[dict], today: date) -> str:
+def range_md(s: db.Scope, start: date, end: date, activities: list[dict], sessions: list[dict], today: date, title: str | None = None) -> str:
     """Per day of a range: kcal, carbs and protein per kg against that day's target, alcohol, meals, last meal."""
     weight = (db.get_setting(s, "profile_facts") or {}).get("weight_kg")
     by_day: dict[str, list[dict]] = {}
     for m in meals.between(s, start.isoformat(), end.isoformat()):
         by_day.setdefault(m["day"], []).append(m)
-    out = [f"# Voeding {start.isoformat()} t/m {end.isoformat()}", "",
+    paces = targets.pace_by_sport(activities, today)  # once, not per day
+    out = [title or f"# Voeding {start.isoformat()} t/m {end.isoformat()}", "",
            "| Dag | Soort dag | kcal | Koolh. g/kg (doel) | Eiwit g/kg (doel) | Alcohol (eenh.) | Maaltijden | Laatste |", "|---|---|---|---|---|---|---|---|"]
     covered = logged = 0
     day = start
     while day <= end:
         iso = day.isoformat()
-        target = targets.for_day(day, today, activities, sessions, weight)
+        target = targets.for_day(day, today, activities, sessions, weight, paces)
         d = day_summary(by_day.get(iso, []), target)
         logged += d["meals"] > 0
         covered += d["covered"]
@@ -122,4 +123,5 @@ def range_md(s: db.Scope, start: date, end: date, activities: list[dict], sessio
 
 def week_md(s: db.Scope, today: date, activities: list[dict], sessions: list[dict]) -> str:
     """For get_context: the last seven days up to and including today."""
-    return range_md(s, today - timedelta(days=6), today, activities, sessions, today).replace("# Voeding", "## Voeding, laatste 7 dagen:", 1)
+    start = today - timedelta(days=6)
+    return range_md(s, start, today, activities, sessions, today, title=f"## Voeding, laatste 7 dagen: {start.isoformat()} t/m {today.isoformat()}")

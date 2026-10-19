@@ -393,17 +393,16 @@ class Server:
             lines.append(f"- {m['day']} {m['eaten_at']} {nutrition_report.MOMENT_NL[m['moment']]}: "
                          + ", ".join(f"{it['food']['name']} ({it['food']['ref']}) {round(it['grams'])} {it['food']['unit']}" for it in m["items"])
                          + f" (~{round(total)} kcal)")
+        items_of = lambda m: [{"food_ref": it["food"]["ref"], "grams": it["grams"], "grams_source": "agent"} for it in m["items"]]  # noqa: E731
+        try:  # all meals checked before one is saved: a table is logged whole or not at all
+            for m in planned:
+                nutrition_meals.validate(day=m["day"], eaten_at=m["eaten_at"], moment=m["moment"], items=items_of(m))
+        except nutrition_meals.MealError as e:
+            raise ToolError(f"Niets opgeslagen, {m['day']} {m['eaten_at']}: {e.code} {e.params or ''}" + note) from None
         if args.get("preview"):
             return "Voorbeeld, niets opgeslagen:\n" + "\n".join(lines) + note
-        saved = []
-        for m in planned:
-            try:
-                meal = nutrition_meals.create(self.engine, day=m["day"], eaten_at=m["eaten_at"], moment=m["moment"], input="agent",
-                                              items=[{"food_ref": it["food"]["ref"], "grams": it["grams"], "grams_source": "user"} for it in m["items"]],
-                                              note=f"door {who}")
-            except nutrition_meals.MealError as e:
-                raise ToolError(f"Niet opgeslagen: {e.code} {e.params or ''}") from None
-            saved.append(meal["id"])
+        saved = [nutrition_meals.create(self.engine, day=m["day"], eaten_at=m["eaten_at"], moment=m["moment"], input="agent",
+                                        items=items_of(m), note=f"door {who}")["id"] for m in planned]
         return f"{len(saved)} maaltijd{'en' if len(saved) != 1 else ''} opgeslagen (id {', '.join(map(str, saved))}):\n" + "\n".join(lines) + note
 
     def _sync(self) -> str:
@@ -445,7 +444,8 @@ class Server:
             profile, goals = db.get_document(self.engine, "profile"), db.get_document(self.engine, "goals")
             dash = build_dashboard(s.activities, s.wellness, s.zones, today, s.last_sync, s.rhr_fallback)
             f = dash["form"]
-            parts = [f"# Trainingscontext {today.isoformat()}", f"Laatste sync: {s.last_sync}.", "", "## Profiel", profile["body"] if profile else "(leeg)", "", "## Doelen", goals["body"] if goals else "(leeg)", "", "## Actief schema", plan_md(self._full(db.active_plan(self.engine)))]
+            plan = self._full(db.active_plan(self.engine))
+            parts = [f"# Trainingscontext {today.isoformat()}", f"Laatste sync: {s.last_sync}.", "", "## Profiel", profile["body"] if profile else "(leeg)", "", "## Doelen", goals["body"] if goals else "(leeg)", "", "## Actief schema", plan_md(plan)]
             rd = readiness(s.wellness, today, today_tsb(f), today_form_pct(f), s.rhr_fallback)
             if rd:
                 parts.append(f"\n## Klaar voor vandaag\n{readiness_text(rd)}")
@@ -455,7 +455,7 @@ class Server:
             parts += ["## Vaste rondjes", "", "| Id | Naam | km | Keer | Laatst | Tempo/km | HR |", "|---|---|---|---|---|---|---|"]
             parts += [f"| {r['id']} | {r.get('name')} | {r.get('distance_km')} | {r.get('runs')} | {r.get('last_run')} | {r.get('median_pace') or (str(r['median_speed_kmh']) + ' km/u' if r.get('median_speed_kmh') else '-')} | {r.get('median_hr')} |" for r in s.routes]
             if nutrition_on(self.user) and nutrition_meals.history(self.engine):
-                parts += ["", nutrition_report.week_md(self.engine, today, s.activities, self._sessions())]
+                parts += ["", nutrition_report.week_md(self.engine, today, s.activities, plan["sessions"] if plan else [])]
             parts += ["", "## Laatste logentries"]
             parts += [f"### {e['day']}: {e['title']} ({e['author']})\n{e['body'].strip()}" for e in db.list_entries(self.engine, kind="log", limit=5)]
             return "\n".join(parts)

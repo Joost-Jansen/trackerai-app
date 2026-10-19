@@ -17,7 +17,7 @@ from tools.nutrition.nutrients import scale, total
 
 MOMENTS = ("breakfast", "lunch", "dinner", "snack", "training", "drinks")
 INPUTS = ("photo", "search", "barcode", "repeat", "agent")
-GRAMS_SOURCES = ("ai", "user", "memory")
+GRAMS_SOURCES = ("ai", "user", "memory", "agent")  # agent: an amount an assistant logged (it teaches no portion)
 MAX_GRAMS = 5000.0
 MAX_ITEMS = 40
 MEMORY_WEIGHT = 0.3  # the newest confirmed amount's weight in the running average: recent meals count more
@@ -70,6 +70,18 @@ def _check(day: str, eaten_at: str, moment: str, input_: str | None = None) -> N
         raise MealError("invalid_choice", options=", ".join(MOMENTS))
     if input_ is not None and input_ not in INPUTS:
         raise MealError("invalid_choice", options=", ".join(INPUTS))
+
+
+def validate(*, day: str, eaten_at: str, moment: str, items: list[dict]) -> None:
+    """The checks create() does on a meal's fields and amounts, without saving: to check several meals before any."""
+    _check(day, eaten_at, moment)
+    if not items:
+        raise MealError("meal_empty")
+    if len(items) > MAX_ITEMS:
+        raise MealError("meal_too_many_items", max=MAX_ITEMS)
+    for it in items:
+        if not 0 < float(it.get("grams") or 0) <= MAX_GRAMS:
+            raise MealError("invalid_grams", max=int(MAX_GRAMS))
 
 
 def create(s: db.Scope, *, day: str, eaten_at: str, moment: str, input: str, items: list[dict], note: str | None = None,

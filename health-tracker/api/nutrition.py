@@ -177,6 +177,18 @@ def day_view(u, day: date, today: date, now_hhmm: str | None = None, sessions: l
 
 
 TREND_DAYS = (14, 30, 90)
+_loads: dict[tuple, dict[str, float]] = {}  # training load per day, until the next sync (like /api/trends' cache)
+
+
+def daily_load(u, today: date) -> dict[str, float]:
+    store = u.store
+    key = (u.id, today, store.last_sync, len(store.activities))
+    if key not in _loads:
+        if len(_loads) > 64:
+            _loads.clear()
+        series = fitness_series(store.activities, resting_hr(store.wellness, today, store.rhr_fallback), max_by_sport(store.zones, store.activities), end=today)
+        _loads[key] = {r["date"]: r["load"] for r in series}
+    return _loads[key]
 
 
 def trends(u, today: date, days: int) -> dict:
@@ -185,8 +197,8 @@ def trends(u, today: date, days: int) -> dict:
     start = today - timedelta(days=days - 1)
     weight = weight_of(s)
     sessions = plan_sessions(u, today)
-    load = {r["date"]: r["load"] for r in fitness_series(store.activities, resting_hr(store.wellness, today, store.rhr_fallback),
-                                                         max_by_sport(store.zones, store.activities), end=today)}
+    load = daily_load(u, today)
+    paces = targets.pace_by_sport(store.activities, today)
     by_day: dict[str, list[dict]] = {}
     for m in meals.between(s, start.isoformat(), today.isoformat()):
         by_day.setdefault(m["day"], []).append(m)
@@ -196,7 +208,7 @@ def trends(u, today: date, days: int) -> dict:
         iso = day.isoformat()
         logged = by_day.get(iso, [])
         t = meals.day_totals(logged)
-        target = targets.for_day(day, today, store.activities, sessions, weight)
+        target = targets.for_day(day, today, store.activities, sessions, weight, paces)
         kcal = t["energy_kcal"]
         rows.append({
             "day": iso, "meals": len(logged), "covered": len(logged) >= 2,

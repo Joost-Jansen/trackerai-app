@@ -57,9 +57,12 @@ export default function Page() {
   const target = (key: "carbs_target" | "protein_target", i: 0 | 1, label: string): ChartSeries =>
     ({ key: `${key}${i}`, label, colour: "var(--text-faint)", dash: "dashed", width: 1, kind: "step", points: rows.map((r) => ({ d: r.day, v: r[key][i] })) });
 
-  // alcohol: units per ISO week, the bar on its Monday
+  // alcohol: units per ISO week, the bar on its Monday; only weeks that start in the window (a half week is no week)
   const weeks = new Map<string, number>();
-  for (const r of rows) if (r.alcohol_g != null) weeks.set(weekOf(r.day), (weeks.get(weekOf(r.day)) ?? 0) + r.alcohol_g / ALCOHOL_UNIT_G);
+  for (const r of rows) {
+    const wk = weekOf(r.day);
+    if (r.alcohol_g != null && wk >= rows[0].day) weeks.set(wk, (weeks.get(wk) ?? 0) + r.alcohol_g / ALCOHOL_UNIT_G);
+  }
   const alcohol = [...weeks.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([d, v]) => ({ d, v: Math.round(v * 10) / 10 }));
   const flat = (v: number, key: string, label: string): ChartSeries =>
     ({ key, label, colour: "var(--text-faint)", dash: "dashed", width: 1, points: [{ d: window.from, v }, { d: window.to, v }] });

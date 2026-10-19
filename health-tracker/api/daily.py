@@ -190,13 +190,17 @@ def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
             when = date.fromisoformat(day) if day else None
         except ValueError:
             raise ApiError(422, "invalid_date", date=day) from None
-        out = day_view(u.scope, u.store.wellness, when, u.store.rhr_fallback, today())
-        if betas.enabled(u.scope.engine, u.id, "nutrition"):
-            # Voeding: what was eaten and drunk the evening before this night (last meal, alcohol), marked on the timeline
+        if not betas.enabled(u.scope.engine, u.id, "nutrition"):
+            return day_view(u.scope, u.store.wellness, when, u.store.rhr_fallback, today())
+        # Voeding: what was eaten and drunk the evening before this night (last meal, alcohol), marked on the timeline,
+        # which reaches back to it. Without a day the view picks the latest one first (then once more, rarely).
+        evening = nutrition_report.evening(u.scope, (when - timedelta(days=1)).isoformat()) if when else None
+        out = day_view(u.scope, u.store.wellness, when, u.store.rhr_fallback, today(), earliest=evening["minute"] - 1440 if evening else None)
+        if when is None:
             evening = nutrition_report.evening(u.scope, (date.fromisoformat(out["day"]) - timedelta(days=1)).isoformat())
             if evening and evening["minute"] - 1440 < out["from"]:
                 out = day_view(u.scope, u.store.wellness, date.fromisoformat(out["day"]), u.store.rhr_fallback, today(), earliest=evening["minute"] - 1440)
-            out["evening"] = evening
+        out["evening"] = evening
         return out
 
     return r
