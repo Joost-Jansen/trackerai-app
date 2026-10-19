@@ -41,6 +41,7 @@ import {
   HeartIcon,
   MapIcon,
   RouteIcon,
+  UtensilsIcon,
 } from "../icons";
 
 /** What the sidebar needs of an app's navigation: groups of items, each with an icon name from ICONS below. */
@@ -72,6 +73,7 @@ const ICONS: Record<string, (p: { className?: string }) => React.ReactElement> =
   map: MapIcon,
   route: RouteIcon,
   book: NewspaperIcon,
+  utensils: UtensilsIcon,
 };
 
 function NavList({

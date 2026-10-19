@@ -46,7 +46,7 @@ from tools.routes import english_default_name
 from tools.sports import sport_of
 from tools.store import _rank, activity_id, merge, prepare, remove_source as _strip_source, same_start, source_distance
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8  # v8: the nutrition tables (new tables only: create_all makes them)
 meta = MetaData()
 
 # --- global tables -------------------------------------------------------------------------------------------
@@ -254,6 +254,123 @@ activity_gear = Table(
     PrimaryKeyConstraint("user_id", "activity_id", "gear_id", "source"),
 )
 
+# --- nutrition (tools/nutrition/, api/nutrition.py) -----------------------------------------------------------
+# Foods are global (a food table such as NEVO, imported by an admin, and Open Food Facts products cached on first use);
+# the rest is per user. Nutrient dicts use the keys of tools/nutrition/nutrients.py, per 100 g or 100 ml (`unit`).
+
+foods = Table(
+    "foods",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("source", String(10), nullable=False),  # nevo | off | usda
+    Column("source_code", String(40), nullable=False),  # the source's own id: NEVO-code, EAN, FDC id
+    Column("name_nl", String(200), nullable=False),
+    Column("name_en", String(200)),
+    Column("synonyms", Text),
+    Column("food_group", String(80)),
+    Column("unit", String(2), nullable=False, default="g"),  # g | ml: what the per_100 values are per 100 of
+    Column("per_100", JSON, nullable=False),
+    Column("default_portion_g", Float),
+    Column("source_version", String(40)),  # "NEVO-online 2025/9.0": a new release replaces, past meals keep their snapshot
+    Column("brand", String(100)),
+)
+user_foods = Table(
+    # Foods a user added from a label, or a recipe: theirs only, never mixed into the global table.
+    "user_foods",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", Integer, nullable=False, index=True),
+    Column("name_nl", String(200), nullable=False),
+    Column("name_en", String(200)),
+    Column("brand", String(100)),
+    Column("unit", String(2), nullable=False, default="g"),
+    Column("per_100", JSON, nullable=False),
+    Column("default_portion_g", Float),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+meals = Table(
+    "meals",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", Integer, nullable=False, index=True),
+    Column("day", String(10), nullable=False, index=True),
+    Column("eaten_at", String(5), nullable=False),  # HH:MM, local time
+    Column("moment", String(12), nullable=False),  # breakfast | lunch | dinner | snack | training | drinks
+    Column("input", String(10), nullable=False),  # photo | search | barcode | repeat | agent
+    Column("photo_id", Integer),
+    Column("note", Text),
+    Column("ai_run_id", Integer),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True)),
+)
+meal_items = Table(
+    # One food in a meal with its amount and a snapshot of what it held: a new food table release never changes a day
+    # already logged. grams_source: ai (estimated from a photo), user (typed or confirmed), memory (the usual portion).
+    "meal_items",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("meal_id", Integer, ForeignKey("meals.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column("user_id", Integer, nullable=False, index=True),
+    Column("position", Integer, nullable=False, default=0),
+    Column("food_ref", String(60), nullable=False),  # nevo:1234 | off:8710000000000 | user:12
+    Column("name", String(200), nullable=False),
+    Column("unit", String(2), nullable=False, default="g"),
+    Column("grams", Float, nullable=False),
+    Column("grams_ai", Float),
+    Column("grams_low", Float),
+    Column("grams_high", Float),
+    Column("grams_source", String(10), nullable=False, default="user"),
+    Column("confidence", Float),
+    Column("nutrients", JSON, nullable=False),  # scaled to `grams`
+)
+meal_photos = Table(
+    "meal_photos",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", Integer, nullable=False, index=True),
+    Column("mime", String(20), nullable=False),
+    Column("data", LargeBinary, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("expires_at", DateTime(timezone=True)),  # None: kept
+)
+portion_memory = Table(
+    # Your usual amount of a food, learnt from what you confirmed: the default next time.
+    "portion_memory",
+    meta,
+    Column("user_id", Integer, nullable=False),
+    Column("food_ref", String(60), nullable=False),
+    Column("grams_typical", Float, nullable=False),
+    Column("uses", Integer, nullable=False, default=0),
+    Column("last_used", String(10)),
+    PrimaryKeyConstraint("user_id", "food_ref"),
+)
+meal_templates = Table(
+    # Favourites: a meal to log again in one tap. items: [{food_ref, name, unit, grams}].
+    "meal_templates",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", Integer, nullable=False, index=True),
+    Column("name", String(100), nullable=False),
+    Column("moment", String(12)),
+    Column("items", JSON, nullable=False),
+    Column("position", Integer, nullable=False, default=0),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+nutrition_ai_runs = Table(
+    # Every photo analysis: model, prompt version, time and tokens (cost) and the raw answer, to measure accuracy.
+    "nutrition_ai_runs",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", Integer, nullable=False, index=True),
+    Column("model", String(60), nullable=False),
+    Column("prompt_version", String(20), nullable=False),
+    Column("request_ms", Integer),
+    Column("tokens_in", Integer),
+    Column("tokens_out", Integer),
+    Column("response", JSON),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+
 admin_audit = Table(
     # What admins did: who, what, to whom, when. Shown at the bottom of the admin page.
     "admin_audit",
@@ -283,7 +400,8 @@ feedback = Table(
     Column("updated_at", DateTime(timezone=True)),
 )
 
-USER_TABLES = (activities, streams, fit_files, wellness, intraday, settings, documents, entries, plan_links, plans, routes, feedback, gear, activity_gear)
+USER_TABLES = (activities, streams, fit_files, wellness, intraday, settings, documents, entries, plan_links, plans, routes, feedback, gear, activity_gear,
+               meal_items, meals, meal_photos, user_foods, portion_memory, meal_templates, nutrition_ai_runs)
 SESSION_FIELDS = ("date", "sport", "kind", "distance_km", "duration_min", "target_zone", "description", "route_id")
 
 
@@ -623,7 +741,8 @@ def export_tables(s: Scope):
     with s.engine.connect() as conn:
         user = conn.execute(select(users).where(users.c.id == uid)).mappings().first()
         yield "account", [{k: _jsonable(v) for k, v in _user_row(user).items()}] if user else []
-        for t in (activities, streams, wellness, intraday, documents, entries, plans, plan_links, routes, gear, activity_gear):
+        for t in (activities, streams, wellness, intraday, documents, entries, plans, plan_links, routes, gear, activity_gear,
+                  meals, meal_items, user_foods, portion_memory, meal_templates, nutrition_ai_runs):
             yield t.name, ({k: _jsonable(v) for k, v in r.items() if k != "user_id"} for r in conn.execute(select(t).where(t.c.user_id == uid)).mappings())
         yield "settings", ({"key": r["key"], "value": r["value"]} for r in conn.execute(select(settings).where(settings.c.user_id == uid)).mappings()
                            if r["key"] not in SECRET_SETTINGS)
@@ -649,6 +768,13 @@ def export_files(s: Scope):
             data = conn.execute(select(feedback.c.screenshot).where(feedback.c.id == fid, feedback.c.user_id == s.user_id)).scalar_one_or_none()
         if data:
             yield f"feedback/{fid}.{(media or 'image/png').split('/')[-1]}", data
+    with s.engine.connect() as conn:
+        photos = conn.execute(select(meal_photos.c.id, meal_photos.c.mime).where(meal_photos.c.user_id == s.user_id).order_by(meal_photos.c.id)).all()
+    for pid, media in photos:
+        with s.engine.connect() as conn:
+            data = conn.execute(select(meal_photos.c.data).where(meal_photos.c.id == pid, meal_photos.c.user_id == s.user_id)).scalar_one_or_none()
+        if data:
+            yield f"meals/{pid}.{(media or 'image/jpeg').split('/')[-1]}", data
 
 
 def count_admins(engine: Engine, except_user: int | None = None) -> int:

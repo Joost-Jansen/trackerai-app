@@ -10,6 +10,7 @@ import Card from "@trackerai/ui/components/Card";
 import { Columns } from "@/components/ds";
 import ZoneBar from "@/components/ZoneBar";
 import GearNotice from "@/components/dashboard/GearNotice";
+import NutritionCard from "@/components/nutrition/NutritionCard";
 import OnboardingCard from "@/components/onboarding/Checklist";
 import EasyShare from "@/components/zones/EasyShare";
 import PeriodNav from "@/components/zones/PeriodNav";
@@ -128,7 +129,11 @@ export default function DashboardPage() {
           (upcoming sessions, recent activities) show as many rows as fit so both columns end level; form across the
           full width between them. On a phone one column in reading order. Cards without anything to say drop out. */}
       <Columns
-        left={[d.readiness && <ReadinessCard key="ready" r={d.readiness} />, d.plan_week && <PlanWeekCard key="plan" week={d.plan_week} race={d.race} />]}
+        left={[
+          d.readiness && <ReadinessCard key="ready" r={d.readiness} />,
+          d.nutrition && <NutritionCard key="nutrition" block={d.nutrition} />,
+          d.plan_week && <PlanWeekCard key="plan" week={d.plan_week} race={d.race} />,
+        ]}
         right={[form && <LoadCard key="load" load={form.load} />, d.plan_week && <Upcoming key="upcoming" sessions={d.upcoming} title={d.plan_title} fill />]}
       />
 

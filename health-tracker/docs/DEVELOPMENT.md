@@ -29,6 +29,7 @@ refuses unless `ALLOW_INSECURE_DEFAULTS=true`); give `web` and `sync` the same k
 | `tools/sync.py`, `tools/fit.py`, `tools/store.py`, `tools/intraday.py` | Garmin sync, FIT stream parsing, record normalisation and merge rules, Garmin's series through the day (heart rate, stress, Body Battery, breathing, SpO2, sleep stages) |
 | `tools/apple_health.py`, `tools/apple_import.py`, `api/apple.py` | Apple Health import: read the export of the Health app as a stream, store it like Garmin's data (source `apple`), the upload endpoint with background progress |
 | `tools/zones.py`, `tools/analytics.py`, `tools/summarize.py`, `tools/routes.py`, `tools/recommend.py` | Zones, training load (CTL/ATL/TSB), sessions, route recognition, route suggestions |
+| `tools/nutrition/`, `api/nutrition.py` | Nutrition (beta `nutrition`): the nutrient keys (`nutrients.py`), the NEVO import (`nevo.py`), food search (`foods.py`), meals with their nutrient snapshot and the usual portion (`meals.py`), training-aware carbohydrate and protein targets (`targets.py`) |
 | `scripts/seed_demo.py` | Demo user with six months of synthetic data (also seeds the example account, `api/example.py`) |
 | `scripts/make_apple_export.py` | A synthetic Apple Health `export.zip` (iPhone + Watch, old and new export shapes) to test the Apple import |
 | `scripts/screenshots.mjs` | Retakes the README screenshots (`docs/screenshots/`) from a local instance with the demo user, in English (Playwright) |
@@ -215,6 +216,10 @@ More (types in `web/lib/training.ts`):
 | GET | `/api/gear` | `{gear: Gear[], defaults: {sport: gear_id}, sports}` (api/gear.py, `web/lib/gear.ts`); per item `total_km` = `start_km` + what Garmin counted on activities not here + the linked activities, `limit_km` (`limit_from: own\|garmin\|default`, 700 km for shoes), `state: ok\|soon\|replace\|retired` (soon from 85%), uses, first/last use, km in 30 days; sorted by what needs attention |
 | POST/PATCH/DELETE | `/api/gear`, `/api/gear/{id}` | `{kind: shoes\|bike\|other, name, brand?, model?, start_km?, max_km?, since?, retired_on?, notes?, default_for?: sports}` (one default per sport: the newest takes it over); DELETE only gear added here (409 `garmin_gear`); `gear_name_required`, `gear_not_found` |
 | GET | `/api/gear/{id}/activities` | what it was used on, newest first, with `source: manual\|garmin\|default` |
+| GET | `/api/nutrition/day?day=` | beta `nutrition` (403 `nutrition_off` without it), like every `/api/nutrition/*` route: `{meals, totals (+ missing per key), energy_split, per_kg, targets: {day_type, carbs_per_kg, protein_per_kg, carbs_g?, protein_g?, sessions, tomorrow}, context, last_meal, burn_kcal, source}` (`web/lib/nutrition.ts`) |
+| POST/PATCH/DELETE | `/api/nutrition/meals`, `/api/nutrition/meals/{id}` | `{day, eaten_at: HH:MM, moment, input, note?, items: [{food_ref, grams}]}`; nutrients are computed from the food table and stored per item as a snapshot; PATCH items replace the old ones (an item with its `id` keeps what it knew); `meal_empty`, `invalid_grams`, `food_not_found`, `meal_not_found` |
+| GET | `/api/nutrition/meals?from=&to=`, `/api/nutrition/foods/search?q=`, `/api/nutrition/foods/recent` | meals in a range; foods by name (NEVO, cached Open Food Facts, your own) with your usual portion (`portion_g`); what you ate lately |
+| POST | `/api/nutrition/admin/nevo` | admins: the NEVO-online CSV, or RIVM's zip, as the raw body; idempotent on the NEVO-code |
 | PUT | `/api/activities/{id}/gear` | `{gear_ids: [...]}` the user's choice, `[]` none, `null` automatic again (Garmin, else the sport's default); the activity detail carries `gear` and `gear_chosen` |
 
 ### Example data (first-run walk)
@@ -255,3 +260,21 @@ Errors raised with `api.errors.ApiError` answer `{detail, code, params}`: `detai
 MCP), `code` + `params` is what the site translates (`errors` in `web/lib/i18n/nl.ts` and `en.ts`). New user-facing
 errors use a code: add it to `MESSAGES` in `api/errors.py` and to both web catalogs. FastAPI's own validation errors
 (422 with a list) have no code.
+
+## Nutrition: the food table
+
+The nutrient values come from NEVO-online, the Dutch food composition table of RIVM. It is free, but its file is not in
+this repository: RIVM allows linking to it, not handing it out. Download it at
+https://www.rivm.nl/nederlands-voedingsstoffenbestand (Downloaden bestand; you accept RIVM's conditions there), then
+import it as an admin, once per new release:
+
+```bash
+DATABASE_URL=... .venv/bin/python -m tools.nutrition.nevo NEVO2025_v9.0.csv
+curl -X POST --data-binary @NEVO2025_v9.0.zip -H "Cookie: ..." https://<site>/api/nutrition/admin/nevo   # or from the site
+```
+
+RIVM's conditions that shape the code: NEVO's values are used unchanged (Open Food Facts and your own foods are marked
+as other sources, never edits of NEVO rows), output calculated from them names the source and version (`nevo.attribution`,
+shown under the Nutrition day), and nobody may be charged for using NEVO. Tests use `tests/nevo_sample.csv`: NEVO's file
+format with invented foods and values.
+

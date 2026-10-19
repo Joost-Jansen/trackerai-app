@@ -44,6 +44,19 @@
   --zone-5: #cf6d71;
 }
 
+/* ── macros (Voeding) ─────────────────────────────────────────────────────
+   The shared categorical colours, so light and dark follow base.css by
+   themselves. A target range is a soft band behind a bar, never red: Voeding
+   is bookkeeping, not a diet. */
+:root {
+  --macro-carb: var(--cat-2);
+  --macro-protein: var(--cat-1);
+  --macro-fat: var(--cat-3);
+  --macro-alcohol: var(--cat-4);
+  --macro-fiber: var(--cat-6);
+  --target-band: var(--surface-sunken);
+}
+
 /* ── map tiles (Leaflet, OpenStreetMap) ─────────────────────────────────
    OSM tiles are bright. Light: mostly grey, a bit lighter and less contrast,
    so the soft theme holds and the track and zone colours stand out. Dark:
