@@ -96,6 +96,10 @@ export default function DaySection() {
   if (!v.latest) return <Card><p className="text-[13px] text-ink-muted">{h.none}</p></Card>;
 
   const go = (d: string) => router.replace(`/dashboard/body/?day=${d}`, { scroll: false });
+  // Voeding: the evening before this night, "Laatste maaltijd 21:30 · 2 eenheden alcohol"
+  const eveningLabel = (e: NonNullable<HealthDay["evening"]>) =>
+    [t.nutrition.evening.lastMeal(e.last_meal), e.alcohol_units ? t.nutrition.evening.alcohol(f.trim(e.alcohol_units, 1)) : null, e.late_large ? t.nutrition.evening.lateLarge : null]
+      .filter(Boolean).join(" · ");
   const w = v.summary;
   const n = v.normals;
   const num = (key: string) => (typeof w[key] === "number" ? (w[key] as number) : null);
@@ -253,6 +257,7 @@ export default function DaySection() {
                 panels={panels}
                 sleep={v.sleep}
                 nextSleepStart={v.next_sleep_start}
+                marks={v.evening ? [{ minute: v.evening.minute - 1440, label: eveningLabel(v.evening) }] : []}
                 stageLabel={h.stage}
                 stagesTitle={h.stagesTitle}
                 ariaLabel={h.timelineAria(f.long(v.day))}
@@ -263,6 +268,12 @@ export default function DaySection() {
                   <span className="flex items-center gap-1.5">
                     <span aria-hidden className="inline-block h-2.5 w-3.5 rounded-sm" style={{ background: "var(--chart-band)", outline: "1px solid var(--border)" }} />
                     {h.sleep}
+                  </span>
+                )}
+                {v.evening && (
+                  <span className="flex items-center gap-1.5">
+                    <svg width="10" height="10" aria-hidden><line x1="5" x2="5" y1="0" y2="10" stroke="var(--macro-alcohol)" strokeDasharray="3 3" /></svg>
+                    {t.nutrition.evening.before(eveningLabel(v.evening))}
                   </span>
                 )}
                 {rhrNormal != null && (

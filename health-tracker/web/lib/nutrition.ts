@@ -13,7 +13,7 @@ export type Totals = Record<NutrientKey, number> & { missing: Partial<Record<Nut
 export const MOMENTS = ["breakfast", "lunch", "dinner", "snack", "training", "drinks"] as const;
 export type Moment = (typeof MOMENTS)[number];
 export type Unit = "g" | "ml";
-export type GramsSource = "ai" | "user" | "memory";
+export type GramsSource = "ai" | "user" | "memory" | "agent";
 
 export type MealItem = {
   id: number;

@@ -222,6 +222,7 @@ More (types in `web/lib/training.ts`):
 | POST | `/api/nutrition/photo` | the photo (JPEG/PNG, raw body, max 8 MB): metadata stripped, stored by the user's setting, analysed by Claude (`nutrition_ai_off` until the user switches it on, `nutrition_ai_unavailable` without `ANTHROPIC_API_KEY`); returns a draft `{photo_id, ai_run_id, failed, items: [{label_nl, grams, grams_low, grams_high, confidence, food, alternatives}], hidden_extras, moment_guess}`; nothing but the photo is saved; a failed analysis keeps the photo (`failed`: the reason) |
 | GET | `/api/nutrition/photos/{id}`, `/api/nutrition/foods/barcode/{ean}` | a meal photo (own only); a product from Open Food Facts, cached in `foods` (`invalid_barcode`, `barcode_not_found`, `barcode_lookup_failed`) |
 | GET/POST/PATCH/DELETE | `/api/nutrition/templates[/{id}]`, GET `/api/nutrition/again?day=&moment=` | favourites `{name, moment, items: [{food_ref, grams}], position}`; favourites and yesterday's meals of that moment |
+| GET | `/api/nutrition/trends?days=14\|30\|90` | per day `{kcal, burn_kcal, carbs_per_kg, protein_per_kg, carbs_target, protein_target, day_type, load, alcohol_g, salt_g, sat_fat_share, unsat_fat_share, iron_mg, meals, covered}`, and `covered` (days with at least two meals) |
 | GET/PUT | `/api/nutrition/settings` | `{ai, photos: 30d\|keep\|never, kcal_target}` (+ `clear_kcal_target`); "never" deletes the stored photos |
 | POST | `/api/nutrition/admin/nevo` | admins: the NEVO-online CSV, or RIVM's zip, as the raw body; idempotent on the NEVO-code |
 | PUT | `/api/activities/{id}/gear` | `{gear_ids: [...]}` the user's choice, `[]` none, `null` automatic again (Garmin, else the sport's default); the activity detail carries `gear` and `gear_chosen` |
@@ -248,7 +249,9 @@ only (no session cookie); 20 failed tokens per IP in 15 minutes; the path token 
 Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `get_plan`, `create_plan` and `replace_plan_sessions`
 (markdown/CSV table, `preview`), `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, `list_gear`, `sync_now`
 (the site's sync from api/sync_runner.py, waits up to `SYNC_WAIT_S` and then reports; a longer sync runs on). MCP calls are
-answered in a threadpool, so a waiting sync never blocks the server.
+answered in a threadpool, so a waiting sync never blocks the server. With the beta `nutrition`: `get_nutrition` (a day or a
+range as markdown, with targets and coverage), `log_meal` (a table of foods and grams, `preview`; api/nutrition_agent.py) and
+`search_foods`, plus a Nutrition section in `get_context` and the evening before the night in `get_day` (tools/nutrition/report.py).
 Results are markdown text (trends as JSON). Writes are authored `agent`.
 
 Connect: see "Connect an AI assistant" in the README. The token can sit in the connector URL; treat that URL as a

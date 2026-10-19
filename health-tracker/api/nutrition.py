@@ -14,6 +14,9 @@ Behind the beta feature `nutrition` (api/betas.py): every route answers 403 nutr
     GET    /api/nutrition/again?day=&moment=   favourites and the same moment yesterday, to log again in one tap
     GET/POST/PATCH/DELETE /api/nutrition/templates[/{id}]   favourites
     GET/PUT /api/nutrition/settings            photo analysis on/off, how long photos are kept, an optional kcal target
+    GET    /api/nutrition/trends?days=30       per day: energy in and Garmin's burn, carbohydrate and protein per kg
+                                               against that day's target, training load, alcohol, salt, saturated fat,
+                                               iron, meals (the Trends tab)
     POST   /api/nutrition/admin/nevo           admins: import a NEVO-online release (the CSV or RIVM's zip as the body)
 
 Photo analysis sends the photo (without metadata) to Anthropic: off by default, switched on per user, and only offered
@@ -34,10 +37,12 @@ from pydantic import BaseModel, Field
 
 from api import betas
 from api.errors import ApiError
+from api.dashboard import max_by_sport, resting_hr
 from api.plans import enrich
 from tools import db
 from tools.nutrition import foods, match, meals, nevo, off, photos, recognize, targets
-from tools.nutrition.nutrients import energy_split
+from tools.analytics import fitness_series
+from tools.nutrition.nutrients import KCAL_PER_G, energy_split
 from trackerai_websec.uploads import UploadTooLarge, read_limited
 
 FEATURE = "nutrition"
@@ -171,6 +176,55 @@ def day_view(u, day: date, today: date, now_hhmm: str | None = None, sessions: l
     }
 
 
+TREND_DAYS = (14, 30, 90)
+_loads: dict[tuple, dict[str, float]] = {}  # training load per day, until the next sync (like /api/trends' cache)
+
+
+def daily_load(u, today: date) -> dict[str, float]:
+    store = u.store
+    key = (u.id, today, store.last_sync, len(store.activities))
+    if key not in _loads:
+        if len(_loads) > 64:
+            _loads.clear()
+        series = fitness_series(store.activities, resting_hr(store.wellness, today, store.rhr_fallback), max_by_sport(store.zones, store.activities), end=today)
+        _loads[key] = {r["date"]: r["load"] for r in series}
+    return _loads[key]
+
+
+def trends(u, today: date, days: int) -> dict:
+    """One row per day for the last `days` days up to today (the Trends tab)."""
+    s, store = u.scope, u.store
+    start = today - timedelta(days=days - 1)
+    weight = weight_of(s)
+    sessions = plan_sessions(u, today)
+    load = daily_load(u, today)
+    paces = targets.pace_by_sport(store.activities, today)
+    by_day: dict[str, list[dict]] = {}
+    for m in meals.between(s, start.isoformat(), today.isoformat()):
+        by_day.setdefault(m["day"], []).append(m)
+    rows = []
+    for i in range(days):
+        day = start + timedelta(days=i)
+        iso = day.isoformat()
+        logged = by_day.get(iso, [])
+        t = meals.day_totals(logged)
+        target = targets.for_day(day, today, store.activities, sessions, weight, paces)
+        kcal = t["energy_kcal"]
+        rows.append({
+            "day": iso, "meals": len(logged), "covered": len(logged) >= 2,
+            "kcal": kcal if logged else None, "burn_kcal": (store.wellness.get(iso) or {}).get("total_kcal"),
+            "carbs_per_kg": targets.per_kg(t["carbs_g"], weight) if logged else None,
+            "protein_per_kg": targets.per_kg(t["protein_g"], weight) if logged else None,
+            "carbs_target": target["carbs_per_kg"], "protein_target": target["protein_per_kg"], "day_type": target["day_type"],
+            "load": load.get(iso, 0.0),
+            "alcohol_g": t["alcohol_g"] if logged else None, "salt_g": t["salt_g"] if logged else None,
+            "sat_fat_share": round(t["sat_fat_g"] * KCAL_PER_G["fat_g"] / kcal, 3) if logged and kcal else None,
+            "unsat_fat_share": round((t["mufa_g"] + t["pufa_g"]) * KCAL_PER_G["fat_g"] / kcal, 3) if logged and kcal else None,
+            "iron_mg": t["iron_mg"] if logged else None,
+        })
+    return {"days": rows, "weight_kg": weight, "covered": sum(r["covered"] for r in rows)}
+
+
 def dashboard_block(u, today: date, now_hhmm: str, sessions: list[dict]) -> dict | None:
     """The Voeding vandaag card: None without the beta or before the first meal ever (the card drops out, like other
     cards with nothing to say; the sidebar leads there); `empty` when nothing is logged today yet (one line, no bars)."""
@@ -231,6 +285,12 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
         if not meals.remove(u.scope, meal_id):
             raise ApiError(404, "meal_not_found")
         return {"ok": True}
+
+    @r.get("/api/nutrition/trends")
+    def get_trends(days: int = 30, u=Depends(member)):
+        if days not in TREND_DAYS:
+            raise ApiError(422, "invalid_choice", options=", ".join(map(str, TREND_DAYS)))
+        return trends(u, today(), days)
 
     @r.get("/api/nutrition/meals")
     def between(start: str = Query(alias="from"), end: str = Query(alias="to"), u=Depends(member)):

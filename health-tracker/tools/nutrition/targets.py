@@ -115,10 +115,12 @@ def heavier(a: str, b: str) -> str:
     return a if ORDER.index(a) >= ORDER.index(b) else b
 
 
-def for_day(day: date, today: date, activities: list[dict], sessions: list[dict], weight_kg: float | None) -> dict:
+def for_day(day: date, today: date, activities: list[dict], sessions: list[dict], weight_kg: float | None,
+            paces: dict[str, float] | None = None) -> dict:
     """The targets of one day: its type, why, and the carbohydrate and protein range in g/kg and (with a weight) in g.
-    `tomorrow` describes the next day's type and main session when it raises today's target."""
-    paces = pace_by_sport(activities, today)
+    `tomorrow` describes the next day's type and main session when it raises today's target. `paces`: pace_by_sport,
+    when the caller asks for many days."""
+    paces = pace_by_sport(activities, today) if paces is None else paces
     loads = day_loads(day, today, activities, sessions, paces)
     own = classify(loads)
     nxt = day_loads(day + timedelta(days=1), today, activities, sessions, paces)

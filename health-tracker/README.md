@@ -56,7 +56,11 @@ same bars and a line such as "Tomorrow long run 20 km: aim for 5-7 g/kg carbohyd
 food is learnt from what you enter. With photo analysis switched on (your choice, per account), a photo of your plate
 is enough: Claude names the foods and estimates the grams, you check and correct them, and the amounts you set teach
 your usual portion. Packaged products come from Open Food Facts by barcode, and a favourite or "same as yesterday" logs
-a meal in one tap. No calorie target unless you set one, and no red numbers: it is bookkeeping, not a diet. The nutrient
+a meal in one tap. A Trends tab shows carbohydrate and protein per kilo against the targets with the training load,
+energy eaten against Garmin's estimated burn, iron, alcohol per week, salt and saturated fat against the guidelines, and
+how many days are logged well. Sleep & body marks the last meal and any alcohol of the evening before the night. An
+agent reads and logs it all through MCP. No calorie target unless you set one, and no red numbers: it is bookkeeping,
+not a diet. The nutrient
 values always come from the food table, never from guesses; NEVO's data is not in this repository (RIVM allows linking
 to it, not handing it out): an admin imports it once per release (`docs/DEVELOPMENT.md`, Nutrition).
 
@@ -367,7 +371,8 @@ Garmin is never called in tests: the sync takes an injectable client and FIT rea
 
 The site is an MCP server at `/api/mcp` (streamable HTTP, stateless, JSON responses). Create a token under
 Settings, Agents; it is shown once. Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `get_plan`,
-`create_plan`, `replace_plan_sessions`, `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, `list_gear`, and
+`create_plan`, `replace_plan_sessions`, `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, `list_gear`,
+with Nutrition on also `get_nutrition`, `log_meal` and `search_foods` (and a Nutrition section in `get_context` and `get_day`), and
 `sync_now` (fetches new data from Garmin and Wahoo, as the button on the site does, so your agent works with today's data).
 
 Any MCP client works: the token goes in `Authorization: Bearer <token>`, or in the URL (`https://<your-domain>/api/mcp/<token>`) for a client

@@ -12,13 +12,15 @@ from __future__ import annotations
 
 import json
 import threading
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Callable
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
+from api import betas, nutrition_agent
 from api.errors import ApiError
 from api.gear import gear_of, overview as gear_overview
 from trackerai_accounts.oauth import OAuth, PREFIX
@@ -31,6 +33,7 @@ from api.routes_api import suggest
 from api.trends import build_trends
 from trackerai_websec import log_redact
 from tools import db, wahoo
+from tools.nutrition import foods, meals as nutrition_meals, report as nutrition_report, targets as nutrition_targets
 from tools.sports import effort_kind
 from tools.summarize import last_90_days_md, this_week_md
 
@@ -44,8 +47,20 @@ INSTRUCTIONS = (
 )
 
 
+NUTRITION_NOTE = (
+    " Voeding: waarden zijn schattingen uit foto's en gecorrigeerde grammen, voedingswaarden uit NEVO; "
+    "de dekking (dagen met minstens twee maaltijden) zegt hoe volledig een dag is."
+)
+
+
+def nutrition_on(user) -> bool:
+    return betas.enabled(user.scope.engine, user.id, "nutrition")
+
+
 def instructions(user) -> str:
     text = INSTRUCTIONS.format(name=user.display_name or user.username)
+    if nutrition_on(user):
+        text += NUTRITION_NOTE
     if getattr(user, "agent_scope", "write") == "read":
         text = text.replace("Schrijf aan het eind van een sessie een logentry (add_log).", "Alleen lezen: verander geen gegevens.")
     return text
@@ -128,7 +143,34 @@ TOOLS = [
 ]
 
 
-WRITE_NAMES = {"create_plan", "replace_plan_sessions", "set_plan_status", "add_log", "update_doc", "update_feedback", "sync_now"}
+WRITE_NAMES = {"create_plan", "replace_plan_sessions", "set_plan_status", "add_log", "update_doc", "update_feedback", "sync_now", "log_meal"}
+
+MEAL_TABLE_HELP = (
+    "Markdown- of CSV-tabel met kopregel. Kolommen: Voedingsmiddel (naam of code als nevo:1234 uit search_foods, verplicht), "
+    "Gram (verplicht; ml voor dranken), Moment (ontbijt, lunch, diner, tussendoor, training, drinken), Tijd (07:30), Dag (YYYY-MM-DD, standaard vandaag). "
+    "Regels met dezelfde dag, moment en tijd worden één maaltijd."
+)
+# Only for users with the beta feature `nutrition` (api/betas.py).
+NUTRITION_TOOLS = [
+    {
+        "name": "get_nutrition",
+        "description": "Voeding van één dag (per maaltijd de voedingsmiddelen en grammen, totalen, koolhydraten en eiwit in g/kg tegen het doel van die dag, "
+        "alcohol, laatste maaltijd) of van een periode (per dag een regel, met de dekking: dagen met minstens twee maaltijden). Doelen volgen de training: "
+        "rust 3-5, matig 5-7, lang of zwaar 6-10, wedstrijd of > 3 uur 8-12 g/kg koolhydraten; eiwit 1,6-2,0 g/kg; de dag voor een lange training of wedstrijd telt mee.",
+        "inputSchema": {"type": "object", "properties": {"day": _str("YYYY-MM-DD, standaard vandaag"), "from": _str("begin van een periode, YYYY-MM-DD"), "to": _str("eind van een periode, YYYY-MM-DD")}},
+    },
+    {
+        "name": "log_meal",
+        "description": "Log een of meer maaltijden uit een tabel, met voedingsmiddelen uit NEVO, Open Food Facts of eigen producten. Gebruik preview=true om eerst te zien hoe elke regel gematcht wordt.",
+        "inputSchema": {"type": "object", "properties": {"table": _str(MEAL_TABLE_HELP), "preview": {"type": "boolean", "default": False}}, "required": ["table"]},
+    },
+    {
+        "name": "search_foods",
+        "description": "Zoek voedingsmiddelen in NEVO, eigen producten en eerder gescande producten: code, naam, kcal, koolhydraten, eiwit en vet per 100 g (of ml), en je gebruikelijke portie.",
+        "inputSchema": {"type": "object", "properties": {"q": _str("zoekwoorden, bv. havermout of volkorenbrood"), "limit": {"type": "integer", "default": 10}}, "required": ["q"]},
+    },
+]
+TZ_LOCAL = ZoneInfo("Europe/Amsterdam")  # the clock a logged meal without a time gets (as api/main.py TZ)
 SYNC_WAIT_S = 55  # what an MCP call waits for a sync; a longer one keeps running in the background
 
 
@@ -298,6 +340,71 @@ class Server:
     def _full(self, plan: dict | None) -> dict | None:
         return enrich(plan, self.store.activities, self.store.routes, self.today()) if plan else None
 
+    def _sessions(self) -> list[dict]:
+        plan = self._full(db.active_plan(self.engine))
+        return plan["sessions"] if plan else []
+
+    def _nutrition(self, name: str, args: dict, who: str) -> str:
+        if not nutrition_on(self.user):
+            raise ToolError("Voeding staat niet aan voor dit account.")
+        s, today = self.store, self.today()
+
+        def day_of(key: str) -> date | None:
+            try:
+                return date.fromisoformat(args[key]) if args.get(key) else None
+            except ValueError:
+                raise ToolError(f"{key} als YYYY-MM-DD") from None
+
+        if name == "search_foods":
+            found = foods.search(self.engine, str(args.get("q") or ""), min(int(args.get("limit") or 10), 30), nutrition_meals.history(self.engine))
+            if not found:
+                return "Niets gevonden. Probeer een ander woord (NEVO gebruikt namen als 'Brood volkoren', 'Vlokken haver-')."
+            usual = nutrition_meals.portions(self.engine, [f["ref"] for f in found])
+            rows = ["| Code | Naam | Bron | kcal | Koolh. | Eiwit | Vet | Per | Jouw portie |", "|---|---|---|---|---|---|---|---|---|"]
+            for f in found:
+                p = f["per_100"]
+                n = lambda k: "-" if p.get(k) is None else f"{round(p[k], 1):g}".replace(".", ",")  # noqa: E731
+                portion = (usual.get(f["ref"]) or {}).get("grams")
+                rows.append(f"| {f['ref']} | {f['name']} | {f['source']} | {n('energy_kcal')} | {n('carbs_g')} | {n('protein_g')} | {n('fat_g')} | 100 {f['unit']} | {portion or '-'} |")
+            return "\n".join(rows)
+        if name == "get_nutrition":
+            start, end = day_of("from"), day_of("to")
+            if start or end:
+                start, end = start or end, end or today
+                if end < start or (end - start).days >= nutrition_report.MAX_RANGE_DAYS:
+                    raise ToolError(f"een periode van 1 tot {nutrition_report.MAX_RANGE_DAYS} dagen, from voor to")
+                return nutrition_report.range_md(self.engine, start, end, s.activities, self._sessions(), today)
+            day = day_of("day") or today
+            weight = (db.get_setting(self.engine, "profile_facts") or {}).get("weight_kg")
+            target = nutrition_targets.for_day(day, today, s.activities, self._sessions(), weight)
+            return nutrition_report.day_md(nutrition_meals.between(self.engine, day.isoformat(), day.isoformat()), target)
+        # log_meal
+        now = datetime.now(TZ_LOCAL).strftime("%H:%M") if today == datetime.now(TZ_LOCAL).date() else "12:00"
+        rows, warnings = nutrition_agent.parse(str(args.get("table") or ""), today, now)
+        matched, more = nutrition_agent.resolve(self.engine, rows)
+        warnings += more
+        note = "".join(f"\nLet op: {w}" for w in warnings)
+        if not matched:
+            raise ToolError("Geen regels om te loggen." + note)
+        planned = nutrition_agent.group(matched)
+        lines = []
+        for m in planned:
+            total = sum((it["food"]["per_100"].get("energy_kcal") or 0) * it["grams"] / 100 for it in m["items"])
+            lines.append(f"- {m['day']} {m['eaten_at']} {nutrition_report.MOMENT_NL[m['moment']]}: "
+                         + ", ".join(f"{it['food']['name']} ({it['food']['ref']}) {round(it['grams'])} {it['food']['unit']}" for it in m["items"])
+                         + f" (~{round(total)} kcal)")
+        items_of = lambda m: [{"food_ref": it["food"]["ref"], "grams": it["grams"], "grams_source": "agent"} for it in m["items"]]  # noqa: E731
+        try:  # all meals checked before one is saved: a table is logged whole or not at all
+            for m in planned:
+                nutrition_meals.validate(day=m["day"], eaten_at=m["eaten_at"], moment=m["moment"], items=items_of(m))
+        except nutrition_meals.MealError as e:
+            raise ToolError(f"Niets opgeslagen, {m['day']} {m['eaten_at']}: {e.code} {e.params or ''}" + note) from None
+        if args.get("preview"):
+            return "Voorbeeld, niets opgeslagen:\n" + "\n".join(lines) + note
+        saved = [nutrition_meals.create(self.engine, day=m["day"], eaten_at=m["eaten_at"], moment=m["moment"], input="agent",
+                                        items=items_of(m), note=f"door {who}")["id"] for m in planned]
+        return f"{len(saved)} maaltijd{'en' if len(saved) != 1 else ''} opgeslagen (id {', '.join(map(str, saved))}):\n" + "\n".join(lines) + note
+
     def _sync(self) -> str:
         """The site's sync (api/connections.py), from here: start it, wait a while, say what came in."""
         if self.runner is None:
@@ -331,11 +438,14 @@ class Server:
                 raise ToolError(f"{field} is langer dan {most} tekens")
         if name == "sync_now":
             return self._sync()
+        if name in ("get_nutrition", "log_meal", "search_foods"):
+            return self._nutrition(name, args, who)
         if name == "get_context":
             profile, goals = db.get_document(self.engine, "profile"), db.get_document(self.engine, "goals")
             dash = build_dashboard(s.activities, s.wellness, s.zones, today, s.last_sync, s.rhr_fallback)
             f = dash["form"]
-            parts = [f"# Trainingscontext {today.isoformat()}", f"Laatste sync: {s.last_sync}.", "", "## Profiel", profile["body"] if profile else "(leeg)", "", "## Doelen", goals["body"] if goals else "(leeg)", "", "## Actief schema", plan_md(self._full(db.active_plan(self.engine)))]
+            plan = self._full(db.active_plan(self.engine))
+            parts = [f"# Trainingscontext {today.isoformat()}", f"Laatste sync: {s.last_sync}.", "", "## Profiel", profile["body"] if profile else "(leeg)", "", "## Doelen", goals["body"] if goals else "(leeg)", "", "## Actief schema", plan_md(plan)]
             rd = readiness(s.wellness, today, today_tsb(f), today_form_pct(f), s.rhr_fallback)
             if rd:
                 parts.append(f"\n## Klaar voor vandaag\n{readiness_text(rd)}")
@@ -344,6 +454,8 @@ class Server:
             parts += [this_week_md(s.activities, s.wellness, today, s.last_sync, s.zones), last_90_days_md(s.activities, s.wellness, today, s.zones)]
             parts += ["## Vaste rondjes", "", "| Id | Naam | km | Keer | Laatst | Tempo/km | HR |", "|---|---|---|---|---|---|---|"]
             parts += [f"| {r['id']} | {r.get('name')} | {r.get('distance_km')} | {r.get('runs')} | {r.get('last_run')} | {r.get('median_pace') or (str(r['median_speed_kmh']) + ' km/u' if r.get('median_speed_kmh') else '-')} | {r.get('median_hr')} |" for r in s.routes]
+            if nutrition_on(self.user) and nutrition_meals.history(self.engine):
+                parts += ["", nutrition_report.week_md(self.engine, today, s.activities, plan["sessions"] if plan else [])]
             parts += ["", "## Laatste logentries"]
             parts += [f"### {e['day']}: {e['title']} ({e['author']})\n{e['body'].strip()}" for e in db.list_entries(self.engine, kind="log", limit=5)]
             return "\n".join(parts)
@@ -363,7 +475,12 @@ class Server:
                 day = date.fromisoformat(args["day"]) if args.get("day") else None
             except ValueError:
                 raise ToolError("day als YYYY-MM-DD")
-            return day_md(day_view(self.engine, s.wellness, day, s.rhr_fallback, today))
+            view = day_view(self.engine, s.wellness, day, s.rhr_fallback, today)
+            text = day_md(view)
+            if nutrition_on(self.user):  # the evening before the night: late eating and alcohol next to sleep and heart rate
+                line = nutrition_report.evening_line(nutrition_report.evening(self.engine, (date.fromisoformat(view["day"]) - timedelta(days=1)).isoformat()))
+                text += f"\n\n{line}" if line else ""
+            return text
         if name == "get_trends":
             t = build_trends(s.activities, s.wellness, s.zones, s.streams, today, s.rhr_fallback, plan=db.active_plan(self.engine), last_sync=s.last_sync)
             t["form"] = t["form"][-60:]
@@ -469,7 +586,7 @@ class Server:
         if method == "ping":
             return ok({})
         if method == "tools/list":
-            tools = TOOLS + (FEEDBACK_TOOLS if self.user.is_admin else [])
+            tools = TOOLS + (NUTRITION_TOOLS if nutrition_on(self.user) else []) + (FEEDBACK_TOOLS if self.user.is_admin else [])
             if getattr(self.user, "agent_scope", "write") == "read":
                 tools = [t for t in tools if t["name"] not in WRITE_NAMES]
             if getattr(self.user, "agent_oauth", False):
