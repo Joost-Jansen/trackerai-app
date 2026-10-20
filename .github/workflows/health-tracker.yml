@@ -3,7 +3,7 @@ name: health-tracker
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - "health-tracker/**"
       - "packages/**"
@@ -12,13 +12,6 @@ on:
       - ".dockerignore"
       - ".github/workflows/health-tracker.yml"
   pull_request:
-    paths:
-      - "health-tracker/**"
-      - "packages/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".dockerignore"
-      - ".github/workflows/health-tracker.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,7 +21,31 @@ permissions:
   contents: read
 
 jobs:
+  # Pull requests run every workflow, so its required check (`health-tracker ok` below) always reports; the jobs only run
+  # when the pull request touches what this workflow tests (the same paths a push to main or dev filters on).
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.diff.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if git diff --name-only "$BASE" "$GITHUB_SHA" | grep -qE '^(health-tracker/.*|packages/.*|package\.json|package-lock\.json|\.dockerignore|\.github/workflows/health-tracker\.yml)$'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
   backend:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     defaults:
       run:
         working-directory: health-tracker
@@ -52,6 +69,8 @@ jobs:
         run: python -m pytest -q tests
 
   frontend:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
@@ -81,6 +100,8 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
 
   image:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     # The images build from the repo root (the workspace and packages/); a broken COPY shows here, not on deploy.
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -95,3 +116,17 @@ jobs:
           context: .
           file: ${{ matrix.file }}
           push: false
+
+  # The one check branch protection requires for this workflow: green when every job passed or was skipped
+  # (nothing to test), red when one failed or was cancelled.
+  ok:
+    name: health-tracker ok
+    if: always()
+    needs: [changes, backend, frontend, image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: |
+          for r in ${{ join(needs.*.result, ' ') }}; do
+            case "$r" in success|skipped) ;; *) echo "a job ended as $r"; exit 1 ;; esac
+          done

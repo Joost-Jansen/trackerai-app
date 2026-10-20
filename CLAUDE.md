@@ -20,6 +20,8 @@ Agreements that apply everywhere:
   `/api/account/*` endpoints. Keep them the same; change both together.
 - **English** for code, comments and commits. The UI is bilingual (Dutch and English); every user-facing text needs
   its Dutch, checked by `npm run check:i18n` in each frontend.
+- **Branches**: work in a branch and open a pull request into `dev`; `dev` goes to `main` (production) by pull request.
+  Both need the `<workflow> ok` checks green ([docs/CI.md](docs/CI.md)); a new job joins its workflow's `ok`.
 - **Test the app you touched**, and both apps when you touch `packages/`:
   - `health-tracker/`: `python -m pytest -q tests`; in `web/`: `npx tsc --noEmit -p .` and `npm run check:i18n`.
   - `wealth-tracker/`: `TZ=Europe/Amsterdam python -m pytest backend/tests -q`; in `frontend/`:
