@@ -41,6 +41,8 @@ type TrackerAccount = { account_id: number; betas: string[]; count: number; last
 type Tracker = {
   app: BrandId; betas: { id: string; name: Text }[]; measure: Text;
   accounts: TrackerAccount[]; disk_bytes_total?: number | null;
+  /** Key figures a tracker wants to show of itself (health-tracker: how its photo analysis does), as tiles. */
+  facts?: { label: Text; value: string; note?: Text | null }[];
 };
 type Feedback = {
   id: number; app: BrandId; kind: "bug" | "idea"; message: string; page: string | null;
@@ -355,6 +357,25 @@ function Overview({ locale, apps, list, reg, trackers, usage }: {
           </div>
         ))}
       </div>
+      {apps.map((app) => {
+        const h = trackers[app];
+        const facts = h?.state === "ok" ? h.data.facts ?? [] : [];
+        if (!facts.length) return null;
+        return (
+          <div key={`facts-${app}`}>
+            <p className="mk-ad-muted">{BRANDS[app].name}</p>
+            <div className="mk-ad-tiles">
+              {facts.map((f) => (
+                <div key={f.label.en} className="mk-ad-tile">
+                  <span className="mk-ad-tile-label">{f.label[locale]}</span>
+                  <span className="mk-ad-tile-value">{f.value}</span>
+                  {f.note && <span className="mk-ad-muted">{f.note[locale]}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
       <p className="mk-ad-settings">
         {c.settings.signup}: <b>{c.modes[reg.registration]}</b> · {c.settings.policy}: <b>{c.policies[s.require_totp] ?? s.require_totp}</b> ·{" "}
         {c.settings.mail}: <b>{s.email ? c.on : c.off}</b> · {c.settings.stay}: <b>{c.days(s.session_days)}</b>

@@ -34,7 +34,7 @@ export const NAV: NavGroup[] = [
       { id: "routes", label: "", href: "/routes/", icon: "route" },
       { id: "history", label: "", href: "/history/", icon: "map" },
       { id: "plan", label: "", href: "/plan/", icon: "clipboard" },
-      { id: "nutrition", label: "", href: "/nutrition/", icon: "utensils", beta: "nutrition", tabs: [tab("day", "/nutrition/"), tab("nutritionTrends", "/nutrition/trends/")] },
+      { id: "nutrition", label: "", href: "/nutrition/", icon: "utensils", beta: "nutrition", tabs: [tab("day", "/nutrition/"), tab("nutritionTrends", "/nutrition/trends/"), tab("foods", "/nutrition/foods/")] },
       {
         id: "log",
         label: "",

@@ -80,6 +80,12 @@ export type NutritionDay = {
   /** Photo analysis is on for this user and the server can do it. */
   ai: boolean;
   kcal_target: number | null;
+  /** Vitamins and minerals against the Dutch norms (tools/nutrition/references.py). */
+  micros: {
+    group: "men" | "women" | null;
+    rows: { key: NutrientKey; amount: number | null; kind: "ADH" | "AI" | null; reference: number | null; pct: number | null; missing: number }[];
+    source: { nl: string; en: string; url: string };
+  };
 };
 
 /** The Voeding vandaag card on /api/dashboard (`nutrition`): null without the beta. */
@@ -168,6 +174,7 @@ export type NutritionSettings = {
   ai: boolean;
   photos: "30d" | "keep" | "never";
   kcal_target: number | null;
+  norms: "men" | "women" | null;
   ai_available: boolean;
   weight_kg: number | null;
   day_types: Record<DayType, { carbs_per_kg: [number, number]; protein_per_kg: [number, number] }>;

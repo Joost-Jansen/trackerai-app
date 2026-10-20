@@ -21,7 +21,7 @@ type Row = {
   carbs_per_kg: number | null; protein_per_kg: number | null; carbs_target: [number, number]; protein_target: [number, number];
   load: number; alcohol_g: number | null; salt_g: number | null; sat_fat_share: number | null; unsat_fat_share: number | null; iron_mg: number | null;
 };
-type Trends = { days: Row[]; weight_kg: number | null; covered: number };
+type Trends = { days: Row[]; weight_kg: number | null; covered: number; iron_reference: number | null };
 
 const DAYS = [14, 30, 90] as const;
 const SALT_GUIDE = 6; // g a day, Gezondheidsraad
@@ -90,7 +90,9 @@ export default function Page() {
           </Card>,
           <Card key="iron" title={t.iron}>
             <TimeChart {...chart} ariaLabel={t.iron} format={(v) => f.num(v, 1)} unit="mg" empty={t.empty} maOptions={[{ days: 7 }, { days: 0 }]} maDefault={7}
-              series={[{ key: "iron", label: n.iron_mg, colour: "var(--chart-5)", ma: true, points: pts(rows, (r) => r.iron_mg) }]} />
+              legend={q.data.iron_reference != null}
+              series={[{ key: "iron", label: n.iron_mg, colour: "var(--chart-5)", ma: true, points: pts(rows, (r) => r.iron_mg) },
+                       ...(q.data.iron_reference != null ? [flat(q.data.iron_reference, "ironRef", t.reference)] : [])]} />
           </Card>,
           <Card key="salt" title={t.salt}>
             <TimeChart {...chart} ariaLabel={t.salt} format={(v) => f.num(v, 1)} unit="g" empty={t.empty} legend

@@ -58,7 +58,10 @@ is enough: Claude names the foods and estimates the grams, you check and correct
 your usual portion. Packaged products come from Open Food Facts by barcode, and a favourite or "same as yesterday" logs
 a meal in one tap. A Trends tab shows carbohydrate and protein per kilo against the targets with the training load,
 energy eaten against Garmin's estimated burn, iron, alcohol per week, salt and saturated fat against the guidelines, and
-how many days are logged well. Sleep & body marks the last meal and any alcohol of the evening before the night. An
+how many days are logged well. Sleep & body marks the last meal and any alcohol of the evening before the night. The Day
+tab has a Vitamins and minerals table against the Dutch norms (Voedingscentrum, for men or women as you choose), and My
+foods keeps your favourites, your usual portions, your own products from a label and what you scanned. Foods NEVO lacks
+can come from USDA FoodData Central when the server has a key. An
 agent reads and logs it all through MCP. No calorie target unless you set one, and no red numbers: it is bookkeeping,
 not a diet. The nutrient
 values always come from the food table, never from guesses; NEVO's data is not in this repository (RIVM allows linking
@@ -288,6 +291,7 @@ Every push to your fork's `main` redeploys the service whose watch paths it touc
 | `ANTHROPIC_API_KEY` | api | for photo analysis | The Claude API key for Nutrition's photo analysis. Without it the option is not offered; each user switches it on themselves | `sk-ant-...` |
 | `NUTRITION_MODEL`, `NUTRITION_EFFORT` | api | no | The model and effort for meal photos | `claude-sonnet-5-5`, `medium` (defaults) |
 | `NUTRITION_DAILY_PHOTOS` | api | no | Photos one user may have analysed per 24 hours (each is a paid call) | `40` (default) |
+| `FDC_API_KEY` | api | no | USDA FoodData Central, searched (only the search words go out) when NEVO, your own foods and the cache find fewer than three foods | developer key from fdc.nal.usda.gov |
 | `OFF_CONTACT` | api | no | An e-mail address in the User-Agent of Open Food Facts barcode lookups, as Open Food Facts asks | `you@example.org` |
 | `WAHOO_CLIENT_ID`, `WAHOO_CLIENT_SECRET` | api, sync | for Wahoo | The app from Wahoo's developer portal (scopes `workouts_read offline_data user_read`). Without them the Wahoo card says it is not set up | developers.wahooligan.com |
 | `WAHOO_REDIRECT_URI` | api | no | The callback registered at Wahoo; default: this server's `/api/connections/wahoo/callback` | `https://<your-app>/api/connections/wahoo/callback` |

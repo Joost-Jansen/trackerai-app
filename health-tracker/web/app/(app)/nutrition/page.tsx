@@ -13,6 +13,7 @@ import EnergySplit from "@/components/nutrition/EnergySplit";
 import AddMealSheet from "@/components/nutrition/AddMealSheet";
 import MealEditor from "@/components/nutrition/MealEditor";
 import MealRow from "@/components/nutrition/MealRow";
+import MicroTable from "@/components/nutrition/MicroTable";
 import { ContextLine, TargetBars } from "@/components/nutrition/parts";
 import { addDays } from "@/components/plan/plan";
 import { api } from "@/lib/api";
@@ -117,7 +118,7 @@ function DayView() {
       <ContextLine context={d.context} />
 
       <Columns
-        left={[<Totals key="totals" d={d} />]}
+        left={[<Totals key="totals" d={d} />, d.meals.length > 0 && <MicroTable key="micros" micros={d.micros} />]}
         right={[
           <Card key="meals" title={t.day.meals}>
             {byMoment.length === 0 ? (

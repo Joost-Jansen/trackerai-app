@@ -215,6 +215,23 @@ def learn(s: db.Scope, items: list[dict], day: str) -> None:
                              .values(grams_typical=typical, uses=row["uses"] + 1, last_used=max(day, row["last_used"] or day)))
 
 
+def set_portion(s: db.Scope, ref: str, grams: float) -> None:
+    """The user's own usual portion of a food, set by hand (Mijn voeding): it replaces what was learnt."""
+    with s.engine.begin() as conn:
+        row = conn.execute(select(db.portion_memory).where(db.portion_memory.c.user_id == s.user_id, db.portion_memory.c.food_ref == ref)).first()
+        if row is None:
+            conn.execute(insert(db.portion_memory).values(user_id=s.user_id, food_ref=ref, grams_typical=round(grams, 1), uses=0))
+        else:
+            conn.execute(update(db.portion_memory).where(db.portion_memory.c.user_id == s.user_id, db.portion_memory.c.food_ref == ref)
+                         .values(grams_typical=round(grams, 1)))
+
+
+def reset_portion(s: db.Scope, ref: str) -> None:
+    """Forget the usual portion: the next confirmed amount starts it again."""
+    with s.engine.begin() as conn:
+        conn.execute(delete(db.portion_memory).where(db.portion_memory.c.user_id == s.user_id, db.portion_memory.c.food_ref == ref))
+
+
 def portions(s: db.Scope, refs: list[str] | None = None) -> dict[str, dict]:
     """ref -> {grams, uses, last_used}: the user's usual portion of each food (all, or those in `refs`)."""
     q = select(db.portion_memory).where(db.portion_memory.c.user_id == s.user_id)
