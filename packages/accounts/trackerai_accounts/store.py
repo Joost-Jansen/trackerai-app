@@ -170,12 +170,17 @@ def sqlalchemy_url(url: str) -> str:
             return "postgresql+psycopg://" + url[len(scheme):]
     if url.startswith("postgresql+psycopg://"):
         return url
-    raise ValueError("not a postgresql:// URL")
+    scheme = url.split(":", 1)[0] if ":" in url else "no scheme"
+    raise ValueError(f"not a postgresql:// URL ({scheme}); SQLite is not supported any more")
 
 
 def connect(url: str) -> Engine:
     """An engine for the accounts database (Postgres), with its tables created."""
-    engine = create_engine(sqlalchemy_url(url), future=True, pool_pre_ping=True)
+    try:
+        url = sqlalchemy_url(url)
+    except ValueError as e:
+        raise ValueError(f"ACCOUNTS_DATABASE_URL: {e}") from None
+    engine = create_engine(url, future=True, pool_pre_ping=True)
     meta.create_all(engine)
     _add_columns(engine)
     return engine

@@ -23,7 +23,7 @@ from typing import Callable
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
+from sqlalchemy import make_url, text
 from sqlalchemy.engine import Engine
 
 from api.data import DataStore
@@ -88,7 +88,8 @@ def _engine(url: str, schema: str, read_only: bool = False) -> Engine:
     """`url`'s database with `schema` as its search path. Read-only: every transaction is, so a write fails in Postgres
     itself, whatever the code above it does."""
     options = f"-csearch_path={schema}" + (" -cdefault_transaction_read_only=on" if read_only else "")
-    return db.connect(url, connect_args={"options": options})
+    given = make_url(url).query.get("options")  # connect_args would replace options the URL already has
+    return db.connect(url, connect_args={"options": f"{given} {options}" if given else options})
 
 
 def _schemas(conn) -> set[str]:

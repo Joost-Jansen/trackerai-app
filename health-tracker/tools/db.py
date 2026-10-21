@@ -414,12 +414,13 @@ class Scope:
 
 
 def connect(url: str, **kwargs) -> Engine:
-    """An engine for DATABASE_URL (postgres:// or postgresql://, as Railway gives it), on psycopg 3."""
+    """An engine for DATABASE_URL (postgres:// or postgresql://, as Railway gives it), on psycopg 3. The same rules as
+    trackerai_accounts.store.sqlalchemy_url, written out here: the sync image (Dockerfile.sync) has tools/ only."""
     for scheme in ("postgres://", "postgresql://"):
         if url.startswith(scheme):
             url = "postgresql+psycopg://" + url[len(scheme) :]
     if not url.startswith("postgresql+psycopg://"):
-        raise ValueError("DATABASE_URL must be a postgresql:// URL")
+        raise ValueError("DATABASE_URL must be a postgresql:// URL; SQLite is not supported any more")
     return create_engine(url, pool_pre_ping=True, future=True, **kwargs)
 
 

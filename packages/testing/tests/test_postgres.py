@@ -23,7 +23,9 @@ def test_each_test_gets_an_empty_database_of_its_own(pg_url, new_pg_url):
 
 
 def test_the_databases_of_the_test_before_are_gone():
-    assert _seen and not any(_exists(u) for u in _seen)
+    if not _seen:
+        pytest.skip("runs after test_each_test_gets_an_empty_database_of_its_own, which makes the databases")
+    assert not any(_exists(u) for u in _seen)
 
 
 def test_a_plain_helper_gets_one_too_and_an_open_connection_does_not_hold_up_the_drop():
