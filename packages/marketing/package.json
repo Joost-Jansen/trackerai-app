@@ -10,6 +10,6 @@
     "./marketing.css": "./src/marketing.css"
   },
   "peerDependencies": {
-    "react": ">=19"
+    "react": "^19.3.1"
   }
 }
