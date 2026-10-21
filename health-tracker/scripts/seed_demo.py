@@ -2,7 +2,7 @@
 
 Creates the user `demo` (display name "Demo") with about six months of made-up training: runs, rides and pool swims
 with per-second-ish streams (GPS around a few invented loops east of Utrecht, heart rate, pace, altitude), daily sleep
-and recovery values, four weeks of heart rate, stress, Body Battery, respiration and SpO2 through the day and night with sleep stages, heart-rate zones, a profile and goals, a marathon plan, a few log entries and an analysis.
+and recovery values, four weeks of heart rate, stress, Body Battery, respiration and SpO2 through the day and night with sleep stages, heart-rate zones, a profile and goals, a marathon plan, a few log entries and an analysis, and gear (two pairs of running shoes, one retired, and a bike).
 Afterwards it runs `tools/derive.py` so zone times and routes exist, just like after a real sync.
 Nothing here comes from a real person: every number is generated from a fixed random seed.
 
@@ -680,6 +680,16 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
     db.add_entry(s, "log", "Heavy legs after intervals", "Calves stiff after the 1000s. Recovery run tomorrow instead of the easy run.", username,
                  day=(end - timedelta(days=9)).isoformat())
 
+    # Gear: the old shoes ran until the plan started and then retired, the new pair is the default for runs since then,
+    # and a bike for rides. derive() below links the activities to the defaults (db.apply_gear_defaults).
+    old = db.create_gear(s, kind="shoes", name="Ghost 15", brand="Brooks", model="Ghost 15", start_km=520.0,
+                         retired_on=(plan_start - timedelta(days=1)).isoformat())
+    new = db.create_gear(s, kind="shoes", name="Pegasus 41", brand="Nike", model="Pegasus 41", start_km=60.0, since=plan_start.isoformat())
+    bike = db.create_gear(s, kind="bike", name="Endurace", brand="Canyon", model="Endurace CF 7", start_km=3200.0)
+    db.set_setting(s, db.GEAR_DEFAULTS_KEY, {"run": new["id"], "ride": bike["id"]})
+    for a in db.load_activities(s):
+        if a["sport"] == "run" and a["start_local"][:10] < plan_start.isoformat():
+            db.set_activity_gear(s, a["id"], [old["id"]])  # the runs before the plan: chosen on the activity
     derived = derive(s)
     run_names = ("Short loop", "Park loop", "Along the river", "Big loop", "Half marathon loop", "Long loop", "Thirty")
     ride_names = ("Polder loop", "Lakes loop", "Dike loop")

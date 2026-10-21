@@ -13,9 +13,8 @@ open every tracker you use.
 
 ![health-tracker's Today page: readiness, training load, this week of the plan and form](health-tracker/docs/screenshots/dashboard.jpg)
 
-<sub>All screenshots show synthetic demo accounts (`scripts/seed_demo.py` in each tracker), never a real person's data.
-Some wealth-tracker screenshots were taken before the rename and still show its old names (stock-tracker,
-money-tracker).</sub>
+<sub>All screenshots show synthetic demo accounts (`scripts/seed_demo.py` in each tracker), never a real person's data;
+`scripts/screenshots.mjs` in each tracker takes them again.</sub>
 
 ## What it does
 
@@ -33,11 +32,15 @@ export. Everything is computed with **your own heart-rate zones per sport**, not
   records.
 - **Loops:** your regular routes are recognised automatically, and "a loop of X km" suggests a route for any distance.
 - **A plan next to reality:** each planned session is matched to what you did, with done, missed and zone compliance.
+- **Gear:** how far your shoes and bike have gone and when they are due for replacement, from Garmin Connect or added
+  yourself, with a default per sport and a warning on Today when something is nearly worn.
+- **Nutrition** (beta): log meals from the Dutch food table or a photo, against what your training asks for that day.
 
 | | |
 |---|---|
 | ![An activity: route coloured by zone, time in zones and the heart-rate, pace and altitude chart](health-tracker/docs/screenshots/activity.jpg) | ![Trends: insights, predicted race times and the form chart](health-tracker/docs/screenshots/trends.jpg) |
 | ![The training plan with kilometres per week, done and planned](health-tracker/docs/screenshots/plan.jpg) | ![Loops: a map per recurring route](health-tracker/docs/screenshots/routes.jpg) |
+| ![Gear: shoes and a bike with their kilometres and when to replace them](health-tracker/docs/screenshots/gear.jpg) | ![One week of the plan, each session matched to what was done](health-tracker/docs/screenshots/plan-week.jpg) |
 
 More in [health-tracker/README.md](health-tracker/README.md).
 
@@ -57,7 +60,7 @@ upload exports from ING or bunq, and your DeGiro export for the portfolio.
 
 | | |
 |---|---|
-| ![Net worth: investments, bank and cash, and debt over time](wealth-tracker/docs/screenshots/money-tracker.jpg) | ![Budget per group, month by month](wealth-tracker/docs/screenshots/budget.jpg) |
+| ![Net worth: investments, bank and cash, and debt over time](wealth-tracker/docs/screenshots/net-worth.jpg) | ![Budget per group, month by month](wealth-tracker/docs/screenshots/budget.jpg) |
 | ![Transactions with automatic categories and fixed-cost markers](wealth-tracker/docs/screenshots/transactions.jpg) | ![The portfolio today: value, return and where it comes from](wealth-tracker/docs/screenshots/dashboard.jpg) |
 
 More in [wealth-tracker/README.md](wealth-tracker/README.md).
@@ -81,10 +84,10 @@ More in [wealth-tracker/README.md](wealth-tracker/README.md).
 
 ### trackerai.nl
 
-The front door ([packages/marketing](packages/marketing), served by wealth-tracker's frontend for the trackerai.nl
-hosts) explains both trackers, takes sign-ups (choose health, wealth or both; the welcome mail confirms the address)
-and logs you in for every tracker at once. Admins manage accounts, sign-up, invitations and two-step login for both
-trackers in one place at [trackerai.nl/admin](https://trackerai.nl/admin).
+The front door ([trackerai/](trackerai), with the pages from [packages/marketing](packages/marketing)) explains both
+trackers, takes sign-ups (choose health, wealth or both; the welcome mail confirms the address) and logs you in for
+every tracker at once. Admins manage accounts, sign-up, invitations and two-step login for both trackers in one place at
+[trackerai.nl/admin](https://trackerai.nl/admin).
 
 ```mermaid
 flowchart LR
@@ -97,12 +100,13 @@ flowchart LR
     H --> ACC
     W --> ACC
     H --> HD[(health data<br/>Postgres)]
-    W --> WD[(money data<br/>SQLite per account)]
+    W --> WD[(money data<br/>Postgres, a schema per account)]
 ```
 
 One session cookie on the parent domain holds on every tracker. Who you are (login, two-step login, language, which
 trackers you use) is shared; your data is not: health data stays in health-tracker's database, money data in
-wealth-tracker's, and an agent token only ever reaches the tracker that made it.
+wealth-tracker's (a schema per account), and an agent token only ever reaches the tracker that made it. All three
+stores are Postgres; a self-hosted wealth-tracker without `WEALTH_DATABASE_URL` keeps one SQLite file per account.
 
 ## Repository
 
@@ -110,7 +114,7 @@ wealth-tracker's, and an agent token only ever reaches the tracker that made it.
 |---|---|---|
 | [`health-tracker/`](health-tracker) | Training, sleep and recovery (Garmin, Apple Health) with a coach over MCP | health.trackerai.nl |
 | [`wealth-tracker/`](wealth-tracker) | Money and portfolio (formerly stock-tracker): bank import, spending, budget, net worth | wealth.trackerai.nl |
-| [`trackerai/`](trackerai) | trackerai.nl: the front door with sign-up and login, and the admin page for every tracker (`web`, `api`) | trackerai.nl (from step 11.3) |
+| [`trackerai/`](trackerai) | trackerai.nl: the front door with sign-up and login, and the admin page for every tracker (`web`, `api`) | trackerai.nl, www.trackerai.nl |
 | [`packages/`](packages) | **Shared code**: design system, i18n runtime, layout shell, backend security, the public `marketing` pages | — |
 
 Each app directory is the full history of its old repository
@@ -150,8 +154,10 @@ CI runs one workflow per app, triggered by changes in that app, in `packages/` o
   | health-web | `health-tracker/web/Dockerfile` (repo root) | health.trackerai.nl |
   | health-api | `health-tracker/api/Dockerfile` (repo root) | the API behind it |
   | health-sync | `health-tracker/Dockerfile.sync` (`health-tracker/`) | daily Garmin sync |
-  | stock-tracker / money | `wealth-tracker/frontend/Dockerfile` (repo root) | wealth.trackerai.nl, www.trackerai.nl |
-  | stock-tracker / api | `wealth-tracker/backend/Dockerfile` (repo root) | the API behind it |
+  | wealth-web | `wealth-tracker/frontend/Dockerfile` (repo root) | wealth.trackerai.nl |
+  | api | `wealth-tracker/backend/Dockerfile` (repo root) | the API behind it |
+  | trackerai-web | `trackerai/web/Dockerfile` (repo root) | trackerai.nl, www.trackerai.nl |
+  | trackerai-api | `trackerai/api/Dockerfile` (repo root) | the API behind it |
 
   The old repositories no longer deploy anything; work happens here.
 - **Self-hosting on a mini PC:** see `health-tracker/docs/SELF_HOSTING.md` and `wealth-tracker/docs/SELF_HOSTING.md`.
