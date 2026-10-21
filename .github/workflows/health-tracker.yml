@@ -51,6 +51,18 @@ jobs:
         working-directory: health-tracker
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    # Every test makes databases of its own on this server (packages/testing).
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -62,7 +74,7 @@ jobs:
             health-tracker/requirements.txt
             health-tracker/api/requirements.txt
       - name: Install
-        run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts ../packages/ai
+        run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts ../packages/ai ../packages/testing
       # A clean environment: tests/test_web_requirements.py checks that the API image's api/requirements.txt has
       # everything the app imports (it only fails locally when other packages happen to be installed).
       - name: Tests

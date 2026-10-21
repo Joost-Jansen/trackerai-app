@@ -14,6 +14,7 @@ import pytest
 
 from tools import db
 from tools.nutrition import foods, match, meals, nevo, off, photos, recognize
+from trackerai_testing import new_database_url
 
 SAMPLE = (Path(__file__).parent / "nevo_sample.csv").read_bytes()
 RECORDED = {
@@ -60,7 +61,7 @@ RECORDED = {
 
 @pytest.fixture
 def s(tmp_path):
-    e = db.connect(f"sqlite:///{tmp_path / 'm.db'}")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     foods.invalidate()
     nevo.import_foods(e, nevo.csv_text(SAMPLE))

@@ -13,8 +13,9 @@ admins and agent tokens.
     bring_in(name, pw)   a login from before the accounts becomes an account on its first use
     purge()              delete wealth-tracker's data of accounts that left it or were deleted
 
-On a development machine without ACCOUNTS_DATABASE_URL (ALLOW_INSECURE_DEFAULTS),
-the accounts live in SQLite in the data folder, with keys made there once.
+On a development machine without the ACCOUNTS_* settings (ALLOW_INSECURE_DEFAULTS),
+the accounts live in the `accounts` database of compose.dev.yml (or ACCOUNTS_DATABASE_URL),
+with keys made once in the data folder.
 """
 
 import os
@@ -33,8 +34,11 @@ _current: Accounts | None = None
 _lock = threading.Lock()
 
 
+DEV_ACCOUNTS_URL = "postgresql://postgres:dev@127.0.0.1:55432/accounts"  # compose.dev.yml at the repository root
+
+
 def _dev_config() -> Config:
-    """SQLite and keys in the data folder: a laptop or a test run without the shared accounts."""
+    """compose.dev.yml's accounts database and keys in the data folder: a laptop without the shared accounts."""
     root = database.data_root()
     os.makedirs(root, exist_ok=True)
 
@@ -49,7 +53,7 @@ def _dev_config() -> Config:
 
     env = Config.from_env()
     return Config(
-        database_url=f"sqlite:///{os.path.join(root, 'accounts.db')}",
+        database_url=env.database_url or DEV_ACCOUNTS_URL,
         session_secret=kept(".accounts_session_secret", lambda: secrets.token_hex(32)),
         encryption_key=kept(".accounts_key", crypto.new_key),
         cookie_domain=env.cookie_domain,

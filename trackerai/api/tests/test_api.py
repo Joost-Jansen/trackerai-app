@@ -14,9 +14,9 @@ DOOR = "https://www.trackerai.example"
 
 
 @pytest.fixture
-def accounts(tmp_path):
+def accounts(pg_url):
     cfg = Config(
-        database_url=f"sqlite:///{tmp_path}/accounts.db",
+        database_url=pg_url,
         session_secret="s" * 40,
         encryption_key=crypto.new_key(),
         cookie_domain="trackerai.example",

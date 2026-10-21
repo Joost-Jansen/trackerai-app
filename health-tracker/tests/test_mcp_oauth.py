@@ -17,10 +17,12 @@ from trackerai_accounts.store import oauth_grants
 sys.path.append(str(Path(__file__).resolve().parents[2] / "packages/accounts/tests"))
 from oauth_fixtures import seed_token
 
+from trackerai_testing import new_database_url
+
 
 def health(engine, tmp_path, scope="read"):
     cfg = Config(
-        database_url=f"sqlite:///{tmp_path}/accounts.db",
+        database_url=new_database_url(),
         session_secret=secrets.token_urlsafe(32),
         encryption_key=crypto.new_key(),
         require_totp="off",

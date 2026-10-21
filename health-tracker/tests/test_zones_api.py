@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from api.zones_api import make_router, period_bounds, period_label, zone_history, zones_for_period
 from tests.helpers import FakeStore, fake_user_dep
+from trackerai_testing import new_database_url
 
 ZONES = {"run": {"bounds": [132, 147, 162, 176], "max_hr": 189}, "ride": {"bounds": [127, 141, 156, 169], "max_hr": 182}}
 
@@ -190,7 +191,7 @@ def test_wired_into_app(tmp_path):
     from tests.test_api import PASSWORD, make_settings
     from tools import db
 
-    e = db.connect(f"sqlite:///{tmp_path / 'z.db'}")
+    e = db.connect(new_database_url())
     c = TestClient(create_app(engine=e, settings=make_settings()))
     assert c.get("/api/zones").status_code == 401
     assert c.get("/api/zones/history").status_code == 401

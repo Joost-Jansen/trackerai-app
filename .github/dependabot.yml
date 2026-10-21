@@ -13,6 +13,7 @@ updates:
       - /packages/accounts
       - /packages/websec
       - /packages/ai
+      - /packages/testing
     schedule:
       interval: weekly
       day: monday

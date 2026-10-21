@@ -5,13 +5,14 @@ from fastapi.testclient import TestClient
 from api.main import Settings, create_app
 from tests.helpers import square_loop
 from tools import db
+from trackerai_testing import new_database_url
 
 PASSWORD = "test-wachtwoord-123"
 
 
 @pytest.fixture
 def engine(tmp_path):
-    e = db.connect(f"sqlite:///{tmp_path / 'test.db'}")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     s = db.Scope(e, 1)  # user 1 = the admin that bootstrap creates from make_settings()
     db.upsert_activity(

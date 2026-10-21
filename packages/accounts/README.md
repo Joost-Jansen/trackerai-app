@@ -103,7 +103,7 @@ Every app must use the same values for these:
 
 | Variable | What |
 |---|---|
-| `ACCOUNTS_DATABASE_URL` | The accounts database: Postgres in production, `sqlite:///…` on one machine. |
+| `ACCOUNTS_DATABASE_URL` | The accounts database, `postgresql://…`. On a laptop: the `accounts` database of `compose.dev.yml` at the repository root. |
 | `ACCOUNTS_SESSION_SECRET` | Signs the session cookie. At least 32 random characters. |
 | `ACCOUNTS_ENCRYPTION_KEY` | A Fernet key that encrypts the two-step secrets. Generate one with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. |
 | `SESSION_COOKIE_DOMAIN` | The shared parent domain, e.g. `trackerai.nl`. Leave it empty for a single app or local development. |

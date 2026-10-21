@@ -25,9 +25,9 @@ CALLBACK = "https://assistant.example/oauth/callback"
 
 
 @pytest.fixture
-def setup(tmp_path):
+def setup(pg_url):
     cfg = Config(
-        database_url=f"sqlite:///{tmp_path}/accounts.db",
+        database_url=pg_url,
         session_secret=secrets.token_urlsafe(40),
         encryption_key=crypto.new_key(),
         cookie_secure=False,

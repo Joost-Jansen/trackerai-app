@@ -1,0 +1,20 @@
+[project]
+name = "trackerai-testing"
+version = "0.1.0"
+description = "Test helpers for every trackerai suite: a Postgres database of its own per test."
+requires-python = ">=3.11"
+# The same psycopg pin as packages/accounts and both apps; bump them together.
+dependencies = [
+    "psycopg[binary]==3.3.6",
+    "pytest",
+]
+
+[project.entry-points.pytest11]
+trackerai_postgres = "trackerai_testing.postgres"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["trackerai_testing"]

@@ -11,6 +11,7 @@ from tools import apple_health as ah
 from tools import db
 from tools.apple_import import apply, remove
 from tools.sports import apple_sport
+from trackerai_testing import new_database_url
 
 END = date(2026, 10, 5)
 
@@ -123,7 +124,7 @@ def test_the_old_simple_export_xml_alone():
 
 
 def scope():
-    e = db.connect("sqlite://")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     return db.Scope(e, 1)
 

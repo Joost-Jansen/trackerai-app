@@ -5,6 +5,7 @@ from cryptography.fernet import Fernet
 
 from tools import db, wahoo
 from tools.sync import run_db_sync
+from trackerai_testing import new_database_url
 
 CREDS = ("cid", "secret")
 
@@ -130,7 +131,7 @@ WORKOUTS = [
 
 
 def test_sync_brings_in_the_past_year_merges_with_garmin_and_keeps_the_fit_file():
-    e = db.connect("sqlite://")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     s = db.Scope(e, 1)
     garmin = {
@@ -162,7 +163,7 @@ def test_access_revoked_at_wahoo_ends_the_connection_and_removes_its_data(monkey
     key = Fernet.generate_key().decode()
     monkeypatch.setenv("WAHOO_CLIENT_ID", "cid")
     monkeypatch.setenv("WAHOO_CLIENT_SECRET", "secret")
-    e = db.connect("sqlite://")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     s = db.Scope(e, 1)
     wahoo.save_tokens(s, {"access_token": "a", "refresh_token": "r", "expires_at": 9e9}, key)
@@ -196,7 +197,7 @@ def test_a_wahoo_sync_saves_the_newest_tokens(monkeypatch):
     key = Fernet.generate_key().decode()
     monkeypatch.setenv("WAHOO_CLIENT_ID", "cid")
     monkeypatch.setenv("WAHOO_CLIENT_SECRET", "secret")
-    e = db.connect("sqlite://")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     s = db.Scope(e, 1)
     wahoo.save_tokens(s, {"access_token": "a", "refresh_token": "r", "expires_at": 9e9}, key)
@@ -206,7 +207,7 @@ def test_a_wahoo_sync_saves_the_newest_tokens(monkeypatch):
 
 
 def test_a_workout_whose_summary_wahoo_refuses_is_skipped_and_the_rest_comes_in():
-    e = db.connect("sqlite://")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     s = db.Scope(e, 1)
 
@@ -232,7 +233,7 @@ def test_a_refused_summary_does_not_refresh_the_token():
 
 
 def test_a_file_that_does_not_download_is_skipped_and_retried_next_sync():
-    e = db.connect("sqlite://")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     s = db.Scope(e, 1)
 
@@ -263,7 +264,7 @@ def test_download_tries_three_times_on_a_server_error():
 
 
 def test_progress_says_how_far_back_the_sync_is():
-    e = db.connect("sqlite://")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     steps = []
     wahoo.sync_wahoo(

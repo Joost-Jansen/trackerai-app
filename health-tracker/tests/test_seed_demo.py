@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from api.main import Settings, create_app
 from scripts.seed_demo import link_account, seed
 from tools import db
+from trackerai_testing import create_database, drop_database
 
 # Today, like the real seed default: the dashboard hides readiness when the last sync is older than yesterday,
 # so a fixed date would make this test fail as soon as the calendar moves on.
@@ -14,10 +15,13 @@ END = datetime.now(ZoneInfo("Europe/Amsterdam")).date()
 
 
 @pytest.fixture(scope="module")
-def seeded(tmp_path_factory):
-    engine = db.connect(f"sqlite:///{tmp_path_factory.mktemp('demo') / 'demo.db'}")
+def seeded():
+    url = create_database()  # one seed for the module
+    engine = db.connect(url)
     out = seed(engine, END, days=56, password="demo-password-1")
-    return engine, out
+    yield engine, out
+    engine.dispose()
+    drop_database(url)
 
 
 def test_seed_creates_demo_admin_with_data(seeded):

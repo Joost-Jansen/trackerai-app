@@ -22,7 +22,9 @@ Agreements that apply everywhere:
   its Dutch, checked by `npm run check:i18n` in each frontend.
 - **Branches**: work in a branch and open a pull request into `dev`; `dev` goes to `main` (production) by pull request.
   Both need the `<workflow> ok` checks green ([docs/CI.md](docs/CI.md)); a new job joins its workflow's `ok`.
-- **Test the app you touched**, and both apps when you touch `packages/`:
+- **Test the app you touched**, and both apps when you touch `packages/`. The Python suites run on Postgres, as
+  production does: start it once with `docker compose -f compose.dev.yml up -d` at the repo root and install
+  `packages/testing` in the app's environment (`pip install -e packages/testing`); every test gets a database of its own.
   - `health-tracker/`: `python -m pytest -q tests`; in `web/`: `npx tsc --noEmit -p .` and `npm run check:i18n`.
   - `wealth-tracker/`: `TZ=Europe/Amsterdam python -m pytest backend/tests -q`; in `frontend/`:
     `npx tsc --noEmit -p .`, `npm run check:i18n` and `npm test`.

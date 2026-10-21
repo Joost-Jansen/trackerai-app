@@ -6,6 +6,7 @@ from tests.test_store import GARMIN_ACTIVITY
 from tools import db
 from tools.distance import counted, doubtful
 from tools.store import from_garmin
+from trackerai_testing import new_database_url
 
 OWS = {"activityType": {"typeKey": "open_water_swimming", "parentTypeId": 26}}
 
@@ -44,7 +45,7 @@ def test_an_impossible_open_water_pace_is_a_gps_error():
 
 
 def test_you_correct_the_distance_and_a_new_sync_keeps_it(tmp_path):
-    e = db.connect(f"sqlite:///{tmp_path / 'd.db'}")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     s = db.Scope(e, 1)
     aid = db.upsert_activity(s, from_garmin(ows(0.02, 584.0, 2400.0), None))
@@ -67,7 +68,7 @@ def test_you_correct_the_distance_and_a_new_sync_keeps_it(tmp_path):
 
 
 def test_schema_5_gives_stored_open_water_swims_their_timer_time(tmp_path):
-    e = db.connect(f"sqlite:///{tmp_path / 'v4.db'}")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     s = db.Scope(e, 1)
     old = from_garmin(ows(1.97, 223.0, 2723.0), None)
@@ -82,7 +83,7 @@ def test_schema_5_gives_stored_open_water_swims_their_timer_time(tmp_path):
 
 
 def test_removing_the_only_source_also_removes_your_correction(tmp_path):
-    e = db.connect(f"sqlite:///{tmp_path / 'r.db'}")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     s = db.Scope(e, 1)
     aid = db.upsert_activity(s, from_garmin(ows(0.02, 584.0, 2400.0), None))
