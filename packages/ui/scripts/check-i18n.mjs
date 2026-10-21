@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const catalogSrc = readFileSync(path.join(ROOT, "src/i18n/nl.ts"), "utf8");
 const catalog = new Map(
-  [...catalogSrc.matchAll(/^  ("(?:[^"\\]|\\.)*"): ("(?:[^"\\]|\\.)*"),$/gm)].map((m) => [JSON.parse(m[1]), JSON.parse(m[2])]),
+  [...catalogSrc.matchAll(/^ {2}("(?:[^"\\]|\\.)*"): ("(?:[^"\\]|\\.)*"),$/gm)].map((m) => [JSON.parse(m[1]), JSON.parse(m[2])]),
 );
 
 const files = execSync("git ls-files --cached --others --exclude-standard '*.ts' '*.tsx'", { cwd: ROOT, encoding: "utf8" })

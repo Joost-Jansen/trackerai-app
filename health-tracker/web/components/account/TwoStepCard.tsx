@@ -21,6 +21,8 @@ function Qr({ text }: { text: string }) {
     qr.make();
     return qr.createDataURL(4, 4);
   }, [text]);
+  // A data URL drawn here: next/image has nothing to optimise.
+  // eslint-disable-next-line @next/next/no-img-element
   return <img src={src} alt="" width={180} height={180} className="rounded bg-white p-1 [image-rendering:pixelated]" />;
 }
 

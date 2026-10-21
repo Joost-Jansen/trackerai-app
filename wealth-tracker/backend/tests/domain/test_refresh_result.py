@@ -14,8 +14,6 @@ passes the all-failed test with the exact number that made it a bug.
 import sqlite3
 import time
 
-import pytest
-
 from domain import database
 from domain.portfolio import positions as portfolio
 

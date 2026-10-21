@@ -124,7 +124,6 @@ const TABS = ["overview", "accounts", "feedback", "signup", "activity"] as const
 type Tab = (typeof TABS)[number];
 const STATUSES: FeedbackStatus[] = ["new", "planned", "fixed", "wontfix"];
 const isOpen = (f: Feedback) => f.status === "new" || f.status === "planned";
-const LOADING = { state: "loading" } as const;
 
 async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
   const r = await fetch(path, {
@@ -1518,7 +1517,6 @@ function FeedbackItem({
         <p className="mk-ad-fb-msg">{f.message}</p>
         {f.has_screenshot && (
           <button type="button" className="mk-ad-thumb" onClick={enlarge} aria-label={m.screenshot}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={src} alt="" loading="lazy" />
           </button>
         )}
@@ -1609,7 +1607,6 @@ function Lightbox({ locale, src, onClose }: { locale: Locale; src: string; onClo
       onClick={() => ref.current?.close()}
       aria-label={m.screenshot}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt={m.screenshot} />
       <button type="button" className="mk-ad-btn" onClick={() => ref.current?.close()}>
         {m.close}

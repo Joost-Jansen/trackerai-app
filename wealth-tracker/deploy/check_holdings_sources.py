@@ -163,7 +163,7 @@ def _run() -> list[tuple[str, str, int, int]]:
 
 def _failures(results) -> list[str]:
     out = []
-    for key, description, count, expected in results:
+    for _key, description, count, expected in results:
         floor = round(expected * MIN_FRACTION) if expected else UNBASELINED_FLOOR
         if count < floor:
             out.append(f"{description}: {count} holdings (expected ≥{floor})")
@@ -177,7 +177,7 @@ def main() -> int:
 
     results = _run()
 
-    for key, description, count, expected in sorted(results):
+    for _key, description, count, expected in sorted(results):
         floor = round(expected * MIN_FRACTION) if expected else UNBASELINED_FLOOR
         mark = "ok " if count >= floor else "BAD"
         print(f"  {mark} {count:>5} (baseline {expected:>5})  {description}")

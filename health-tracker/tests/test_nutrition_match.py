@@ -91,7 +91,7 @@ def test_photos_lose_their_metadata_and_only_images_pass():
 
 
 def test_photo_keeping_follows_the_setting(s):
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     mime, data = photos.clean(jpeg())
     assert photos.save(s, mime, data, "never") is None

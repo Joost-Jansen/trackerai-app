@@ -26,7 +26,7 @@ from __future__ import annotations
 import argparse
 import sys
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 import yaml
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet

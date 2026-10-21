@@ -185,6 +185,8 @@ export default function FeedbackDialog({
             <p className="text-[12px] text-ink-muted">{tr("Taking a screenshot of the page…")}</p>
           ) : shot ? (
             <div className="flex items-start gap-3">
+              {/* A data URL of the screenshot just taken: next/image has nothing to optimise. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={shot} alt={tr("Screenshot")} className="h-24 max-w-[45%] rounded border border-border object-cover object-top" />
               <div className="flex flex-col items-start gap-1.5">
                 <p className="text-[12px] text-ink-muted">

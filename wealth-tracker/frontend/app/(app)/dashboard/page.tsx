@@ -112,7 +112,8 @@ export default function DashboardPage() {
   // tooltip would cover the line you are reading.
   const [probe, setProbe] = useState<Probe | null>(null);
 
-  const dailyPoints = valueHistoryQ.data?.points ?? [];
+  // The same array until the query changes: the memos below depend on it.
+  const dailyPoints = useMemo(() => valueHistoryQ.data?.points ?? [], [valueHistoryQ.data]);
   const lastDaily = dailyPoints.length > 0 ? dailyPoints[dailyPoints.length - 1] : null;
 
   // Which buttons this history can live up to, and the chosen period set back

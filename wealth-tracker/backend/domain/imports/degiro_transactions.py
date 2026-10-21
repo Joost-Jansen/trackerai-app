@@ -105,7 +105,7 @@ def parse_transactions(file_path: str, warnings: list[dict] | None = None) -> li
         def _float(col: str) -> float | None:
             if col is None:
                 return None
-            val = row.get(col)
+            val = row.get(col)  # noqa: B023  # used within this iteration only
             try:
                 num = number(val)
             except (ValueError, TypeError):
@@ -119,7 +119,7 @@ def parse_transactions(file_path: str, warnings: list[dict] | None = None) -> li
         def _str(col: str) -> str | None:
             if col is None:
                 return None
-            val = row.get(col)
+            val = row.get(col)  # noqa: B023  # used within this iteration only
             s = str(val).strip()
             # An empty cell arrives as either float NaN or None depending on the
             # column's dtype; str() turns those into "nan" and "None", and a

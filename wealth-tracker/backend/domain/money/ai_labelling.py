@@ -25,7 +25,7 @@ import os
 import re
 import sqlite3
 from collections import Counter, defaultdict
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 import trackerai_ai
 from domain import preferences

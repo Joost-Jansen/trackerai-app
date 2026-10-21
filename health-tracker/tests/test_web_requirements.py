@@ -15,7 +15,7 @@ def listed() -> set[str]:
     for line in (ROOT / "api" / "requirements.txt").read_text().splitlines():
         line = line.split("#")[0].strip()
         if line:
-            names.add(re.split(r"[\[<>=~! ]", line, 1)[0].lower().replace("_", "-"))
+            names.add(re.split(r"[\[<>=~! ]", line, maxsplit=1)[0].lower().replace("_", "-"))
     return names
 
 
@@ -47,7 +47,7 @@ def test_everything_the_web_app_imports_is_in_api_requirements():
         for req in reqs:
             if "extra ==" in req:
                 continue
-            dep = re.split(r"[\[<>=~!; ]", req, 1)[0].lower().replace("_", "-")
+            dep = re.split(r"[\[<>=~!; ]", req, maxsplit=1)[0].lower().replace("_", "-")
             if dep not in transitive:
                 transitive.add(dep)
                 todo.append(dep)

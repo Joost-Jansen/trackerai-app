@@ -1,7 +1,7 @@
 """Two-step login by email: a code mailed at login, as an alternative to the authenticator app."""
 
 import re
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient

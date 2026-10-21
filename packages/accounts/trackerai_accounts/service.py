@@ -9,7 +9,7 @@ import hashlib
 import hmac
 import re
 import secrets
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
 from sqlalchemy import and_, delete, func, insert, select, update

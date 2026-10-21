@@ -214,7 +214,7 @@ def test_profile_resting_hr_is_used_without_sleep_data(app, engine):  # noqa: F8
 
 
 def test_logins_from_before_the_accounts_move_over_at_startup(tmp_path, monkeypatch):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     import bcrypt
 

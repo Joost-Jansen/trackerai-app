@@ -86,3 +86,16 @@ def test_the_language_is_stored_with_the_account(client):
     refused = client.put("/api/auth/me/locale", json={"locale": "fr"}, headers={"X-Locale": "en"})
     assert refused.status_code == 422 and refused.json()["code"] == "invalid_locale"
     assert refused.json()["detail"] == "The language is one of nl, en."
+
+
+def test_the_catalog_has_every_text_once():
+    # A text listed twice keeps only its last Dutch, silently; "Type the username to confirm." once had two.
+    tree = ast.parse((_BACKEND / "domain" / "i18n_nl.py").read_text())
+    catalog = next(n for n in ast.walk(tree) if isinstance(n, ast.Dict))
+    keys = [k.value for k in catalog.keys if isinstance(k, ast.Constant)]
+    assert sorted({k for k in keys if keys.count(k) > 1}) == []
+    token = set_locale("nl")
+    try:
+        assert tr("Type the username to confirm.") == "Typ de gebruikersnaam ter bevestiging."
+    finally:
+        reset_locale(token)

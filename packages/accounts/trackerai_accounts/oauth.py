@@ -6,7 +6,6 @@ Only hashes of codes/access/refresh tokens persist. Public clients use S256.
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import re
 import secrets

@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from fastapi.testclient import TestClient

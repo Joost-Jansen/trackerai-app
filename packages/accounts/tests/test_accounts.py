@@ -6,7 +6,7 @@ import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
-from trackerai_accounts import Accounts, Config, Session, connect, crypto, install, make_router, session, totp
+from trackerai_accounts import AccountError, Accounts, Config, Session, connect, crypto, install, make_router, session, totp
 from trackerai_accounts.service import hash_password
 from trackerai_accounts.store import accounts as accounts_table
 
@@ -397,8 +397,9 @@ def test_create_linked_brings_two_step_login(accounts):
         "tess", hash_password(PASSWORD), "wealth", "Tess", display_name="Tess", locale="nl", totp_secret="JBSWY3DPEHPK3PXP", totp_backup=[]
     )
     assert a["locale"] == "nl" and a["display_name"] == "Tess" and a["totp_enabled_at"]
-    with pytest.raises(Exception):
-        accounts.login("tess", PASSWORD)  # the code is asked for
+    with pytest.raises(AccountError) as asked:
+        accounts.login("tess", PASSWORD)
+    assert asked.value.code == "totp_required"
     assert accounts.login("tess", PASSWORD, totp.code_at("JBSWY3DPEHPK3PXP"))
 
 

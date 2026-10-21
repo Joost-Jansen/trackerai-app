@@ -1,5 +1,5 @@
 import os
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import insert
@@ -196,7 +196,7 @@ def test_run_all_users_syncs_connected_users_only(monkeypatch):
     e = fresh()
     admin = db.create_user(e, "alice", "h", is_admin=True)
     anna = db.create_user(e, "anna", "h")
-    bob = db.create_user(e, "bob", "h")
+    db.create_user(e, "bob", "h")
     carl = db.create_user(e, "carl", "h")
     db.set_setting(db.Scope(e, anna), "garmin_tokens", "x")
     db.set_setting(db.Scope(e, carl), "garmin_tokens", "x")

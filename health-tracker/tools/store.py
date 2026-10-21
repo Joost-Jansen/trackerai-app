@@ -9,7 +9,7 @@ Layout:
 from __future__ import annotations
 
 import json
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from tools.sports import garmin_sport, strava_sport

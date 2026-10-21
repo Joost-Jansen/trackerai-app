@@ -36,7 +36,7 @@ import os
 import random
 import secrets
 import sys
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _BACKEND = os.path.join(_ROOT, "backend")
@@ -46,16 +46,8 @@ if _BACKEND not in sys.path:
 import bcrypt  # noqa: E402
 import yaml  # noqa: E402
 
-from domain import (
-    database,  # noqa: E402
-    onboarding,  # noqa: E402
-)
-from domain.money import (
-    accounts,  # noqa: E402
-    bank_transactions,  # noqa: E402
-    budget,  # noqa: E402
-    categorization,  # noqa: E402
-)
+from domain import database, onboarding  # noqa: E402
+from domain.money import accounts, bank_transactions, budget, categorization  # noqa: E402
 from domain.money.bank_providers.base import dedup_hash  # noqa: E402
 
 USER = "demo"
@@ -219,7 +211,7 @@ def fill_portfolio(conn, start: date, final: date, offline: bool) -> dict:
     tickers = [f[2] for f in FUNDS]
     real = {} if offline else _real_prices(tickers, start - timedelta(days=10))
     series_list = {}
-    for isin, name, ticker, exchange, price, trend, volatile, *_ in FUNDS:
+    for isin, _name, ticker, _exchange, price, trend, volatile, *_ in FUNDS:
         series_list[isin] = real.get(ticker) or price_series(ticker, start - timedelta(days=10), final, price, trend, volatile)
     info = {f[0]: f for f in FUNDS}
     rnd = random.Random(7)
@@ -274,7 +266,7 @@ def fill_portfolio(conn, start: date, final: date, offline: bool) -> dict:
 
     # Dividends: per payout the number of units you had then, 15% withholding tax.
     dividends = []
-    for isin, name, ticker, exchange, price, trend, volatile, per_piece, per_year in FUNDS:
+    for isin, name, _ticker, _exchange, _price, _trend, _volatile, per_piece, per_year in FUNDS:
         if not per_year:
             continue
         step = 12 // per_year

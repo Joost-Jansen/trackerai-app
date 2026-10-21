@@ -82,8 +82,8 @@ def same_shape(a: dict, b: dict, sport: str = "run") -> bool:
     longest = max(a["distance_km"], b["distance_km"])
     if longest <= 0 or abs(a["distance_km"] - b["distance_km"]) / longest > max_diff:
         return False
-    s, l = overlap(a, b)
-    return s >= min_short and l >= min_long
+    short, long = overlap(a, b)
+    return short >= min_short and long >= min_long
 
 
 # Pairs that are not the same route by MATCH but plausibly the same circuit: ask the user.
@@ -118,12 +118,14 @@ def compare(a: dict, b: dict, sport: str = "run") -> dict:
     da, db = a["distance_km"], b["distance_km"]
     longest = max(da, db)
     d = abs(da - db) / longest if longest > 0 else 1.0
-    s, l = overlap(a, b)
-    raw = (0.6 * s + 0.4 * l) * (1 - 0.5 * min(d, 1.0))
+    s, long_share = overlap(a, b)
+    raw = (0.6 * s + 0.4 * long_share) * (1 - 0.5 * min(d, 1.0))
     start_far = haversine_m(a["start"], b["start"]) > START_RADIUS_M
     if same_shape(a, b, sport):
         outcome, code = "same", "same"
-    elif d <= cand["max_diff"] and ((s >= cand["short"] and l >= cand["long"]) or (min(s, l) >= cand["near"] and d <= cand["near_diff"])):
+    elif d <= cand["max_diff"] and (
+        (s >= cand["short"] and long_share >= cand["long"]) or (min(s, long_share) >= cand["near"] and d <= cand["near_diff"])
+    ):
         outcome = "candidate"
         if s >= cand["short"] and start_far:
             code = "other_start"
@@ -140,7 +142,7 @@ def compare(a: dict, b: dict, sport: str = "run") -> dict:
         "confidence": round(lo + (hi - lo) * raw, 2),
         "reason_code": code,
         "reason": REASONS[code],
-        "overlap": [round(s, 2), round(l, 2)],
+        "overlap": [round(s, 2), round(long_share, 2)],
         "distance_diff": round(d, 2),
     }
 

@@ -540,7 +540,7 @@ class Server:
             rows = ["| Code | Naam | Bron | kcal | Koolh. | Eiwit | Vet | Per | Jouw portie |", "|---|---|---|---|---|---|---|---|---|"]
             for f in found:
                 p = f["per_100"]
-                n = lambda k: "-" if p.get(k) is None else f"{round(p[k], 1):g}".replace(".", ",")  # noqa: E731
+                n = lambda k: "-" if p.get(k) is None else f"{round(p[k], 1):g}".replace(".", ",")  # noqa: E731, B023  # used within this iteration only
                 portion = (usual.get(f["ref"]) or {}).get("grams")
                 rows.append(
                     f"| {f['ref']} | {f['name']} | {f['source']} | {n('energy_kcal')} | {n('carbs_g')} | {n('protein_g')} | {n('fat_g')} | 100 {f['unit']} | {portion or '-'} |"

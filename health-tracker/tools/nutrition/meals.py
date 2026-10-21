@@ -7,7 +7,7 @@ again when it still exists, else from the item's own snapshot.
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import delete, func, insert, select, update
 

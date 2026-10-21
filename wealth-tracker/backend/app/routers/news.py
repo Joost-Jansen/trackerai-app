@@ -13,7 +13,6 @@ from fastapi import APIRouter, Depends
 from app.deps import get_db
 from app.services import etf_service, news_service
 from app.services.portfolio_service import load_portfolio
-from domain import database
 
 router = APIRouter(prefix="/api/news", tags=["news"])
 

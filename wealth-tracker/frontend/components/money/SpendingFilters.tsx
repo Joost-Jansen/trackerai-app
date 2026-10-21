@@ -7,7 +7,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Input, Select, Tabs } from "@/components/ds";
 import TimelineControls from "@/components/money/TimelineControls";
-import { periodLabel, periodTabs, PERIODS } from "@/lib/timeline";
+import { periodTabs, PERIODS } from "@/lib/timeline";
 import AccountFilter from "@/components/money/AccountFilter";
 import CategoryFilter from "@/components/money/CategoryFilter";
 import CountsFilter, { countsLabel } from "@/components/money/CountsFilter";

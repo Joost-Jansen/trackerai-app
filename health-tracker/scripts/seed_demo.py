@@ -24,7 +24,7 @@ import random
 import secrets
 import sys
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -578,7 +578,7 @@ def seed_intraday(s: db.Scope, end: date, days: int = INTRADAY_DAYS) -> int:
         asleep_hr = [v for m, v in hr if night.start <= m <= night.end]
         w = dict(wellness.get(d.isoformat()) or {})
         if w:
-            local = lambda minute: (datetime.combine(d, time()) + timedelta(minutes=minute)).strftime("%Y-%m-%dT%H:%M")  # noqa: E731
+            local = lambda minute: (datetime.combine(d, time()) + timedelta(minutes=minute)).strftime("%Y-%m-%dT%H:%M")  # noqa: E731, B023  # used within this iteration only
             w.update(
                 {
                     "sleep_start": local(night.start),

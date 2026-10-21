@@ -120,7 +120,7 @@ export function sampleBalances<T extends { d: string }>(rows: T[], granularity: 
 /** Calendar months covered, weighting a partial month by its actual day count. */
 export function monthsCovered(window: DateWindow): number {
   if (window.from > window.to) return 0;
-  let cursor = new Date(`${window.from.slice(0, 7)}-01T00:00:00Z`);
+  const cursor = new Date(`${window.from.slice(0, 7)}-01T00:00:00Z`);
   let total = 0;
   const start = dayNumber(window.from),
     end = dayNumber(window.to) + 1;

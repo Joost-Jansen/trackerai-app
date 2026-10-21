@@ -4,7 +4,7 @@ usable once, with an end date, revocable, and they work on this site's own
 sign-up too.
 """
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 

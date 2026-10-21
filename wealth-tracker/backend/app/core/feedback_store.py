@@ -11,7 +11,7 @@ The path follows database.data_root(), so a test that redirects that folder
 import json
 import os
 import sqlite3
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 from app.core.accounts import APP, linked_folders
 from domain import database  # repo-root module, zie app/__init__.py

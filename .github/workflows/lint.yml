@@ -1,0 +1,55 @@
+# Lint: ruff for Python, ESLint and Prettier for TypeScript, over the whole repository. Fast, so it runs on every pull
+# request without a `changes` job.
+name: lint
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          version: "0.17.1"
+          args: check .
+      - run: ruff format --check .
+
+  typescript:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npx eslint .
+      - run: npx prettier --check .
+
+  # The required check: green when both jobs passed.
+  ok:
+    name: lint ok
+    if: always()
+    needs: [python, typescript]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: |
+          for r in ${{ join(needs.*.result, ' ') }}; do
+            case "$r" in success|skipped) ;; *) echo "a job ended as $r"; exit 1 ;; esac
+          done

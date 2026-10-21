@@ -697,7 +697,6 @@ export default function TimeChart({
   const tipLeft = hx < plotW / 2;
   const barW = Math.max(1, (barDays / span) * plotW * 0.78);
   const [bi0, bi1] = visible(stack.days, barDays);
-  const zeroY = y(Math.max(yLo, 0));
 
   return (
     <div>

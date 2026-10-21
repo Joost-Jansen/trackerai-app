@@ -15,7 +15,7 @@ Global tables: `users`, `invites`, `app_settings`, `agent_tokens` (a token point
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import (
     JSON,

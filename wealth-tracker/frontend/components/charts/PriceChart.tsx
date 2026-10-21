@@ -109,6 +109,35 @@ export default function PriceChart({
     return { y, ticks: niceTicks(min, max) };
   }, [points, baseline]);
 
+  // Before the early return below: a hook after it would make the number of hooks change when the series
+  // grows from one point to two, which React refuses.
+  // An index from the previous render can fall outside the new series —
+  // react-query refreshes the history while you point.
+  const clamp = (i: number) => Math.min(Math.max(i, 0), points.length - 1);
+  const hovered = hover !== null ? points[clamp(hover)] : null;
+
+  // The measured stretch, always read from left to right: the difference should
+  // point forward in time, even if you dragged from right to left.
+  const measured =
+    span === null
+      ? null
+      : (() => {
+          const [from, to] = (span[0] <= span[1] ? span : [span[1], span[0]]).map(clamp);
+          if (from === to) return null;
+          return { from, to, a: points[from], b: points[to] };
+        })();
+
+  // Report upward in an effect and not during render: calling the parent's
+  // setState while this component renders is the loop React cuts off.
+  const probeKey = measured ? `${measured.from}-${measured.to}` : hovered ? hovered.d : "";
+  useEffect(() => {
+    if (!onProbe) return;
+    if (measured) onProbe({ kind: "span", a: measured.a, b: measured.b, ...priceChange(measured.a, measured.b) });
+    else if (hovered) onProbe({ kind: "point", point: hovered });
+    else onProbe(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [probeKey, onProbe]);
+
   if (!model) return null;
   const { y, ticks } = model;
   // The round step decides how many decimals carry meaning, but never fewer than
@@ -121,9 +150,6 @@ export default function PriceChart({
 
   const last = points[points.length - 1];
   const mid = points[Math.floor((points.length - 1) / 2)];
-  // Green or red over the whole drawn period, like every price chart: the line
-  // then already says something before you have read the numbers above it.
-  const up = last.c >= points[0].c;
   const colour = "var(--chart-1)";
 
   function indexAt(clientX: number): number | null {
@@ -153,33 +179,6 @@ export default function PriceChart({
     }
     clear();
   }
-
-  // An index from the previous render can fall outside the new series —
-  // react-query refreshes the history while you point.
-  const clamp = (i: number) => Math.min(Math.max(i, 0), points.length - 1);
-  const hovered = hover !== null ? points[clamp(hover)] : null;
-
-  // The measured stretch, always read from left to right: the difference should
-  // point forward in time, even if you dragged from right to left.
-  const measured =
-    span === null
-      ? null
-      : (() => {
-          const [from, to] = (span[0] <= span[1] ? span : [span[1], span[0]]).map(clamp);
-          if (from === to) return null;
-          return { from, to, a: points[from], b: points[to] };
-        })();
-
-  // Report upward in an effect and not during render: calling the parent's
-  // setState while this component renders is the loop React cuts off.
-  const probeKey = measured ? `${measured.from}-${measured.to}` : hovered ? hovered.d : "";
-  useEffect(() => {
-    if (!onProbe) return;
-    if (measured) onProbe({ kind: "span", a: measured.a, b: measured.b, ...priceChange(measured.a, measured.b) });
-    else if (hovered) onProbe({ kind: "point", point: hovered });
-    else onProbe(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [probeKey, onProbe]);
 
   return (
     // select-none over the whole chart: to iOS, putting two fingers down to measure
