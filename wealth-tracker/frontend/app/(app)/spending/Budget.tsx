@@ -11,6 +11,9 @@
 //     last complete months. One click sets it as the budget.
 //   * **An incomplete month is hatched.** The current month, or a month for
 //     which not every account has an export, is not an outcome yet.
+//
+// The month of the table is the same one as on Overview (the month in the bar at
+// the top, `month` in the address): choose it here and Overview follows.
 
 import { useState } from "react";
 import Link from "next/link";
@@ -22,7 +25,7 @@ import { Button, Input, Section, Select } from "@/components/ds";
 import Bars, { type BarDatum } from "@trackerai/ui/charts/Bars";
 import { readAmount, today, type BudgetOverview, type Category } from "@/lib/money";
 import { boundariesOf, monthPeriod, useMonthPeriods } from "@/lib/month-periods";
-import { toTransactions } from "@/lib/spending-filters";
+import { toTransactions, useSpendingFilters } from "@/lib/spending-filters";
 import { tr, trx } from "@/lib/i18n";
 
 const WITHIN = "var(--chart-3)";
@@ -92,7 +95,6 @@ function Percentage({ actual, budget }: { actual: number; budget: number | null 
 }
 
 export default function Budget() {
-  const [choice, setChoice] = useState<string | null>(null);
   const put = useSaveBudget();
   const overview = useQuery({
     queryKey: ["budget"],
@@ -100,12 +102,15 @@ export default function Budget() {
   });
   const taxonomy = useQuery({ queryKey: ["categories"], queryFn: () => api.get<{ categories: Category[] }>("/api/categories") });
   const boundaries = boundariesOf(useMonthPeriods().data);
+  const f = useSpendingFilters(today(), today(), boundaries);
 
   const data = overview.data;
   if (!data || data.months.length === 0) return null;
 
   const { months, complete, groups, total } = data;
-  const month = choice && months.includes(choice) ? choice : months[months.length - 1];
+  // The shared month; one further back than the thirteen shown falls back to the latest.
+  const month = f.month && months.includes(f.month) ? f.month : months[months.length - 1];
+  const setChoice = (m: string) => f.setMonth(m === data.current ? "" : m);
   const budget = total.budget;
 
   const bars: BarDatum[] = months.map((m) => {
