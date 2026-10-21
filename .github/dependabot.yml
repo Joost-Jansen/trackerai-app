@@ -1,0 +1,80 @@
+# Weekly dependency updates, one pull request per ecosystem for minor and patch versions together. A merged update
+# deploys like any other change to main.
+version: 2
+
+updates:
+  - package-ecosystem: pip
+    directories:
+      - /health-tracker
+      - /health-tracker/api
+      - /wealth-tracker
+      - /wealth-tracker/backend
+      - /trackerai/api
+      - /packages/accounts
+      - /packages/websec
+      - /packages/ai
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Amsterdam
+    target-branch: main
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps
+    groups:
+      pip-minor-and-patch:
+        update-types: [minor, patch]
+
+  # One lockfile at the root covers every frontend and packages/ui.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Amsterdam
+    target-branch: main
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Amsterdam
+    target-branch: main
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps
+    groups:
+      actions-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directories:
+      - /health-tracker
+      - /health-tracker/api
+      - /health-tracker/web
+      - /wealth-tracker/backend
+      - /wealth-tracker/frontend
+      - /trackerai/api
+      - /trackerai/web
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Amsterdam
+    target-branch: main
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps
+    groups:
+      docker-minor-and-patch:
+        update-types: [minor, patch]

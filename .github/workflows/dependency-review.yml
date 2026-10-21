@@ -1,0 +1,22 @@
+# Dependency review: a pull request that adds a dependency with a known high or critical vulnerability fails. The job
+# is a required check, so it runs on every pull request.
+name: dependency review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    name: dependency review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
