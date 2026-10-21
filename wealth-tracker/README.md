@@ -7,9 +7,9 @@ Part of [trackerai](../README.md): it runs at wealth.trackerai.nl with a tracker
 [health-tracker](../health-tracker/README.md). It was called stock-tracker until 2026; the name, the history and the
 portfolio side carry on here.
 
-![Net worth: investments, bank and cash, and debt over time, and where the change came from](docs/screenshots/money-tracker.jpg)
+![Net worth: investments, bank and cash, and debt over time, and where the change came from](docs/screenshots/net-worth.jpg)
 
-<sub>All screenshots show the demo account from [`scripts/seed_demo.py`](scripts/seed_demo.py): an invented person with a portfolio of real, public ETFs and shares and invented amounts. The price history in these screenshots is simulated, because they were taken without access to market data. They were taken before the rename, so the sidebar still says stock-tracker or money-tracker. The UI speaks English and Dutch; these screenshots are in English. Category names are the user's own data: the standard taxonomy is Dutch, because the labelling rules know Dutch banks and shops, and every category can be renamed.</sub>
+<sub>All screenshots show the demo account from [`scripts/seed_demo.py`](scripts/seed_demo.py): an invented person with a portfolio of real, public ETFs and shares and invented amounts. The price history in these screenshots is simulated, because they were taken without access to market data. Regenerate them with [`scripts/screenshots.mjs`](scripts/screenshots.mjs). The UI speaks English and Dutch; these screenshots are in English. Category names are the user's own data: the standard taxonomy is Dutch, because the labelling rules know Dutch banks and shops, and every category can be renamed.</sub>
 
 wealth-tracker puts your bank accounts, spending, debts and investments together, so your net worth is one number you
 understand: what you saved, what the market did, and what you paid off. **Money** connects to your bank over PSD2 (read
@@ -60,7 +60,6 @@ its own database; it runs on Railway, or on a mini PC or Raspberry Pi in Docker.
 | | |
 |---|---|
 | ![Transactions with automatic categories and fixed-cost markers](docs/screenshots/transactions.jpg) | ![Budget per group, month by month](docs/screenshots/budget.jpg) |
-| ![Net worth: investments, bank and cash, debt over time](docs/screenshots/net-worth.jpg) | |
 
 ### Portfolio
 

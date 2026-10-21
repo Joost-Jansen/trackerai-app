@@ -7,7 +7,7 @@ Part of [trackerai](../README.md): it runs at health.trackerai.nl with a tracker
 
 ![The Today page with readiness, training load, this week of the plan, upcoming sessions and form](docs/screenshots/dashboard.jpg)
 
-<sub>All screenshots show the synthetic demo account from [`scripts/seed_demo.py`](scripts/seed_demo.py); no real person's data. The UI is in English and Dutch; these screenshots show the English version. Regenerate them with [`scripts/screenshots.mjs`](scripts/screenshots.mjs).</sub>
+<sub>All screenshots show the synthetic demo account from [`scripts/seed_demo.py`](scripts/seed_demo.py); no real person's data. The UI is in English and Dutch; these screenshots show the English version. Regenerate them with [`scripts/screenshots.mjs`](scripts/screenshots.mjs). The map screenshots (activity, loops) are from 5 October: map tiles need network access to OpenStreetMap.</sub>
 
 health-tracker syncs runs, rides, swims, sleep and recovery from Garmin Connect into Postgres (rides from Wahoo too, and
 an Apple Health export by upload), computes what the watch app does not (your own heart-rate zones per sport, training load, recurring routes, race predictions) and shows it in a
@@ -47,6 +47,8 @@ Connect comes along with the sync, with its kilometres and the activities it was
 with the kilometres it had before, a replacement limit (700 km for running shoes unless you or Garmin set one) and a
 default per sport. On an activity you see what it used and why (chosen, from Garmin, or the default) and can change it;
 Today warns when something is nearly worn or past its limit.
+
+![Gear: running shoes and a bike with their kilometres, the replacement limit and the default sport](docs/screenshots/gear.jpg)
 
 **Nutrition** (beta, switched on per account in the admin hub). Log a meal by searching the Dutch food table NEVO-online
 (RIVM) and setting the amounts; the app adds up energy, carbohydrate, protein, fat, fibre, alcohol and salt and shows

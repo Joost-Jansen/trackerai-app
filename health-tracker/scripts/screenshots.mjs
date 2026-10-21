@@ -80,6 +80,8 @@ async function settle() {
 async function open(path, height = VIEWPORT.height) {
   await page.setViewportSize({ width: VIEWPORT.width, height });
   await page.goto(`${opts.base}${path}`);
+  // `next dev` shows its own badge in a corner; it is not part of the app
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
   await settle();
 }
 
@@ -107,6 +109,8 @@ const run = await page
   .catch(() => null);
 await open(run ?? (await firstLink("/history/activity/?id=")), 1444);
 await shot("activity");
+await open("/history/#gear");
+await shot("gear");
 
 await open("/trends/");
 await shot("trends");
