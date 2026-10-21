@@ -1,0 +1,27 @@
+# One Python style for the whole repository. CI, pre-commit and the formatting commit all use this exact version:
+# formatter output changes between ruff releases.
+required-version = "==0.17.1"
+target-version = "py312"  # health-tracker runs 3.12, the rest 3.13
+line-length = 140
+# The import roots of every app and package, so isort sorts first-party imports (app, api, domain, tools,
+# trackerai_*) the same way everywhere.
+src = [
+  "health-tracker",
+  "wealth-tracker/backend",
+  "wealth-tracker",
+  "trackerai/api",
+  "packages/accounts",
+  "packages/websec",
+  "packages/ai",
+]
+extend-exclude = [".venv", "node_modules"]
+
+[format]
+quote-style = "double"
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+  "E501",  # line length belongs to the formatter
+  "B008",  # FastAPI's Depends() in argument defaults
+]

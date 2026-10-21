@@ -1,0 +1,12 @@
+# Build output and dependencies.
+node_modules
+.next
+out
+build
+dist
+coverage
+public
+**/.venv
+package-lock.json
+# The docs are wrapped by hand at 120; Prettier would rewrap their tables.
+*.md
