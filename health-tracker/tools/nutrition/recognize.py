@@ -13,11 +13,11 @@ from __future__ import annotations
 
 import base64
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
-import trackerai_ai
 from sqlalchemy import func, insert, select
 
+import trackerai_ai
 from tools import db
 
 DEFAULT_MODEL = "claude-sonnet-5-5"
@@ -55,22 +55,39 @@ _TERMS = {"type": "array", "items": {"type": "string"}}
 SCHEMA = {
     "type": "object",
     "properties": {
-        "items": {"type": "array", "items": {
-            "type": "object",
-            "properties": {
-                "label_nl": {"type": "string"}, "label_en": {"type": "string"}, "kind": {"type": "string", "enum": list(KINDS)},
-                "grams": {"type": "number"}, "grams_low": {"type": "number"}, "grams_high": {"type": "number"},
-                "confidence": {"type": "number"}, "cooking": {"type": "string"}, "search_terms": _TERMS,
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "label_nl": {"type": "string"},
+                    "label_en": {"type": "string"},
+                    "kind": {"type": "string", "enum": list(KINDS)},
+                    "grams": {"type": "number"},
+                    "grams_low": {"type": "number"},
+                    "grams_high": {"type": "number"},
+                    "confidence": {"type": "number"},
+                    "cooking": {"type": "string"},
+                    "search_terms": _TERMS,
+                },
+                "required": ["label_nl", "label_en", "kind", "grams", "grams_low", "grams_high", "confidence", "cooking", "search_terms"],
+                "additionalProperties": False,
             },
-            "required": ["label_nl", "label_en", "kind", "grams", "grams_low", "grams_high", "confidence", "cooking", "search_terms"],
-            "additionalProperties": False,
-        }},
-        "hidden_extras": {"type": "array", "items": {
-            "type": "object",
-            "properties": {"label_nl": {"type": "string"}, "label_en": {"type": "string"}, "grams": {"type": "number"}, "search_terms": _TERMS},
-            "required": ["label_nl", "label_en", "grams", "search_terms"],
-            "additionalProperties": False,
-        }},
+        },
+        "hidden_extras": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "label_nl": {"type": "string"},
+                    "label_en": {"type": "string"},
+                    "grams": {"type": "number"},
+                    "search_terms": _TERMS,
+                },
+                "required": ["label_nl", "label_en", "grams", "search_terms"],
+                "additionalProperties": False,
+            },
+        },
         "reference_object": {"type": "string", "enum": list(REFERENCES)},
         "moment_guess": {"type": "string", "enum": list(MOMENTS)},
     },
@@ -91,10 +108,15 @@ def request(mime: str, image: bytes) -> dict:
         "max_tokens": 4000,
         "system": SYSTEM,
         "output_config": {"effort": effort, "format": {"type": "json_schema", "schema": SCHEMA}},
-        "messages": [{"role": "user", "content": [
-            {"type": "image", "source": {"type": "base64", "media_type": mime, "data": base64.standard_b64encode(image).decode()}},
-            {"type": "text", "text": "What is on this photo?"},
-        ]}],
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": mime, "data": base64.standard_b64encode(image).decode()}},
+                    {"type": "text", "text": "What is on this photo?"},
+                ],
+            }
+        ],
     }
 
 
@@ -115,21 +137,31 @@ def tidy(answer: dict) -> dict:
             continue
         grams = _grams(it.get("grams"))
         low, high = sorted((_grams(it.get("grams_low", grams)), _grams(it.get("grams_high", grams))))
-        items.append({
-            "label_nl": label[:120], "label_en": str(it.get("label_en") or "").strip()[:120] or None,
-            "kind": it.get("kind") if it.get("kind") in KINDS else "food",
-            "grams": grams, "grams_low": min(low, grams), "grams_high": max(high, grams),
-            "confidence": round(min(max(float(it.get("confidence") or 0), 0.0), 1.0), 2),
-            "cooking": str(it.get("cooking") or "")[:40],
-            "search_terms": [str(t)[:40] for t in (it.get("search_terms") or []) if str(t).strip()][:4] or [label],
-        })
+        items.append(
+            {
+                "label_nl": label[:120],
+                "label_en": str(it.get("label_en") or "").strip()[:120] or None,
+                "kind": it.get("kind") if it.get("kind") in KINDS else "food",
+                "grams": grams,
+                "grams_low": min(low, grams),
+                "grams_high": max(high, grams),
+                "confidence": round(min(max(float(it.get("confidence") or 0), 0.0), 1.0), 2),
+                "cooking": str(it.get("cooking") or "")[:40],
+                "search_terms": [str(t)[:40] for t in (it.get("search_terms") or []) if str(t).strip()][:4] or [label],
+            }
+        )
     extras = []
     for ex in (answer.get("hidden_extras") or [])[:MAX_EXTRAS]:
         label = str(ex.get("label_nl") or "").strip()
         if label:
-            extras.append({"label_nl": label[:120], "label_en": str(ex.get("label_en") or "").strip()[:120] or None,
-                           "grams": _grams(ex.get("grams"), 0.5, 200),
-                           "search_terms": [str(t)[:40] for t in (ex.get("search_terms") or []) if str(t).strip()][:4] or [label]})
+            extras.append(
+                {
+                    "label_nl": label[:120],
+                    "label_en": str(ex.get("label_en") or "").strip()[:120] or None,
+                    "grams": _grams(ex.get("grams"), 0.5, 200),
+                    "search_terms": [str(t)[:40] for t in (ex.get("search_terms") or []) if str(t).strip()][:4] or [label],
+                }
+            )
     return {
         "items": items,
         "hidden_extras": extras,
@@ -147,26 +179,39 @@ def daily_limit() -> int:
 
 
 def runs_last_day(s: db.Scope) -> int:
-    since = datetime.now(timezone.utc) - timedelta(days=1)
+    since = datetime.now(UTC) - timedelta(days=1)
     with s.engine.connect() as conn:
-        return conn.execute(select(func.count()).select_from(db.nutrition_ai_runs)
-                            .where(db.nutrition_ai_runs.c.user_id == s.user_id, db.nutrition_ai_runs.c.created_at >= since)).scalar_one()
+        return conn.execute(
+            select(func.count())
+            .select_from(db.nutrition_ai_runs)
+            .where(db.nutrition_ai_runs.c.user_id == s.user_id, db.nutrition_ai_runs.c.created_at >= since)
+        ).scalar_one()
 
 
 def owns_run(s: db.Scope, run_id: int) -> bool:
     with s.engine.connect() as conn:
-        return conn.execute(select(db.nutrition_ai_runs.c.id).where(db.nutrition_ai_runs.c.user_id == s.user_id,
-                                                                     db.nutrition_ai_runs.c.id == run_id)).first() is not None
+        return (
+            conn.execute(
+                select(db.nutrition_ai_runs.c.id).where(db.nutrition_ai_runs.c.user_id == s.user_id, db.nutrition_ai_runs.c.id == run_id)
+            ).first()
+            is not None
+        )
 
 
 def log_run(s: db.Scope, result, answer: dict | None, error: str | None = None) -> int:
     with s.engine.begin() as conn:
-        return conn.execute(insert(db.nutrition_ai_runs).values(
-            user_id=s.user_id, model=(result.model if result else model())[:60], prompt_version=PROMPT_VERSION,
-            request_ms=result.request_ms if result else None, tokens_in=result.tokens_in if result else None,
-            tokens_out=result.tokens_out if result else None,
-            response={"answer": answer, "error": error, "fallback": bool(result and result.fallback)},
-            created_at=datetime.now(timezone.utc))).inserted_primary_key[0]
+        return conn.execute(
+            insert(db.nutrition_ai_runs).values(
+                user_id=s.user_id,
+                model=(result.model if result else model())[:60],
+                prompt_version=PROMPT_VERSION,
+                request_ms=result.request_ms if result else None,
+                tokens_in=result.tokens_in if result else None,
+                tokens_out=result.tokens_out if result else None,
+                response={"answer": answer, "error": error, "fallback": bool(result and result.fallback)},
+                created_at=datetime.now(UTC),
+            )
+        ).inserted_primary_key[0]
 
 
 def recognise(s: db.Scope, mime: str, image: bytes, client=None) -> tuple[int, dict]:

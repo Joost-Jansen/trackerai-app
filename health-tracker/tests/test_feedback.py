@@ -14,7 +14,16 @@ PNG = "data:image/png;base64," + base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 
 
 
 def send(c, **kw):
-    body = {"kind": "bug", "message": "De grafiek op Trends blijft leeg", "page": "/trends/", "context": {"browser": "Firefox 130", "screen": "1440x900", "errors": [{"message": "TypeError: x is undefined", "where": "/trends/"}]}}
+    body = {
+        "kind": "bug",
+        "message": "De grafiek op Trends blijft leeg",
+        "page": "/trends/",
+        "context": {
+            "browser": "Firefox 130",
+            "screen": "1440x900",
+            "errors": [{"message": "TypeError: x is undefined", "where": "/trends/"}],
+        },
+    }
     return c.post("/api/feedback", json={**body, **kw})
 
 
@@ -88,7 +97,9 @@ def test_ping_sends_only_kind_and_link(anna, monkeypatch):
             self.target()
 
     monkeypatch.setattr(fb.threading, "Thread", Thread)
-    monkeypatch.setattr(fb.urllib.request, "urlopen", lambda req, timeout: sent.append(req) or type("R", (), {"close": lambda self: None})())
+    monkeypatch.setattr(
+        fb.urllib.request, "urlopen", lambda req, timeout: sent.append(req) or type("R", (), {"close": lambda self: None})()
+    )
     monkeypatch.setenv("FEEDBACK_NTFY_URL", "https://ntfy.sh/test-topic")
     monkeypatch.setenv("RAILWAY_PUBLIC_DOMAIN", "example.up.railway.app")
     fid = send(anna).json()["id"]
@@ -112,15 +123,29 @@ def test_mcp_feedback_tools_only_for_admins(app, anna):  # noqa: F811
     anna_token = anna.post("/api/agent-tokens", json={"name": "Claude"}).json()["token"]
 
     def rpc(tok, method, params=None):
-        return TestClient(app).post("/api/mcp", headers={"Authorization": f"Bearer {tok}"}, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params or {}}).json()["result"]
+        return (
+            TestClient(app)
+            .post(
+                "/api/mcp",
+                headers={"Authorization": f"Bearer {tok}"},
+                json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params or {}},
+            )
+            .json()["result"]
+        )
 
     names = {t["name"] for t in rpc(token, "tools/list")["tools"]}
     assert {"list_feedback", "update_feedback"} <= names
     assert not {"list_feedback", "update_feedback"} & {t["name"] for t in rpc(anna_token, "tools/list")["tools"]}
 
     listed = rpc(token, "tools/call", {"name": "list_feedback", "arguments": {}})
-    assert not listed["isError"] and "De grafiek op Trends blijft leeg" in listed["content"][0]["text"] and "TypeError" in listed["content"][0]["text"]
-    done = rpc(token, "tools/call", {"name": "update_feedback", "arguments": {"id": fid, "status": "planned", "reply": "Staat op de lijst"}})
+    assert (
+        not listed["isError"]
+        and "De grafiek op Trends blijft leeg" in listed["content"][0]["text"]
+        and "TypeError" in listed["content"][0]["text"]
+    )
+    done = rpc(
+        token, "tools/call", {"name": "update_feedback", "arguments": {"id": fid, "status": "planned", "reply": "Staat op de lijst"}}
+    )
     assert not done["isError"]
     assert anna.get("/api/feedback").json()[0]["reply"] == "Staat op de lijst"
     assert rpc(anna_token, "tools/call", {"name": "list_feedback", "arguments": {}})["isError"]

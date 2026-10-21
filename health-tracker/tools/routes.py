@@ -67,9 +67,7 @@ def _covered(cells: set, other: set) -> float:
     """Share of `cells` that lie in or next to a cell of `other` (absorbs GPS noise)."""
     if not cells:
         return 0.0
-    hit = sum(
-        1 for (i, j) in cells if any((i + di, j + dj) in other for di in (-1, 0, 1) for dj in (-1, 0, 1))
-    )
+    hit = sum(1 for (i, j) in cells if any((i + di, j + dj) in other for di in (-1, 0, 1) for dj in (-1, 0, 1)))
     return hit / len(cells)
 
 
@@ -137,7 +135,14 @@ def compare(a: dict, b: dict, sport: str = "run") -> dict:
         outcome, code = "different", "different"
     # each outcome has its own band (same >= 0.8, candidate 0.5-0.79, different < 0.5), ordered by raw likeness
     lo, hi = CONFIDENCE_BAND[outcome]
-    return {"outcome": outcome, "confidence": round(lo + (hi - lo) * raw, 2), "reason_code": code, "reason": REASONS[code], "overlap": [round(s, 2), round(l, 2)], "distance_diff": round(d, 2)}
+    return {
+        "outcome": outcome,
+        "confidence": round(lo + (hi - lo) * raw, 2),
+        "reason_code": code,
+        "reason": REASONS[code],
+        "overlap": [round(s, 2), round(l, 2)],
+        "distance_diff": round(d, 2),
+    }
 
 
 VARIANT_GAP = 0.08  # a new length variant starts where sorted distances jump by 8% ...
@@ -194,7 +199,7 @@ def _stored_shape(route: dict) -> dict:
 
 
 def _next_number(ids, prefix: str) -> int:
-    nums = [int(i[len(prefix):]) for i in ids if i.startswith(prefix) and i[len(prefix):].isdigit()]
+    nums = [int(i[len(prefix) :]) for i in ids if i.startswith(prefix) and i[len(prefix) :].isdigit()]
     return 1 + max(nums, default=0)
 
 
@@ -226,7 +231,15 @@ def _groups(route: dict) -> list[dict]:
 
 
 def _sort_groups(groups: list[dict], keep: str) -> list[dict]:
-    return sorted(groups, key=lambda g: (g["id"] != keep, g.get("kind", "route") == "activity", _num(g["id"]) if g.get("kind", "route") == "route" else 0, g["id"]))
+    return sorted(
+        groups,
+        key=lambda g: (
+            g["id"] != keep,
+            g.get("kind", "route") == "activity",
+            _num(g["id"]) if g.get("kind", "route") == "route" else 0,
+            g["id"],
+        ),
+    )
 
 
 def _summary(members: list[dict], sport: str) -> dict:
@@ -375,7 +388,9 @@ def detect(
         known = by_id.get(keep) or by_id.get(keep_c["home"] or "")
         # an existing route stays a loop or a line (its generated name says which) when its main track changes
         is_loop = known["is_loop"] if known and "is_loop" in known else haversine_m(rep["start"], rep["end"]) <= LOOP_RADIUS_M
-        ordered = _sort_groups([{"id": c["gid"], "kind": c["kind"], "activity_ids": [x[0]["activity_id"] for x in c["members"]]} for c in comp], keep)
+        ordered = _sort_groups(
+            [{"id": c["gid"], "kind": c["kind"], "activity_ids": [x[0]["activity_id"] for x in c["members"]]} for c in comp], keep
+        )
         name = next((n for g in ordered for n in (_custom_name(by_id.get(g["id"])),) if n), None)
         name = name or next((n for c in comp for n in (_custom_name(by_id.get(c["home"])),) if n), None)
         summary = _summary([x[0] for x in members], sport)
@@ -421,10 +436,20 @@ def _candidates(routes: list[dict], parts: dict, tracks: dict, answered: set, sp
     out = []
     by_age = sorted(routes, key=lambda r: (_num(r["id"]), r["id"]))
     for i, ra in enumerate(by_age):
-        for rb in by_age[i + 1:]:
+        for rb in by_age[i + 1 :]:
             best = None if asked(ids[ra["id"]], ids[rb["id"]]) else _best(parts[ra["id"]], parts[rb["id"]], sport)
             if best:
-                out.append({"a": _side_route(ra), "b": _side_route(rb), "sport": sport, "outcome": best["outcome"], "confidence": best["confidence"], "reason_code": best["reason_code"], "reason": best["reason"]})
+                out.append(
+                    {
+                        "a": _side_route(ra),
+                        "b": _side_route(rb),
+                        "sport": sport,
+                        "outcome": best["outcome"],
+                        "confidence": best["confidence"],
+                        "reason_code": best["reason_code"],
+                        "reason": best["reason"],
+                    }
+                )
     on_route = {aid for r in routes for aid in r["activity_ids"]}
     for aid, (run, s) in tracks.items():
         if aid in on_route:
@@ -434,7 +459,17 @@ def _candidates(routes: list[dict], parts: dict, tracks: dict, answered: set, sp
         if options:
             r, best = max(options, key=lambda x: x[1]["confidence"])
             side = {"id": aid, "kind": "activity", "name": None, "distance_km": run["distance_km"], "runs": 1, "date": run["date"]}
-            out.append({"a": _side_route(r), "b": side, "sport": sport, "outcome": best["outcome"], "confidence": best["confidence"], "reason_code": best["reason_code"], "reason": best["reason"]})
+            out.append(
+                {
+                    "a": _side_route(r),
+                    "b": side,
+                    "sport": sport,
+                    "outcome": best["outcome"],
+                    "confidence": best["confidence"],
+                    "reason_code": best["reason_code"],
+                    "reason": best["reason"],
+                }
+            )
     return sorted(out, key=lambda c: -c["confidence"])
 
 

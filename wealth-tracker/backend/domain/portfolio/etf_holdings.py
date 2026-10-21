@@ -32,6 +32,7 @@ docstring for why (no ambient "current user" state).
 import json
 import re
 import sqlite3
+
 import requests
 import yfinance as yf
 
@@ -50,7 +51,7 @@ _JUSTETF_HEADERS = {
 # Some stored tickers (e.g. .SG) are not recognised by yfinance.
 # Map ISIN → an alternative ticker that yfinance does resolve.
 _ISIN_TICKER_OVERRIDE: dict[str, str] = {
-    "IE00BYTRRD19": "WTCH.AS",   # SPDR MSCI World Technology
+    "IE00BYTRRD19": "WTCH.AS",  # SPDR MSCI World Technology
 }
 
 # Hard-coded overrides for positions where automatic data fails.
@@ -67,7 +68,7 @@ _ISIN_MANUAL: dict[str, dict] = {
 # because the excluded percentage was zero. Wrong numbers with nothing to say so.
 # See bond_isins() for what decides it now.
 _ISIN_EXCLUDE: set[str] = {
-    "IE000WA6L436",   # iShares iBonds Dec 2026 Term EUR Corp — bond ETF
+    "IE000WA6L436",  # iShares iBonds Dec 2026 Term EUR Corp — bond ETF
 }
 
 # Above this share of a fund's assets in bonds, it is a bond fund. Held well
@@ -90,6 +91,7 @@ def _bond_fraction(conn: sqlite3.Connection, ticker: str) -> float | None:
     profile at all, and letting that raise on every page load would cost a
     failed request per position per visit.
     """
+
     def fetch():
         try:
             classes = yf.Ticker(ticker).funds_data.asset_classes or {}
@@ -98,9 +100,7 @@ def _bond_fraction(conn: sqlite3.Connection, ticker: str) -> float | None:
         except Exception:
             return {"bond": None}
 
-    cached = database.get_or_fetch(
-        conn, f"assetclass:{ticker}", _ASSET_CLASS_TTL_SECONDS, fetch
-    )
+    cached = database.get_or_fetch(conn, f"assetclass:{ticker}", _ASSET_CLASS_TTL_SECONDS, fetch)
     return cached.get("bond")
 
 
@@ -141,47 +141,48 @@ def bond_isins(conn: sqlite3.Connection, positions: list[dict]) -> set[str]:
 
     return bonds
 
+
 # yfinance sector keys → official GICS names, so the fallback path lands in
 # the same buckets as the issuer holdings files.
 _SECTOR_LABELS: dict[str, str] = {
-    "technology":             "Information Technology",
-    "financial_services":     "Financials",
-    "consumer_cyclical":      "Consumer Discretionary",
-    "consumer_defensive":     "Consumer Staples",
-    "healthcare":             "Health Care",
-    "industrials":            "Industrials",
+    "technology": "Information Technology",
+    "financial_services": "Financials",
+    "consumer_cyclical": "Consumer Discretionary",
+    "consumer_defensive": "Consumer Staples",
+    "healthcare": "Health Care",
+    "industrials": "Industrials",
     "communication_services": "Communication Services",
-    "energy":                 "Energy",
-    "basic_materials":        "Materials",
-    "utilities":              "Utilities",
-    "realestate":             "Real Estate",
+    "energy": "Energy",
+    "basic_materials": "Materials",
+    "utilities": "Utilities",
+    "realestate": "Real Estate",
 }
 
 # Issuers spell sectors/countries slightly differently ("Communication" on
 # iShares vs GICS "Communication Services"); normalise onto one taxonomy.
 _SECTOR_ALIASES: dict[str, str] = {
-    "communication":              "Communication Services",
-    "telecommunications":         "Communication Services",
+    "communication": "Communication Services",
+    "telecommunications": "Communication Services",
     "telecommunication services": "Communication Services",
-    "healthcare":                 "Health Care",
-    "technology":                 "Information Technology",
-    "basic materials":            "Materials",
-    "consumer cyclical":          "Consumer Discretionary",
-    "consumer defensive":         "Consumer Staples",
-    "financial services":         "Financials",
-    "financial":                  "Financials",
+    "healthcare": "Health Care",
+    "technology": "Information Technology",
+    "basic materials": "Materials",
+    "consumer cyclical": "Consumer Discretionary",
+    "consumer defensive": "Consumer Staples",
+    "financial services": "Financials",
+    "financial": "Financials",
 }
 
 _COUNTRY_ALIASES: dict[str, str] = {
-    "korea (south)":             "South Korea",
-    "republic of korea":         "South Korea",
-    "korea":                     "South Korea",
+    "korea (south)": "South Korea",
+    "republic of korea": "South Korea",
+    "korea": "South Korea",
     "taiwan, province of china": "Taiwan",
-    "russian federation":        "Russia",
-    "united states of america":  "United States",
-    "viet nam":                  "Vietnam",
-    "hong kong sar":             "Hong Kong",
-    "czech republic":            "Czechia",
+    "russian federation": "Russia",
+    "united states of america": "United States",
+    "viet nam": "Vietnam",
+    "hong kong sar": "Hong Kong",
+    "czech republic": "Czechia",
 }
 
 
@@ -201,35 +202,73 @@ def _norm_country(raw: str | None) -> str | None:
 # Middle-Eastern countries are folded into Asia (geographic continents only).
 _CONTINENT: dict[str, str] = {
     # North America
-    "United States": "North America", "Canada": "North America",
-    "Mexico": "North America", "Bermuda": "North America",
+    "United States": "North America",
+    "Canada": "North America",
+    "Mexico": "North America",
+    "Bermuda": "North America",
     "Cayman Islands": "North America",
     # South America
-    "Brazil": "South America", "Argentina": "South America",
-    "Chile": "South America", "Colombia": "South America",
-    "Peru": "South America", "Uruguay": "South America",
+    "Brazil": "South America",
+    "Argentina": "South America",
+    "Chile": "South America",
+    "Colombia": "South America",
+    "Peru": "South America",
+    "Uruguay": "South America",
     # Europe
-    "United Kingdom": "Europe", "Netherlands": "Europe", "France": "Europe",
-    "Germany": "Europe", "Switzerland": "Europe", "Spain": "Europe",
-    "Italy": "Europe", "Sweden": "Europe", "Denmark": "Europe",
-    "Norway": "Europe", "Finland": "Europe", "Belgium": "Europe",
-    "Ireland": "Europe", "Austria": "Europe", "Portugal": "Europe",
-    "Luxembourg": "Europe", "Poland": "Europe", "Czechia": "Europe",
-    "Greece": "Europe", "Hungary": "Europe", "Russia": "Europe",
-    "Jersey": "Europe", "Guernsey": "Europe", "Liechtenstein": "Europe",
-    "Monaco": "Europe", "Iceland": "Europe",
+    "United Kingdom": "Europe",
+    "Netherlands": "Europe",
+    "France": "Europe",
+    "Germany": "Europe",
+    "Switzerland": "Europe",
+    "Spain": "Europe",
+    "Italy": "Europe",
+    "Sweden": "Europe",
+    "Denmark": "Europe",
+    "Norway": "Europe",
+    "Finland": "Europe",
+    "Belgium": "Europe",
+    "Ireland": "Europe",
+    "Austria": "Europe",
+    "Portugal": "Europe",
+    "Luxembourg": "Europe",
+    "Poland": "Europe",
+    "Czechia": "Europe",
+    "Greece": "Europe",
+    "Hungary": "Europe",
+    "Russia": "Europe",
+    "Jersey": "Europe",
+    "Guernsey": "Europe",
+    "Liechtenstein": "Europe",
+    "Monaco": "Europe",
+    "Iceland": "Europe",
     # Asia (incl. Middle East)
-    "China": "Asia", "Taiwan": "Asia", "Japan": "Asia",
-    "South Korea": "Asia", "India": "Asia", "Hong Kong": "Asia",
-    "Singapore": "Asia", "Indonesia": "Asia", "Thailand": "Asia",
-    "Malaysia": "Asia", "Philippines": "Asia", "Vietnam": "Asia",
-    "Israel": "Asia", "Saudi Arabia": "Asia", "United Arab Emirates": "Asia",
-    "Qatar": "Asia", "Kuwait": "Asia", "Turkey": "Asia",
+    "China": "Asia",
+    "Taiwan": "Asia",
+    "Japan": "Asia",
+    "South Korea": "Asia",
+    "India": "Asia",
+    "Hong Kong": "Asia",
+    "Singapore": "Asia",
+    "Indonesia": "Asia",
+    "Thailand": "Asia",
+    "Malaysia": "Asia",
+    "Philippines": "Asia",
+    "Vietnam": "Asia",
+    "Israel": "Asia",
+    "Saudi Arabia": "Asia",
+    "United Arab Emirates": "Asia",
+    "Qatar": "Asia",
+    "Kuwait": "Asia",
+    "Turkey": "Asia",
     # Oceania
-    "Australia": "Oceania", "New Zealand": "Oceania",
+    "Australia": "Oceania",
+    "New Zealand": "Oceania",
     # Africa
-    "South Africa": "Africa", "Egypt": "Africa", "Nigeria": "Africa",
-    "Morocco": "Africa", "Kenya": "Africa",
+    "South Africa": "Africa",
+    "Egypt": "Africa",
+    "Nigeria": "Africa",
+    "Morocco": "Africa",
+    "Kenya": "Africa",
 }
 
 
@@ -237,19 +276,20 @@ def _continent_of(country: str) -> str:
     """Map a normalised country name to its continent ('Other' if unknown)."""
     return _CONTINENT.get(country, "Other")
 
+
 # Fallback: infer region from ETF name when justetf scrape fails
 _REGION_RULES: list[tuple[list[str], str]] = [
-    (["s&p 500", "sp500", "sp 500"],              "United States"),
-    (["stoxx 50", "stoxx50", "euro stoxx"],        "Europe"),
-    (["stoxx 600", "stoxx600"],                    "Europe"),
-    (["msci europe"],                              "Europe"),
-    (["aex"],                                      "Netherlands"),
-    (["emerging market", "msci em", " em "],       "Emerging Markets"),
-    (["world technology", "msci world tech"],      "Global (Tech)"),
-    (["msci world"],                               "Global"),
-    (["clean energy", "renewable"],                "Global (Clean Energy)"),
-    (["ftse all", "ftse world"],                   "Global"),
-    (["nasdaq"],                                   "United States"),
+    (["s&p 500", "sp500", "sp 500"], "United States"),
+    (["stoxx 50", "stoxx50", "euro stoxx"], "Europe"),
+    (["stoxx 600", "stoxx600"], "Europe"),
+    (["msci europe"], "Europe"),
+    (["aex"], "Netherlands"),
+    (["emerging market", "msci em", " em "], "Emerging Markets"),
+    (["world technology", "msci world tech"], "Global (Tech)"),
+    (["msci world"], "Global"),
+    (["clean energy", "renewable"], "Global (Clean Energy)"),
+    (["ftse all", "ftse world"], "Global"),
+    (["nasdaq"], "United States"),
     (["ibonds", "term ", "creg", "bond", "treasury", "govt"], "Bonds"),
 ]
 
@@ -257,6 +297,7 @@ _REGION_RULES: list[tuple[list[str], str]] = [
 # ---------------------------------------------------------------------------
 # Data fetching helpers
 # ---------------------------------------------------------------------------
+
 
 def _fetch_countries_justetf(isin: str) -> dict[str, float] | None:
     """
@@ -273,7 +314,8 @@ def _fetch_countries_justetf(isin: str) -> dict[str, float] | None:
         countries = re.findall(
             r'tl_etf-holdings_countries_value_name">([^<]+)</td>.*?'
             r'tl_etf-holdings_countries_value_percentage">([0-9.]+)%',
-            r.text, re.DOTALL,
+            r.text,
+            re.DOTALL,
         )
         if not countries:
             return None
@@ -339,8 +381,8 @@ def _fetch_stock_info(conn: sqlite3.Connection, ticker: str) -> dict | None:
         return None
     data = {
         "quote_type": (info.get("quoteType") or "").upper(),
-        "sector":     info.get("sector"),
-        "country":    info.get("country"),
+        "sector": info.get("sector"),
+        "country": info.get("country"),
     }
     database.save_etf_api_cache(conn, cache_key, json.dumps(data))
     return data
@@ -351,10 +393,38 @@ def _fetch_stock_info(conn: sqlite3.Connection, ticker: str) -> dict | None:
 # iShares, "NVIDIA Corporation" on SPDR) — without this the same stock
 # would appear as two separate bars.
 _NAME_STOP_TOKENS = {
-    "CORP", "CORPORATION", "INC", "INCORPORATED", "PLC", "NV", "SA", "SE",
-    "AG", "SPA", "LTD", "LIMITED", "CO", "COMPANY", "HOLDING", "HOLDINGS",
-    "GROUP", "CLASS", "ADR", "A", "B", "C", "REIT", "OYJ", "ASA", "AB",
-    "KGAA", "THE", "REGISTERED", "SHS", "ORD", "NEW",
+    "CORP",
+    "CORPORATION",
+    "INC",
+    "INCORPORATED",
+    "PLC",
+    "NV",
+    "SA",
+    "SE",
+    "AG",
+    "SPA",
+    "LTD",
+    "LIMITED",
+    "CO",
+    "COMPANY",
+    "HOLDING",
+    "HOLDINGS",
+    "GROUP",
+    "CLASS",
+    "ADR",
+    "A",
+    "B",
+    "C",
+    "REIT",
+    "OYJ",
+    "ASA",
+    "AB",
+    "KGAA",
+    "THE",
+    "REGISTERED",
+    "SHS",
+    "ORD",
+    "NEW",
 }
 
 
@@ -401,8 +471,7 @@ def get_stock_exposure(
     stock_exposure: dict[str, dict] = {}  # norm key → {symbol, name, value, sources}
     etf_sources: list[dict] = []
 
-    def _add(symbol: str, holding_name: str, stock_value: float, etf_name: str,
-             country: str | None = None):
+    def _add(symbol: str, holding_name: str, stock_value: float, etf_name: str, country: str | None = None):
         # Keyed on name *and* country. The name alone merged companies that only
         # share a word once the legal-form tokens are stripped: 'MERCK & CO INC'
         # (United States) and 'MERCK' (Germany) have been separate companies
@@ -417,9 +486,7 @@ def get_stock_exposure(
         # tried and rejected: keeping GROUP/HOLDINGS would break 67 of the 500
         # merges that are correct.
         key = (_norm_stock_key(holding_name or symbol), _norm_country(country))
-        entry = stock_exposure.setdefault(
-            key, {"symbol": "", "name": holding_name or symbol, "value": 0.0, "sources": []}
-        )
+        entry = stock_exposure.setdefault(key, {"symbol": "", "name": holding_name or symbol, "value": 0.0, "sources": []})
         # Prefer a real (short) ticker symbol for display when any source has one
         if symbol and (not entry["symbol"] or len(symbol) < len(entry["symbol"])):
             entry["symbol"] = symbol
@@ -427,18 +494,23 @@ def get_stock_exposure(
         if etf_name not in entry["sources"]:
             entry["sources"].append(etf_name)
 
-    def _record_source(source: str, quality: str, num: int, w_pct: float,
-                       pos: dict, ticker_label: str):
-        etf_sources.append({
-            "name": pos["name"], "ticker": ticker_label, "source": source,
-            "quality": quality, "num_holdings": num, "weight_pct": w_pct,
-            "value": pos["current_value"],
-        })
+    def _record_source(source: str, quality: str, num: int, w_pct: float, pos: dict, ticker_label: str):
+        etf_sources.append(
+            {
+                "name": pos["name"],
+                "ticker": ticker_label,
+                "source": source,
+                "quality": quality,
+                "num_holdings": num,
+                "weight_pct": w_pct,
+                "value": pos["current_value"],
+            }
+        )
 
     for p in included:
-        isin   = p["isin"]
-        name   = p["name"]
-        value  = p["current_value"]
+        isin = p["isin"]
+        name = p["name"]
+        value = p["current_value"]
         ticker = p.get("ticker")
 
         # Individual stock (manual override) — 100% itself
@@ -457,8 +529,12 @@ def get_stock_exposure(
             for h in holdings:
                 _add(h["symbol"], h["name"], value * h["weight"], name, h.get("country"))
             _record_source(
-                src_label, src_quality,
-                len(holdings), round(min(weight_sum, 1.0) * 100, 1), p, ticker or "–",
+                src_label,
+                src_quality,
+                len(holdings),
+                round(min(weight_sum, 1.0) * 100, 1),
+                p,
+                ticker or "–",
             )
             continue
 
@@ -486,8 +562,12 @@ def get_stock_exposure(
         for symbol, row in df.iterrows():
             _add(symbol, row["Name"], value * row["Holding Percent"], name)
         _record_source(
-            "Yahoo top 10", "approx", len(df),
-            round(holdings_sum * 100, 1), p, effective_ticker,
+            "Yahoo top 10",
+            "approx",
+            len(df),
+            round(holdings_sum * 100, 1),
+            p,
+            effective_ticker,
         )
 
     # Fold the per-country buckets back together. A name only stays split when
@@ -525,9 +605,9 @@ def get_stock_exposure(
 
     result = [
         {
-            "symbol":  data["symbol"] or (data["name"][:24] + "…" if len(data["name"]) > 24 else data["name"]),
-            "name":    data["name"],
-            "value":   round(data["value"], 2),
+            "symbol": data["symbol"] or (data["name"][:24] + "…" if len(data["name"]) > 24 else data["name"]),
+            "name": data["name"],
+            "value": round(data["value"], 2),
             "sources": data["sources"],
         }
         for data in combined
@@ -614,8 +694,8 @@ def get_portfolio_breakdown(
         weight = p["current_value"] / total_value if total_value > 0 else 0
         portfolio_weight = p["current_value"] / grand_total if grand_total > 0 else 0
         ticker = p.get("ticker")
-        isin   = p["isin"]
-        name   = p["name"]
+        isin = p["isin"]
+        name = p["name"]
 
         # --- Manual override (e.g. individual stocks we know) ---
         if isin in _ISIN_MANUAL:
@@ -624,45 +704,49 @@ def get_portfolio_breakdown(
             region_totals[country] = region_totals.get(country, 0.0) + weight
             sector = manual["sector"]
             sector_totals[sector] = sector_totals.get(sector, 0.0) + weight
-            coverage.append({
-                "name":            name,
-                "isin":            isin,
-                "ticker":          ticker or "–",
-                "current_value":   p["current_value"],
-                "weight_pct":      round(portfolio_weight * 100, 2),
-                "dominant_region": country,
-                "region_data":     "manual",
-                "sector_data":     "manual",
-            })
+            coverage.append(
+                {
+                    "name": name,
+                    "isin": isin,
+                    "ticker": ticker or "–",
+                    "current_value": p["current_value"],
+                    "weight_pct": round(portfolio_weight * 100, 2),
+                    "dominant_region": country,
+                    "region_data": "manual",
+                    "sector_data": "manual",
+                }
+            )
             continue
 
         # --- Exact: aggregate per-holding sector/country from issuer data ---
         holdings = issuer_holdings.fetch_issuer_holdings(conn, isin, name)
         if holdings:
-            _, src_quality = issuer_holdings.source_info(conn, isin, name)   # 'exact' | 'proxy'
+            _, src_quality = issuer_holdings.source_info(conn, isin, name)  # 'exact' | 'proxy'
             weight_sum = sum(h["weight"] for h in holdings) or 1.0
             sec_by: dict[str, float] = {}
             cty_by: dict[str, float] = {}
             for h in holdings:
-                frac = h["weight"] / weight_sum   # renormalise: fund contributes exactly its position weight
-                sec  = _norm_sector(h.get("sector")) or "Other"
-                cty  = _norm_country(h.get("country")) or "Other"
+                frac = h["weight"] / weight_sum  # renormalise: fund contributes exactly its position weight
+                sec = _norm_sector(h.get("sector")) or "Other"
+                cty = _norm_country(h.get("country")) or "Other"
                 sec_by[sec] = sec_by.get(sec, 0.0) + frac
                 cty_by[cty] = cty_by.get(cty, 0.0) + frac
             for sec, frac in sec_by.items():
                 sector_totals[sec] = sector_totals.get(sec, 0.0) + frac * weight
             for cty, frac in cty_by.items():
                 region_totals[cty] = region_totals.get(cty, 0.0) + frac * weight
-            coverage.append({
-                "name":            name,
-                "isin":            isin,
-                "ticker":          ticker or "–",
-                "current_value":   p["current_value"],
-                "weight_pct":      round(portfolio_weight * 100, 2),
-                "dominant_region": max(cty_by, key=lambda k: cty_by[k]),
-                "region_data":     src_quality,
-                "sector_data":     src_quality,
-            })
+            coverage.append(
+                {
+                    "name": name,
+                    "isin": isin,
+                    "ticker": ticker or "–",
+                    "current_value": p["current_value"],
+                    "weight_pct": round(portfolio_weight * 100, 2),
+                    "dominant_region": max(cty_by, key=lambda k: cty_by[k]),
+                    "region_data": src_quality,
+                    "sector_data": src_quality,
+                }
+            )
             continue
 
         # --- Individual stock: its own sector + country (yfinance) ---
@@ -670,19 +754,21 @@ def get_portfolio_breakdown(
         info = _fetch_stock_info(conn, effective_ticker) if effective_ticker else None
         if info and info["quote_type"] == "EQUITY":
             country = _norm_country(info["country"]) or "Other"
-            sector  = _norm_sector(info["sector"]) or "Other"
+            sector = _norm_sector(info["sector"]) or "Other"
             region_totals[country] = region_totals.get(country, 0.0) + weight
-            sector_totals[sector]  = sector_totals.get(sector, 0.0) + weight
-            coverage.append({
-                "name":            name,
-                "isin":            isin,
-                "ticker":          ticker or "–",
-                "current_value":   p["current_value"],
-                "weight_pct":      round(portfolio_weight * 100, 2),
-                "dominant_region": country,
-                "region_data":     "stock",
-                "sector_data":     "stock",
-            })
+            sector_totals[sector] = sector_totals.get(sector, 0.0) + weight
+            coverage.append(
+                {
+                    "name": name,
+                    "isin": isin,
+                    "ticker": ticker or "–",
+                    "current_value": p["current_value"],
+                    "weight_pct": round(portfolio_weight * 100, 2),
+                    "dominant_region": country,
+                    "region_data": "stock",
+                    "sector_data": "stock",
+                }
+            )
             continue
 
         # --- Fallback: country/region breakdown (justetf scrape) ---
@@ -717,29 +803,33 @@ def get_portfolio_breakdown(
             sector_totals["Unknown"] = sector_totals.get("Unknown", 0.0) + weight
             sector_available = False
 
-        coverage.append({
-            "name":             name,
-            "isin":             isin,
-            "ticker":           ticker or "–",
-            "current_value":    p["current_value"],
-            "weight_pct":       round(portfolio_weight * 100, 2),
-            "dominant_region":  dominant,
-            "region_data":      region_data_available,
-            "sector_data":      sector_available,
-        })
+        coverage.append(
+            {
+                "name": name,
+                "isin": isin,
+                "ticker": ticker or "–",
+                "current_value": p["current_value"],
+                "weight_pct": round(portfolio_weight * 100, 2),
+                "dominant_region": dominant,
+                "region_data": region_data_available,
+                "sector_data": sector_available,
+            }
+        )
 
     # Add excluded positions to coverage (marked as excluded)
     for p in excluded:
-        coverage.append({
-            "name":            p["name"],
-            "isin":            p["isin"],
-            "ticker":          p.get("ticker") or "–",
-            "current_value":   p["current_value"],
-            "weight_pct":      round(p["current_value"] / grand_total * 100, 2) if grand_total > 0 else 0,
-            "dominant_region": "Excluded (bond)",
-            "region_data":     "excluded",
-            "sector_data":     "excluded",
-        })
+        coverage.append(
+            {
+                "name": p["name"],
+                "isin": p["isin"],
+                "ticker": p.get("ticker") or "–",
+                "current_value": p["current_value"],
+                "weight_pct": round(p["current_value"] / grand_total * 100, 2) if grand_total > 0 else 0,
+                "dominant_region": "Excluded (bond)",
+                "region_data": "excluded",
+                "sector_data": "excluded",
+            }
+        )
 
     # Renormalise sector totals to 1 (positions with no data are excluded)
     sector_sum = sum(sector_totals.values())
@@ -771,9 +861,9 @@ def get_portfolio_breakdown(
     region_totals = big
 
     # Sort dicts largest-first
-    sector_totals     = dict(sorted(sector_totals.items(), key=lambda x: -x[1]))
-    region_totals     = dict(sorted(region_totals.items(), key=lambda x: -x[1]))
+    sector_totals = dict(sorted(sector_totals.items(), key=lambda x: -x[1]))
+    region_totals = dict(sorted(region_totals.items(), key=lambda x: -x[1]))
     region_all_totals = dict(sorted(region_all_totals.items(), key=lambda x: -x[1]))
-    continent_totals  = dict(sorted(continent_totals.items(), key=lambda x: -x[1]))
+    continent_totals = dict(sorted(continent_totals.items(), key=lambda x: -x[1]))
 
     return sector_totals, region_totals, continent_totals, coverage, excluded_pct, region_all_totals

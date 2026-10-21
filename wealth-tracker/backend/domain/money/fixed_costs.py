@@ -21,6 +21,7 @@ import sqlite3
 import statistics
 from collections import Counter, defaultdict
 from datetime import date, timedelta
+
 from domain.i18n import tr
 
 MIN_MONTHS = 3
@@ -62,15 +63,13 @@ def set_choice(conn: sqlite3.Connection, name: str, is_fixed: bool | None) -> No
         conn.execute("DELETE FROM fixed_cost_choices WHERE key = ?", (key,))
     else:
         conn.execute(
-            "INSERT INTO fixed_cost_choices (key, is_fixed) VALUES (?, ?) "
-            "ON CONFLICT(key) DO UPDATE SET is_fixed = excluded.is_fixed",
+            "INSERT INTO fixed_cost_choices (key, is_fixed) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET is_fixed = excluded.is_fixed",
             (key, int(is_fixed)),
         )
     conn.commit()
 
 
-def _per_name(conn: sqlite3.Connection, present_day: date,
-              account_ids: set[int] | None) -> dict[str, list[dict]]:
+def _per_name(conn: sqlite3.Connection, present_day: date, account_ids: set[int] | None) -> dict[str, list[dict]]:
     from_date = (present_day - timedelta(days=LOOK_BACK_DAYS)).isoformat()
     per_name: dict[str, list[dict]] = defaultdict(list)
     for r in conn.execute(
@@ -122,14 +121,15 @@ def _summary(key: str, items: list[dict], present_day: date, layout) -> dict:
         "last": dates[-1].isoformat(),
         "is_new": (present_day - dates[0]).days <= NEW_WITHIN_DAYS,
         "stopped": (present_day - dates[-1]).days > STOPPED_AFTER_DAYS,
-        **({"position": int(statistics.median(
-            (d - date.fromisoformat(layout.start_of(d.isoformat()))).days for d in dates
-        ))} if layout is not None else {}),
+        **(
+            {"position": int(statistics.median((d - date.fromisoformat(layout.start_of(d.isoformat()))).days for d in dates))}
+            if layout is not None
+            else {}
+        ),
     }
 
 
-def find(conn: sqlite3.Connection, *, present_day: date | None = None,
-         account_ids: set[int] | None = None, layout=None) -> list[dict]:
+def find(conn: sqlite3.Connection, *, present_day: date | None = None, account_ids: set[int] | None = None, layout=None) -> list[dict]:
     """The fixed costs of the past year, largest first.
 
     [{key, name, category, group_name, amount, count, months, first, last,
@@ -190,9 +190,21 @@ def admin(conn: sqlite3.Connection, *, present_day: date | None = None) -> dict:
     # can no longer undo it.
     for key, v in chosen.items():
         if v is False and key not in per_name:
-            excluded.append({"key": key, "name": key.title(), "category": None, "group_name": None,
-                                "amount": 0.0, "count": 0, "months": 0, "first": None, "last": None,
-                                "is_new": False, "stopped": True})
+            excluded.append(
+                {
+                    "key": key,
+                    "name": key.title(),
+                    "category": None,
+                    "group_name": None,
+                    "amount": 0.0,
+                    "count": 0,
+                    "months": 0,
+                    "first": None,
+                    "last": None,
+                    "is_new": False,
+                    "stopped": True,
+                }
+            )
     return {
         "is_fixed": is_fixed,
         "candidates": candidates[:CANDIDATES],

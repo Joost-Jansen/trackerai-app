@@ -49,6 +49,7 @@ def _account(conn, **overrides) -> int:
 # Schema
 # ---------------------------------------------------------------------------
 
+
 def test_init_db_creates_the_account_tables():
     conn = _new_conn()
     cursor = conn.cursor()
@@ -72,6 +73,7 @@ def test_init_db_is_repeatable():
 # Creating and reading accounts
 # ---------------------------------------------------------------------------
 
+
 def test_account_roundtrip():
     conn = _new_conn()
     account_id = _account(conn)
@@ -89,8 +91,7 @@ def test_account_roundtrip():
 def test_cash_has_no_iban():
     """Cash is an account like any other, just without a number."""
     conn = _new_conn()
-    account_id = _account(conn, kind="cash", provider="manual",
-                            name="Contant", iban=None)
+    account_id = _account(conn, kind="cash", provider="manual", name="Contant", iban=None)
     assert accounts.load_account(conn, account_id)["iban"] is None
     conn.close()
 
@@ -123,10 +124,13 @@ def test_iban_is_normalised_before_comparing():
     conn.close()
 
 
-@pytest.mark.parametrize("field,value", [
-    ("kind", "spaarvarken"),
-    ("provider", "knab"),
-])
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("kind", "spaarvarken"),
+        ("provider", "knab"),
+    ],
+)
 def test_an_unknown_kind_or_provider_is_refused(field, value):
     """A typo here is an account that no longer falls into any overview."""
     conn = _new_conn()
@@ -152,6 +156,7 @@ def test_load_account_returns_none_for_an_unknown_id():
 # Updating and deleting
 # ---------------------------------------------------------------------------
 
+
 def test_rename_an_account_and_set_it_inactive():
     conn = _new_conn()
     account_id = _account(conn)
@@ -167,8 +172,7 @@ def test_rename_an_account_and_set_it_inactive():
 def test_only_active_leaves_out_closed_accounts():
     conn = _new_conn()
     _account(conn, name="Nog in gebruik")
-    shut = _account(conn, name="Opgeheven", iban="NL00BUNQ0000000002",
-                      provider="bunq")
+    shut = _account(conn, name="Opgeheven", iban="NL00BUNQ0000000002", provider="bunq")
     accounts.update_account(conn, shut, active=0)
 
     assert len(accounts.load_accounts(conn)) == 2
@@ -205,6 +209,7 @@ def test_deleting_an_account_takes_its_balances_along():
 # ---------------------------------------------------------------------------
 # Balances
 # ---------------------------------------------------------------------------
+
 
 def test_balance_roundtrip():
     conn = _new_conn()
@@ -256,8 +261,7 @@ def test_between_two_manual_measurements_runs_a_straight_line():
     assert accounts.balance_on(conn, account_id, "2026-01-01") == pytest.approx(1000.0)
     assert accounts.balance_on(conn, account_id, "2026-01-06") == pytest.approx(1500.0)
     assert accounts.balance_on(conn, account_id, "2026-01-11") == pytest.approx(2000.0)
-    assert accounts.balance_on(conn, account_id, "2027-01-01") == pytest.approx(2000.0), \
-        "na de laatste meting blijft die staan"
+    assert accounts.balance_on(conn, account_id, "2027-01-01") == pytest.approx(2000.0), "na de laatste meting blijft die staan"
     conn.close()
 
 
@@ -287,8 +291,7 @@ def test_total_balance_on_counts_only_active_accounts():
     conn = _new_conn()
     ing = _account(conn)
     bunq = _account(conn, provider="bunq", name="bunq", iban="NL00BUNQ0000000002")
-    cash = _account(conn, kind="cash", provider="manual",
-                        name="Portemonnee", iban=None)
+    cash = _account(conn, kind="cash", provider="manual", name="Portemonnee", iban=None)
     accounts.set_balance(conn, ing, "2026-01-31", 1000.0)
     accounts.set_balance(conn, bunq, "2026-01-15", 500.0)
     accounts.set_balance(conn, cash, "2026-01-01", 50.0)
@@ -359,6 +362,7 @@ def test_a_balance_for_an_unknown_account_is_refused():
 # Separation between users
 # ---------------------------------------------------------------------------
 
+
 def test_accounts_of_two_users_do_not_touch():
     """The same requirement as for transactions: not a single row leaks between databases."""
     alice = _new_conn("alice")
@@ -392,6 +396,7 @@ def test_the_same_iban_for_two_users_is_allowed():
 # Debt
 # ---------------------------------------------------------------------------
 
+
 def test_a_debt_is_always_stored_negative():
     """Someone entering their student debt types "39000" and not "-39000".
 
@@ -400,8 +405,7 @@ def test_a_debt_is_always_stored_negative():
     number is a valid balance.
     """
     conn = _new_conn()
-    debt = _account(conn, kind="debt", provider="manual",
-                       name="Studieschuld", iban=None)
+    debt = _account(conn, kind="debt", provider="manual", name="Studieschuld", iban=None)
     accounts.set_balance(conn, debt, "2026-01-31", 39000.0)
     assert accounts.balance_on(conn, debt, "2026-01-31") == pytest.approx(-39000.0)
 
@@ -413,8 +417,7 @@ def test_a_debt_is_always_stored_negative():
 def test_a_debt_lowers_the_total_however_you_enter_it():
     conn = _new_conn()
     bank = _account(conn)
-    debt = _account(conn, kind="debt", provider="manual",
-                       name="Studieschuld", iban=None)
+    debt = _account(conn, kind="debt", provider="manual", name="Studieschuld", iban=None)
     accounts.set_balance(conn, bank, "2026-01-31", 10000.0)
     accounts.set_balance(conn, debt, "2026-01-31", 4000.0)
 

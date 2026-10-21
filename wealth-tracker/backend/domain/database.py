@@ -27,7 +27,6 @@ from datetime import datetime
 
 from domain import db, legacy_names
 
-
 # The repo root: ./data next to the code by default, as the Pi's docker-compose
 # bind-mounts it (backend/domain/database.py -> three levels up).
 _HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -128,10 +127,12 @@ def bank_activity(username: str, since: str) -> dict | None:
             return None
     try:
         count, last = conn.execute("SELECT COUNT(*), MAX(date) FROM bank_transactions").fetchone()
-        per_day = dict(conn.execute(
-            "SELECT substr(date, 1, 10), COUNT(*) FROM bank_transactions WHERE date >= ? GROUP BY substr(date, 1, 10)",
-            (since,),
-        ).fetchall())
+        per_day = dict(
+            conn.execute(
+                "SELECT substr(date, 1, 10), COUNT(*) FROM bank_transactions WHERE date >= ? GROUP BY substr(date, 1, 10)",
+                (since,),
+            ).fetchall()
+        )
     except (sqlite3.Error, *db.OperationalError):
         return None  # no bank_transactions table (nothing imported yet, an older schema)
     finally:
@@ -282,6 +283,7 @@ def _migrate_dividends_if_needed(conn: sqlite3.Connection, cursor: sqlite3.Curso
     file contributes only the copies it has beyond what is already stored, so
     re-uploads stay a no-op and a genuine second payment survives.
     """
+
     def still_constrained() -> bool:
         cursor.execute("PRAGMA index_list(dividends)")
         return any(idx["origin"] == "u" and idx["unique"] for idx in cursor.fetchall())
@@ -294,11 +296,11 @@ def _migrate_dividends_if_needed(conn: sqlite3.Connection, cursor: sqlite3.Curso
     # after this ships two of them would otherwise reach the rename together —
     # one renaming a table the other had already renamed. BEGIN IMMEDIATE takes
     # the write lock up front and the check is made again inside it.
-    conn.commit()   # close any implicit transaction before beginning one
+    conn.commit()  # close any implicit transaction before beginning one
     try:
         cursor.execute("BEGIN IMMEDIATE")
     except db.OperationalError:
-        return      # another connection is already doing this; it will finish
+        return  # another connection is already doing this; it will finish
 
     try:
         if not still_constrained():
@@ -838,6 +840,7 @@ def init_db(conn: sqlite3.Connection) -> None:
 # Asset categories (rebalancing)
 # ---------------------------------------------------------------------------
 
+
 def load_asset_categories(conn: sqlite3.Connection) -> dict[str, str]:
     """Returns {isin: category} for all saved categorisations."""
     cursor = conn.cursor()
@@ -904,6 +907,7 @@ def save_broad_region(conn: sqlite3.Connection, isin: str, region: str) -> None:
 # User ticker overrides (manual price-listing corrections)
 # ---------------------------------------------------------------------------
 
+
 def load_ticker_overrides(conn: sqlite3.Connection) -> dict[str, str]:
     """Returns {isin: yahoo_ticker} for every manual correction."""
     cursor = conn.cursor()
@@ -954,9 +958,11 @@ def save_setting(conn: sqlite3.Connection, key: str, value: str) -> None:
 # sentence carries the history.
 # ---------------------------------------------------------------------------
 
+
 def load_etf_api_cache(conn: sqlite3.Connection, ticker: str, max_age_days: int = 7) -> str | None:
     """Returns the cached JSON payload for a ticker, or None if absent/stale."""
     from datetime import timedelta
+
     cursor = conn.cursor()
     cursor.execute(
         "SELECT payload, fetched_at FROM etf_api_cache WHERE ticker = ?",
@@ -993,6 +999,7 @@ def clear_etf_api_cache(conn: sqlite3.Connection) -> None:
 # ---------------------------------------------------------------------------
 # Generic remote-call cache
 # ---------------------------------------------------------------------------
+
 
 def get_or_fetch(conn: sqlite3.Connection, key: str, ttl_seconds: int, fetch_fn):
     """Returns the cached value for *key*, or calls *fetch_fn()* and stores it.
@@ -1037,6 +1044,7 @@ def get_or_fetch(conn: sqlite3.Connection, key: str, ttl_seconds: int, fetch_fn)
 # ---------------------------------------------------------------------------
 # Earnings dates the calendar has seen
 # ---------------------------------------------------------------------------
+
 
 def record_earnings_dates(conn: sqlite3.Connection, rows: list[dict]) -> None:
     """Remembers [{isin, date, confirmed}] — see the table's comment in init_db.
@@ -1084,10 +1092,7 @@ def load_earnings_dates(conn: sqlite3.Connection, since: str | None = None) -> l
         )
     else:
         cursor.execute("SELECT isin, date, confirmed FROM earnings_dates ORDER BY date, isin")
-    return [
-        {"isin": r["isin"], "date": r["date"], "confirmed": bool(r["confirmed"])}
-        for r in cursor.fetchall()
-    ]
+    return [{"isin": r["isin"], "date": r["date"], "confirmed": bool(r["confirmed"])} for r in cursor.fetchall()]
 
 
 def clear_api_cache(conn: sqlite3.Connection, key_prefix: str | None = None) -> None:
@@ -1118,8 +1123,8 @@ def save_transactions(conn: sqlite3.Connection, transactions: list[dict]) -> tup
 
     saved = 0
     skipped = 0
-    db_counts:    dict[tuple, int] = {}   # key → copies already in the DB
-    batch_counts: dict[tuple, int] = {}   # key → copies seen in this batch
+    db_counts: dict[tuple, int] = {}  # key → copies already in the DB
+    batch_counts: dict[tuple, int] = {}  # key → copies seen in this batch
 
     for t in transactions:
         if not t.get("date"):
@@ -1137,19 +1142,26 @@ def save_transactions(conn: sqlite3.Connection, transactions: list[dict]) -> tup
             continue
 
         key = (
-            t.get("order_ref"), str(t.get("date")), t.get("time"),
-            t.get("isin"), t.get("transaction_type"),
-            t.get("quantity"), t.get("price"),
+            t.get("order_ref"),
+            str(t.get("date")),
+            t.get("time"),
+            t.get("isin"),
+            t.get("transaction_type"),
+            t.get("quantity"),
+            t.get("price"),
         )
         if key not in db_counts:
             # "IS" instead of "=" so NULL fields (order_ref, time, price)
             # still match their stored NULL counterparts.
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*) FROM transactions
                 WHERE order_ref IS ? AND date IS ? AND time IS ?
                   AND isin IS ? AND transaction_type IS ?
                   AND quantity IS ? AND price IS ?
-            """, key)
+            """,
+                key,
+            )
             db_counts[key] = cursor.fetchone()[0]
 
         batch_counts[key] = batch_counts.get(key, 0) + 1
@@ -1157,7 +1169,8 @@ def save_transactions(conn: sqlite3.Connection, transactions: list[dict]) -> tup
             skipped += 1
             continue
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO transactions (
                 order_ref, date, time, name, isin, exchange, execution_venue,
                 transaction_type, quantity, price, local_value, value_eur,
@@ -1167,24 +1180,26 @@ def save_transactions(conn: sqlite3.Connection, transactions: list[dict]) -> tup
                 :transaction_type, :quantity, :price, :local_value, :value_eur,
                 :exchange_rate, :autofx_cost, :transaction_fee, :total_eur
             )
-        """, {
-            "order_ref":        t.get("order_ref"),
-            "date":             str(t.get("date")),
-            "time":             t.get("time"),
-            "name":             t.get("name"),
-            "isin":             t.get("isin"),
-            "exchange":         t.get("exchange"),
-            "execution_venue":  t.get("execution_venue"),
-            "transaction_type": t.get("transaction_type"),
-            "quantity":         t.get("quantity"),
-            "price":            t.get("price"),
-            "local_value":      t.get("local_value"),
-            "value_eur":        t.get("value_eur"),
-            "exchange_rate":    t.get("exchange_rate"),
-            "autofx_cost":      t.get("autofx_cost"),
-            "transaction_fee":  t.get("transaction_fee"),
-            "total_eur":        t.get("total_eur"),
-        })
+        """,
+            {
+                "order_ref": t.get("order_ref"),
+                "date": str(t.get("date")),
+                "time": t.get("time"),
+                "name": t.get("name"),
+                "isin": t.get("isin"),
+                "exchange": t.get("exchange"),
+                "execution_venue": t.get("execution_venue"),
+                "transaction_type": t.get("transaction_type"),
+                "quantity": t.get("quantity"),
+                "price": t.get("price"),
+                "local_value": t.get("local_value"),
+                "value_eur": t.get("value_eur"),
+                "exchange_rate": t.get("exchange_rate"),
+                "autofx_cost": t.get("autofx_cost"),
+                "transaction_fee": t.get("transaction_fee"),
+                "total_eur": t.get("total_eur"),
+            },
+        )
         saved += 1
 
     conn.commit()
@@ -1220,7 +1235,7 @@ def load_home_exchanges(conn: sqlite3.Connection) -> dict[str, str]:
           AND exchange = UPPER(exchange)
         GROUP BY isin, exchange
     """)
-    best: dict[str, tuple] = {}   # isin → ((count, last_date), exchange)
+    best: dict[str, tuple] = {}  # isin → ((count, last_date), exchange)
     for row in cursor.fetchall():
         rank = (row["n"], row["last"])
         if row["isin"] not in best or rank > best[row["isin"]][0]:
@@ -1241,22 +1256,42 @@ def get_all_isins(conn: sqlite3.Connection) -> list[dict]:
     return [dict(row) for row in cursor.fetchall()]
 
 
-def save_price(conn: sqlite3.Connection, isin: str, name: str, ticker: str, price: float, currency: str,
-               previous_close: float | None = None, quote_currency: str | None = None,
-               quote_fx_rate: float | None = None) -> None:
+def save_price(
+    conn: sqlite3.Connection,
+    isin: str,
+    name: str,
+    ticker: str,
+    price: float,
+    currency: str,
+    previous_close: float | None = None,
+    quote_currency: str | None = None,
+    quote_fx_rate: float | None = None,
+) -> None:
     # previous_close is keyword-optional so existing callers (app.py's baked
     # image, tests) keep working; None simply leaves the day change unknowable
     # for that ISIN until a refresh that does supply it. quote_currency is the
     # ticker's own currency (see init_db); omitted, it is `currency`.
     # quote_fx_rate is the rate a converted price was restated at.
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT OR REPLACE INTO prices
             (isin, name, ticker, price, currency, fetched_at, previous_close,
              quote_currency, quote_fx_rate)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (isin, name, ticker, price, currency, datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-          previous_close, quote_currency or currency, quote_fx_rate))
+    """,
+        (
+            isin,
+            name,
+            ticker,
+            price,
+            currency,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            previous_close,
+            quote_currency or currency,
+            quote_fx_rate,
+        ),
+    )
     conn.commit()
 
 
@@ -1266,14 +1301,25 @@ def load_prices(conn: sqlite3.Connection) -> dict[str, dict]:
     return {row["isin"]: dict(row) for row in cursor.fetchall()}
 
 
-def save_venue_price(conn: sqlite3.Connection, *, isin: str, venue: str, price: float,
-                     previous_close: float | None, currency: str, source: str,
-                     fetched_at: str) -> None:
-    conn.execute("""
+def save_venue_price(
+    conn: sqlite3.Connection,
+    *,
+    isin: str,
+    venue: str,
+    price: float,
+    previous_close: float | None,
+    currency: str,
+    source: str,
+    fetched_at: str,
+) -> None:
+    conn.execute(
+        """
         INSERT OR REPLACE INTO venue_prices
             (isin, venue, price, previous_close, currency, source, fetched_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (isin, venue, price, previous_close, currency, source, fetched_at))
+    """,
+        (isin, venue, price, previous_close, currency, source, fetched_at),
+    )
     conn.commit()
 
 
@@ -1301,22 +1347,27 @@ def save_dividends(conn: sqlite3.Connection, dividends: list[dict]) -> tuple[int
     cursor = conn.cursor()
     saved = 0
     skipped = 0
-    db_counts:    dict[tuple, int] = {}   # key → copies already in the DB
-    batch_counts: dict[tuple, int] = {}   # key → copies seen in this batch
+    db_counts: dict[tuple, int] = {}  # key → copies already in the DB
+    batch_counts: dict[tuple, int] = {}  # key → copies seen in this batch
 
     for d in dividends:
         key = (
-            d.get("date"), d.get("isin"),
-            d.get("amount_original"), d.get("currency_original"),
+            d.get("date"),
+            d.get("isin"),
+            d.get("amount_original"),
+            d.get("currency_original"),
         )
         if key not in db_counts:
             # "IS" instead of "=" so NULL fields still match their stored
             # NULL counterparts.
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*) FROM dividends
                 WHERE date IS ? AND isin IS ?
                   AND amount_original IS ? AND currency_original IS ?
-            """, key)
+            """,
+                key,
+            )
             db_counts[key] = cursor.fetchone()[0]
 
         batch_counts[key] = batch_counts.get(key, 0) + 1
@@ -1324,16 +1375,24 @@ def save_dividends(conn: sqlite3.Connection, dividends: list[dict]) -> tuple[int
             skipped += 1
             continue
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO dividends
                 (date, isin, name, currency_original, amount_original,
                  gross_eur, tax_eur, net_eur)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            d.get("date"), d.get("isin"), d.get("name"),
-            d.get("currency_original"), d.get("amount_original"),
-            d.get("gross_eur"), d.get("tax_eur"), d.get("net_eur"),
-        ))
+        """,
+            (
+                d.get("date"),
+                d.get("isin"),
+                d.get("name"),
+                d.get("currency_original"),
+                d.get("amount_original"),
+                d.get("gross_eur"),
+                d.get("tax_eur"),
+                d.get("net_eur"),
+            ),
+        )
         saved += 1
 
     conn.commit()
@@ -1350,6 +1409,7 @@ def load_dividends(conn: sqlite3.Connection) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Visit snapshots ("since your last visit")
 # ---------------------------------------------------------------------------
+
 
 def load_recent_visits(conn: sqlite3.Connection, limit: int = 2) -> list[dict]:
     """Newest first. Row 0 is (or was) the current session, row 1 the previous."""

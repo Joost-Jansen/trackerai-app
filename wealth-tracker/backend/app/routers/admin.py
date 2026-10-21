@@ -14,7 +14,6 @@ from app.core import audit, auth_store
 from app.core.accounts import APP, linked_folders
 from app.deps import CurrentUser, require_admin
 from app.schemas.admin import TrackerBetaRequest
-
 from domain import database  # repo-root module, see app/__init__.py for the sys.path setup
 from domain.i18n import tr
 from domain.i18n_nl import NL
@@ -46,8 +45,13 @@ def _weeks() -> list[date]:
 def _tracker_account(account_id: int | None, folder: str, since: date, cfg: dict) -> tuple[dict, dict]:
     """(the page's entry for one account, its bank transactions per booking date from `since`)."""
     activity = database.bank_activity(folder, since.isoformat()) or {"count": 0, "last": None, "per_day": {}}
-    entry = {"account_id": account_id, "betas": auth_store.granted_betas(folder, cfg),
-             "count": activity["count"], "last_at": activity["last"], "disk_bytes": database.db_size_bytes(folder)}
+    entry = {
+        "account_id": account_id,
+        "betas": auth_store.granted_betas(folder, cfg),
+        "count": activity["count"],
+        "last_at": activity["last"],
+        "disk_bytes": database.db_size_bytes(folder),
+    }
     return entry, activity["per_day"]
 
 

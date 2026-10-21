@@ -14,10 +14,10 @@ import pytest
 
 from app.services import rebalancing_service as rb
 
-
 # ---------------------------------------------------------------------------
 # Split math (app.py:1292-1323, app.py:1487-1513)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("amount", [100.0, 500.0, 1000.0, 2500.0, 10000.0])
 def test_split_always_allocates_the_whole_amount(amount):
@@ -107,6 +107,7 @@ def test_a_big_enough_investment_reaches_the_target_exactly():
 # Targets (app.py:1133-1157)
 # ---------------------------------------------------------------------------
 
+
 def test_targets_default_to_90_10_and_round_trip(tmp_path, monkeypatch):
     from domain import database
 
@@ -129,7 +130,8 @@ def test_targets_roll_up_the_old_three_bucket_format(tmp_path, monkeypatch):
     conn = database.connect("alice")
     database.init_db(conn)
     database.save_setting(
-        conn, "rebalancing_targets",
+        conn,
+        "rebalancing_targets",
         json.dumps({"Broad ETF": 70, "Individual / Sector ETF": 15, "Bonds": 15}),
     )
 
@@ -153,31 +155,38 @@ def test_market_targets_accept_the_old_em_key(tmp_path, monkeypatch):
 # Classification and buckets
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("name,expected", [
-    ("iShares Core Global Aggregate Bond UCITS ETF", "Bonds"),
-    ("ISHS V-IBDS DEC 2026 TERM EO CREG.SHS", "Stocks"),  # no keyword — user must correct it
-    ("Vanguard S&P 500 UCITS ETF", "Stocks"),
-    ("iShares Euro Government Bond 3-5yr", "Bonds"),
-    ("Xtrackers II EUR Corporate Bond", "Bonds"),
-    ("NN Group NV", "Stocks"),
-])
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        ("iShares Core Global Aggregate Bond UCITS ETF", "Bonds"),
+        ("ISHS V-IBDS DEC 2026 TERM EO CREG.SHS", "Stocks"),  # no keyword — user must correct it
+        ("Vanguard S&P 500 UCITS ETF", "Stocks"),
+        ("iShares Euro Government Bond 3-5yr", "Bonds"),
+        ("Xtrackers II EUR Corporate Bond", "Bonds"),
+        ("NN Group NV", "Stocks"),
+    ],
+)
 def test_auto_guess_category(name, expected):
     assert rb.auto_guess_category(name) == expected
 
 
-@pytest.mark.parametrize("country,bucket", [
-    ("United States", "US"),
-    ("Netherlands", "Europe"),
-    ("Germany", "Europe"),
-    # Economic, not geographic — the point of a hand-written list.
-    ("Poland", "Emerging Markets"),
-    ("Turkey", "Emerging Markets"),
-    ("Greece", "Emerging Markets"),
-    ("Taiwan", "Emerging Markets"),
-    ("Japan", "Other developed / unclassified"),
-    ("Canada", "Other developed / unclassified"),
-    ("", "Other developed / unclassified"),
-])
+@pytest.mark.parametrize(
+    "country,bucket",
+    [
+        ("United States", "US"),
+        ("Netherlands", "Europe"),
+        ("Germany", "Europe"),
+        # Economic, not geographic — the point of a hand-written list.
+        ("Poland", "Emerging Markets"),
+        ("Turkey", "Emerging Markets"),
+        ("Greece", "Emerging Markets"),
+        ("Taiwan", "Emerging Markets"),
+        ("Japan", "Other developed / unclassified"),
+        ("Canada", "Other developed / unclassified"),
+        ("", "Other developed / unclassified"),
+    ],
+)
 def test_market_bucket(country, bucket):
     assert rb.market_bucket(country) == bucket
 
@@ -209,9 +218,12 @@ def test_categorise_keeps_a_pre_rebuild_bond_classification(tmp_path, monkeypatc
     database.init_db(conn)
     database.save_asset_category(conn, "IE000WA6L436", "Bond")  # pre-rebuild spelling
 
-    rows = rb.categorise(conn, [
-        {"isin": "IE000WA6L436", "name": "ISHS V-IBDS DEC 2026 TERM EO CREG.SHS", "current_value": 1000.0},
-    ])
+    rows = rb.categorise(
+        conn,
+        [
+            {"isin": "IE000WA6L436", "name": "ISHS V-IBDS DEC 2026 TERM EO CREG.SHS", "current_value": 1000.0},
+        ],
+    )
     assert rows[0]["category"] == "Bonds"
     conn.close()
 
@@ -224,11 +236,14 @@ def test_categorise_guesses_only_when_there_is_no_classification(tmp_path, monke
     database.init_db(conn)
     database.save_asset_category(conn, "A", "Bonds")
 
-    rows = rb.categorise(conn, [
-        {"isin": "A", "name": "Vanguard S&P 500", "current_value": 100.0},   # saved beats the guess
-        {"isin": "B", "name": "iShares Global Bond", "current_value": 100.0},  # guessed
-        {"isin": "C", "name": "NN Group NV", "current_value": 100.0},          # guessed
-    ])
+    rows = rb.categorise(
+        conn,
+        [
+            {"isin": "A", "name": "Vanguard S&P 500", "current_value": 100.0},  # saved beats the guess
+            {"isin": "B", "name": "iShares Global Bond", "current_value": 100.0},  # guessed
+            {"isin": "C", "name": "NN Group NV", "current_value": 100.0},  # guessed
+        ],
+    )
     assert [r["category"] for r in rows] == ["Bonds", "Bonds", "Stocks"]
     conn.close()
 
@@ -252,15 +267,18 @@ def test_allocation_of_an_unpriced_portfolio_does_not_divide_by_zero():
     assert pcts == {"Stocks": 0.0, "Bonds": 0.0}
 
 
-@pytest.mark.parametrize("current,target,status", [
-    (90.0, 90.0, "green"),
-    (95.0, 90.0, "green"),   # exactly 5pp off is still green
-    (95.1, 90.0, "amber"),
-    (85.0, 90.0, "green"),   # and in the other direction
-    (105.0, 90.0, "amber"),  # exactly 15pp off is still amber, either way
-    (75.0, 90.0, "amber"),
-    (74.9, 90.0, "red"),
-    (105.1, 90.0, "red"),
-])
+@pytest.mark.parametrize(
+    "current,target,status",
+    [
+        (90.0, 90.0, "green"),
+        (95.0, 90.0, "green"),  # exactly 5pp off is still green
+        (95.1, 90.0, "amber"),
+        (85.0, 90.0, "green"),  # and in the other direction
+        (105.0, 90.0, "amber"),  # exactly 15pp off is still amber, either way
+        (75.0, 90.0, "amber"),
+        (74.9, 90.0, "red"),
+        (105.1, 90.0, "red"),
+    ],
+)
 def test_deviation_status_thresholds(current, target, status):
     assert rb.deviation_status(current, target) == status

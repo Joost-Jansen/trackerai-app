@@ -27,8 +27,10 @@ the backend, so that is left for a moment when something else in here moves too.
 """
 
 import datetime
-import yfinance as yf
+
 import pandas as pd
+import yfinance as yf
+
 from domain.i18n import tr
 
 
@@ -166,8 +168,7 @@ def _eur_daily_closes(prices: dict[str, dict], **download_kwargs) -> dict[str, p
 _EU_SWAP = str.maketrans({",": ".", ".": ","})
 
 
-def fmt_eu(value, decimals: int = 2, prefix: str = "", suffix: str = "",
-           plus: bool = False) -> str:
+def fmt_eu(value, decimals: int = 2, prefix: str = "", suffix: str = "", plus: bool = False) -> str:
     """
     Format a number in Dutch/European notation: 1.234,56 (dot thousands,
     comma decimal).  Returns '—' for missing values.
@@ -181,8 +182,6 @@ def fmt_eu(value, decimals: int = 2, prefix: str = "", suffix: str = "",
     body = f"{value:,.{decimals}f}".translate(_EU_SWAP)
     lead = "+" if (plus and value >= 0) else ""
     return f"{lead}{prefix}{body}{suffix}"
-
-
 
 
 def portfolio_history_series(
@@ -215,7 +214,7 @@ def portfolio_history_series(
 
     # --- Build a daily timeline from first trade to today ---
     first_date = min(datetime.date.fromisoformat(t["date"]) for t in transactions)
-    today      = datetime.date.today()
+    today = datetime.date.today()
     date_range = pd.date_range(start=first_date, end=today, freq="D")
 
     # --- Fetch historical prices for each held ticker ---
@@ -234,14 +233,12 @@ def portfolio_history_series(
 
     # Fallback: cached current price for ISINs with no usable historical data
     current_price_fallback: dict[str, float] = {
-        isin: p["price"]
-        for isin, p in prices.items()
-        if p.get("price") is not None and isin in eur_isins
+        isin: p["price"] for isin, p in prices.items() if p.get("price") is not None and isin in eur_isins
     }
 
     # No try/except: a failed download raises DataUnavailable and the caller
     # decides. Swallowing it here is what turned an outage into a flat line.
-    hist_prices: dict[str, pd.Series] = _eur_daily_closes(   # isin → daily EUR price
+    hist_prices: dict[str, pd.Series] = _eur_daily_closes(  # isin → daily EUR price
         prices,
         start=first_date.isoformat(),
         end=(today + datetime.timedelta(days=1)).isoformat(),
@@ -258,9 +255,9 @@ def portfolio_history_series(
 
     # --- For each day, calculate cumulative invested and total portfolio value ---
     cumulative_invested = []
-    portfolio_values    = []
+    portfolio_values = []
     portfolio_plus_divs = []
-    plot_dates          = []
+    plot_dates = []
 
     sorted_tx = sorted(transactions, key=lambda t: t["date"])
 
@@ -280,21 +277,19 @@ def portfolio_history_series(
 
     for day in date_range:
         day_date = day.date()
-        day_ts   = pd.Timestamp(day_date)
+        day_ts = pd.Timestamp(day_date)
 
         while tx_idx < len(sorted_tx) and sorted_tx[tx_idx]["date"] <= str(day_date):
             t = sorted_tx[tx_idx]
             isin = t["isin"]
-            qty  = t["quantity"]
+            qty = t["quantity"]
             if t["transaction_type"] == "BUY":
                 cost = abs(t["total_eur"]) if t["total_eur"] is not None else 0.0
-                old_qty   = shares_held.get(isin, 0.0)
+                old_qty = shares_held.get(isin, 0.0)
                 old_base = cost_base_per_share.get(isin, 0.0)
-                new_qty   = old_qty + qty
-                cost_base_per_share[isin] = (
-                    (old_qty * old_base + cost) / new_qty if new_qty > 0 else 0.0
-                )
-                shares_held[isin]      = new_qty
+                new_qty = old_qty + qty
+                cost_base_per_share[isin] = (old_qty * old_base + cost) / new_qty if new_qty > 0 else 0.0
+                shares_held[isin] = new_qty
                 total_invested_so_far += cost
             elif t["transaction_type"] == "SELL":
                 shares_held[isin] = max(shares_held.get(isin, 0.0) - qty, 0.0)
@@ -320,7 +315,7 @@ def portfolio_history_series(
             price = None
             if isin in hist_prices:
                 # Use the most recent price on or before this day (carry-forward)
-                series    = hist_prices[isin]
+                series = hist_prices[isin]
                 available = series[series.index <= day_ts]
                 if not available.empty:
                     price = float(available.iloc[-1])
@@ -359,10 +354,7 @@ def portfolio_history_series(
         # .get: a transaction row without a name is not a reason to lose the
         # whole chart, and this runs on the success path too.
         names = {t["isin"]: t.get("name") or t["isin"] for t in transactions}
-        estimated.extend(
-            {"isin": isin, "name": names.get(isin, isin), "base": base}
-            for isin, base in sorted(substituted.items())
-        )
+        estimated.extend({"isin": isin, "name": names.get(isin, isin), "base": base} for isin, base in sorted(substituted.items()))
 
     return plot_dates, cumulative_invested, portfolio_values, portfolio_plus_divs
 
@@ -413,9 +405,7 @@ def portfolio_intraday_series(
     # yf.Ticker, since Yahoo itself is case-insensitive — therefore never
     # matched its own column. See the coverage guard further down for what that
     # cost.
-    ticker_to_isin = {
-        p["ticker"].upper(): isin for isin, p in prices.items() if p.get("ticker")
-    }
+    ticker_to_isin = {p["ticker"].upper(): isin for isin, p in prices.items() if p.get("ticker")}
     if not ticker_to_isin:
         return [], [], None
 
@@ -512,7 +502,8 @@ def portfolio_intraday_series(
     for ticker in columns:
         ccy = listing_currency(prices[ticker_to_isin[ticker]]) or "EUR"
         if ccy not in spot:
-            from domain.portfolio.positions import _fx_to_eur_rate   # portfolio is the heavier import
+            from domain.portfolio.positions import _fx_to_eur_rate  # portfolio is the heavier import
+
             spot[ccy] = _fx_to_eur_rate(ccy)
         if not spot[ccy]:
             return [], [], None
@@ -538,28 +529,9 @@ def portfolio_intraday_series(
     return stamps, values, prev_close
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
-
-
-
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -567,13 +539,12 @@ def portfolio_intraday_series(
 # ---------------------------------------------------------------------------
 
 BENCHMARK_TICKERS = {
-    "S&P 500 (SPY)":        "SPY",
-    "EURO STOXX 50 (FEZ)":  "FEZ",
+    "S&P 500 (SPY)": "SPY",
+    "EURO STOXX 50 (FEZ)": "FEZ",
     # EXSA tracks the STOXX Europe 600 (all of Europe) — not the
     # eurozone-only "EURO STOXX" index family.
     "STOXX Europe 600 (EXSA.DE)": "EXSA.DE",
 }
-
 
 
 # Priced in USD, so converted to EUR before being compared with a EUR portfolio.
@@ -601,8 +572,8 @@ def fetch_benchmark_prices(start_date_iso: str) -> dict:
     """
     from datetime import date, timedelta
 
-    end_date  = (date.today() + timedelta(days=1)).isoformat()
-    tickers   = list(BENCHMARK_TICKERS.values())
+    end_date = (date.today() + timedelta(days=1)).isoformat()
+    tickers = list(BENCHMARK_TICKERS.values())
     label_map = {v: k for k, v in BENCHMARK_TICKERS.items()}
     result: dict = {}
 
@@ -615,7 +586,7 @@ def fetch_benchmark_prices(start_date_iso: str) -> dict:
         tickers,
         start=start_date_iso,
         end=end_date,
-        auto_adjust=True,   # total-return (dividends reinvested)
+        auto_adjust=True,  # total-return (dividends reinvested)
     )
 
     # --- EUR/USD, needed before any USD benchmark can be compared in euro ---
@@ -684,7 +655,7 @@ def _build_portfolio_daily_series(
         return []
 
     first_date = min(datetime.date.fromisoformat(t["date"]) for t in transactions)
-    today      = datetime.date.today()
+    today = datetime.date.today()
     date_range = pd.date_range(start=first_date, end=today, freq="D")
 
     # Build ticker→isin and fetch historical prices
@@ -711,7 +682,7 @@ def _build_portfolio_daily_series(
         prices,
         start=first_date.isoformat(),
         end=(today + datetime.timedelta(days=1)).isoformat(),
-        auto_adjust=False,   # raw prices so execution prices match historical prices
+        auto_adjust=False,  # raw prices so execution prices match historical prices
     )
 
     # Build a sorted list of (date_str, net_eur) for dividends so we can
@@ -720,8 +691,8 @@ def _build_portfolio_daily_series(
         (d for d in (dividends or []) if d.get("date") and d.get("net_eur") is not None),
         key=lambda d: d["date"],
     )
-    div_idx              = 0
-    cumulative_div_eur   = 0.0   # running total of all dividends received so far
+    div_idx = 0
+    cumulative_div_eur = 0.0  # running total of all dividends received so far
 
     sorted_tx = sorted(transactions, key=lambda t: t["date"])
     tx_idx = 0
@@ -731,14 +702,14 @@ def _build_portfolio_daily_series(
     cost_base_per_share: dict[str, float] = {}
 
     segments: list[tuple[list, list, list]] = []
-    seg_dates:  list[datetime.date] = []
-    seg_values: list[float]         = []
-    seg_cfs:    list[float]         = []
+    seg_dates: list[datetime.date] = []
+    seg_values: list[float] = []
+    seg_cfs: list[float] = []
     pending_cf: float = 0.0
 
     for day in date_range:
         day_date = day.date()
-        day_ts   = pd.Timestamp(day_date)
+        day_ts = pd.Timestamp(day_date)
 
         # Accumulate dividends up to and including this day
         while div_idx < len(sorted_divs) and sorted_divs[div_idx]["date"] <= str(day_date):
@@ -747,19 +718,16 @@ def _build_portfolio_daily_series(
 
         cf_today = 0.0
         while tx_idx < len(sorted_tx) and sorted_tx[tx_idx]["date"] <= str(day_date):
-            t    = sorted_tx[tx_idx]
+            t = sorted_tx[tx_idx]
             isin = t["isin"]
-            qty  = t["quantity"]
+            qty = t["quantity"]
             cost = abs(t["total_eur"]) if t["total_eur"] is not None else 0.0
             if t["transaction_type"] == "BUY":
-                old_qty   = shares_held.get(isin, 0.0)
+                old_qty = shares_held.get(isin, 0.0)
                 old_base = cost_base_per_share.get(isin, 0.0)
-                new_qty   = old_qty + qty
+                new_qty = old_qty + qty
                 buy_price = cost / qty if qty > 0 else 0.0
-                cost_base_per_share[isin] = (
-                    (old_qty * old_base + qty * buy_price) / new_qty
-                    if new_qty > 0 else 0.0
-                )
+                cost_base_per_share[isin] = (old_qty * old_base + qty * buy_price) / new_qty if new_qty > 0 else 0.0
                 shares_held[isin] = new_qty
                 cf_today += cost
             elif t["transaction_type"] == "SELL":
@@ -864,15 +832,15 @@ def _compute_twr_index(
         return pd.Series(dtype=float)
 
     all_dates: list = []
-    all_false:  list = []
-    running_level   = base
+    all_false: list = []
+    running_level = base
 
     for seg_dates, seg_values, seg_cfs in segments:
         seg_index = [running_level]
         for i in range(1, len(seg_dates)):
-            prev_v    = seg_values[i - 1]
-            cf        = seg_cfs[i]
-            denom     = prev_v + cf
+            prev_v = seg_values[i - 1]
+            cf = seg_cfs[i]
+            denom = prev_v + cf
             daily_ret = seg_values[i] / denom if denom > 0 else 1.0
             seg_index.append(round(seg_index[-1] * daily_ret, 6))
         all_dates.extend(seg_dates)
@@ -880,9 +848,3 @@ def _compute_twr_index(
         running_level = seg_index[-1]
 
     return pd.Series(all_false, index=pd.to_datetime(all_dates))
-
-
-
-
-
-

@@ -62,51 +62,70 @@ _EUR_EXCHANGES = {"AMS", "GER", "PAR", "MIL", "BRU", "EBS", "VIE", "ATH"}
 # shares altogether.
 _DEGIRO_VENUES: dict[str, tuple[tuple[str, ...], str, bool]] = {
     #  code:   (MICs,                        Yahoo suffix, quotes in EUR)
-    "EAM":     (("XAMS",),                   ".AS", True),   # Euronext Amsterdam
-    "EPA":     (("XPAR",),                   ".PA", True),   # Euronext Paris
-    "EBR":     (("XBRU",),                   ".BR", True),   # Euronext Brussels
-    "MIL":     (("MTAA",),                   ".MI", True),   # Borsa Italiana — MTAA,
-                                                             # not the operating XMIL
-    "MAD":     (("XMAD",),                   ".MC", True),   # Bolsa de Madrid
-    "LIS":     (("XLIS",),                   ".LS", True),   # Euronext Lisbon
-    "HEL":     (("XHEL",),                   ".HE", True),   # Nasdaq Helsinki
-    "VIE":     (("XWBO",),                   ".VI", True),   # Wiener Börse
-    "XET":     (("XETR",),                   ".DE", True),   # XETRA
-    "TDG":     (("XETR",),                   ".DE", True),   # Tradegate — no Yahoo feed,
-                                                             # XETRA is the closest German
-                                                             # venue and prints the same
-    "FRA":     (("XFRA",),                   ".F",  True),   # Börse Frankfurt (floor)
-    "NSY":     (("XNYS",),                   "",    False),  # NYSE — USD, Yahoo carries
-                                                             # US tickers bare
-    "NDQ":     (("XNGS", "XNMS", "XNCM"),    "",    False),  # Nasdaq — USD; Global Select,
-                                                             # Global Market, Capital Market
-    "LSE":     (("XLON",),                   ".L",  False),  # London — quoted in pence,
-                                                             # see _fx_to_eur_rate
-    "EBS":     (("XSWX",),                   ".SW", False),  # SIX Swiss — CHF
-    "OSL":     (("XOSL",),                   ".OL", False),  # Oslo Børs — NOK
-    "STO":     (("XSTO",),                   ".ST", False),  # Nasdaq Stockholm — SEK
-    "CPH":     (("XCSE",),                   ".CO", False),  # Nasdaq Copenhagen — DKK
-    "TOR":     (("XTSE",),                   ".TO", False),  # Toronto — CAD
-    "TSE":     (("XTKS",),                   ".T",  False),  # Tokyo — JPY
-    "HKG":     (("XHKG",),                   ".HK", False),  # Hong Kong — HKD
-    "ASX":     (("XASX",),                   ".AX", False),  # Sydney — AUD
+    "EAM": (("XAMS",), ".AS", True),  # Euronext Amsterdam
+    "EPA": (("XPAR",), ".PA", True),  # Euronext Paris
+    "EBR": (("XBRU",), ".BR", True),  # Euronext Brussels
+    "MIL": (("MTAA",), ".MI", True),  # Borsa Italiana — MTAA,
+    # not the operating XMIL
+    "MAD": (("XMAD",), ".MC", True),  # Bolsa de Madrid
+    "LIS": (("XLIS",), ".LS", True),  # Euronext Lisbon
+    "HEL": (("XHEL",), ".HE", True),  # Nasdaq Helsinki
+    "VIE": (("XWBO",), ".VI", True),  # Wiener Börse
+    "XET": (("XETR",), ".DE", True),  # XETRA
+    "TDG": (("XETR",), ".DE", True),  # Tradegate — no Yahoo feed,
+    # XETRA is the closest German
+    # venue and prints the same
+    "FRA": (("XFRA",), ".F", True),  # Börse Frankfurt (floor)
+    "NSY": (("XNYS",), "", False),  # NYSE — USD, Yahoo carries
+    # US tickers bare
+    "NDQ": (("XNGS", "XNMS", "XNCM"), "", False),  # Nasdaq — USD; Global Select,
+    # Global Market, Capital Market
+    "LSE": (("XLON",), ".L", False),  # London — quoted in pence,
+    # see _fx_to_eur_rate
+    "EBS": (("XSWX",), ".SW", False),  # SIX Swiss — CHF
+    "OSL": (("XOSL",), ".OL", False),  # Oslo Børs — NOK
+    "STO": (("XSTO",), ".ST", False),  # Nasdaq Stockholm — SEK
+    "CPH": (("XCSE",), ".CO", False),  # Nasdaq Copenhagen — DKK
+    "TOR": (("XTSE",), ".TO", False),  # Toronto — CAD
+    "TSE": (("XTKS",), ".T", False),  # Tokyo — JPY
+    "HKG": (("XHKG",), ".HK", False),  # Hong Kong — HKD
+    "ASX": (("XASX",), ".AX", False),  # Sydney — AUD
 }
 
 # The euro venues, for the name search below: it hunts for a EUR listing, so
 # pinning it to a venue only means anything where that venue quotes in euro.
-_DEGIRO_EXCHANGE_SUFFIX = {
-    code: suffix for code, (_mics, suffix, eur) in _DEGIRO_VENUES.items() if eur
-}
+_DEGIRO_EXCHANGE_SUFFIX = {code: suffix for code, (_mics, suffix, eur) in _DEGIRO_VENUES.items() if eur}
 
 # Yahoo ticker suffix → exchange code used in Yahoo *search* results.
 _SUFFIX_SEARCH_EXCHANGE = {
-    ".AS": "AMS", ".DE": "GER", ".PA": "PAR",
-    ".MI": "MIL", ".BR": "BRU", ".SW": "EBS",
+    ".AS": "AMS",
+    ".DE": "GER",
+    ".PA": "PAR",
+    ".MI": "MIL",
+    ".BR": "BRU",
+    ".SW": "EBS",
 }
 _NAME_STOP_WORDS = {
-    "ucits", "etf", "usd", "eur", "acc", "dist", "dis", "inc",
-    "(acc)", "(dist)", "(inc)", "(dis)", "hedged", "gbp", "jpy", "chf",
-    "cad", "on", "reg.", "shs",
+    "ucits",
+    "etf",
+    "usd",
+    "eur",
+    "acc",
+    "dist",
+    "dis",
+    "inc",
+    "(acc)",
+    "(dist)",
+    "(inc)",
+    "(dis)",
+    "hedged",
+    "gbp",
+    "jpy",
+    "chf",
+    "cad",
+    "on",
+    "reg.",
+    "shs",
 }
 _NAME_EXPANSIONS = {
     "ISHRS": "iShares",
@@ -124,10 +143,10 @@ _ISIN_TICKER_OVERRIDE: dict[str, str] = {
     "IE00B4L5YC18": "EUNM.DE",  # iShares MSCI EM UCITS ETF USD (Acc) — auto-search wrongly returns EUNI.DE (Dist)
     "IE000WA6L436": "CEBE.DE",  # iShares iBonds Dec 2026 Term EUR Corp ETF — not found by auto-search
     "IE00BYTRRD19": "WTCH.AS",  # SPDR MSCI World Technology — search only finds the stale Stuttgart
-                                # listing; WTCH.AS is the Amsterdam venue the position is traded on
+    # listing; WTCH.AS is the Amsterdam venue the position is traded on
     "IE00B1XNHC34": "IQQH.DE",  # iShares Global Clean Energy — auto-search only finds INRG.L (GBp);
-                                # the INRG.AS listing Yahoo returns is stale at ~half price. IQQH.DE
-                                # (XETRA) matches the DeGiro quote.
+    # the INRG.AS listing Yahoo returns is stale at ~half price. IQQH.DE
+    # (XETRA) matches the DeGiro quote.
 }
 
 
@@ -149,11 +168,7 @@ def _extract_name_keywords(name: str) -> str:
 def _search_candidates(query: str, max_results: int = 8) -> list[tuple[str, str]]:
     try:
         results = yf.Search(query, max_results=max_results, timeout=8)
-        return [
-            (q["symbol"], q.get("exchange", ""))
-            for q in results.quotes
-            if q.get("symbol")
-        ]
+        return [(q["symbol"], q.get("exchange", "")) for q in results.quotes if q.get("symbol")]
     except Exception as e:
         print(f"  Search failed for '{query}': {e}")
         return []
@@ -200,6 +215,7 @@ def _close_on(symbol: str, day: str) -> float | None:
     Split-adjusted, as Yahoo serves its history; see _split_factor_since.
     """
     import datetime as _dt
+
     try:
         d = _dt.date.fromisoformat(day)
         hist = yf.Ticker(symbol).history(
@@ -220,6 +236,7 @@ def _split_factor_since(symbol: str, day: str) -> float:
     split is not adjusted, so it is divided by this before comparing.
     """
     import pandas as _pd
+
     try:
         splits = yf.Ticker(symbol).splits
         if splits is None or len(splits) == 0:
@@ -270,8 +287,10 @@ def _consistent_with_trades(conn: sqlite3.Connection, isin: str, symbol: str, re
     key = f"price-check:{isin}:{symbol}:{day}:{paid:.4f}"
     verdict = database.get_or_fetch(conn, key, _CHECK_TTL_SECONDS, check)
     if not verdict.get("ok"):
-        print(f"  Rejected '{symbol}' for {isin}: it closed at €{verdict['close']:.2f} on {day}, "
-              f"while that trade was at €{verdict['paid']:.2f} — a different instrument")
+        print(
+            f"  Rejected '{symbol}' for {isin}: it closed at €{verdict['close']:.2f} on {day}, "
+            f"while that trade was at €{verdict['paid']:.2f} — a different instrument"
+        )
     return bool(verdict.get("ok"))
 
 
@@ -302,12 +321,14 @@ def _share_class(name: str | None) -> str | None:
 
 def _yahoo_long_name(conn: sqlite3.Connection, symbol: str) -> str | None:
     """Yahoo's long name for *symbol*, cached like the trade check."""
+
     def fetch() -> dict:
         try:
             info = yf.Ticker(symbol).info or {}
             return {"name": info.get("longName") or info.get("shortName") or ""}
         except Exception:
             return {"name": ""}
+
     return database.get_or_fetch(conn, f"yahoo-name:{symbol}", _CHECK_TTL_SECONDS, fetch).get("name") or None
 
 
@@ -319,8 +340,7 @@ def _acceptable(conn: sqlite3.Connection, isin: str, name: str, symbol: str, res
     if ours:
         theirs = _share_class(_yahoo_long_name(conn, symbol))
         if theirs and theirs != ours:
-            print(f"  Rejected '{symbol}' for {isin}: that is the {theirs} class, "
-                  f"the position is {ours}")
+            print(f"  Rejected '{symbol}' for {isin}: that is the {theirs} class, the position is {ours}")
             return False
     return _consistent_with_trades(conn, isin, symbol, result)
 
@@ -342,6 +362,7 @@ def fetch_price_for_isin(
     Resolution order: user override → curated override → cached ticker →
     OpenFIGI (ISIN+venue) → Yahoo search.
     """
+
     def _matches_pref(symbol: str) -> bool:
         return not preferred_suffix or symbol.endswith(preferred_suffix)
 
@@ -379,8 +400,7 @@ def fetch_price_for_isin(
         result = _fetch_by_ticker(stored["ticker"])
         # A cached ticker came from a search once, and a search can be wrong:
         # without this check a wrong fund stays cached for good.
-        if (result and result["currency"] == "EUR"
-                and _acceptable(conn, isin, name, stored["ticker"], result)):
+        if result and result["currency"] == "EUR" and _acceptable(conn, isin, name, stored["ticker"], result):
             if _matches_pref(stored["ticker"]) and venue_quotes_eur:
                 print(f"  Using cached ticker '{stored['ticker']}' for {isin}")
                 return {"isin": isin, "name": name, **result}
@@ -411,8 +431,9 @@ def fetch_price_for_isin(
             if result and not quotes_eur:
                 converted = _to_eur(result)
                 if converted:
-                    print(f"  OpenFIGI resolved {isin} → '{symbol}': converted "
-                          f"{result['price']} {result['currency']} → €{converted['price']}")
+                    print(
+                        f"  OpenFIGI resolved {isin} → '{symbol}': converted {result['price']} {result['currency']} → €{converted['price']}"
+                    )
                     return {"isin": isin, "name": name, **converted}
 
     print(f"  Searching '{isin}' ({name[:45]})...")
@@ -427,7 +448,7 @@ def fetch_price_for_isin(
     preferred_exchange = _SUFFIX_SEARCH_EXCHANGE.get(preferred_suffix) if preferred_suffix else None
 
     seen_symbols: set[str] = set()
-    eu_candidates: list[tuple[str, str]] = []   # (symbol, search-exchange)
+    eu_candidates: list[tuple[str, str]] = []  # (symbol, search-exchange)
     other_symbols: list[str] = []
     for sym, exch in isin_hits + name_hits:
         if sym in seen_symbols:
@@ -443,9 +464,7 @@ def fetch_price_for_isin(
 
     if preferred_suffix:
         # Stable sort: listings on the trading venue first, rest unchanged.
-        eu_candidates.sort(
-            key=lambda c: 0 if (c[0].endswith(preferred_suffix) or c[1] == preferred_exchange) else 1
-        )
+        eu_candidates.sort(key=lambda c: 0 if (c[0].endswith(preferred_suffix) or c[1] == preferred_exchange) else 1)
 
     # --- 4. Try EU-exchange candidates first ---
     non_eur_result = None
@@ -497,8 +516,7 @@ def fetch_price_for_isin(
                 continue
             all_tried.add(candidate)
             result = _fetch_by_ticker(candidate)
-            if (result and result["currency"] == "EUR"
-                    and _acceptable(conn, isin, name, candidate, result)):
+            if result and result["currency"] == "EUR" and _acceptable(conn, isin, name, candidate, result):
                 if _matches_pref(candidate):
                     print(f"  Found EUR ticker '{candidate}' (suffix search) for {isin}")
                     return {"isin": isin, "name": name, **result}
@@ -512,8 +530,7 @@ def fetch_price_for_isin(
                 all_tried.add(alt_sym)
                 if alt_exch in _EUR_EXCHANGES:
                     result = _fetch_by_ticker(alt_sym)
-                    if (result and result["currency"] == "EUR"
-                            and _acceptable(conn, isin, name, alt_sym, result)):
+                    if result and result["currency"] == "EUR" and _acceptable(conn, isin, name, alt_sym, result):
                         if _matches_pref(alt_sym):
                             print(f"  Found EUR ticker '{alt_sym}' (base search) for {isin}")
                             return {"isin": isin, "name": name, **result}
@@ -522,22 +539,18 @@ def fetch_price_for_isin(
 
     # --- 7. Fallbacks: preferred venue not found ---
     if cached_result:
-        print(f"  No '{preferred_suffix}' listing found for {isin} — "
-              f"keeping cached ticker '{cached_result['ticker']}'")
+        print(f"  No '{preferred_suffix}' listing found for {isin} — keeping cached ticker '{cached_result['ticker']}'")
         return cached_result
     if first_eur_result:
-        print(f"  No '{preferred_suffix}' listing found for {isin} — "
-              f"using '{first_eur_result['ticker']}'")
+        print(f"  No '{preferred_suffix}' listing found for {isin} — using '{first_eur_result['ticker']}'")
         return first_eur_result
     if non_eur_result:
         ccy = non_eur_result["currency"]
         converted = _to_eur(non_eur_result)
         if converted:
-            print(f"  No EUR listing for {isin}: converted "
-                  f"{non_eur_result['price']} {ccy} → €{converted['price']}")
+            print(f"  No EUR listing for {isin}: converted {non_eur_result['price']} {ccy} → €{converted['price']}")
             return converted
-        print(f"  Warning: no EUR listing found for {isin} and no FX rate for {ccy}. "
-              f"Using {non_eur_result['ticker']} ({ccy}).")
+        print(f"  Warning: no EUR listing found for {isin} and no FX rate for {ccy}. Using {non_eur_result['ticker']} ({ccy}).")
         return non_eur_result
 
     print(f"  Could not find any price for {isin}")
@@ -630,9 +643,7 @@ def _openfigi_post(jobs: list[dict]) -> requests.Response:
     return requests.post(_OPENFIGI_URL, json=jobs, headers=headers, timeout=8)
 
 
-def _openfigi_ticker(
-    conn: sqlite3.Connection, isin: str, mics: tuple[str, ...]
-) -> str | None:
+def _openfigi_ticker(conn: sqlite3.Connection, isin: str, mics: tuple[str, ...]) -> str | None:
     """
     Resolve an ISIN + venue to its bare exchange ticker via OpenFIGI
     (Bloomberg's free mapping API) — e.g. (IE00B1XNHC34, XETR) → "IQQH".
@@ -725,9 +736,10 @@ class RefreshResult:
     Neither the user nor the log could tell a working refresh from a dead
     uplink. These three numbers can.
     """
-    refreshed: int          #: prices actually re-fetched and stored
-    failed: list[dict]      #: [{isin, name}] this pass could not price
-    skipped: int = 0        #: not attempted, because the deadline ran out
+
+    refreshed: int  #: prices actually re-fetched and stored
+    failed: list[dict]  #: [{isin, name}] this pass could not price
+    skipped: int = 0  #: not attempted, because the deadline ran out
 
     @property
     def attempted(self) -> int:
@@ -797,17 +809,15 @@ def refresh_all_prices(
         # stops taking on work rather than cutting a quote in half.
         if time.monotonic() - started > deadline_seconds:
             skipped = len(isins) - index
-            print(f"  Deadline reached after {deadline_seconds:.0f}s — "
-                  f"{skipped} ISIN(s) not attempted")
+            print(f"  Deadline reached after {deadline_seconds:.0f}s — {skipped} ISIN(s) not attempted")
             return RefreshResult(refreshed=refreshed, failed=failed, skipped=skipped)
 
         home_exchange = home_exchanges.get(isin, "")
-        preferred_suffix = (
-            _DEGIRO_EXCHANGE_SUFFIX.get(home_exchange)
-            if isin in open_isins else None
-        )
+        preferred_suffix = _DEGIRO_EXCHANGE_SUFFIX.get(home_exchange) if isin in open_isins else None
         result = fetch_price_for_isin(
-            conn, isin, name,
+            conn,
+            isin,
+            name,
             preferred_suffix=preferred_suffix,
             degiro_exchange=home_exchange or None,
         )
@@ -844,21 +854,21 @@ def calculate_positions(transactions: list[dict], prices: dict[str, dict]) -> li
         total_invested = 0.0
 
         for t in trades:
-            qty   = t["quantity"]
+            qty = t["quantity"]
             total = t["total_eur"]
 
             if t["transaction_type"] == "BUY":
-                shares_held    += qty
+                shares_held += qty
                 total_invested += abs(total) if total is not None else 0.0
 
             elif t["transaction_type"] == "SELL":
                 if shares_held > 0:
                     # Clamp: selling more than held (e.g. missing buy data)
                     # must not flip the remaining cost basis negative.
-                    fraction_sold   = min(qty / shares_held, 1.0)
+                    fraction_sold = min(qty / shares_held, 1.0)
                     total_invested -= total_invested * fraction_sold
                 shares_held -= qty
-                shares_held  = max(shares_held, 0.0)
+                shares_held = max(shares_held, 0.0)
 
         if shares_held <= 0.0001:
             continue
@@ -870,32 +880,34 @@ def calculate_positions(transactions: list[dict], prices: dict[str, dict]) -> li
         # as missing rather than silently mixing currencies in the totals.
         if price_info and price_info.get("currency") != "EUR":
             price_info = None
-        current_price = price_info["price"]    if price_info else None
-        currency      = price_info["currency"] if price_info else "EUR"
-        ticker        = price_info["ticker"]   if price_info else None
+        current_price = price_info["price"] if price_info else None
+        currency = price_info["currency"] if price_info else "EUR"
+        ticker = price_info["ticker"] if price_info else None
 
         if current_price is not None:
-            current_value   = shares_held * current_price
+            current_value = shares_held * current_price
             unrealized_gain = current_value - total_invested
-            return_pct      = (unrealized_gain / total_invested * 100) if total_invested > 0 else 0.0
+            return_pct = (unrealized_gain / total_invested * 100) if total_invested > 0 else 0.0
         else:
-            current_value   = None
+            current_value = None
             unrealized_gain = None
-            return_pct      = None
+            return_pct = None
 
-        positions.append({
-            "isin":             isin,
-            "name":             trades[0]["name"],
-            "ticker":           ticker,
-            "shares_held":      round(shares_held, 6),
-            "avg_cost":         round(avg_cost, 4),
-            "total_invested":   round(total_invested, 2),
-            "current_price":    round(current_price, 4) if current_price else None,
-            "currency":         currency,
-            "current_value":    round(current_value, 2) if current_value else None,
-            "unrealized_gain":  round(unrealized_gain, 2) if unrealized_gain is not None else None,
-            "return_pct":       round(return_pct, 2) if return_pct is not None else None,
-        })
+        positions.append(
+            {
+                "isin": isin,
+                "name": trades[0]["name"],
+                "ticker": ticker,
+                "shares_held": round(shares_held, 6),
+                "avg_cost": round(avg_cost, 4),
+                "total_invested": round(total_invested, 2),
+                "current_price": round(current_price, 4) if current_price else None,
+                "currency": currency,
+                "current_value": round(current_value, 2) if current_value else None,
+                "unrealized_gain": round(unrealized_gain, 2) if unrealized_gain is not None else None,
+                "return_pct": round(return_pct, 2) if return_pct is not None else None,
+            }
+        )
 
     positions.sort(key=lambda p: p["current_value"] or 0, reverse=True)
     return positions
@@ -915,32 +927,32 @@ def calculate_closed_positions(transactions: list[dict]) -> list[dict]:
     closed = []
 
     for isin, trades in by_isin.items():
-        shares_held    = 0.0
-        cost_base     = 0.0
+        shares_held = 0.0
+        cost_base = 0.0
         total_proceeds = 0.0
-        realized_gain  = 0.0
-        first_buy      = None
-        last_sell      = None
+        realized_gain = 0.0
+        first_buy = None
+        last_sell = None
 
         for t in sorted(trades, key=lambda x: (x["date"], x["time"] or "")):
-            qty   = t["quantity"]
+            qty = t["quantity"]
             total = abs(t["total_eur"]) if t.get("total_eur") is not None else 0.0
 
             if t["transaction_type"] == "BUY":
                 shares_held += qty
-                cost_base  += total
+                cost_base += total
                 if first_buy is None:
                     first_buy = t["date"]
 
             elif t["transaction_type"] == "SELL" and shares_held > 0:
-                fraction        = min(qty / shares_held, 1.0)
-                cost_of_sold    = cost_base * fraction
-                realized_gain  += total - cost_of_sold
+                fraction = min(qty / shares_held, 1.0)
+                cost_of_sold = cost_base * fraction
+                realized_gain += total - cost_of_sold
                 total_proceeds += total
-                cost_base     -= cost_of_sold
-                shares_held    -= qty
-                shares_held     = max(shares_held, 0.0)
-                last_sell       = t["date"]
+                cost_base -= cost_of_sold
+                shares_held -= qty
+                shares_held = max(shares_held, 0.0)
+                last_sell = t["date"]
 
         if shares_held > 0.0001:
             continue  # still open
@@ -948,16 +960,18 @@ def calculate_closed_positions(transactions: list[dict]) -> list[dict]:
         total_invested = total_proceeds - realized_gain  # original cost of sold shares
         return_pct = (realized_gain / total_invested * 100) if total_invested > 0 else 0.0
 
-        closed.append({
-            "isin":           isin,
-            "name":           trades[0]["name"],
-            "first_buy":      first_buy,
-            "last_sell":      last_sell,
-            "total_invested": round(total_invested, 2),
-            "total_proceeds": round(total_proceeds, 2),
-            "realized_gain":  round(realized_gain, 2),
-            "return_pct":     round(return_pct, 2),
-        })
+        closed.append(
+            {
+                "isin": isin,
+                "name": trades[0]["name"],
+                "first_buy": first_buy,
+                "last_sell": last_sell,
+                "total_invested": round(total_invested, 2),
+                "total_proceeds": round(total_proceeds, 2),
+                "realized_gain": round(realized_gain, 2),
+                "return_pct": round(return_pct, 2),
+            }
+        )
 
     closed.sort(key=lambda p: p["realized_gain"], reverse=True)
     return closed
@@ -995,20 +1009,18 @@ def calculate_portfolio_summary(positions: list[dict], transactions: list[dict] 
 
     total_dividends = sum(d["net_eur"] for d in dividends) if dividends else 0.0
 
-    priced         = [p for p in positions if p["current_value"] is not None]
-    total_value    = sum(p["current_value"] for p in priced)
-    total_gain     = total_value - net_investment
+    priced = [p for p in positions if p["current_value"] is not None]
+    total_value = sum(p["current_value"] for p in priced)
+    total_gain = total_value - net_investment
 
     # Split total_gain: "unrealized" is what the open positions are worth
     # versus their remaining cost basis; the rest is P&L already locked in
     # by sells (realized).  The split is only complete when every position
     # has a price (prices_available).
     unrealized_gain = sum(p["unrealized_gain"] for p in priced)
-    invested_open   = sum(p["total_invested"] for p in priced)
-    realized_gain   = total_gain - unrealized_gain
-    unrealized_return_pct = (
-        (unrealized_gain / invested_open * 100) if invested_open > 0 else 0.0
-    )
+    invested_open = sum(p["total_invested"] for p in priced)
+    realized_gain = total_gain - unrealized_gain
+    unrealized_return_pct = (unrealized_gain / invested_open * 100) if invested_open > 0 else 0.0
 
     # None, not a number, once the denominator stops meaning "what you put in".
     # net_investment goes negative when more has been taken out than ever went
@@ -1016,9 +1028,7 @@ def calculate_portfolio_summary(positions: list[dict], transactions: list[dict] 
     # as -116,67%. The dashboard computes its own percentage and already skips
     # it in that case; this now says the same thing rather than offering a
     # plausible-looking number for a caller to trust.
-    total_return_pct = (
-        (total_gain / net_investment * 100) if net_investment > 0 else None
-    )
+    total_return_pct = (total_gain / net_investment * 100) if net_investment > 0 else None
 
     # Already deducted, never a separate term: buys enter net_investment at
     # total_eur (value + costs) and sells leave it at total_eur (proceeds -
@@ -1027,15 +1037,15 @@ def calculate_portfolio_summary(positions: list[dict], transactions: list[dict] 
     total_costs = total_transaction_costs(transactions) if transactions else 0.0
 
     return {
-        "net_investment":        round(net_investment, 2),
-        "total_dividends":       round(total_dividends, 2),
-        "total_costs":           round(total_costs, 2),
-        "total_value":           round(total_value, 2),
-        "total_gain":            round(total_gain, 2),
-        "unrealized_gain":       round(unrealized_gain, 2),
+        "net_investment": round(net_investment, 2),
+        "total_dividends": round(total_dividends, 2),
+        "total_costs": round(total_costs, 2),
+        "total_value": round(total_value, 2),
+        "total_gain": round(total_gain, 2),
+        "unrealized_gain": round(unrealized_gain, 2),
         "unrealized_return_pct": round(unrealized_return_pct, 2),
-        "realized_gain":         round(realized_gain, 2),
-        "total_return_pct":      None if total_return_pct is None else round(total_return_pct, 2),
-        "num_positions":         len(positions),
-        "prices_available":      len(priced) == len(positions),
+        "realized_gain": round(realized_gain, 2),
+        "total_return_pct": None if total_return_pct is None else round(total_return_pct, 2),
+        "num_positions": len(positions),
+        "prices_available": len(priced) == len(positions),
     }

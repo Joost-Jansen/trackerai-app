@@ -70,12 +70,14 @@ def make_router(trackers: dict[str, str], transport: httpx.AsyncBaseTransport | 
         try:
             client = httpx.AsyncClient(transport=transport, timeout=TIMEOUT_SECONDS, follow_redirects=False)
             async with client:
-                upstream = await client.request(method, url, params=request.query_params, content=body,
-                                                headers=_pick(request.headers, REQUEST_HEADERS))
+                upstream = await client.request(
+                    method, url, params=request.query_params, content=body, headers=_pick(request.headers, REQUEST_HEADERS)
+                )
         except httpx.HTTPError:
             return _fail(502, "unreachable")
         empty = method == "HEAD" or upstream.status_code in (204, 304)
-        return Response(content=None if empty else upstream.content, status_code=upstream.status_code,
-                        headers=_pick(upstream.headers, RESPONSE_HEADERS))
+        return Response(
+            content=None if empty else upstream.content, status_code=upstream.status_code, headers=_pick(upstream.headers, RESPONSE_HEADERS)
+        )
 
     return r

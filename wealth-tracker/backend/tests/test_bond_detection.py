@@ -39,6 +39,7 @@ def _pos(isin, ticker="X.AS", value=1000.0):
 @pytest.fixture
 def fund_data(monkeypatch):
     """Installs {ticker: bond fraction or None} as yfinance's answer."""
+
     def install(mapping):
         calls = []
 
@@ -55,6 +56,7 @@ def fund_data(monkeypatch):
 # ---------------------------------------------------------------------------
 # The fund's own asset mix — what makes this work without any user input
 # ---------------------------------------------------------------------------
+
 
 def test_a_fund_that_is_mostly_bonds_is_excluded(conn, fund_data):
     fund_data({"IEAC.AS": 0.9984})
@@ -95,6 +97,7 @@ def test_a_position_without_a_ticker_is_not_looked_up(conn, fund_data):
 # The user's own classification wins
 # ---------------------------------------------------------------------------
 
+
 def test_a_position_the_user_called_a_bond_is_excluded(conn, fund_data):
     fund_data({"ODD.AS": 0.0})  # the fund data disagrees
     database.save_asset_category(conn, "IE00USERBOND", "Bonds")
@@ -126,6 +129,7 @@ def test_the_older_bond_spelling_still_counts(conn, fund_data):
 # ---------------------------------------------------------------------------
 # The fallback list, for what neither of the two above can settle
 # ---------------------------------------------------------------------------
+
 
 def test_the_hardcoded_list_catches_a_fund_with_no_data(conn, fund_data):
     fund_data({"CEBE.DE": None})
@@ -214,16 +218,15 @@ def test_the_weight_column_is_one_fraction_of_one_whole(conn, fund_data, monkeyp
     assert by_isin["IE000WA6L436"] == 20.0
 
 
-def test_a_fund_without_sector_data_shows_as_unknown_rather_than_scaling_the_rest(
-    conn, fund_data, monkeypatch
-):
+def test_a_fund_without_sector_data_shows_as_unknown_rather_than_scaling_the_rest(conn, fund_data, monkeypatch):
     """The country side always lands a fund's weight somewhere; sectors had no
     such floor, so the renormalise scaled the funds that *did* have data up to
     fill the gap — a portfolio half covered showed the covered half at double."""
     fund_data({"HASDATA": 0.0, "NODATA": 0.0})
     monkeypatch.setattr(etf_holdings, "_fetch_countries_justetf", lambda isin: {"United States": 1.0})
     monkeypatch.setattr(
-        etf_holdings, "_fetch_sector_weights",
+        etf_holdings,
+        "_fetch_sector_weights",
         lambda t: {"Information Technology": 0.5, "Financials": 0.5} if t == "HASDATA" else None,
     )
     monkeypatch.setattr(etf_holdings.issuer_holdings, "fetch_issuer_holdings", lambda *a, **k: None)

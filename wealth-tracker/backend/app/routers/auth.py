@@ -11,7 +11,6 @@ password routes under /api/account. What is wealth-tracker's own is here:
 """
 
 from fastapi import APIRouter, Body, Depends, Request, Response, status
-from trackerai_accounts import session as account_session
 
 from app.core import auth_store, throttle
 from app.core.accounts import APP, accounts, local_folder, sessions
@@ -19,6 +18,7 @@ from app.core.errors import CodedError
 from app.deps import CurrentUser, get_current_user
 from app.schemas.auth import ChangePasswordRequest, LocaleRequest, MeResponse, RegisterRequest
 from domain.i18n import tr
+from trackerai_accounts import session as account_session
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -42,9 +42,17 @@ def register(body: RegisterRequest, request: Request, response: Response):
         # Nobody's login has moved to the accounts yet: the first sign-up would become the administrator of every
         # tracker. Signing up waits for the import (packages/accounts migrate.py) or the first existing login.
         raise CodedError(status.HTTP_403_FORBIDDEN, "registration_closed", tr("Self-service signup is currently closed."))
-    account = accounts.register(body.username, body.password, APP, display_name=body.name, invite=body.invite_code or None,
-                                email=body.email, locale=body.locale if body.locale in ("nl", "en") else None,
-                                apps=body.apps or None, consent=body.consent)
+    account = accounts.register(
+        body.username,
+        body.password,
+        APP,
+        display_name=body.name,
+        invite=body.invite_code or None,
+        email=body.email,
+        locale=body.locale if body.locale in ("nl", "en") else None,
+        apps=body.apps or None,
+        consent=body.consent,
+    )
     s = sessions.resolve_account(account)
     if APP in s.apps:
         folder = local_folder(s)
@@ -55,8 +63,7 @@ def register(body: RegisterRequest, request: Request, response: Response):
 
 
 @router.post("/join")
-def join(request: Request, response: Response, money: bool = Body(False, embed=True),
-         old_password: str | None = Body(None, embed=True)):
+def join(request: Request, response: Response, money: bool = Body(False, embed=True), old_password: str | None = Body(None, embed=True)):
     """Start using wealth-tracker with an account from another tracker (an open installation, or the admin's).
 
     Had this person a wealth-tracker login of their own with the same name (from before the accounts, not moved
@@ -68,8 +75,11 @@ def join(request: Request, response: Response, money: bool = Body(False, embed=T
     old_user = (cfg.get("credentials", {}).get("usernames", {}) or {}).get(old) if old else None
     if old_user and old_user.get("password") and accounts.account_id_for_local_key(APP, old) is None:
         if not old_password:
-            raise CodedError(status.HTTP_409_CONFLICT, "old_login_password",
-                             tr("You had a login here with this name: enter its password to bring your data along."))
+            raise CodedError(
+                status.HTTP_409_CONFLICT,
+                "old_login_password",
+                tr("You had a login here with this name: enter its password to bring your data along."),
+            )
         if not throttle.REAUTH_PER_USER.hit(old.casefold()):
             raise _too_many(tr("Too many failed attempts. Try again in a quarter of an hour."))
         from app.core import security
@@ -92,8 +102,14 @@ def change_password(body: ChangePasswordRequest, request: Request, response: Res
     """Every other session ends, in every tracker; this browser gets a new one."""
     s = sessions.current(request, response)
     account = accounts.change_password(s.id, body.current_password, body.new_password)
-    account_session.issue(response, accounts.config, account["id"], account["session_version"] or 0, s.claims.get("auth"),
-                          account_session.remembered(s.claims))
+    account_session.issue(
+        response,
+        accounts.config,
+        account["id"],
+        account["session_version"] or 0,
+        s.claims.get("auth"),
+        account_session.remembered(s.claims),
+    )
     return {"ok": True}
 
 
@@ -107,11 +123,20 @@ def me(request: Request, response: Response):
     s = sessions.current(request, response)
     view = accounts.view(s.account, s.apps)
     out = MeResponse(
-        username=s.username, name=s.account.get("display_name") or s.username, is_admin=False, beta_features=[],
-        locale=s.account.get("locale"), totp_enabled=view["totp_enabled"], email_codes=view["email_codes"],
-        two_step=view["two_step"], email=view["email"], email_verify_required=view["email_verify_required"],
+        username=s.username,
+        name=s.account.get("display_name") or s.username,
+        is_admin=False,
+        beta_features=[],
+        locale=s.account.get("locale"),
+        totp_enabled=view["totp_enabled"],
+        email_codes=view["email_codes"],
+        two_step=view["two_step"],
+        email=view["email"],
+        email_verify_required=view["email_verify_required"],
         totp_required=view["totp_required"],
-        totp_setup_required=view["totp_setup_required"], in_app=APP in s.apps, apps=view["apps"],
+        totp_setup_required=view["totp_setup_required"],
+        in_app=APP in s.apps,
+        apps=view["apps"],
         account_admin=view["is_admin"],
     )
     if out.in_app and not out.totp_setup_required and not out.email_verify_required:

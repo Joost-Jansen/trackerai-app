@@ -14,11 +14,11 @@ from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Reques
 from fastapi.responses import RedirectResponse
 
 from app.core import config, throttle
-from trackerai_websec.csrf import normalise_origin
-from domain.money import bank_link
 from app.deps import CurrentUser, get_current_user, get_db, require_money
-from domain.money.bank_providers import enablebanking
 from domain.i18n import tr
+from domain.money import bank_link
+from domain.money.bank_providers import enablebanking
+from trackerai_websec.csrf import normalise_origin
 
 router = APIRouter(prefix="/api/connections", tags=["connections"], dependencies=[Depends(require_money)])
 # The bank's return address from before the English rename (bank_link.LEGACY_BACK_PATH).
@@ -74,8 +74,12 @@ def banks(
         items = bank_link.client(conn).banks(country.upper())
     except (bank_link.NotConfigured, enablebanking.ErrorNote) as e:
         raise _error(e) from e
-    return {"banks": sorted(({"name": b.get("name"), "country": b.get("country"), "logo": b.get("logo")}
-                              for b in items if b.get("name")), key=lambda b: b["name"].lower())}
+    return {
+        "banks": sorted(
+            ({"name": b.get("name"), "country": b.get("country"), "logo": b.get("logo")} for b in items if b.get("name")),
+            key=lambda b: b["name"].lower(),
+        )
+    }
 
 
 def _own_origin(request: Request, origin: str) -> bool:
@@ -149,8 +153,7 @@ def back(
 
 @router.post("/enablebanking/fetch")
 def retrieve(
-    only_if_older_than_hours: float | None = Query(
-        None, ge=0, description="Skip consents that were fetched more recently than this"),
+    only_if_older_than_hours: float | None = Query(None, ge=0, description="Skip consents that were fetched more recently than this"),
     conn: sqlite3.Connection = Depends(get_db),
     _: CurrentUser = Depends(get_current_user),
 ):

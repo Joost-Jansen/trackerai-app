@@ -13,10 +13,8 @@ from uuid import uuid4
 
 import pytest
 
-from domain.money import bank_transactions
 from domain import database
-from domain.money import accounts
-from domain.money import net_worth
+from domain.money import accounts, bank_transactions, net_worth
 
 
 @pytest.fixture(autouse=True)
@@ -35,11 +33,25 @@ def _bank(conn, name="ING", iban="NL00INGB0000000001") -> int:
 
 
 def _tx(conn, account_id, date, amount):
-    bank_transactions.save(conn, account_id, [{
-        "date": date, "interest_date": None, "amount": amount, "currency": "EUR", "name": "X",
-        "counterparty_iban": None, "description": "", "code": None, "kind": None,
-        "dedup_hash": uuid4().hex, "raw": {},
-    }])
+    bank_transactions.save(
+        conn,
+        account_id,
+        [
+            {
+                "date": date,
+                "interest_date": None,
+                "amount": amount,
+                "currency": "EUR",
+                "name": "X",
+                "counterparty_iban": None,
+                "description": "",
+                "code": None,
+                "kind": None,
+                "dedup_hash": uuid4().hex,
+                "raw": {},
+            }
+        ],
+    )
 
 
 def _balance(conn, rid, d):
@@ -49,9 +61,9 @@ def _balance(conn, rid, d):
 def test_a_balance_and_the_transactions_give_every_day():
     conn = _conn()
     ing = _bank(conn)
-    _tx(conn, ing, "2026-01-05", -2000.0)   # salary in
-    _tx(conn, ing, "2026-01-10", 300.0)     # groceries
-    _tx(conn, ing, "2026-01-20", 500.0)     # rent
+    _tx(conn, ing, "2026-01-05", -2000.0)  # salary in
+    _tx(conn, ing, "2026-01-10", 300.0)  # groceries
+    _tx(conn, ing, "2026-01-20", 500.0)  # rent
     accounts.set_balance(conn, ing, "2026-01-31", 1200.0)
 
     assert _balance(conn, ing, "2026-01-31") == pytest.approx(1200.0)
@@ -90,8 +102,8 @@ def test_the_last_measurement_is_the_anchor_and_earlier_ones_do_not_count():
     conn = _conn()
     ing = _bank(conn)
     _tx(conn, ing, "2026-01-05", 100.0)
-    accounts.set_balance(conn, ing, "2026-01-01", 0.0)      # not right
-    accounts.set_balance(conn, ing, "2026-01-31", 900.0)    # the anchor
+    accounts.set_balance(conn, ing, "2026-01-01", 0.0)  # not right
+    accounts.set_balance(conn, ing, "2026-01-31", 900.0)  # the anchor
     assert _balance(conn, ing, "2026-01-05") == pytest.approx(900.0)
     conn.close()
 
@@ -131,7 +143,7 @@ def test_a_transfer_between_own_accounts_leaves_net_worth_unchanged():
     conn = _conn()
     ing = _bank(conn)
     cash = accounts.make_bank_account(conn, kind="broker", provider="degiro", name="DeGiro cash")
-    _tx(conn, ing, "2026-01-10", 5000.0)                     # to DeGiro
+    _tx(conn, ing, "2026-01-10", 5000.0)  # to DeGiro
     accounts.set_balance(conn, ing, "2026-01-31", 1000.0)
     accounts.set_balance(conn, cash, "2026-01-01", 0.0, source="sync")
     accounts.set_balance(conn, cash, "2026-01-10", 5000.0, source="sync")
@@ -176,6 +188,11 @@ def test_a_deviating_measurement_is_reported():
     result = net_worth.series(conn, [])
     [deviation] = result["deviating_balances"]
     assert {k: deviation[k] for k in ("account", "date", "measured", "calculated", "anchor")} == {
-        "account": "ING", "date": "2026-01-15", "measured": 800.0, "calculated": 950.0, "anchor": "2026-01-31"}
+        "account": "ING",
+        "date": "2026-01-15",
+        "measured": 800.0,
+        "calculated": 950.0,
+        "anchor": "2026-01-31",
+    }
     assert deviation["explanation"] == {"kind": "missing", "direction": "credits", "amount": 150.0}
     conn.close()

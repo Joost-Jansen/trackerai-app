@@ -1,6 +1,6 @@
 import json
 
-from tools.store import from_garmin, from_strava, load_activities, load_wellness, upsert_activity, write_wellness, wellness_from_garmin
+from tools.store import from_garmin, from_strava, load_activities, load_wellness, upsert_activity, wellness_from_garmin, write_wellness
 
 STRAVA_ACTIVITY = {
     "id": 111,
@@ -96,9 +96,22 @@ def test_resync_same_source_overwrites_not_duplicates(tmp_path):
 
 def test_wellness_from_garmin_extracts_core_metrics():
     w = wellness_from_garmin(
-        sleep={"dailySleepDTO": {"sleepTimeSeconds": 27000, "deepSleepSeconds": 5400, "remSleepSeconds": 6000, "sleepScores": {"overall": {"value": 82}}}},
+        sleep={
+            "dailySleepDTO": {
+                "sleepTimeSeconds": 27000,
+                "deepSleepSeconds": 5400,
+                "remSleepSeconds": 6000,
+                "sleepScores": {"overall": {"value": 82}},
+            }
+        },
         hrv={"hrvSummary": {"lastNightAvg": 58, "weeklyAvg": 55, "status": "BALANCED"}},
-        summary={"restingHeartRate": 48, "bodyBatteryHighestValue": 85, "bodyBatteryLowestValue": 20, "averageStressLevel": 27, "totalSteps": 12000},
+        summary={
+            "restingHeartRate": 48,
+            "bodyBatteryHighestValue": 85,
+            "bodyBatteryLowestValue": 20,
+            "averageStressLevel": 27,
+            "totalSteps": 12000,
+        },
         readiness=[{"score": 71, "level": "MODERATE"}],
     )
     assert w == {

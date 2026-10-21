@@ -42,7 +42,10 @@ def test_series_survive_the_json_round_trip():
     assert restored.keys() == original.keys()
     for label, series in original.items():
         pd.testing.assert_series_equal(
-            restored[label], series, check_names=False, check_freq=False,
+            restored[label],
+            series,
+            check_names=False,
+            check_freq=False,
         )
 
 
@@ -100,7 +103,9 @@ def test_prices_are_fetched_once_per_start_date_then_cached(tmp_path, monkeypatc
     second = bs.get_benchmark_prices(conn, "2021-01-01")
     assert len(calls) == 1, "the second request should not have hit yfinance"
     pd.testing.assert_series_equal(
-        first["S&P 500 (SPY)"], second["S&P 500 (SPY)"], check_freq=False,
+        first["S&P 500 (SPY)"],
+        second["S&P 500 (SPY)"],
+        check_freq=False,
     )
 
     # A different start date is a different question, so it fetches again.
@@ -145,6 +150,7 @@ def charts_module():
 # Both lines are measured from the same moment
 # ---------------------------------------------------------------------------
 
+
 def _segments(dates, values):
     return [([d for d in dates], values, [0.0] * len(values))]
 
@@ -167,8 +173,8 @@ def test_ytd_measures_the_benchmark_from_new_years_eve_too():
 
     out = bs.ytd_series(segments, {"MSCI": bench}, 2026)
     points = out["series"][1]["points"]
-    assert points[-1]["v"] == 4.0            # 208 / 200 - 1, not 208 / 206 - 1
-    assert points[0]["d"] == "2026-01-02"    # 31 Dec anchors it without being drawn
+    assert points[-1]["v"] == 4.0  # 208 / 200 - 1, not 208 / 206 - 1
+    assert points[0]["d"] == "2026-01-02"  # 31 Dec anchors it without being drawn
 
 
 def test_ytd_falls_back_to_the_first_close_when_the_year_has_no_earlier_one():
@@ -178,8 +184,7 @@ def test_ytd_falls_back_to_the_first_close_when_the_year_has_no_earlier_one():
 
     dates = [datetime.date(2026, 1, 1) + datetime.timedelta(days=i) for i in range(5)]
     segments = _segments(dates, [100.0, 101.0, 102.0, 103.0, 104.0])
-    bench = pd.Series([200.0, 210.0],
-                      index=pd.DatetimeIndex(["2026-01-02", "2026-01-05"]))
+    bench = pd.Series([200.0, 210.0], index=pd.DatetimeIndex(["2026-01-02", "2026-01-05"]))
 
     out = bs.ytd_series(segments, {"MSCI": bench}, 2026)
     points = out["series"][1]["points"]

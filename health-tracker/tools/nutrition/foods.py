@@ -20,8 +20,7 @@ import time
 import unicodedata
 import weakref
 from dataclasses import dataclass
-
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 from sqlalchemy import delete, insert, select, update
 
@@ -145,7 +144,11 @@ def get(s: db.Scope, ref: str) -> dict | None:
         if not code.isdigit():
             return None
         with s.engine.connect() as conn:
-            row = conn.execute(select(db.user_foods).where(db.user_foods.c.user_id == s.user_id, db.user_foods.c.id == int(code))).mappings().first()
+            row = (
+                conn.execute(select(db.user_foods).where(db.user_foods.c.user_id == s.user_id, db.user_foods.c.id == int(code)))
+                .mappings()
+                .first()
+            )
         return _public(dict(row), "user", row["id"]) if row else None
     with s.engine.connect() as conn:
         row = conn.execute(select(db.foods).where(db.foods.c.source == source, db.foods.c.source_code == code)).mappings().first()
@@ -225,8 +228,15 @@ def _per_100(values: dict) -> dict:
     return with_salt(out)
 
 
-def create_user_food(s: db.Scope, *, name: str | None = None, brand: str | None = None, unit: str | None = None,
-                     default_portion_g: float | None = None, per_100: dict | None = None) -> dict:
+def create_user_food(
+    s: db.Scope,
+    *,
+    name: str | None = None,
+    brand: str | None = None,
+    unit: str | None = None,
+    default_portion_g: float | None = None,
+    per_100: dict | None = None,
+) -> dict:
     name = (name or "").strip()
     if not name:
         raise FoodError("food_name_required")
@@ -235,9 +245,17 @@ def create_user_food(s: db.Scope, *, name: str | None = None, brand: str | None 
     if len(user_foods(s)) >= MAX_USER_FOODS:
         raise FoodError("too_many_foods", max=MAX_USER_FOODS)
     with s.engine.begin() as conn:
-        fid = conn.execute(insert(db.user_foods).values(user_id=s.user_id, name_nl=name[:200], brand=(brand or "").strip()[:100] or None,
-                                                        unit=unit or "g", per_100=_per_100(per_100 or {}), default_portion_g=default_portion_g,
-                                                        created_at=datetime.now(timezone.utc))).inserted_primary_key[0]
+        fid = conn.execute(
+            insert(db.user_foods).values(
+                user_id=s.user_id,
+                name_nl=name[:200],
+                brand=(brand or "").strip()[:100] or None,
+                unit=unit or "g",
+                per_100=_per_100(per_100 or {}),
+                default_portion_g=default_portion_g,
+                created_at=datetime.now(UTC),
+            )
+        ).inserted_primary_key[0]
     return get(s, ref_of("user", fid))
 
 
@@ -273,7 +291,9 @@ def delete_user_food(s: db.Scope, fid: int) -> bool:
         if not conn.execute(delete(db.user_foods).where(db.user_foods.c.user_id == s.user_id, db.user_foods.c.id == fid)).rowcount:
             return False
         conn.execute(delete(db.portion_memory).where(db.portion_memory.c.user_id == s.user_id, db.portion_memory.c.food_ref == ref))
-        for tid, items in conn.execute(select(db.meal_templates.c.id, db.meal_templates.c["items"]).where(db.meal_templates.c.user_id == s.user_id)).all():
+        for tid, items in conn.execute(
+            select(db.meal_templates.c.id, db.meal_templates.c["items"]).where(db.meal_templates.c.user_id == s.user_id)
+        ).all():
             kept = [it for it in items or [] if it.get("food_ref") != ref]
             if len(kept) == len(items or []):
                 continue
@@ -283,4 +303,3 @@ def delete_user_food(s: db.Scope, fid: int) -> bool:
             else:
                 conn.execute(delete(db.meal_templates).where(q.user_id == s.user_id, q.id == tid))
     return True
-

@@ -14,9 +14,8 @@ import sqlite3
 
 import pytest
 
-from domain.money import bank_transactions
 from domain import database
-from domain.money import accounts
+from domain.money import accounts, bank_transactions
 
 
 @pytest.fixture(autouse=True)
@@ -31,9 +30,7 @@ def _conn(username: str = "alice") -> sqlite3.Connection:
 
 
 def _account(conn) -> int:
-    return accounts.make_bank_account(
-        conn, kind="bank", provider="ing", name="ING", iban="NL00INGB0000000001"
-    )
+    return accounts.make_bank_account(conn, kind="bank", provider="ing", name="ING", iban="NL00INGB0000000001")
 
 
 def _rule(**overrides) -> dict:
@@ -59,6 +56,7 @@ def _rule(**overrides) -> dict:
 # Schema
 # ---------------------------------------------------------------------------
 
+
 def test_init_db_creates_the_table():
     conn = _conn()
     cursor = conn.cursor()
@@ -70,6 +68,7 @@ def test_init_db_creates_the_table():
 # ---------------------------------------------------------------------------
 # Storing
 # ---------------------------------------------------------------------------
+
 
 def test_save_and_read_back():
     conn = _conn()
@@ -165,28 +164,35 @@ def test_the_automatic_category_does_not_overwrite_the_manual_one():
 # Reading and filtering
 # ---------------------------------------------------------------------------
 
+
 def test_loading_sorted_by_date():
     conn = _conn()
     account_id = _account(conn)
-    bank_transactions.save(conn, account_id, [
-        _rule(date="2026-03-01", dedup_hash="c" * 16),
-        _rule(date="2026-01-01", dedup_hash="a" * 16),
-        _rule(date="2026-02-01", dedup_hash="b" * 16),
-    ])
-    assert [r["date"] for r in bank_transactions.load(conn)] == [
-        "2026-01-01", "2026-02-01", "2026-03-01"
-    ]
+    bank_transactions.save(
+        conn,
+        account_id,
+        [
+            _rule(date="2026-03-01", dedup_hash="c" * 16),
+            _rule(date="2026-01-01", dedup_hash="a" * 16),
+            _rule(date="2026-02-01", dedup_hash="b" * 16),
+        ],
+    )
+    assert [r["date"] for r in bank_transactions.load(conn)] == ["2026-01-01", "2026-02-01", "2026-03-01"]
     conn.close()
 
 
 def test_filter_by_period():
     conn = _conn()
     account_id = _account(conn)
-    bank_transactions.save(conn, account_id, [
-        _rule(date="2026-01-15", dedup_hash="a" * 16),
-        _rule(date="2026-02-15", dedup_hash="b" * 16),
-        _rule(date="2026-03-15", dedup_hash="c" * 16),
-    ])
+    bank_transactions.save(
+        conn,
+        account_id,
+        [
+            _rule(date="2026-01-15", dedup_hash="a" * 16),
+            _rule(date="2026-02-15", dedup_hash="b" * 16),
+            _rule(date="2026-03-15", dedup_hash="c" * 16),
+        ],
+    )
     rows = bank_transactions.load(conn, start="2026-02-01", end="2026-02-28")
     assert [r["date"] for r in rows] == ["2026-02-15"]
     conn.close()
@@ -195,8 +201,7 @@ def test_filter_by_period():
 def test_filter_by_account():
     conn = _conn()
     ing = _account(conn)
-    bunq = accounts.make_bank_account(conn, kind="bank", provider="bunq",
-                                    name="bunq", iban="NL00BUNQ0000000002")
+    bunq = accounts.make_bank_account(conn, kind="bank", provider="bunq", name="bunq", iban="NL00BUNQ0000000002")
     bank_transactions.save(conn, ing, [_rule(dedup_hash="a" * 16)])
     bank_transactions.save(conn, bunq, [_rule(dedup_hash="b" * 16, name="BUNQ REGEL")])
 
@@ -218,6 +223,7 @@ def test_deleting_an_account_takes_its_transactions_along():
 # ---------------------------------------------------------------------------
 # Separation between users
 # ---------------------------------------------------------------------------
+
 
 def test_the_same_hash_for_two_users_is_allowed():
     """Two housemates with the same rent payment are not duplicates of each other."""

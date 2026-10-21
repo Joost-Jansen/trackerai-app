@@ -72,7 +72,15 @@ def test_login_sets_httponly_cookie_and_unlocks_data(client):
     assert "httponly" in r.headers["set-cookie"].lower()
     me = client.get("/api/me").json()
     assert {k: me[k] for k in ("id", "username", "display_name", "is_admin", "via", "totp_enabled", "locale", "in_app")} == {
-        "id": 1, "username": "alice", "display_name": None, "is_admin": True, "via": "cookie", "totp_enabled": False, "locale": None, "in_app": True}
+        "id": 1,
+        "username": "alice",
+        "display_name": None,
+        "is_admin": True,
+        "via": "cookie",
+        "totp_enabled": False,
+        "locale": None,
+        "in_app": True,
+    }
     d = client.get("/api/dashboard").json()
     assert d["last_sync"] == "2026-09-30 06:02"
     assert d["recent"][0]["name"] == "Ochtendloop"
@@ -143,7 +151,9 @@ def test_plans_import_edit_and_match(client):
 def test_plan_links_set_and_cleared_by_hand(client):
     login(client)
     # the fixture has a 10 km run on 2026-09-29; the plan has runs on 28 Sep (near) and 4 Oct
-    plan = client.post("/api/plans", json={"title": "Blok", "sessions": [{"date": "2026-09-28", "sport": "run"}, {"date": "2026-10-04", "sport": "run"}]}).json()
+    plan = client.post(
+        "/api/plans", json={"title": "Blok", "sessions": [{"date": "2026-09-28", "sport": "run"}, {"date": "2026-10-04", "sport": "run"}]}
+    ).json()
     aid = plan["sessions"][0]["activity_ids"][0]
     assert plan["sessions"][0]["match"] == "near"
     url = f"/api/plans/{plan['id']}/links/{aid}"
@@ -159,7 +169,10 @@ def test_plan_links_set_and_cleared_by_hand(client):
 def test_plan_sessions_replaced_from_table(client):
     login(client)
     plan = client.post("/api/plans", json={"title": "Blok", "sessions": [{"date": "2026-10-01", "sport": "run"}]}).json()
-    res = client.put(f"/api/plans/{plan['id']}/table", json={"text": "| Datum | Sport | Km |\n|---|---|---|\n| 2026-10-02 | lopen | 12 |\n| 2026-10-03 | rust | |"}).json()
+    res = client.put(
+        f"/api/plans/{plan['id']}/table",
+        json={"text": "| Datum | Sport | Km |\n|---|---|---|\n| 2026-10-02 | lopen | 12 |\n| 2026-10-03 | rust | |"},
+    ).json()
     assert [s["date"] for s in res["plan"]["sessions"]] == ["2026-10-02", "2026-10-03"]
     assert client.put(f"/api/plans/{plan['id']}/table", json={"text": "geen tabel"}).status_code == 422
 
@@ -174,7 +187,13 @@ def test_routes_endpoints_are_wired(client):
 def test_dashboard_has_upcoming_sessions_and_readiness(client):
     login(client)
     assert client.get("/api/dashboard").json()["upcoming"] == []
-    client.post("/api/plans", json={"title": "Blok", "sessions": [{"date": "2020-01-01", "sport": "run"}, {"date": "2099-01-01", "sport": "run", "distance_km": 10}]})
+    client.post(
+        "/api/plans",
+        json={
+            "title": "Blok",
+            "sessions": [{"date": "2020-01-01", "sport": "run"}, {"date": "2099-01-01", "sport": "run", "distance_km": 10}],
+        },
+    )
     d = client.get("/api/dashboard").json()
     assert [s["date"] for s in d["upcoming"]] == ["2099-01-01"] and d["plan_title"] == "Blok"
     assert "readiness" in d

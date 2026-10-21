@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import json
 import threading
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
-from typing import Callable
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Request, Response
@@ -21,21 +21,27 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 from api import betas, nutrition_agent
-from api.errors import ApiError
-from api.gear import gear_of, overview as gear_overview
-from trackerai_accounts.oauth import OAuth, PREFIX
+from api.daily import as_markdown as day_md
+from api.daily import day_view
 from api.dashboard import build_dashboard, today_form_pct, today_tsb
-from api.daily import as_markdown as day_md, day_view
+from api.errors import ApiError
+from api.gear import gear_of
+from api.gear import overview as gear_overview
 from api.history import activity_detail, list_activities
 from api.plans import enrich, parse_table
-from api.readiness import as_text as readiness_text, readiness
+from api.readiness import as_text as readiness_text
+from api.readiness import readiness
 from api.routes_api import suggest
 from api.trends import build_trends
-from trackerai_websec import log_redact
 from tools import db, wahoo
-from tools.nutrition import foods, meals as nutrition_meals, report as nutrition_report, targets as nutrition_targets
+from tools.nutrition import foods
+from tools.nutrition import meals as nutrition_meals
+from tools.nutrition import report as nutrition_report
+from tools.nutrition import targets as nutrition_targets
 from tools.sports import effort_kind
 from tools.summarize import last_90_days_md, this_week_md
+from trackerai_accounts.oauth import PREFIX, OAuth
+from trackerai_websec import log_redact
 
 PROTOCOLS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 INSTRUCTIONS = (
@@ -65,6 +71,7 @@ def instructions(user) -> str:
         text = text.replace("Schrijf aan het eind van een sessie een logentry (add_log).", "Alleen lezen: verander geen gegevens.")
     return text
 
+
 SESSION_TABLE_HELP = (
     "Markdown- of CSV-tabel met kopregel. Kolommen: Datum (verplicht, 2026-10-06 of 6-10), Sport (lopen/fietsen/zwemmen/kracht/rust), "
     "Type, Km, Duur (min of 1:10), Zone (Z2 of Z3-Z4), Omschrijving."
@@ -74,7 +81,13 @@ SESSION_TABLE_HELP = (
 # Codes in the data are English; the text for the agent is Dutch (see INSTRUCTIONS).
 PLAN_STATUS_NL = {"active": "actief", "finished": "afgerond", "stopped": "gestopt"}
 SESSION_STATUS_NL = {"done": "gedaan", "missed": "gemist", "today": "vandaag", "planned": "gepland", "rest": "rust"}
-FORM_STATUS_NL = {"transition": "overgang (fitheid zakt weg)", "fresh": "fris", "neutral": "neutraal", "optimal": "optimaal trainen", "high_risk": "hoog risico"}
+FORM_STATUS_NL = {
+    "transition": "overgang (fitheid zakt weg)",
+    "fresh": "fris",
+    "neutral": "neutraal",
+    "optimal": "optimaal trainen",
+    "high_risk": "hoog risico",
+}
 
 
 def _str(desc: str, **kw) -> dict:
@@ -82,11 +95,23 @@ def _str(desc: str, **kw) -> dict:
 
 
 TOOLS = [
-    {"name": "get_context", "description": "Alles voor de start van een coachingsessie, als markdown: profiel, doelen, actief schema met gedaan/gemist per sessie, vorm, deze week, laatste 90 dagen, rondjes en de laatste logentries.", "inputSchema": {"type": "object", "properties": {}}},
+    {
+        "name": "get_context",
+        "description": "Alles voor de start van een coachingsessie, als markdown: profiel, doelen, actief schema met gedaan/gemist per sessie, vorm, deze week, laatste 90 dagen, rondjes en de laatste logentries.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
     {
         "name": "list_activities",
         "description": "Activiteiten, nieuwste eerst, als tabel met id, datum, sport, afstand, tijd, tempo, gemiddelde hartslag en tijd per zone.",
-        "inputSchema": {"type": "object", "properties": {"sport": _str("run, ride, swim, strength_training, ..."), "from": _str("vanaf datum YYYY-MM-DD"), "to": _str("tot en met datum YYYY-MM-DD"), "limit": {"type": "integer", "default": 30}}},
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sport": _str("run, ride, swim, strength_training, ..."),
+                "from": _str("vanaf datum YYYY-MM-DD"),
+                "to": _str("tot en met datum YYYY-MM-DD"),
+                "limit": {"type": "integer", "default": 30},
+            },
+        },
     },
     {
         "name": "get_activity",
@@ -98,25 +123,70 @@ TOOLS = [
         "description": "Eén dag en de nacht ervoor van het horloge (Garmin): slaap (duur, score, fases, van-tot), rusthartslag, hartslag, ademhaling en stress in de slaap, "
         "SpO2, Body Battery, stress, stappen en intensiteitsminuten, elk tegen de eigen normaal (mediaan 60 dagen); de nacht in getallen (laagste hartslag, "
         "gemiddeld, laatste 2 uur slaap tegen de rest) en een tabel per half uur met hartslag, stress, Body Battery, ademhaling, SpO2 en slaapfase.",
-        "inputSchema": {"type": "object", "properties": {"day": _str("YYYY-MM-DD, de dag waarop je wakker werd; standaard de laatste dag met data")}},
+        "inputSchema": {
+            "type": "object",
+            "properties": {"day": _str("YYYY-MM-DD, de dag waarop je wakker werd; standaard de laatste dag met data")},
+        },
     },
-    {"name": "list_gear", "description": "Materiaal (schoenen, fiets, ...): kilometers, limiet om te vervangen, status (ok, soon = bijna, replace = vervangen, retired = buiten gebruik), laatst gebruikt, km laatste 30 dagen en voor welke sport het de standaard is. Uit Garmin of zelf toegevoegd.", "inputSchema": {"type": "object", "properties": {}}},
-    {"name": "get_trends", "description": "Vorm (CTL/ATL/TSB, laatste 60 dagen), volume per week, tempo in Z2, VO2max, herstel per week, records, wedstrijden, voorspelde wedstrijdtijden en inzichten.", "inputSchema": {"type": "object", "properties": {}}},
-    {"name": "get_plan", "description": "Het actieve trainingsschema als tabel, per sessie met status (gedaan, gemist, vandaag, gepland, rust), wat er gedaan is en een voorgesteld rondje. Een activiteit tot 2 dagen voor of na een open sessie van dezelfde sport telt voor die sessie; Gedaan km per week telt alle activiteiten van de sporten in het schema.", "inputSchema": {"type": "object", "properties": {}}},
+    {
+        "name": "list_gear",
+        "description": "Materiaal (schoenen, fiets, ...): kilometers, limiet om te vervangen, status (ok, soon = bijna, replace = vervangen, retired = buiten gebruik), laatst gebruikt, km laatste 30 dagen en voor welke sport het de standaard is. Uit Garmin of zelf toegevoegd.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "get_trends",
+        "description": "Vorm (CTL/ATL/TSB, laatste 60 dagen), volume per week, tempo in Z2, VO2max, herstel per week, records, wedstrijden, voorspelde wedstrijdtijden en inzichten.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "get_plan",
+        "description": "Het actieve trainingsschema als tabel, per sessie met status (gedaan, gemist, vandaag, gepland, rust), wat er gedaan is en een voorgesteld rondje. Een activiteit tot 2 dagen voor of na een open sessie van dezelfde sport telt voor die sessie; Gedaan km per week telt alle activiteiten van de sporten in het schema.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
     {
         "name": "create_plan",
         "description": "Nieuw trainingsschema uit een tabel. Wordt het actieve schema; het vorige gaat naar afgerond. Gebruik preview=true om eerst te zien hoe de tabel gelezen wordt.",
-        "inputSchema": {"type": "object", "properties": {"title": _str("titel"), "table": _str(SESSION_TABLE_HELP), "goal": _str("doel, bv. 10 km onder 50 minuten"), "race": _str("wedstrijd en datum"), "notes": _str("toelichting bij het schema"), "preview": {"type": "boolean", "default": False}}, "required": ["title", "table"]},
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "title": _str("titel"),
+                "table": _str(SESSION_TABLE_HELP),
+                "goal": _str("doel, bv. 10 km onder 50 minuten"),
+                "race": _str("wedstrijd en datum"),
+                "notes": _str("toelichting bij het schema"),
+                "preview": {"type": "boolean", "default": False},
+            },
+            "required": ["title", "table"],
+        },
     },
     {
         "name": "replace_plan_sessions",
         "description": "Vervang alle sessies van het actieve schema (of plan_id) door een tabel. Haal eerst get_plan op, pas de tabel aan en stuur hem volledig terug.",
-        "inputSchema": {"type": "object", "properties": {"table": _str(SESSION_TABLE_HELP), "plan_id": {"type": "integer"}, "preview": {"type": "boolean", "default": False}}, "required": ["table"]},
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "table": _str(SESSION_TABLE_HELP),
+                "plan_id": {"type": "integer"},
+                "preview": {"type": "boolean", "default": False},
+            },
+            "required": ["table"],
+        },
     },
     {
         "name": "set_plan_status",
         "description": "Zet het actieve schema (of plan_id) op afgerond, gestopt of weer actief.",
-        "inputSchema": {"type": "object", "properties": {"status": {"type": "string", "enum": ["active", "finished", "stopped"], "description": "active (actief), finished (afgerond) of stopped (gestopt)"}, "plan_id": {"type": "integer"}}, "required": ["status"]},
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": ["active", "finished", "stopped"],
+                    "description": "active (actief), finished (afgerond) of stopped (gestopt)",
+                },
+                "plan_id": {"type": "integer"},
+            },
+            "required": ["status"],
+        },
     },
     {
         "name": "sync_now",
@@ -126,24 +196,68 @@ TOOLS = [
     {
         "name": "add_log",
         "description": "Schrijf een logentry (kind=log: vraag, belangrijkste data, besluit/advies van deze sessie) of een analyse (kind=analysis). Markdown.",
-        "inputSchema": {"type": "object", "properties": {"title": _str("onderwerp"), "body": _str("markdown"), "kind": {"type": "string", "enum": ["log", "analysis"], "default": "log"}, "day": _str("YYYY-MM-DD, standaard vandaag")}, "required": ["title", "body"]},
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "title": _str("onderwerp"),
+                "body": _str("markdown"),
+                "kind": {"type": "string", "enum": ["log", "analysis"], "default": "log"},
+                "day": _str("YYYY-MM-DD, standaard vandaag"),
+            },
+            "required": ["title", "body"],
+        },
     },
-    {"name": "list_log", "description": "Laatste logentries of analyses.", "inputSchema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["log", "analysis"], "default": "log"}, "limit": {"type": "integer", "default": 10}}}},
-    {"name": "get_doc", "description": "Profiel (zones, max HR, PR's) of doelen, als markdown.", "inputSchema": {"type": "object", "properties": {"key": {"type": "string", "enum": ["profile", "goals"]}}, "required": ["key"]}},
+    {
+        "name": "list_log",
+        "description": "Laatste logentries of analyses.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "kind": {"type": "string", "enum": ["log", "analysis"], "default": "log"},
+                "limit": {"type": "integer", "default": 10},
+            },
+        },
+    },
+    {
+        "name": "get_doc",
+        "description": "Profiel (zones, max HR, PR's) of doelen, als markdown.",
+        "inputSchema": {"type": "object", "properties": {"key": {"type": "string", "enum": ["profile", "goals"]}}, "required": ["key"]},
+    },
     {
         "name": "update_doc",
         "description": "Vervang profiel of doelen door nieuwe markdown. Haal eerst get_doc op en stuur het volledige document terug.",
-        "inputSchema": {"type": "object", "properties": {"key": {"type": "string", "enum": ["profile", "goals"]}, "body": _str("volledige markdown")}, "required": ["key", "body"]},
+        "inputSchema": {
+            "type": "object",
+            "properties": {"key": {"type": "string", "enum": ["profile", "goals"]}, "body": _str("volledige markdown")},
+            "required": ["key", "body"],
+        },
     },
     {
         "name": "suggest_route",
         "description": "Vaste rondjes (of combinaties vanaf dezelfde start) voor een afstand, het langst niet gelopen eerst.",
-        "inputSchema": {"type": "object", "properties": {"km": {"type": "number"}, "tolerance": {"type": "number", "default": 0.05}, "sport": {"type": "string", "enum": ["run", "ride"], "default": "run"}}, "required": ["km"]},
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "km": {"type": "number"},
+                "tolerance": {"type": "number", "default": 0.05},
+                "sport": {"type": "string", "enum": ["run", "ride"], "default": "run"},
+            },
+            "required": ["km"],
+        },
     },
 ]
 
 
-WRITE_NAMES = {"create_plan", "replace_plan_sessions", "set_plan_status", "add_log", "update_doc", "update_feedback", "sync_now", "log_meal"}
+WRITE_NAMES = {
+    "create_plan",
+    "replace_plan_sessions",
+    "set_plan_status",
+    "add_log",
+    "update_doc",
+    "update_feedback",
+    "sync_now",
+    "log_meal",
+}
 
 MEAL_TABLE_HELP = (
     "Markdown- of CSV-tabel met kopregel. Kolommen: Voedingsmiddel (naam of code als nevo:1234 uit search_foods, verplicht), "
@@ -157,17 +271,32 @@ NUTRITION_TOOLS = [
         "description": "Voeding van één dag (per maaltijd de voedingsmiddelen en grammen, totalen, koolhydraten en eiwit in g/kg tegen het doel van die dag, "
         "alcohol, laatste maaltijd) of van een periode (per dag een regel, met de dekking: dagen met minstens twee maaltijden). Doelen volgen de training: "
         "rust 3-5, matig 5-7, lang of zwaar 6-10, wedstrijd of > 3 uur 8-12 g/kg koolhydraten; eiwit 1,6-2,0 g/kg; de dag voor een lange training of wedstrijd telt mee.",
-        "inputSchema": {"type": "object", "properties": {"day": _str("YYYY-MM-DD, standaard vandaag"), "from": _str("begin van een periode, YYYY-MM-DD"), "to": _str("eind van een periode, YYYY-MM-DD")}},
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "day": _str("YYYY-MM-DD, standaard vandaag"),
+                "from": _str("begin van een periode, YYYY-MM-DD"),
+                "to": _str("eind van een periode, YYYY-MM-DD"),
+            },
+        },
     },
     {
         "name": "log_meal",
         "description": "Log een of meer maaltijden uit een tabel, met voedingsmiddelen uit NEVO, Open Food Facts of eigen producten. Gebruik preview=true om eerst te zien hoe elke regel gematcht wordt.",
-        "inputSchema": {"type": "object", "properties": {"table": _str(MEAL_TABLE_HELP), "preview": {"type": "boolean", "default": False}}, "required": ["table"]},
+        "inputSchema": {
+            "type": "object",
+            "properties": {"table": _str(MEAL_TABLE_HELP), "preview": {"type": "boolean", "default": False}},
+            "required": ["table"],
+        },
     },
     {
         "name": "search_foods",
         "description": "Zoek voedingsmiddelen in NEVO, eigen producten en eerder gescande producten: code, naam, kcal, koolhydraten, eiwit en vet per 100 g (of ml), en je gebruikelijke portie.",
-        "inputSchema": {"type": "object", "properties": {"q": _str("zoekwoorden, bv. havermout of volkorenbrood"), "limit": {"type": "integer", "default": 10}}, "required": ["q"]},
+        "inputSchema": {
+            "type": "object",
+            "properties": {"q": _str("zoekwoorden, bv. havermout of volkorenbrood"), "limit": {"type": "integer", "default": 10}},
+            "required": ["q"],
+        },
     },
 ]
 TZ_LOCAL = ZoneInfo("Europe/Amsterdam")  # the clock a logged meal without a time gets (as api/main.py TZ)
@@ -185,12 +314,28 @@ FEEDBACK_TOOLS = [
     {
         "name": "list_feedback",
         "description": "Feedback van gebruikers van de site: kapot (bug) of een idee, met pagina, browser, versie en recente fouten. Nieuwste eerst. Standaard alleen open meldingen (new en planned).",
-        "inputSchema": {"type": "object", "properties": {"status": _str("new, planned, fixed, wontfix of all", enum=["new", "planned", "fixed", "wontfix", "all", "open"], default="open"), "limit": {"type": "integer", "default": 30}}},
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "status": _str(
+                    "new, planned, fixed, wontfix of all", enum=["new", "planned", "fixed", "wontfix", "all", "open"], default="open"
+                ),
+                "limit": {"type": "integer", "default": 30},
+            },
+        },
     },
     {
         "name": "update_feedback",
         "description": "Status en/of antwoord bij een melding. De gebruiker ziet beide op de site. Status: new, planned, fixed, wontfix.",
-        "inputSchema": {"type": "object", "properties": {"id": {"type": "integer"}, "status": _str("Nieuwe status", enum=list(db.FEEDBACK_STATUSES)), "reply": _str("Antwoord voor de gebruiker, kort en in hun taal")}, "required": ["id"]},
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer"},
+                "status": _str("Nieuwe status", enum=list(db.FEEDBACK_STATUSES)),
+                "reply": _str("Antwoord voor de gebruiker, kort en in hun taal"),
+            },
+            "required": ["id"],
+        },
     },
 ]
 
@@ -201,7 +346,13 @@ def feedback_md(items: list[dict]) -> str:
         ctx = f.get("context") or {}
         head = f"## #{f['id']} {f['kind']} · {f['status']} · {f['created_at'][:16].replace('T', ' ')} · {f.get('username') or f['user_id']}"
         lines = [head, f["message"].strip()]
-        meta = [f"pagina {f['page']}" if f.get("page") else None, f"versie {ctx['version']}" if ctx.get("version") else None, ctx.get("browser"), ctx.get("screen"), ctx.get("language")]
+        meta = [
+            f"pagina {f['page']}" if f.get("page") else None,
+            f"versie {ctx['version']}" if ctx.get("version") else None,
+            ctx.get("browser"),
+            ctx.get("screen"),
+            ctx.get("language"),
+        ]
         lines.append("_" + " · ".join(m for m in meta if m) + "_")
         for e in ctx.get("errors") or []:
             lines.append(f"- fout: {e.get('message')} {('(' + str(e.get('where')) + ')') if e.get('where') else ''}".rstrip())
@@ -263,12 +414,16 @@ def activity_md(a: dict) -> str:
         f"{a['start_local']} · {a['sport']} · {a.get('distance_km') or '-'} km{_distance_note(a)} · {_clock(a.get('moving_time_s'))} bewegend"
         + (f" ({_clock(a['elapsed_time_s'])} totaal)" if a.get("elapsed_time_s") else "")
         + f" · {_pace(a)} · HR {a.get('avg_hr') or '-'} (max {a.get('max_hr') or '-'})",
-        f"Zones: {_zones(a.get('hr_zones_s'))}" + (" (zones voor deze sport zijn geschat)" if a.get("zone_estimate") else "") + (f", grenzen {a['zone_bounds']}" if a.get("zone_bounds") else ""),
+        f"Zones: {_zones(a.get('hr_zones_s'))}"
+        + (" (zones voor deze sport zijn geschat)" if a.get("zone_estimate") else "")
+        + (f", grenzen {a['zone_bounds']}" if a.get("zone_bounds") else ""),
     ]
     if a.get("decoupling_pct") is not None:
         out.append(f"Decoupling (Pa:HR, tweede helft t.o.v. eerste): {a['decoupling_pct']}%")
     if a.get("same_day"):
-        out.append("Zelfde dag: " + ", ".join(f"{x['sport']} {x['start_local'][11:16]} ({x.get('distance_km') or '-'} km)" for x in a["same_day"]))
+        out.append(
+            "Zelfde dag: " + ", ".join(f"{x['sport']} {x['start_local'][11:16]} ({x.get('distance_km') or '-'} km)" for x in a["same_day"])
+        )
     if a.get("route"):
         r = a["route"]
         hist = ", ".join(f"{h['date']} {_clock(h['pace_s_per_km'])}/km HR {h.get('avg_hr') or '-'}" for h in r["history"][-8:])
@@ -278,7 +433,10 @@ def activity_md(a: dict) -> str:
         out += [f"| {s['km']} | {_clock(s['seconds'])} | {s.get('avg_hr') or '-'} | {s.get('elevation_m', '-')} |" for s in a["splits"]]
     if a.get("laps") and len(a["laps"]) > 1:
         out += ["", "| Ronde | km | Tijd | HR |", "|---|---|---|---|"]
-        out += [f"| {i} | {lap.get('distance_km')} | {_clock(lap.get('time_s'))} | {lap.get('avg_hr') or '-'} |" for i, lap in enumerate(a["laps"], 1)]
+        out += [
+            f"| {i} | {lap.get('distance_km')} | {_clock(lap.get('time_s'))} | {lap.get('avg_hr') or '-'} |"
+            for i, lap in enumerate(a["laps"], 1)
+        ]
     return "\n".join(out)
 
 
@@ -288,9 +446,15 @@ GEAR_STATE_NL = {"ok": "ok", "soon": "bijna vervangen", "replace": "vervangen", 
 def gear_md(items: list[dict]) -> str:
     if not items:
         return "Geen materiaal. Garmin-materiaal komt mee met de sync; zelf toevoegen kan op de site onder Historie, Materiaal."
-    out = ["| Id | Naam | Soort | km | Limiet | Status | Laatst | km 30 d | Standaard voor | Bron |", "|---|---|---|---|---|---|---|---|---|---|"]
-    out += [f"| {g['id']} | {g['name']} | {g['kind']} | {g['total_km']} | {g['limit_km'] or '-'} | {GEAR_STATE_NL[g['state']]} | {g['last_used'] or '-'} | "
-            f"{g['km_30d']} | {', '.join(g['default_for']) or '-'} | {g['source']} |" for g in items]
+    out = [
+        "| Id | Naam | Soort | km | Limiet | Status | Laatst | km 30 d | Standaard voor | Bron |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    out += [
+        f"| {g['id']} | {g['name']} | {g['kind']} | {g['total_km']} | {g['limit_km'] or '-'} | {GEAR_STATE_NL[g['state']]} | {g['last_used'] or '-'} | "
+        f"{g['km_30d']} | {', '.join(g['default_for']) or '-'} | {g['source']} |"
+        for g in items
+    ]
     return "\n".join(out)
 
 
@@ -302,10 +466,21 @@ def plan_md(plan: dict | None) -> str:
         out.append(f"Doel: {plan.get('goal') or '-'} · wedstrijd: {plan.get('race') or '-'}")
     if plan.get("notes"):
         out.append(plan["notes"])
-    out += ["", "| Datum | Sport | Type | Km | Duur | Zone | Omschrijving | Status | Gedaan | Rondje |", "|---|---|---|---|---|---|---|---|---|---|"]
+    out += [
+        "",
+        "| Datum | Sport | Type | Km | Duur | Zone | Omschrijving | Status | Gedaan | Rondje |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
     for s in plan["sessions"]:
         d = s.get("done")
-        done = (f"{d['distance_km']} km {_clock(d['moving_time_s'])} HR {d.get('avg_hr') or '-'}" + (f", {d['zone_pct']}% volgens zone" if d.get("zone_pct") is not None else "")) if d else ""
+        done = (
+            (
+                f"{d['distance_km']} km {_clock(d['moving_time_s'])} HR {d.get('avg_hr') or '-'}"
+                + (f", {d['zone_pct']}% volgens zone" if d.get("zone_pct") is not None else "")
+            )
+            if d
+            else ""
+        )
         if d and d.get("date") != s["date"]:
             done += f", gedaan op {d['date']}"
         rs = s.get("route_suggestion")
@@ -356,7 +531,9 @@ class Server:
                 raise ToolError(f"{key} als YYYY-MM-DD") from None
 
         if name == "search_foods":
-            found = foods.search(self.engine, str(args.get("q") or ""), min(int(args.get("limit") or 10), 30), nutrition_meals.history(self.engine))
+            found = foods.search(
+                self.engine, str(args.get("q") or ""), min(int(args.get("limit") or 10), 30), nutrition_meals.history(self.engine)
+            )
             if not found:
                 return "Niets gevonden. Probeer een ander woord (NEVO gebruikt namen als 'Brood volkoren', 'Vlokken haver-')."
             usual = nutrition_meals.portions(self.engine, [f["ref"] for f in found])
@@ -365,7 +542,9 @@ class Server:
                 p = f["per_100"]
                 n = lambda k: "-" if p.get(k) is None else f"{round(p[k], 1):g}".replace(".", ",")  # noqa: E731
                 portion = (usual.get(f["ref"]) or {}).get("grams")
-                rows.append(f"| {f['ref']} | {f['name']} | {f['source']} | {n('energy_kcal')} | {n('carbs_g')} | {n('protein_g')} | {n('fat_g')} | 100 {f['unit']} | {portion or '-'} |")
+                rows.append(
+                    f"| {f['ref']} | {f['name']} | {f['source']} | {n('energy_kcal')} | {n('carbs_g')} | {n('protein_g')} | {n('fat_g')} | 100 {f['unit']} | {portion or '-'} |"
+                )
             return "\n".join(rows)
         if name == "get_nutrition":
             start, end = day_of("from"), day_of("to")
@@ -390,9 +569,11 @@ class Server:
         lines = []
         for m in planned:
             total = sum((it["food"]["per_100"].get("energy_kcal") or 0) * it["grams"] / 100 for it in m["items"])
-            lines.append(f"- {m['day']} {m['eaten_at']} {nutrition_report.MOMENT_NL[m['moment']]}: "
-                         + ", ".join(f"{it['food']['name']} ({it['food']['ref']}) {round(it['grams'])} {it['food']['unit']}" for it in m["items"])
-                         + f" (~{round(total)} kcal)")
+            lines.append(
+                f"- {m['day']} {m['eaten_at']} {nutrition_report.MOMENT_NL[m['moment']]}: "
+                + ", ".join(f"{it['food']['name']} ({it['food']['ref']}) {round(it['grams'])} {it['food']['unit']}" for it in m["items"])
+                + f" (~{round(total)} kcal)"
+            )
         items_of = lambda m: [{"food_ref": it["food"]["ref"], "grams": it["grams"], "grams_source": "agent"} for it in m["items"]]  # noqa: E731
         try:  # all meals checked before one is saved: a table is logged whole or not at all
             for m in planned:
@@ -401,9 +582,17 @@ class Server:
             raise ToolError(f"Niets opgeslagen, {m['day']} {m['eaten_at']}: {e.code} {e.params or ''}" + note) from None
         if args.get("preview"):
             return "Voorbeeld, niets opgeslagen:\n" + "\n".join(lines) + note
-        saved = [nutrition_meals.create(self.engine, day=m["day"], eaten_at=m["eaten_at"], moment=m["moment"], input="agent",
-                                        items=items_of(m), note=f"door {who}")["id"] for m in planned]
-        return f"{len(saved)} maaltijd{'en' if len(saved) != 1 else ''} opgeslagen (id {', '.join(map(str, saved))}):\n" + "\n".join(lines) + note
+        saved = [
+            nutrition_meals.create(
+                self.engine, day=m["day"], eaten_at=m["eaten_at"], moment=m["moment"], input="agent", items=items_of(m), note=f"door {who}"
+            )["id"]
+            for m in planned
+        ]
+        return (
+            f"{len(saved)} maaltijd{'en' if len(saved) != 1 else ''} opgeslagen (id {', '.join(map(str, saved))}):\n"
+            + "\n".join(lines)
+            + note
+        )
 
     def _sync(self) -> str:
         """The site's sync (api/connections.py), from here: start it, wait a while, say what came in."""
@@ -426,8 +615,9 @@ class Server:
         state = db.get_setting(self.engine, "sync_state") or {}
         failed = state.get("last_failed") or []
         new = len(self.store.activities) - before
-        return (f"Sync klaar: laatste sync {state.get('last_sync_local') or '-'}, {new} nieuwe activiteit{'en' if new != 1 else ''}."
-                + (f" Mislukt: {', '.join(failed)}." if failed else ""))
+        return f"Sync klaar: laatste sync {state.get('last_sync_local') or '-'}, {new} nieuwe activiteit{'en' if new != 1 else ''}." + (
+            f" Mislukt: {', '.join(failed)}." if failed else ""
+        )
 
     def call(self, name: str, args: dict, who: str) -> str:
         if name in WRITE_NAMES and getattr(self.user, "agent_scope", "write") == "read":
@@ -445,19 +635,42 @@ class Server:
             dash = build_dashboard(s.activities, s.wellness, s.zones, today, s.last_sync, s.rhr_fallback)
             f = dash["form"]
             plan = self._full(db.active_plan(self.engine))
-            parts = [f"# Trainingscontext {today.isoformat()}", f"Laatste sync: {s.last_sync}.", "", "## Profiel", profile["body"] if profile else "(leeg)", "", "## Doelen", goals["body"] if goals else "(leeg)", "", "## Actief schema", plan_md(plan)]
+            parts = [
+                f"# Trainingscontext {today.isoformat()}",
+                f"Laatste sync: {s.last_sync}.",
+                "",
+                "## Profiel",
+                profile["body"] if profile else "(leeg)",
+                "",
+                "## Doelen",
+                goals["body"] if goals else "(leeg)",
+                "",
+                "## Actief schema",
+                plan_md(plan),
+            ]
             rd = readiness(s.wellness, today, today_tsb(f), today_form_pct(f), s.rhr_fallback)
             if rd:
                 parts.append(f"\n## Klaar voor vandaag\n{readiness_text(rd)}")
             if f:
-                parts.append(f"\n## Vorm\nFitheid (CTL) {f['ctl']}, vermoeidheid (ATL) {f['atl']}, vorm (TSB) {f['tsb']} ({f.get('pct') if f.get('pct') is not None else '-'}% van fitheid): {FORM_STATUS_NL.get(f['status'], f['status'])}. Piek CTL {f['ctl_peak']} op {f['ctl_peak_date']}.")
-            parts += [this_week_md(s.activities, s.wellness, today, s.last_sync, s.zones), last_90_days_md(s.activities, s.wellness, today, s.zones)]
+                parts.append(
+                    f"\n## Vorm\nFitheid (CTL) {f['ctl']}, vermoeidheid (ATL) {f['atl']}, vorm (TSB) {f['tsb']} ({f.get('pct') if f.get('pct') is not None else '-'}% van fitheid): {FORM_STATUS_NL.get(f['status'], f['status'])}. Piek CTL {f['ctl_peak']} op {f['ctl_peak_date']}."
+                )
+            parts += [
+                this_week_md(s.activities, s.wellness, today, s.last_sync, s.zones),
+                last_90_days_md(s.activities, s.wellness, today, s.zones),
+            ]
             parts += ["## Vaste rondjes", "", "| Id | Naam | km | Keer | Laatst | Tempo/km | HR |", "|---|---|---|---|---|---|---|"]
-            parts += [f"| {r['id']} | {r.get('name')} | {r.get('distance_km')} | {r.get('runs')} | {r.get('last_run')} | {r.get('median_pace') or (str(r['median_speed_kmh']) + ' km/u' if r.get('median_speed_kmh') else '-')} | {r.get('median_hr')} |" for r in s.routes]
+            parts += [
+                f"| {r['id']} | {r.get('name')} | {r.get('distance_km')} | {r.get('runs')} | {r.get('last_run')} | {r.get('median_pace') or (str(r['median_speed_kmh']) + ' km/u' if r.get('median_speed_kmh') else '-')} | {r.get('median_hr')} |"
+                for r in s.routes
+            ]
             if nutrition_on(self.user) and nutrition_meals.history(self.engine):
                 parts += ["", nutrition_report.week_md(self.engine, today, s.activities, plan["sessions"] if plan else [])]
             parts += ["", "## Laatste logentries"]
-            parts += [f"### {e['day']}: {e['title']} ({e['author']})\n{e['body'].strip()}" for e in db.list_entries(self.engine, kind="log", limit=5)]
+            parts += [
+                f"### {e['day']}: {e['title']} ({e['author']})\n{e['body'].strip()}"
+                for e in db.list_entries(self.engine, kind="log", limit=5)
+            ]
             return "\n".join(parts)
         if name == "list_activities":
             items = list_activities(s.activities, args.get("sport"), args.get("from"), args.get("to"))[: int(args.get("limit") or 30)]
@@ -478,11 +691,15 @@ class Server:
             view = day_view(self.engine, s.wellness, day, s.rhr_fallback, today)
             text = day_md(view)
             if nutrition_on(self.user):  # the evening before the night: late eating and alcohol next to sleep and heart rate
-                line = nutrition_report.evening_line(nutrition_report.evening(self.engine, (date.fromisoformat(view["day"]) - timedelta(days=1)).isoformat()))
+                line = nutrition_report.evening_line(
+                    nutrition_report.evening(self.engine, (date.fromisoformat(view["day"]) - timedelta(days=1)).isoformat())
+                )
                 text += f"\n\n{line}" if line else ""
             return text
         if name == "get_trends":
-            t = build_trends(s.activities, s.wellness, s.zones, s.streams, today, s.rhr_fallback, plan=db.active_plan(self.engine), last_sync=s.last_sync)
+            t = build_trends(
+                s.activities, s.wellness, s.zones, s.streams, today, s.rhr_fallback, plan=db.active_plan(self.engine), last_sync=s.last_sync
+            )
             t["form"] = t["form"][-60:]
             t["recovery_daily"] = t.get("recovery_daily", [])[-60:]  # keeps the agent response small
             t["weekly"] = t["weekly"][-26:]
@@ -495,7 +712,19 @@ class Server:
             if not items:
                 raise ToolError("Geen sessies in de tabel." + note)
             if args.get("preview"):
-                return plan_md({"id": "-", "title": args.get("title", "voorbeeld"), "status": "voorbeeld", "author": who, "sessions": items, "weeks": []}) + note
+                return (
+                    plan_md(
+                        {
+                            "id": "-",
+                            "title": args.get("title", "voorbeeld"),
+                            "status": "voorbeeld",
+                            "author": who,
+                            "sessions": items,
+                            "weeks": [],
+                        }
+                    )
+                    + note
+                )
             if name == "create_plan":
                 pid = db.create_plan(self.engine, args["title"], who, args.get("goal"), args.get("race"), args.get("notes"))
                 db.add_sessions(self.engine, pid, items)
@@ -540,12 +769,15 @@ class Server:
             return doc["body"] if doc else "(leeg)"
         if name == "suggest_route":
             sport = args.get("sport") or "run"
-            opts = suggest(s.routes, s.activities, lambda _: None, float(args["km"]), today, float(args.get("tolerance") or 0.05), sport=sport)
+            opts = suggest(
+                s.routes, s.activities, lambda _: None, float(args["km"]), today, float(args.get("tolerance") or 0.05), sport=sport
+            )
             if not opts:
                 return "Geen vaste rondjes gevonden."
             verb = "gefietst" if sport == "ride" else "gelopen"
             return "\n".join(
-                f"{i}. {' + '.join(o['names'])}: {o['total_km']} km ({o['deviation_km']:+.1f} km), {o['days_since']} dagen niet {verb}" for i, o in enumerate(opts, 1)
+                f"{i}. {' + '.join(o['names'])}: {o['total_km']} km ({o['deviation_km']:+.1f} km), {o['days_since']} dagen niet {verb}"
+                for i, o in enumerate(opts, 1)
             )
         if name in ("list_feedback", "update_feedback"):
             if not self.user.is_admin:
@@ -553,7 +785,9 @@ class Server:
             engine = self.engine.engine
             if name == "list_feedback":
                 status = args.get("status") or "open"
-                items = db.list_feedback(engine, status=None if status in ("all", "open") else status, limit=min(int(args.get("limit") or 30), 200))
+                items = db.list_feedback(
+                    engine, status=None if status in ("all", "open") else status, limit=min(int(args.get("limit") or 30), 200)
+                )
                 if status == "open":
                     items = [f for f in items if f["status"] in ("new", "planned")]
                 return feedback_md(items)
@@ -590,7 +824,13 @@ class Server:
             if getattr(self.user, "agent_scope", "write") == "read":
                 tools = [t for t in tools if t["name"] not in WRITE_NAMES]
             if getattr(self.user, "agent_oauth", False):
-                tools = [{**t, "securitySchemes": [{"type": "oauth2", "scopes": ["health:write" if t["name"] in WRITE_NAMES else "health:read"]}]} for t in tools]
+                tools = [
+                    {
+                        **t,
+                        "securitySchemes": [{"type": "oauth2", "scopes": ["health:write" if t["name"] in WRITE_NAMES else "health:read"]}],
+                    }
+                    for t in tools
+                ]
             return ok({"tools": tools})
         if method == "tools/call":
             try:
@@ -601,8 +841,14 @@ class Server:
         return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32601, "message": f"method not found: {method}"}}
 
 
-def make_router(today: Callable[[], date], bearer_user: Callable[[Request], object], token_user: Callable[[str], object | None], guards=None, accounts=None,
-                runner=None) -> APIRouter:
+def make_router(
+    today: Callable[[], date],
+    bearer_user: Callable[[Request], object],
+    token_user: Callable[[str], object | None],
+    guards=None,
+    accounts=None,
+    runner=None,
+) -> APIRouter:
     """`bearer_user(request)` authenticates the header (raises 401) and returns the User; `token_user(token)` checks a
     token from the path. Each request is answered for that user only. Only tokens: a browser session cookie is no way
     in (the CSRF origin check leaves /api/mcp out, because MCP clients are not browsers). Failed tokens count against

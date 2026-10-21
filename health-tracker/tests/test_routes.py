@@ -105,7 +105,14 @@ def test_generated_default_name_follows_new_distance():
 def _rides(n, km=40.0, side_m=10_000, seed0=0):
     # 40 km square loop, ridden at 30 km/h
     return [
-        run(f"f{seed0 + i}", f"2026-09-{seed0 + i + 1:02d}", square_loop(side_m=side_m, step_m=50, noise_m=5, seed=seed0 + i), km, moving_time_s=int(km * 120), avg_hr=135)
+        run(
+            f"f{seed0 + i}",
+            f"2026-09-{seed0 + i + 1:02d}",
+            square_loop(side_m=side_m, step_m=50, noise_m=5, seed=seed0 + i),
+            km,
+            moving_time_s=int(km * 120),
+            avg_hr=135,
+        )
         for i in range(n)
     ]
 
@@ -180,6 +187,7 @@ def test_default_name_pattern_covers_both_sports():
 
 
 # --- the same route from a different start (tracker switched on outside town) --------------------------
+
 
 def _big_loop():
     return square_loop(side_m=10_000, step_m=50)  # 40 km loop
@@ -313,7 +321,10 @@ def test_ride_variants_of_one_circuit():
 
 
 def test_distance_variants_split_on_clear_gaps():
-    members = [{"activity_id": f"a{i}", "date": f"2026-09-{i + 1:02d}", "distance_km": d} for i, d in enumerate([38.0, 38.4, 42.1, 42.5, 41.9, 47.2])]
+    members = [
+        {"activity_id": f"a{i}", "date": f"2026-09-{i + 1:02d}", "distance_km": d}
+        for i, d in enumerate([38.0, 38.4, 42.1, 42.5, 41.9, 47.2])
+    ]
     v = distance_variants(members, "ride")
     assert [(x["distance_km"], x["runs"]) for x in v] == [(38.2, 2), (42.1, 3), (47.2, 1)]
     assert v[2]["activity_ids"] == ["a5"] and v[2]["last_run"] == "2026-09-06"
@@ -393,7 +404,14 @@ def test_single_activity_variant_is_a_candidate_and_can_join():
     extra = _runs("ex", EXTRA_LAP, 5.0, (7,))
     routes, cands = detect(_loops() + extra, existing=[])
     assert [r["id"] for r in routes] == ["r1"] and routes[0]["runs"] == 3
-    assert len(cands) == 1 and cands[0]["b"] == {"id": "ex7", "kind": "activity", "name": None, "distance_km": 5.0, "runs": 1, "date": "2026-08-07"}
+    assert len(cands) == 1 and cands[0]["b"] == {
+        "id": "ex7",
+        "kind": "activity",
+        "name": None,
+        "distance_km": 5.0,
+        "runs": 1,
+        "date": "2026-08-07",
+    }
     assert cands[0]["reason"].startswith("zelfde rondje met een extra lus")
 
     merged, cands = detect(_loops() + extra, existing=routes, decisions={"merge": [["r1", "ex7"]]})
@@ -456,7 +474,14 @@ def test_apply_merge_of_unknown_ids_returns_none():
 
 def test_member_from_activity():
     a = {"id": "x", "start_local": "2026-08-01T07:00:00", "distance_km": 5.0, "moving_time_s": 1500, "avg_hr": 140, "elevation_gain_m": 12}
-    assert member_from_activity(a) == {"activity_id": "x", "date": "2026-08-01", "distance_km": 5.0, "moving_time_s": 1500, "avg_hr": 140, "elevation_gain_m": 12}
+    assert member_from_activity(a) == {
+        "activity_id": "x",
+        "date": "2026-08-01",
+        "distance_km": 5.0,
+        "moving_time_s": 1500,
+        "avg_hr": 140,
+        "elevation_gain_m": 12,
+    }
 
 
 def test_loop_inside_a_run_of_almost_twice_the_length_is_different():

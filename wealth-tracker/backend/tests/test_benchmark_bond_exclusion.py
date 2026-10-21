@@ -16,10 +16,9 @@ the bond fund below stays in and both assertions on `_inputs` drop.
 
 import pytest
 
+from app.routers import benchmarks
 from domain import database
 from domain.portfolio import etf_holdings
-from app.routers import benchmarks
-
 
 EQUITY = "IE00EQUITY001"
 BOND = "IE00BONDFUND1"
@@ -46,37 +45,50 @@ def fund_data(monkeypatch):
 @pytest.fixture(autouse=True)
 def _no_downloads(monkeypatch):
     """`_inputs` is the unit under test; the two fetches beyond it are not."""
-    monkeypatch.setattr(
-        benchmarks, "get_benchmark_prices", lambda conn, start: {"S&P 500 (SPY)": object()}
-    )
-    monkeypatch.setattr(
-        benchmarks, "get_portfolio_segments", lambda conn, tx, prices, divs: []
-    )
+    monkeypatch.setattr(benchmarks, "get_benchmark_prices", lambda conn, start: {"S&P 500 (SPY)": object()})
+    monkeypatch.setattr(benchmarks, "get_portfolio_segments", lambda conn, tx, prices, divs: [])
 
 
 def _seed(conn):
     """One equity position and one bond fund, both held, neither classified."""
-    database.save_transactions(conn, [
-        {
-            "date": "2026-01-05", "time": "09:30", "isin": isin, "name": isin,
-            "exchange": "EAM", "venue": "EAM", "quantity": 10.0, "price": 100.0,
-            "local_value": -1000.0, "value_eur": -1000.0, "exchange_rate": 1.0,
-            "transaction_fee": -1.0, "autofx_cost": 0.0, "total_eur": -1001.0,
-            "order_id": f"order-{isin}", "transaction_type": "BUY",
-        }
-        for isin in (EQUITY, BOND)
-    ])
+    database.save_transactions(
+        conn,
+        [
+            {
+                "date": "2026-01-05",
+                "time": "09:30",
+                "isin": isin,
+                "name": isin,
+                "exchange": "EAM",
+                "venue": "EAM",
+                "quantity": 10.0,
+                "price": 100.0,
+                "local_value": -1000.0,
+                "value_eur": -1000.0,
+                "exchange_rate": 1.0,
+                "transaction_fee": -1.0,
+                "autofx_cost": 0.0,
+                "total_eur": -1001.0,
+                "order_id": f"order-{isin}",
+                "transaction_type": "BUY",
+            }
+            for isin in (EQUITY, BOND)
+        ],
+    )
     for isin, ticker in ((EQUITY, "EQT.AS"), (BOND, "BND.AS")):
         database.save_price(
-            conn, isin=isin, name=isin, ticker=ticker,
-            price=100.0, currency="EUR", previous_close=99.0,
+            conn,
+            isin=isin,
+            name=isin,
+            ticker=ticker,
+            price=100.0,
+            currency="EUR",
+            previous_close=99.0,
         )
 
 
 def _isins_used(conn, *, exclude_bonds):
-    transactions, _prices, _bench, _divs, _segments = benchmarks._inputs(
-        conn, exclude_bonds
-    )
+    transactions, _prices, _bench, _divs, _segments = benchmarks._inputs(conn, exclude_bonds)
     return {t["isin"] for t in transactions}
 
 
@@ -95,9 +107,7 @@ def test_the_two_tabs_now_agree_on_what_a_bond_is(conn):
     _seed(conn)
     from domain.portfolio import positions as portfolio
 
-    positions = portfolio.calculate_positions(
-        database.load_transactions(conn), database.load_prices(conn)
-    )
+    positions = portfolio.calculate_positions(database.load_transactions(conn), database.load_prices(conn))
     allocation = etf_holdings.bond_isins(conn, positions)
     benchmarks_excluded = {EQUITY, BOND} - _isins_used(conn, exclude_bonds=True)
 

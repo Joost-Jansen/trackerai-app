@@ -28,20 +28,20 @@ values always come from the food table (tools/nutrition/foods.py), never from th
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
-from typing import Callable
 
-import trackerai_ai
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel, Field
 
+import trackerai_ai
 from api import betas
-from api.errors import ApiError
 from api.dashboard import max_by_sport, resting_hr
+from api.errors import ApiError
 from api.plans import enrich
 from tools import db
-from tools.nutrition import foods, match, meals, nevo, off, photos, recognize, references, targets, usda
 from tools.analytics import fitness_series
+from tools.nutrition import foods, match, meals, nevo, off, photos, recognize, references, targets, usda
 from tools.nutrition.nutrients import KCAL_PER_G, energy_split
 from trackerai_websec.uploads import UploadTooLarge, read_limited
 
@@ -209,7 +209,9 @@ def daily_load(u, today: date) -> dict[str, float]:
     if key not in _loads:
         if len(_loads) > 64:
             _loads.clear()
-        series = fitness_series(store.activities, resting_hr(store.wellness, today, store.rhr_fallback), max_by_sport(store.zones, store.activities), end=today)
+        series = fitness_series(
+            store.activities, resting_hr(store.wellness, today, store.rhr_fallback), max_by_sport(store.zones, store.activities), end=today
+        )
         _loads[key] = {r["date"]: r["load"] for r in series}
     return _loads[key]
 
@@ -233,18 +235,26 @@ def trends(u, today: date, days: int) -> dict:
         t = meals.day_totals(logged)
         target = targets.for_day(day, today, store.activities, sessions, weight, paces)
         kcal = t["energy_kcal"]
-        rows.append({
-            "day": iso, "meals": len(logged), "covered": len(logged) >= 2,
-            "kcal": kcal if logged else None, "burn_kcal": (store.wellness.get(iso) or {}).get("total_kcal"),
-            "carbs_per_kg": targets.per_kg(t["carbs_g"], weight) if logged else None,
-            "protein_per_kg": targets.per_kg(t["protein_g"], weight) if logged else None,
-            "carbs_target": target["carbs_per_kg"], "protein_target": target["protein_per_kg"], "day_type": target["day_type"],
-            "load": load.get(iso, 0.0),
-            "alcohol_g": t["alcohol_g"] if logged else None, "salt_g": t["salt_g"] if logged else None,
-            "sat_fat_share": round(t["sat_fat_g"] * KCAL_PER_G["fat_g"] / kcal, 3) if logged and kcal else None,
-            "unsat_fat_share": round((t["mufa_g"] + t["pufa_g"]) * KCAL_PER_G["fat_g"] / kcal, 3) if logged and kcal else None,
-            "iron_mg": t["iron_mg"] if logged else None,
-        })
+        rows.append(
+            {
+                "day": iso,
+                "meals": len(logged),
+                "covered": len(logged) >= 2,
+                "kcal": kcal if logged else None,
+                "burn_kcal": (store.wellness.get(iso) or {}).get("total_kcal"),
+                "carbs_per_kg": targets.per_kg(t["carbs_g"], weight) if logged else None,
+                "protein_per_kg": targets.per_kg(t["protein_g"], weight) if logged else None,
+                "carbs_target": target["carbs_per_kg"],
+                "protein_target": target["protein_per_kg"],
+                "day_type": target["day_type"],
+                "load": load.get(iso, 0.0),
+                "alcohol_g": t["alcohol_g"] if logged else None,
+                "salt_g": t["salt_g"] if logged else None,
+                "sat_fat_share": round(t["sat_fat_g"] * KCAL_PER_G["fat_g"] / kcal, 3) if logged and kcal else None,
+                "unsat_fat_share": round((t["mufa_g"] + t["pufa_g"]) * KCAL_PER_G["fat_g"] / kcal, 3) if logged and kcal else None,
+                "iron_mg": t["iron_mg"] if logged else None,
+            }
+        )
     group = settings_of(s)["norms"]
     iron = references.norm("iron_mg", group, references.age((db.get_setting(s, "profile_facts") or {}).get("birth_year"), today))
     return {"days": rows, "weight_kg": weight, "covered": sum(r["covered"] for r in rows), "iron_reference": iron[1] if iron else None}
@@ -258,7 +268,9 @@ def dashboard_block(u, today: date, now_hhmm: str, sessions: list[dict]) -> dict
     view = day_view(u, today, today, now_hhmm, sessions)
     if not view["meals"]:
         return {"empty": True, "today": today.isoformat(), "targets": view["targets"], "context": view["context"], "ai": view["ai"]}
-    return {k: view[k] for k in ("today", "meals", "totals", "per_kg", "targets", "context", "last_meal", "burn_kcal", "ai")} | {"empty": False}
+    return {k: view[k] for k in ("today", "meals", "totals", "per_kg", "targets", "context", "last_meal", "burn_kcal", "ai")} | {
+        "empty": False
+    }
 
 
 def make_router(current_user: Callable, today: Callable[[], date], now: Callable[[], datetime]) -> APIRouter:
@@ -285,8 +297,17 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
             raise ApiError(404, "photo_not_found")
         run_id = body.ai_run_id if body.ai_run_id is not None and recognize.owns_run(u.scope, body.ai_run_id) else None
         try:
-            meal = meals.create(u.scope, day=body.day, eaten_at=body.eaten_at, moment=body.moment, input=body.input, note=body.note,
-                                items=[i.model_dump(exclude_none=True) for i in body.items], photo_id=body.photo_id, ai_run_id=run_id)
+            meal = meals.create(
+                u.scope,
+                day=body.day,
+                eaten_at=body.eaten_at,
+                moment=body.moment,
+                input=body.input,
+                note=body.note,
+                items=[i.model_dump(exclude_none=True) for i in body.items],
+                photo_id=body.photo_id,
+                ai_run_id=run_id,
+            )
         except meals.MealError as e:
             raise _meal_error(e) from None
         if body.photo_id is not None:
@@ -413,16 +434,23 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
     @r.post("/api/nutrition/templates", status_code=201)
     def add_template(body: TemplateIn, u=Depends(member)):
         try:
-            return meals.create_template(u.scope, name=body.name or "", moment=body.moment,
-                                         items=[i.model_dump(exclude_none=True) for i in body.items or []])
+            return meals.create_template(
+                u.scope, name=body.name or "", moment=body.moment, items=[i.model_dump(exclude_none=True) for i in body.items or []]
+            )
         except meals.MealError as e:
             raise _meal_error(e) from None
 
     @r.patch("/api/nutrition/templates/{tid}")
     def change_template(tid: int, body: TemplateIn, u=Depends(member)):
         try:
-            out = meals.change_template(u.scope, tid, name=body.name, moment=body.moment, position=body.position,
-                                        items=[i.model_dump(exclude_none=True) for i in body.items] if body.items is not None else None)
+            out = meals.change_template(
+                u.scope,
+                tid,
+                name=body.name,
+                moment=body.moment,
+                position=body.position,
+                items=[i.model_dump(exclude_none=True) for i in body.items] if body.items is not None else None,
+            )
         except meals.MealError as e:
             raise _meal_error(e) from None
         if out is None:
@@ -437,8 +465,14 @@ def make_router(current_user: Callable, today: Callable[[], date], now: Callable
 
     def settings_view(u) -> dict:
         weight = weight_of(u.scope)
-        return {**settings_of(u.scope), "ai_available": trackerai_ai.available(), "weight_kg": weight,
-                "day_types": {k: {"carbs_per_kg": list(v["carbs"]), "protein_per_kg": list(v["protein"])} for k, v in targets.DAY_TYPES.items()}}
+        return {
+            **settings_of(u.scope),
+            "ai_available": trackerai_ai.available(),
+            "weight_kg": weight,
+            "day_types": {
+                k: {"carbs_per_kg": list(v["carbs"]), "protein_per_kg": list(v["protein"])} for k, v in targets.DAY_TYPES.items()
+            },
+        }
 
     @r.get("/api/nutrition/settings")
     def get_settings(u=Depends(member)):

@@ -33,7 +33,7 @@ import statistics
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from functools import lru_cache
+from functools import cache, lru_cache
 
 from domain import database
 from domain.i18n import tr
@@ -63,6 +63,7 @@ def today() -> date:
 # Working days
 # ---------------------------------------------------------------------------
 
+
 def _easter(year: int) -> date:
     """Easter Sunday, Gregorian (the anonymous algorithm)."""
     a = year % 19
@@ -78,7 +79,7 @@ def _easter(year: int) -> date:
     return date(year, month, day + 1)
 
 
-@lru_cache(maxsize=None)
+@cache
 def holidays(year: int) -> frozenset[date]:
     """Days on which salary is usually not paid.
 
@@ -91,11 +92,18 @@ def holidays(year: int) -> frozenset[date]:
     if kings_day.weekday() == 6:
         kings_day = date(year, 4, 26)
     days = {
-        date(year, 1, 1), p - timedelta(days=2), p + timedelta(days=1), kings_day, date(year, 5, 1),
-        p + timedelta(days=39), p + timedelta(days=50), date(year, 12, 25), date(year, 12, 26),
+        date(year, 1, 1),
+        p - timedelta(days=2),
+        p + timedelta(days=1),
+        kings_day,
+        date(year, 5, 1),
+        p + timedelta(days=39),
+        p + timedelta(days=50),
+        date(year, 12, 25),
+        date(year, 12, 26),
     }
     if year % 5 == 0:
-        days.add(date(year, 5, 5))   # Liberation Day, a day off once every five years
+        days.add(date(year, 5, 5))  # Liberation Day, a day off once every five years
     return frozenset(days)
 
 
@@ -128,11 +136,12 @@ def predict(year: int, month: int, day: int, shift: str = "earlier") -> date:
 # Recognising
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Recognised:
     day: int
     shift: str
-    payments: dict[str, date] = field(default_factory=dict)   # "YYYY-MM" -> salarisdag
+    payments: dict[str, date] = field(default_factory=dict)  # "YYYY-MM" -> salarisdag
 
 
 def recognise(conn: sqlite3.Connection, category: str, day_hint: int | None = None) -> Recognised | None:
@@ -186,6 +195,7 @@ def recognise(conn: sqlite3.Connection, category: str, day_hint: int | None = No
 # Settings
 # ---------------------------------------------------------------------------
 
+
 def settings(conn: sqlite3.Connection) -> dict:
     mode = database.load_setting(conn, _MODE, "calendar")
     day = database.load_setting(conn, _DAY)
@@ -202,7 +212,7 @@ def put(conn: sqlite3.Connection, **fields) -> None:
     """
     if "mode" in fields:
         if fields["mode"] not in MODI:
-            raise ValueError(tr("Choose from: {0}.", ', '.join(MODI)))
+            raise ValueError(tr("Choose from: {0}.", ", ".join(MODI)))
         database.save_setting(conn, _MODE, fields["mode"])
     if "day" in fields:
         day = fields["day"]
@@ -225,6 +235,7 @@ def put(conn: sqlite3.Connection, **fields) -> None:
 # The layout
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Layout:
     """The month boundaries and how to place a date in a month.
@@ -232,6 +243,7 @@ class Layout:
     `mode` is what is actually used: "salary" without a single recognised or set
     salary day falls back to "calendar".
     """
+
     mode: str
     boundaries: list[str]
 
@@ -265,11 +277,10 @@ def _months(start: date, end: date) -> list[tuple[int, int]]:
 
 def _range(conn: sqlite3.Connection, present_day: date) -> tuple[date, date]:
     first = conn.execute(
-        "SELECT MIN(d) FROM (SELECT MIN(date) AS d FROM bank_transactions "
-        "UNION ALL SELECT MIN(date) FROM account_balances)"
+        "SELECT MIN(d) FROM (SELECT MIN(date) AS d FROM bank_transactions UNION ALL SELECT MIN(date) FROM account_balances)"
     ).fetchone()[0]
     begin = min(date.fromisoformat(first), present_day) if first else present_day
-    begin = (begin.replace(day=1) - timedelta(days=1)).replace(day=1)   # a month of margin before it
+    begin = (begin.replace(day=1) - timedelta(days=1)).replace(day=1)  # a month of margin before it
     final = present_day
     for _ in range(MONTHS_AHEAD):
         final = (final.replace(day=28) + timedelta(days=4)).replace(day=1)
@@ -320,7 +331,9 @@ def details(conn: sqlite3.Connection, *, present_day: date | None = None) -> dic
             "day": recognised.day,
             "count": len(recognised.payments),
             "last": max(recognised.payments.values()).isoformat(),
-        } if recognised else None,
+        }
+        if recognised
+        else None,
         "boundaries": ind.boundaries,
         "current": {"start": begin, "end": final},
     }

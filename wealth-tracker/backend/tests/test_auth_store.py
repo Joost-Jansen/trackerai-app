@@ -53,8 +53,8 @@ def test_register_user_rejects_taken_username():
 
 
 def test_beta_features_admin_always_true():
-    assert auth_store.has_beta("alice", "rebalancing") is True   # admin
-    assert auth_store.has_beta("bob", "rebalancing") is False    # not admin, not granted
+    assert auth_store.has_beta("alice", "rebalancing") is True  # admin
+    assert auth_store.has_beta("bob", "rebalancing") is False  # not admin, not granted
 
     auth_store.set_beta_features("alice", {"rebalancing": ["bob"]})
     assert auth_store.has_beta("bob", "rebalancing") is True
@@ -116,8 +116,7 @@ def test_list_users_admin_only():
 
 def test_password_policy_applies_when_a_password_is_set():
     auth_store.set_registration_mode("alice", "open")
-    for weak, code in (("short", "password_too_short"), ("password123", "password_too_common"),
-                       ("carol-smith", "password_is_username")):
+    for weak, code in (("short", "password_too_short"), ("password123", "password_too_common"), ("carol-smith", "password_is_username")):
         with pytest.raises(auth_store.AuthError) as e:
             auth_store.register_user("carol-smith", "Carol", weak, invite_code="")
         assert e.value.code == code

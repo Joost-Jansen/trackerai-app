@@ -36,18 +36,25 @@ def _conn():
 
 def _tx(isin, name, order_ref):
     return {
-        "date": "2025-01-02", "time": "10:00", "isin": isin, "name": name,
-        "transaction_type": "BUY", "quantity": 10.0, "price": 100.0,
-        "total_eur": 1000.0, "order_ref": order_ref, "currency": "EUR",
-        "exchange": "EAM", "transaction_fee": 1.0, "autofx_cost": 0.0,
+        "date": "2025-01-02",
+        "time": "10:00",
+        "isin": isin,
+        "name": name,
+        "transaction_type": "BUY",
+        "quantity": 10.0,
+        "price": 100.0,
+        "total_eur": 1000.0,
+        "order_ref": order_ref,
+        "currency": "EUR",
+        "exchange": "EAM",
+        "transaction_fee": 1.0,
+        "autofx_cost": 0.0,
     }
 
 
 def _with_positions(*isins):
     conn = _conn()
-    database.save_transactions(
-        conn, [_tx(isin, f"Fund {i}", f"o{i}") for i, isin in enumerate(isins)]
-    )
+    database.save_transactions(conn, [_tx(isin, f"Fund {i}", f"o{i}") for i, isin in enumerate(isins)])
     return conn
 
 
@@ -59,13 +66,13 @@ def _priced(ticker="AAA.AS", price=100.0):
 # The count means what it says
 # ---------------------------------------------------------------------------
 
+
 def test_every_fetch_failing_reports_zero(monkeypatch):
     """The bug, stated: a warm cache must not make a dead uplink look healthy."""
     conn = _with_positions("NL0000001", "NL0000002")
     # Both ISINs already have a price from a previous, working round.
     for isin in ("NL0000001", "NL0000002"):
-        database.save_price(conn, isin=isin, name="Fund", ticker="AAA.AS",
-                            price=100.0, currency="EUR", previous_close=99.0)
+        database.save_price(conn, isin=isin, name="Fund", ticker="AAA.AS", price=100.0, currency="EUR", previous_close=99.0)
 
     monkeypatch.setattr(portfolio, "fetch_price_for_isin", lambda *a, **k: None)
     monkeypatch.setattr(portfolio.time, "sleep", lambda _s: None)
@@ -123,6 +130,7 @@ def test_an_empty_portfolio_is_not_a_failure():
 # a bound, "Ververs prices" holds a request thread — and the browser tab
 # waiting on it — for hours.
 # ---------------------------------------------------------------------------
+
 
 def test_the_deadline_stops_starting_new_isins(monkeypatch):
     conn = _with_positions("NL0000001", "NL0000002", "NL0000003")

@@ -1,12 +1,12 @@
 import io
 import zipfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
 from tools.fit import read_fit_streams, streams_from_records
 
-T0 = datetime(2026, 9, 28, 7, 30, tzinfo=timezone.utc)
+T0 = datetime(2026, 9, 28, 7, 30, tzinfo=UTC)
 SEMI = 2**31 / 180  # semicircles per degree
 
 

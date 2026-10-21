@@ -27,6 +27,7 @@ def _make(client, **overrides):
 # Auth
 # ---------------------------------------------------------------------------
 
+
 def test_accounts_require_a_session(client):
     assert client.get("/api/accounts").status_code == 401
     assert _make(client).status_code == 401
@@ -35,6 +36,7 @@ def test_accounts_require_a_session(client):
 # ---------------------------------------------------------------------------
 # Creating and reading
 # ---------------------------------------------------------------------------
+
 
 def test_an_empty_list_is_not_an_error(client):
     _login(client)
@@ -87,6 +89,7 @@ def test_an_account_without_a_name_gives_400(client):
 # Updating and deleting
 # ---------------------------------------------------------------------------
 
+
 def test_update_an_account(client):
     _login(client)
     account_id = _make(client).json()["account"]["id"]
@@ -111,8 +114,7 @@ def test_updating_an_unknown_field_gives_400(client):
 def test_delete_an_account(client):
     _login(client)
     account_id = _make(client).json()["account"]["id"]
-    client.put(f"/api/accounts/{account_id}/balance",
-               json={"date": "2026-01-31", "balance": 1000.0})
+    client.put(f"/api/accounts/{account_id}/balance", json={"date": "2026-01-31", "balance": 1000.0})
 
     assert client.delete(f"/api/accounts/{account_id}").status_code == 200
     assert client.get("/api/accounts").json()["accounts"] == []
@@ -128,12 +130,12 @@ def test_deleting_an_unknown_account_gives_404(client):
 # Balances
 # ---------------------------------------------------------------------------
 
+
 def test_set_a_balance_and_see_it_on_the_account(client):
     _login(client)
     account_id = _make(client).json()["account"]["id"]
 
-    resp = client.put(f"/api/accounts/{account_id}/balance",
-                      json={"date": "2026-01-31", "balance": 1234.56})
+    resp = client.put(f"/api/accounts/{account_id}/balance", json={"date": "2026-01-31", "balance": 1234.56})
     assert resp.status_code == 200, resp.text
 
     account = client.get("/api/accounts").json()["accounts"][0]
@@ -145,8 +147,7 @@ def test_a_balance_fills_forward_in_the_total(client):
     """The same rule as in the domain layer, but here through the endpoint."""
     _login(client)
     account_id = _make(client).json()["account"]["id"]
-    client.put(f"/api/accounts/{account_id}/balance",
-               json={"date": "2026-01-31", "balance": 1000.0})
+    client.put(f"/api/accounts/{account_id}/balance", json={"date": "2026-01-31", "balance": 1000.0})
 
     for date, expected in [("2026-01-31", 1000.0), ("2026-06-01", 1000.0), ("2025-12-31", 0.0)]:
         resp = client.get(f"/api/accounts/total?date={date}")
@@ -167,8 +168,7 @@ def test_balance_history_of_an_account(client):
 def test_a_malformed_date_gives_400(client):
     _login(client)
     account_id = _make(client).json()["account"]["id"]
-    resp = client.put(f"/api/accounts/{account_id}/balance",
-                      json={"date": "31-01-2026", "balance": 1.0})
+    resp = client.put(f"/api/accounts/{account_id}/balance", json={"date": "31-01-2026", "balance": 1.0})
     assert resp.status_code == 400
 
 
@@ -192,12 +192,12 @@ def test_total_without_a_date_uses_today(client):
 # Separation between users
 # ---------------------------------------------------------------------------
 
+
 def test_bob_does_not_see_alices_accounts(client):
     """Every endpoint is scoped only by the session cookie; that must hold here too."""
     _login(client, "alice", "alicepw")
     account_id = _make(client).json()["account"]["id"]
-    client.put(f"/api/accounts/{account_id}/balance",
-               json={"date": "2026-01-31", "balance": 1000.0})
+    client.put(f"/api/accounts/{account_id}/balance", json={"date": "2026-01-31", "balance": 1000.0})
 
     _login(client, "bob", "bobpw")
     assert client.get("/api/accounts").json()["accounts"] == []
@@ -209,6 +209,7 @@ def test_bob_does_not_see_alices_accounts(client):
 # ---------------------------------------------------------------------------
 # Stacks
 # ---------------------------------------------------------------------------
+
 
 def test_every_account_says_which_stack_it_belongs_to(client):
     """The page groups by stack; that split belongs in one place (net_worth.py) and
@@ -231,8 +232,6 @@ def test_every_account_says_which_stack_it_belongs_to(client):
 
 def test_a_debt_entered_positive_comes_back_negative(client):
     _login(client)
-    account_id = _make(client, kind="debt", provider="manual",
-                        name="Studieschuld", iban=None).json()["account"]["id"]
-    body = client.put(f"/api/accounts/{account_id}/balance",
-                      json={"date": "2026-01-31", "balance": 39000.0}).json()
+    account_id = _make(client, kind="debt", provider="manual", name="Studieschuld", iban=None).json()["account"]["id"]
+    body = client.put(f"/api/accounts/{account_id}/balance", json={"date": "2026-01-31", "balance": 39000.0}).json()
     assert body["account"]["balance"] == -39000.0

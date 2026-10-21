@@ -8,9 +8,9 @@ import sqlite3
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
+from app.deps import CurrentUser, get_current_user, get_db, require_money
 from domain.money import budget as budget_domain
 from domain.money import categorization
-from app.deps import CurrentUser, get_current_user, get_db, require_money
 
 router = APIRouter(prefix="/api/budget", tags=["budget"], dependencies=[Depends(require_money)])
 

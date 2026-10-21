@@ -13,7 +13,6 @@ from trackerai_websec import client_ip as cip
 from trackerai_websec import csrf, headers, log_redact, uploads
 from trackerai_websec.throttle import Limiter
 
-
 # --- client_ip ---------------------------------------------------------------
 
 
@@ -116,9 +115,18 @@ def test_security_headers_on_every_response():
 
 
 def _csrf_client(allowed=(), exempt=()):
-    return TestClient(_app_with((csrf.OriginCheckMiddleware, {
-        "allowed_origins": list(allowed), "cookie_name": "sess", "exempt_paths": exempt,
-    })))
+    return TestClient(
+        _app_with(
+            (
+                csrf.OriginCheckMiddleware,
+                {
+                    "allowed_origins": list(allowed),
+                    "cookie_name": "sess",
+                    "exempt_paths": exempt,
+                },
+            )
+        )
+    )
 
 
 def test_csrf_refuses_foreign_origin_with_cookie():
@@ -157,8 +165,9 @@ def test_csrf_exemptions():
 
 
 def test_log_redaction_masks_tokens():
-    rec = logging.LogRecord("uvicorn.access", logging.INFO, "", 0, '%s - "%s %s HTTP/1.1" %d',
-                            ("1.2.3.4", "POST", "/api/mcp/st_secret123?x=1", 200), None)
+    rec = logging.LogRecord(
+        "uvicorn.access", logging.INFO, "", 0, '%s - "%s %s HTTP/1.1" %d', ("1.2.3.4", "POST", "/api/mcp/st_secret123?x=1", 200), None
+    )
     log_redact.RedactFilter().filter(rec)
     assert "st_secret123" not in rec.getMessage() and "/api/mcp/***" in rec.getMessage()
     assert log_redact.redact("Authorization: Bearer abc.def-ghi") == "Authorization: Bearer ***"
@@ -215,6 +224,6 @@ def test_check_zip_does_not_trust_declared_sizes():
     raw = bytearray(buf.getvalue())
     # Patch the uncompressed size (offset 24) in the central directory entry to 10 bytes.
     cd = raw.rfind(b"PK\x01\x02")
-    raw[cd + 24:cd + 28] = (10).to_bytes(4, "little")
+    raw[cd + 24 : cd + 28] = (10).to_bytes(4, "little")
     with pytest.raises(uploads.ZipRejected):
         uploads.check_zip(io.BytesIO(bytes(raw)), verify=True)

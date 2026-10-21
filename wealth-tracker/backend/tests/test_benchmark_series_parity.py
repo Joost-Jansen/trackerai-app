@@ -57,9 +57,7 @@ def _segments() -> list:
 def _benchmark_prices() -> dict:
     """Two benchmarks: one covering the whole span, one starting later."""
     idx = pd.DatetimeIndex([_START + dt.timedelta(days=i) for i in range(_DAYS)])
-    spy = pd.Series(
-        [400.0 * (1.0 + math.sin(i / 17.0) * 0.05 + i * 0.0006) for i in range(_DAYS)], index=idx
-    )
+    spy = pd.Series([400.0 * (1.0 + math.sin(i / 17.0) * 0.05 + i * 0.0006) for i in range(_DAYS)], index=idx)
     # Starts 200 days in, so the indexed series has to pick its own base date
     # instead of padding backwards or being dropped.
     fez_idx = idx[200:]
@@ -94,13 +92,9 @@ def test_series_match_the_figures_they_replaced(golden, chart):
 
     for got, want in zip(actual["series"], expected["series"]):
         assert got["kind"] == want["kind"]
-        assert [p["d"] for p in got["points"]] == [p["d"] for p in want["points"]], (
-            f"{chart}/{got['label']}: different dates"
-        )
+        assert [p["d"] for p in got["points"]] == [p["d"] for p in want["points"]], f"{chart}/{got['label']}: different dates"
         for a, b in zip(got["points"], want["points"]):
-            assert a["v"] == pytest.approx(b["v"], abs=5e-4), (
-                f"{chart}/{got['label']} on {a['d']}: {a['v']} vs {b['v']}"
-            )
+            assert a["v"] == pytest.approx(b["v"], abs=5e-4), f"{chart}/{got['label']} on {a['d']}: {a['v']} vs {b['v']}"
 
 
 def test_the_rolling_window_is_the_one_the_streamlit_app_used():

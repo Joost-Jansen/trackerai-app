@@ -9,11 +9,8 @@ from datetime import date
 
 import pytest
 
-from domain.money import bank_transactions
-from domain.money import categorization
 from domain import database
-from domain.money import accounts
-from domain.money import fixed_costs
+from domain.money import accounts, bank_transactions, categorization, fixed_costs
 
 PRESENT_DAY = date(2026, 9, 14)
 
@@ -38,11 +35,25 @@ def account(conn):
 
 
 def _tx(conn, account_id, date, amount, name):
-    bank_transactions.save(conn, account_id, [{
-        "date": date, "interest_date": None, "amount": amount, "currency": "EUR", "name": name,
-        "counterparty_iban": None, "description": "", "code": None, "kind": None,
-        "dedup_hash": f"{account_id}{date}{amount}{name}"[:40], "raw": {},
-    }])
+    bank_transactions.save(
+        conn,
+        account_id,
+        [
+            {
+                "date": date,
+                "interest_date": None,
+                "amount": amount,
+                "currency": "EUR",
+                "name": name,
+                "counterparty_iban": None,
+                "description": "",
+                "code": None,
+                "kind": None,
+                "dedup_hash": f"{account_id}{date}{amount}{name}"[:40],
+                "raw": {},
+            }
+        ],
+    )
 
 
 def _labels(conn):
@@ -110,7 +121,6 @@ def test_internal_money_is_not_a_fixed_cost(conn, account):
         _tx(conn, account, f"2026-{month}-25", 500.0, "ORANJE SPAARREKENING")
     _labels(conn)
     assert _names(conn) == []
-
 
 
 def test_not_fixed_wins_over_the_pattern(conn, account):

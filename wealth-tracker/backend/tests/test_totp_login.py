@@ -1,9 +1,9 @@
 """S14: two-step login (TOTP) with backup codes, a setting of the shared trackerai account (packages/accounts)."""
 
 import yaml
-from trackerai_accounts import totp
 
 from app.core import config
+from trackerai_accounts import totp
 
 
 def _login(client, pw="alicepw", code=None):
@@ -62,7 +62,11 @@ def test_backup_codes_work_once(client):
     assert client.get("/api/account/totp").status_code == 401  # not logged in
     assert _login(client, code=codes[1]).status_code == 200
     status = client.get("/api/account/totp").json()
-    assert {k: status[k] for k in ("enabled", "required", "backup_codes_left")} == {"enabled": True, "required": False, "backup_codes_left": 8}
+    assert {k: status[k] for k in ("enabled", "required", "backup_codes_left")} == {
+        "enabled": True,
+        "required": False,
+        "backup_codes_left": 8,
+    }
 
 
 def test_disable_needs_password_and_code(client):

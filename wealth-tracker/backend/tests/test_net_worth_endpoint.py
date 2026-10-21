@@ -12,9 +12,15 @@ def _login(client, user="alice", pw="alicepw"):
 
 
 def _account(client, name="ING", kind="bank", iban=None):
-    resp = client.post("/api/accounts", json={
-        "kind": kind, "provider": "manual", "name": name, "iban": iban,
-    })
+    resp = client.post(
+        "/api/accounts",
+        json={
+            "kind": kind,
+            "provider": "manual",
+            "name": name,
+            "iban": iban,
+        },
+    )
     assert resp.status_code == 201, resp.text
     return resp.json()["account"]["id"]
 
@@ -37,8 +43,7 @@ def test_only_a_bank_balance_already_gives_a_net_worth(client):
     """You do not have to invest to have a net worth."""
     _login(client)
     account_id = _account(client)
-    client.put(f"/api/accounts/{account_id}/balance",
-               json={"date": "2026-01-31", "balance": 2500.0})
+    client.put(f"/api/accounts/{account_id}/balance", json={"date": "2026-01-31", "balance": 2500.0})
 
     body = client.get("/api/net-worth").json()
     assert body["now"]["net"] == 2500.0
@@ -61,15 +66,13 @@ def test_debt_lowers_net_worth(client):
 
 def test_month_figures_come_from_the_bank_transactions(client):
     _login(client)
-    header = ('"Date","Name / Description","Account","Counterparty","Code",'
-           '"Debit/credit","Amount (EUR)","Transaction type","Notifications"')
+    header = '"Date","Name / Description","Account","Counterparty","Code","Debit/credit","Amount (EUR)","Transaction type","Notifications"'
     rows = [
         '"20260105","SUPERMARKT","NL00INGB0000000001","","BA","Debit","100,00","Payment terminal","x"',
         '"20260125","WERKGEVER","NL00INGB0000000001","","OV","Credit","3000,00","Transfer","Name: WERKGEVER"',
     ]
     content = ("\n".join([header, *rows]) + "\n").encode("utf-8")
-    assert client.post("/api/accounts/import",
-                       files={"file": ("e.csv", content, "text/csv")}).status_code == 200
+    assert client.post("/api/accounts/import", files={"file": ("e.csv", content, "text/csv")}).status_code == 200
     client.post("/api/categories/relabel")
 
     months = client.get("/api/net-worth").json()["months"]
@@ -84,8 +87,7 @@ def test_month_figures_come_from_the_bank_transactions(client):
 def test_bob_does_not_see_alices_net_worth(client):
     _login(client, "alice", "alicepw")
     account_id = _account(client)
-    client.put(f"/api/accounts/{account_id}/balance",
-               json={"date": "2026-01-31", "balance": 2500.0})
+    client.put(f"/api/accounts/{account_id}/balance", json={"date": "2026-01-31", "balance": 2500.0})
 
     _login(client, "bob", "bobpw")
     body = client.get("/api/net-worth").json()
@@ -101,7 +103,7 @@ def test_the_answer_has_flows(client):
 
 def test_shared_costs_setting_defaults_to_holidays_and_can_be_changed(client):
     _login(client)
-    client.get("/api/categories")   # a new account gets its default categories here
+    client.get("/api/categories")  # a new account gets its default categories here
     assert client.get("/api/spending/shared-costs").json()["category"] == "Vakantie"
     assert client.put("/api/spending/shared-costs", json={"category": None}).json()["category"] is None
     assert client.get("/api/net-worth").json()["shared_costs_category"] is None
@@ -120,11 +122,25 @@ def test_bank_transactions_can_include_your_share_of_shared_costs(client):
     conn = database.connect("alice")
     r = accounts.make_bank_account(conn, kind="bank", provider="manual", name="bunq")
     accounts.set_balance(conn, r, "2026-01-01", 1000.0)
-    bank_transactions.save(conn, r, [{
-        "date": "2026-03-01", "interest_date": None, "amount": 400.0, "currency": "EUR",
-        "name": "Boat", "counterparty_iban": None, "description": "",
-        "code": None, "kind": None, "dedup_hash": "b" * 16, "raw": {},
-    }])
+    bank_transactions.save(
+        conn,
+        r,
+        [
+            {
+                "date": "2026-03-01",
+                "interest_date": None,
+                "amount": 400.0,
+                "currency": "EUR",
+                "name": "Boat",
+                "counterparty_iban": None,
+                "description": "",
+                "code": None,
+                "kind": None,
+                "dedup_hash": "b" * 16,
+                "raw": {},
+            }
+        ],
+    )
     conn.execute("UPDATE bank_transactions SET category_auto = ?", (categorization.EXCLUDE,))
     conn.commit()
     conn.close()

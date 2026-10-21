@@ -12,19 +12,22 @@ import sqlite3
 
 import pytest
 
-from domain import database
 from app.services import dashboard_service as ds
 from app.services import news_service
-
+from domain import database
 
 # ---------------------------------------------------------------------------
 # Day change
 # ---------------------------------------------------------------------------
 
+
 def _pos(isin="X1", name="Fund", shares=10.0, value=1100.0, ticker="X1.AS"):
     return {
-        "isin": isin, "name": name, "ticker": ticker,
-        "shares_held": shares, "current_value": value,
+        "isin": isin,
+        "name": name,
+        "ticker": ticker,
+        "shares_held": shares,
+        "current_value": value,
     }
 
 
@@ -34,7 +37,9 @@ def _price(price=110.0, prev=100.0, currency="EUR", fetched_at=None):
     if fetched_at is None:
         fetched_at = datetime.datetime.now().isoformat(timespec="seconds")
     return {
-        "price": price, "previous_close": prev, "currency": currency,
+        "price": price,
+        "previous_close": prev,
+        "currency": currency,
         "fetched_at": fetched_at,
     }
 
@@ -58,6 +63,7 @@ def test_day_change_math():
 # screen cannot answer.
 # ---------------------------------------------------------------------------
 
+
 def test_day_change_is_marked_stale_when_the_cache_missed_a_close():
     week_ago = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat(timespec="seconds")
     positions = [_pos(shares=10, value=1100.0)]
@@ -74,8 +80,7 @@ def test_day_change_as_of_is_the_oldest_quote_not_the_newest():
     """One position refreshing while another did not must not read as fresh."""
     old = (datetime.datetime.now() - datetime.timedelta(days=5)).isoformat(timespec="seconds")
     now = datetime.datetime.now().isoformat(timespec="seconds")
-    positions = [_pos(isin="X1", shares=10, value=1100.0),
-                 _pos(isin="X2", shares=10, value=1100.0)]
+    positions = [_pos(isin="X1", shares=10, value=1100.0), _pos(isin="X2", shares=10, value=1100.0)]
     prices = {"X1": _price(fetched_at=old), "X2": _price(fetched_at=now)}
 
     day = ds.portfolio_day_change(positions, prices)
@@ -138,7 +143,7 @@ def test_dividend_stats_month_and_year():
         {"date": "2026-07-02", "net_eur": 10.0},
         {"date": "2026-07-15", "net_eur": 8.4},
         {"date": "2026-03-01", "net_eur": 50.0},
-        {"date": "2025-07-17", "net_eur": 99.0},   # last year's July: year only? no — neither
+        {"date": "2025-07-17", "net_eur": 99.0},  # last year's July: year only? no — neither
         {"date": "2026-01-10", "net_eur": 1.6},
     ]
     stats = ds.dividend_stats(dividends, today=_TODAY)
@@ -173,6 +178,7 @@ def test_latest_dividend_by_isin_sums_same_day_rows():
 # Visit snapshots
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def conn():
     c = sqlite3.connect(":memory:")
@@ -200,7 +206,7 @@ def test_reload_within_gap_is_same_session(conn):
 
 def test_new_session_diffs_against_last_seen_value(conn):
     ds.record_visit(conn, 1000.0, now=_t())
-    ds.record_visit(conn, 1010.0, now=_t(minutes=10))   # session 1 ends at 1010
+    ds.record_visit(conn, 1010.0, now=_t(minutes=10))  # session 1 ends at 1010
     diff = ds.record_visit(conn, 1422.0, now=_t(hours=72))
     assert diff["value_then"] == 1010.0
     assert diff["value_delta"] == 412.0
@@ -217,7 +223,7 @@ def test_second_session_keeps_baseline_across_reloads(conn):
 
 def test_none_value_never_erases_known_value(conn):
     ds.record_visit(conn, 1000.0, now=_t())
-    ds.record_visit(conn, None, now=_t(minutes=5))      # prices unavailable mid-session
+    ds.record_visit(conn, None, now=_t(minutes=5))  # prices unavailable mid-session
     diff = ds.record_visit(conn, 1200.0, now=_t(hours=48))
     assert diff["value_then"] == 1000.0
 
@@ -231,18 +237,22 @@ def test_visit_without_prices_gives_no_diff(conn):
 # News classification
 # ---------------------------------------------------------------------------
 
+
 # Classification now lives in news_service (shared by the dashboard teaser and
 # the News tab); the dashboard delegates to it.
-@pytest.mark.parametrize("title,label", [
-    ("ASML beats expectations as bookings jump 24% on AI demand", "Earnings"),
-    ("Shell raises quarterly dividend by 4%, starts new buyback", "Dividend"),
-    ("Morgan Stanley upgrades Microsoft to Overweight, price target $480", "Analyst"),
-    ("Novo Nordisk acquires Catalent site to expand capacity", "M&A"),
-    ("Israel and Iran agree ceasefire after two weeks of war", "World"),
-    ("ECB holds rates steady, points to cooling inflation", "Macro"),
-    ("Trump announces new tariffs on EU steel imports", "Macro"),
-    ("Something entirely unclassifiable happened", "Macro"),
-])
+@pytest.mark.parametrize(
+    "title,label",
+    [
+        ("ASML beats expectations as bookings jump 24% on AI demand", "Earnings"),
+        ("Shell raises quarterly dividend by 4%, starts new buyback", "Dividend"),
+        ("Morgan Stanley upgrades Microsoft to Overweight, price target $480", "Analyst"),
+        ("Novo Nordisk acquires Catalent site to expand capacity", "M&A"),
+        ("Israel and Iran agree ceasefire after two weeks of war", "World"),
+        ("ECB holds rates steady, points to cooling inflation", "Macro"),
+        ("Trump announces new tariffs on EU steel imports", "Macro"),
+        ("Something entirely unclassifiable happened", "Macro"),
+    ],
+)
 def test_classify_news(title, label):
     assert news_service.classify_news(title) == label
 
@@ -256,6 +266,7 @@ def test_classify_news_reads_the_summary_too():
 # Ex-dividend calendar
 # ---------------------------------------------------------------------------
 
+
 def test_upcoming_ex_dividends_filters_and_sorts():
     entries = [
         {"isin": "A", "ticker": "A.AS", "name": "A", "ex_date": "2026-07-10", "pay_date": None},
@@ -263,7 +274,7 @@ def test_upcoming_ex_dividends_filters_and_sorts():
         {"isin": "C", "ticker": "C.AS", "name": "C", "ex_date": "2026-07-21", "pay_date": None},
     ]
     out = ds.upcoming_ex_dividends(entries, {"B": 12.9}, today=_TODAY)
-    assert [e["isin"] for e in out] == ["C", "B"]          # past A dropped, sorted
+    assert [e["isin"] for e in out] == ["C", "B"]  # past A dropped, sorted
     assert out[1]["estimate_eur"] == 12.9
     assert out[0]["estimate_eur"] is None
 
@@ -271,6 +282,7 @@ def test_upcoming_ex_dividends_filters_and_sorts():
 # ---------------------------------------------------------------------------
 # Dividend forecast (estimate from payment history)
 # ---------------------------------------------------------------------------
+
 
 def _series(start: datetime.date, step_days: int, amounts: list[float], jitter: list[int] | None = None):
     """Synthetic payment rows for one ISIN: dates step_days apart (+ optional
@@ -284,12 +296,15 @@ def _series(start: datetime.date, step_days: int, amounts: list[float], jitter: 
     return rows
 
 
-@pytest.mark.parametrize("step,expected", [
-    (30, "monthly"),
-    (91, "quarterly"),
-    (182, "semiannual"),
-    (365, "annual"),
-])
+@pytest.mark.parametrize(
+    "step,expected",
+    [
+        (30, "monthly"),
+        (91, "quarterly"),
+        (182, "semiannual"),
+        (365, "annual"),
+    ],
+)
 def test_detect_cadence_snaps_to_known_rhythms(step, expected):
     dates = [datetime.date(2025, 1, 1) + datetime.timedelta(days=step * i) for i in range(4)]
     cadence = ds.detect_cadence(dates)
@@ -298,8 +313,7 @@ def test_detect_cadence_snaps_to_known_rhythms(step, expected):
 
 def test_detect_cadence_tolerates_jitter():
     # Quarterly with realistic wobble: 85, 96, 89-day gaps.
-    dates = [datetime.date(2025, 1, 10), datetime.date(2025, 4, 5),
-             datetime.date(2025, 7, 10), datetime.date(2025, 10, 7)]
+    dates = [datetime.date(2025, 1, 10), datetime.date(2025, 4, 5), datetime.date(2025, 7, 10), datetime.date(2025, 10, 7)]
     cadence = ds.detect_cadence(dates)
     assert cadence is not None and cadence[0] == "quarterly"
 
@@ -350,8 +364,8 @@ def test_forecast_scales_per_share_when_position_grew():
 
 def test_forecast_omits_sold_out_single_payment_and_accumulating():
     dividends = (
-        _series(datetime.date(2025, 6, 1), 91, [5.0, 5.0, 5.0])           # F1: sold out
-        + [{"isin": "F2", "date": "2026-05-01", "net_eur": 7.0}]          # F2: one payment
+        _series(datetime.date(2025, 6, 1), 91, [5.0, 5.0, 5.0])  # F1: sold out
+        + [{"isin": "F2", "date": "2026-05-01", "net_eur": 7.0}]  # F2: one payment
     )
     positions = [_pos("F2", "Single", shares=5), _pos("F3", "Accumulating", shares=5)]
     fc = ds.forecast_dividends(positions, dividends, today=_TODAY)
@@ -374,8 +388,12 @@ def _nn_like_dividends():
     """NN Group's real shape: interim (~aug/sep) + final (~may/jun), gaps
     alternating ~270/~75 days — the median matches no single cadence."""
     rows = [
-        ("2023-09-26", 9.52), ("2024-06-21", 17.68), ("2024-08-28", 10.88),
-        ("2025-05-28", 18.40), ("2025-08-21", 17.59), ("2026-06-03", 40.37),
+        ("2023-09-26", 9.52),
+        ("2024-06-21", 17.68),
+        ("2024-08-28", 10.88),
+        ("2025-05-28", 18.40),
+        ("2025-08-21", 17.59),
+        ("2026-06-03", 40.37),
     ]
     return [{"isin": "NN", "date": d, "net_eur": v} for d, v in rows]
 
@@ -426,7 +444,7 @@ def test_official_ex_div_overrides_first_estimate_only():
     first = merged["upcoming"][0]
     assert first["source"] == "official"
     assert first["date"] == "2026-08-04" and first["part"] == "early"
-    assert first["expected_eur"] == 8.0            # amount still from history
+    assert first["expected_eur"] == 8.0  # amount still from history
     assert merged["upcoming"][1]["source"] == "estimate"
 
 
@@ -456,6 +474,7 @@ def test_payment_events_sums_same_day_rows():
 # endpoint that served an index for this screen was deleted rather than left
 # lying next to a dashboard that must not grow one.
 
+
 def test_sparkline_takes_tail_of_last_segment_only():
     old = ([datetime.date(2026, 1, 1)], [500.0], [500.0])
     recent_dates = [datetime.date(2026, 7, d) for d in range(1, 17)]
@@ -478,8 +497,7 @@ def test_value_history_builds_three_series_without_network():
     # now (a quote in another currency used to be summed into a euro total as
     # if it were one), and a stored price row always carries the column.
     txns = [
-        {"date": "2026-07-01", "isin": "X1", "quantity": 10.0,
-         "transaction_type": "BUY", "total_eur": 1000.0},
+        {"date": "2026-07-01", "isin": "X1", "quantity": 10.0, "transaction_type": "BUY", "total_eur": 1000.0},
     ]
     prices = {"X1": {"price": 110.0, "currency": "EUR"}}
     out = ds._build_value_history(txns, prices, [{"date": "2026-07-01", "net_eur": 50.0}])
@@ -487,8 +505,8 @@ def test_value_history_builds_three_series_without_network():
     assert pts, "expected at least the purchase day onward"
     assert pts[0]["d"] == "2026-07-01"
     assert pts[0]["invested"] == 1000.0
-    assert pts[0]["value"] == 1100.0          # 10 shares * €110
-    assert pts[0]["value_divs"] == 1150.0     # value + €50 cumulative dividend
+    assert pts[0]["value"] == 1100.0  # 10 shares * €110
+    assert pts[0]["value_divs"] == 1150.0  # value + €50 cumulative dividend
     # And it says so: every day of this line is the cached price standing in for
     # a close that was never fetched, which is exactly what the card must not
     # present as measured.
@@ -503,11 +521,15 @@ def test_value_history_empty_without_transactions():
 # The forward schedule steps in calendar months, not in 30-day blocks
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("step,months,expected", [
-    (30, 1, 12),    # a 30-day step fitted 13 payments into a year
-    (91, 3, 4),
-    (365, 12, 1),
-])
+
+@pytest.mark.parametrize(
+    "step,months,expected",
+    [
+        (30, 1, 12),  # a 30-day step fitted 13 payments into a year
+        (91, 3, 4),
+        (365, 12, 1),
+    ],
+)
 def test_a_year_of_forecast_holds_a_year_of_payments(step, months, expected):
     """Twelve 30-day steps are 360 days, and the five days left over used to
     take a thirteenth payment — so "next 12 months" read EUR 130 for a fund
@@ -517,11 +539,13 @@ def test_a_year_of_forecast_holds_a_year_of_payments(step, months, expected):
     today = datetime.date(2026, 8, 4)
     for since in range(0, step, max(step // 12, 1)):
         last = today - datetime.timedelta(days=since)
-        divs = [{"isin": "X", "date": (last - datetime.timedelta(days=step * i)).isoformat(),
-                 "net_eur": 10.0} for i in range(6)]
+        divs = [{"isin": "X", "date": (last - datetime.timedelta(days=step * i)).isoformat(), "net_eur": 10.0} for i in range(6)]
         out = ds.forecast_dividends(
-            [{"isin": "X", "name": "X", "shares_held": 1.0}], divs, None,
-            today=today, horizon_days=365,
+            [{"isin": "X", "name": "X", "shares_held": 1.0}],
+            divs,
+            None,
+            today=today,
+            horizon_days=365,
         )
         assert len(out["upcoming"]) == expected, f"{months}-month cadence, {since} days on"
 
@@ -529,15 +553,21 @@ def test_a_year_of_forecast_holds_a_year_of_payments(step, months, expected):
 def test_an_estimate_keeps_the_day_of_the_month_the_fund_pays_on():
     """A 30-day step walked a payer of the 31st five days earlier every year."""
     today = datetime.date(2026, 8, 4)
-    divs = [{"isin": "X", "date": d, "net_eur": 10.0} for d in
-            ("2026-04-30", "2026-05-31", "2026-06-30", "2026-07-31")]
+    divs = [{"isin": "X", "date": d, "net_eur": 10.0} for d in ("2026-04-30", "2026-05-31", "2026-06-30", "2026-07-31")]
     out = ds.forecast_dividends(
-        [{"isin": "X", "name": "X", "shares_held": 1.0}], divs, None,
-        today=today, horizon_days=200,
+        [{"isin": "X", "name": "X", "shares_held": 1.0}],
+        divs,
+        None,
+        today=today,
+        horizon_days=200,
     )
     # The 200-day horizon ends 2027-02-20, so January is the last one in.
     assert [e["date"] for e in out["upcoming"]] == [
-        "2026-08-31", "2026-09-30", "2026-10-31", "2026-11-30", "2026-12-31",
+        "2026-08-31",
+        "2026-09-30",
+        "2026-10-31",
+        "2026-11-30",
+        "2026-12-31",
         "2027-01-31",
     ]
 
@@ -564,6 +594,7 @@ def test_add_months_clamps_to_the_length_of_the_month():
 # twelve-hour cached emptiness — the outage outliving itself.
 # ---------------------------------------------------------------------------
 
+
 def test_the_calendar_sweep_stops_at_its_budget(monkeypatch):
     import time as _time
 
@@ -584,7 +615,7 @@ def test_the_calendar_sweep_stops_at_its_budget(monkeypatch):
 
     entries = ds._fetch_calendar(meta, budget_seconds=0.05)
 
-    assert len(seen) < 6            # cut off rather than run to the end
+    assert len(seen) < 6  # cut off rather than run to the end
     assert len(entries) == len(seen)  # and what it did find is kept
 
 
@@ -596,6 +627,7 @@ def test_a_cut_off_sweep_that_found_nothing_still_raises(monkeypatch):
     gets through one ticker before the cut-off — so an empty list would have
     been cached as a real answer.
     """
+
     class _DeadTicker:
         def __init__(self, symbol):
             raise RuntimeError("no route to host")
@@ -630,6 +662,7 @@ def test_a_sweep_that_found_no_dates_is_a_real_answer(monkeypatch):
     Almost every UCITS ETF has no forward calendar on Yahoo, so an empty list
     is the normal answer here and must not be mistaken for a failure.
     """
+
     class _EmptyTicker:
         def __init__(self, symbol):
             pass

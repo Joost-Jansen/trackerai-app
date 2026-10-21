@@ -19,10 +19,15 @@ def test_a_euro_listing_is_left_as_stored():
 
 
 def test_a_converted_listing_is_restated_in_its_own_currency():
-    q = hs.listing_quote({
-        "price": 392.1331, "previous_close": 396.3861, "currency": "EUR",
-        "quote_currency": "USD", "quote_fx_rate": 0.8781,
-    })
+    q = hs.listing_quote(
+        {
+            "price": 392.1331,
+            "previous_close": 396.3861,
+            "currency": "EUR",
+            "quote_currency": "USD",
+            "quote_fx_rate": 0.8781,
+        }
+    )
 
     assert q["currency"] == "USD"
     assert q["price"] == pytest.approx(392.1331 / 0.8781, abs=1e-3)

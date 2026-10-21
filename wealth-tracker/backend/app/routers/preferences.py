@@ -7,8 +7,8 @@ import sqlite3
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from domain import preferences
 from app.deps import CurrentUser, get_current_user, get_db
+from domain import preferences
 from domain.i18n import tr
 
 router = APIRouter(prefix="/api/preferences", tags=["preferences"])

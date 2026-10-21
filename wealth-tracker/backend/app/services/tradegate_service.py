@@ -47,7 +47,7 @@ import requests
 from app.core import price_refresh
 from domain.i18n import tr
 
-VENUE_CODE = "TDG"   # DeGiro's exchange code for Tradegate
+VENUE_CODE = "TDG"  # DeGiro's exchange code for Tradegate
 VENUE_NAME = "Tradegate Exchange"
 SOURCE_LABEL = "Tradegate Exchange (website, unofficial)"
 
@@ -65,9 +65,9 @@ RETRY_BACKOFF_SECONDS = 0.5
 TTL_SESSION_SECONDS = 120
 TTL_CLOSED_SECONDS = 30 * 60
 #: How long after a failure nothing is asked again.
-TTL_UNAVAILABLE_SECONDS = 60          # timeout, connection, 5xx
-TTL_REFUSED_SECONDS = 15 * 60         # 3xx, 403, 429: Tradegate does not want it
-TTL_NO_DATA_SECONDS = 6 * 60 * 60     # empty body: Tradegate does not know this ISIN
+TTL_UNAVAILABLE_SECONDS = 60  # timeout, connection, 5xx
+TTL_REFUSED_SECONDS = 15 * 60  # 3xx, 403, 429: Tradegate does not want it
+TTL_NO_DATA_SECONDS = 6 * 60 * 60  # empty body: Tradegate does not know this ISIN
 
 #: Tradegate's trading hours, in the container's time zone
 #: (Europe/Amsterdam, the same as Berlin).
@@ -145,6 +145,7 @@ def _count(value: object) -> int | None:
 # Reading the response
 # ---------------------------------------------------------------------------
 
+
 class TradegateError(Exception):
     status = "unavailable"
     ttl = TTL_UNAVAILABLE_SECONDS
@@ -156,12 +157,14 @@ class TradegateUnavailable(TradegateError):
 
 class TradegateRefused(TradegateError):
     """Tradegate sends us away (redirect, 403, 429). Do not retry."""
+
     status = "refused"
     ttl = TTL_REFUSED_SECONDS
 
 
 class TradegateNoData(TradegateError):
     """A response, but without a usable price for this ISIN."""
+
     status = "no_data"
     ttl = TTL_NO_DATA_SECONDS
 
@@ -269,11 +272,12 @@ def _download(isin: str) -> object:
 # The cache
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class _Entry:
-    quote: dict | None          # : the last successful price, also after an outage
-    quote_at: float | None      # : monotonic moment of that price
-    retry_at: float             # : monotonic: no new request before this moment
+    quote: dict | None  # : the last successful price, also after an outage
+    quote_at: float | None  # : monotonic moment of that price
+    retry_at: float  # : monotonic: no new request before this moment
     error_status: str | None = None
     error: str | None = None
 
@@ -328,11 +332,21 @@ def get_quote(isin: str) -> dict:
     """
     isin = (isin or "").strip().upper()
     if not enabled():
-        return {"status": "disabled", "isin": isin, "venue": VENUE_CODE, "source": SOURCE_LABEL,
-                "message": tr("Tradegate prices are off (TRADEGATE_QUOTES=off).")}
+        return {
+            "status": "disabled",
+            "isin": isin,
+            "venue": VENUE_CODE,
+            "source": SOURCE_LABEL,
+            "message": tr("Tradegate prices are off (TRADEGATE_QUOTES=off)."),
+        }
     if not is_valid_isin(isin):
-        return {"status": "invalid_isin", "isin": isin, "venue": VENUE_CODE, "source": SOURCE_LABEL,
-                "message": tr("This is not a valid ISIN.")}
+        return {
+            "status": "invalid_isin",
+            "isin": isin,
+            "venue": VENUE_CODE,
+            "source": SOURCE_LABEL,
+            "message": tr("This is not a valid ISIN."),
+        }
 
     with _lock_for(isin):
         entry = _cache.get(isin)
@@ -355,7 +369,7 @@ def get_quote(isin: str) -> dict:
                 error_status=e.status,
                 error=str(e),
             )
-        except Exception as e:   # an unexpected shape must not hurt the app
+        except Exception as e:  # an unexpected shape must not hurt the app
             print(f"[tradegate] {isin}: unexpected error — {repr(e)}")
             entry = _Entry(
                 quote=entry.quote if entry else None,

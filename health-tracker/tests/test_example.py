@@ -151,9 +151,19 @@ def test_admin_mcp_and_tokens_ignore_the_header(alice):
 def test_example_name_is_reserved(app, alice):
     alice.patch("/api/trackerai/admin/registration", json={"registration": "open"})
     for name in ("example", "Example", " EXAMPLE "):
-        r = TestClient(app).post("/api/register", json={"username": name, "email": "someone@example.org", "password": "a-long-password-1", "consent": True})
+        r = TestClient(app).post(
+            "/api/register", json={"username": name, "email": "someone@example.org", "password": "a-long-password-1", "consent": True}
+        )
         assert r.status_code == 409 and r.json()["code"] == "username_reserved"
-    assert TestClient(app).post("/api/register", json={"username": "examples", "email": "examples@example.org", "password": "a-long-password-1", "consent": True}).status_code == 200
+    assert (
+        TestClient(app)
+        .post(
+            "/api/register",
+            json={"username": "examples", "email": "examples@example.org", "password": "a-long-password-1", "consent": True},
+        )
+        .status_code
+        == 200
+    )
 
 
 def test_header_needs_value_one_and_a_login(alice, app):

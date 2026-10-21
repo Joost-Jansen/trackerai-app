@@ -11,8 +11,7 @@ from fastapi.responses import JSONResponse
 
 
 class CodedError(HTTPException):
-    def __init__(self, status_code: int, code: str, detail: str, params: dict | None = None,
-                 headers: dict | None = None):
+    def __init__(self, status_code: int, code: str, detail: str, params: dict | None = None, headers: dict | None = None):
         super().__init__(status_code, detail, headers=headers)
         self.code = code
         self.params = params or {}
@@ -29,7 +28,8 @@ def http_error(status_code: int, exc: Exception) -> HTTPException:
 async def _handle(_: Request, exc: CodedError) -> JSONResponse:
     return JSONResponse(
         {"detail": exc.detail, "code": exc.code, "params": exc.params},
-        status_code=exc.status_code, headers=getattr(exc, "headers", None),
+        status_code=exc.status_code,
+        headers=getattr(exc, "headers", None),
     )
 
 

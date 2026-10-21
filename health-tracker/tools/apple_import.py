@@ -12,8 +12,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable
 
 from tools import db
 from tools.apple_health import Export, intraday_days, read_export, wellness_days, workout_record
@@ -22,7 +22,9 @@ from tools.derive import derive
 SOURCE = "apple"
 
 
-def apply(s: db.Scope, x: Export, filename: str | None = None, progress: Callable[[str, int | None, int | None], None] | None = None) -> dict:
+def apply(
+    s: db.Scope, x: Export, filename: str | None = None, progress: Callable[[str, int | None, int | None], None] | None = None
+) -> dict:
     """Store what `x` holds for this user. Returns counts for the import summary."""
     report = progress or (lambda *_: None)
     # one workout at a time, its route read from the zip only then: years of per-second streams do not fit in memory

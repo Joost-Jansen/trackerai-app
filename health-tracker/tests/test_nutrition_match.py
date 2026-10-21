@@ -7,6 +7,7 @@ NUTRITION_LIVE_TEST=1 and ANTHROPIC_API_KEY (it costs a call).
 import json
 import os
 import struct
+from datetime import UTC
 from pathlib import Path
 
 import pytest
@@ -17,12 +18,39 @@ from tools.nutrition import foods, match, meals, nevo, off, photos, recognize
 SAMPLE = (Path(__file__).parent / "nevo_sample.csv").read_bytes()
 RECORDED = {
     "items": [
-        {"label_nl": "havermout", "label_en": "oat flakes", "kind": "food", "grams": 65, "grams_low": 50, "grams_high": 80,
-         "confidence": 0.9, "cooking": "", "search_terms": ["havermout"]},
-        {"label_nl": "banaan", "label_en": "banana", "kind": "food", "grams": 110, "grams_low": 90, "grams_high": 130,
-         "confidence": 0.55, "cooking": "raw", "search_terms": ["banaan"]},
-        {"label_nl": "halfvolle melk", "label_en": "semi-skimmed milk", "kind": "drink", "grams": 200, "grams_low": 150,
-         "grams_high": 250, "confidence": 0.8, "cooking": "", "search_terms": ["melk halfvolle", "melk"]},
+        {
+            "label_nl": "havermout",
+            "label_en": "oat flakes",
+            "kind": "food",
+            "grams": 65,
+            "grams_low": 50,
+            "grams_high": 80,
+            "confidence": 0.9,
+            "cooking": "",
+            "search_terms": ["havermout"],
+        },
+        {
+            "label_nl": "banaan",
+            "label_en": "banana",
+            "kind": "food",
+            "grams": 110,
+            "grams_low": 90,
+            "grams_high": 130,
+            "confidence": 0.55,
+            "cooking": "raw",
+            "search_terms": ["banaan"],
+        },
+        {
+            "label_nl": "halfvolle melk",
+            "label_en": "semi-skimmed milk",
+            "kind": "drink",
+            "grams": 200,
+            "grams_low": 150,
+            "grams_high": 250,
+            "confidence": 0.8,
+            "cooking": "",
+            "search_terms": ["melk halfvolle", "melk"],
+        },
     ],
     "hidden_extras": [{"label_nl": "olijfolie", "label_en": "olive oil", "grams": 5, "search_terms": ["olie olijf"]}],
     "reference_object": "bowl",
@@ -52,8 +80,10 @@ def test_photos_lose_their_metadata_and_only_images_pass():
     mime, clean = photos.clean(jpeg())
     assert mime == "image/jpeg" and b"Exif" not in clean and b"GPS" not in clean and b"comment" not in clean
     assert clean == jpeg(with_exif=False)  # everything else, the scan data too, unchanged
-    png = b"\x89PNG\r\n\x1a\n" + b"".join(struct.pack(">I", len(d)) + n + d + b"\x00\x00\x00\x00"
-                                       for n, d in ((b"IHDR", bytes(13)), (b"tEXt", b"GPS\x0052N"), (b"IDAT", b"xx"), (b"IEND", b"")))
+    png = b"\x89PNG\r\n\x1a\n" + b"".join(
+        struct.pack(">I", len(d)) + n + d + b"\x00\x00\x00\x00"
+        for n, d in ((b"IHDR", bytes(13)), (b"tEXt", b"GPS\x0052N"), (b"IDAT", b"xx"), (b"IEND", b""))
+    )
     assert photos.clean(png)[0] == "image/png" and b"GPS" not in photos.clean(png)[1]
     for bad in (b"", b"GIF89a....", b"\xff\xd8\xff\xe1\x00\x02"):
         with pytest.raises(photos.PhotoError):
@@ -68,10 +98,17 @@ def test_photo_keeping_follows_the_setting(s):
     kept, month, orphan = (photos.save(s, mime, data, k) for k in ("keep", "30d", "keep"))
     assert photos.load(s, kept)[1] == data and photos.load(db.Scope(s.engine, 2), kept) is None
     for pid, keep in ((kept, "keep"), (month, "30d")):  # claimed by a saved meal
-        meals.create(s, day="2026-10-19", eaten_at="08:00", moment="breakfast", input="photo", photo_id=pid,
-                     items=[{"food_ref": "nevo:9001", "grams": 60}])
+        meals.create(
+            s,
+            day="2026-10-19",
+            eaten_at="08:00",
+            moment="breakfast",
+            input="photo",
+            photo_id=pid,
+            items=[{"food_ref": "nevo:9001", "grams": 60}],
+        )
         photos.attach(s, pid, keep)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     assert photos.purge_expired(s.engine, now + timedelta(days=2)) == 1  # the photo of a cancelled review: a day
     assert photos.load(s, orphan) is None and photos.load(s, month) and photos.load(s, kept)
     assert photos.purge_expired(s.engine, now + timedelta(days=31)) == 1
@@ -82,10 +119,17 @@ def test_photo_keeping_follows_the_setting(s):
 
 
 def test_the_answer_is_kept_within_bounds():
-    answer = recognize.tidy({"items": [
-        {"label_nl": "pasta", "kind": "x", "grams": 99999, "grams_low": 10, "grams_high": 5, "confidence": 7, "search_terms": []},
-        {"label_nl": " ", "grams": 10},
-    ], "hidden_extras": [], "reference_object": "spoon", "moment_guess": "brunch"})
+    answer = recognize.tidy(
+        {
+            "items": [
+                {"label_nl": "pasta", "kind": "x", "grams": 99999, "grams_low": 10, "grams_high": 5, "confidence": 7, "search_terms": []},
+                {"label_nl": " ", "grams": 10},
+            ],
+            "hidden_extras": [],
+            "reference_object": "spoon",
+            "moment_guess": "brunch",
+        }
+    )
     (item,) = answer["items"]
     assert item["kind"] == "food" and item["grams"] == 3000 and item["grams_low"] == 5 and item["grams_high"] == 3000
     assert item["confidence"] == 1 and item["search_terms"] == ["pasta"]
@@ -104,8 +148,12 @@ def test_the_request_asks_for_structured_output_with_the_image(monkeypatch):
 class Stub:
     def __init__(self, answer):
         text = json.dumps(answer)
-        msg = {"model": "claude-sonnet-5-5", "content": [{"type": "text", "text": text}], "stop_reason": "end_turn",
-               "usage": {"input_tokens": 1500, "output_tokens": 300}}
+        msg = {
+            "model": "claude-sonnet-5-5",
+            "content": [{"type": "text", "text": text}],
+            "stop_reason": "end_turn",
+            "usage": {"input_tokens": 1500, "output_tokens": 300},
+        }
         create = lambda **kw: type("R", (), {"to_dict": lambda self: msg})()  # noqa: E731
         self.messages = type("M", (), {"create": staticmethod(create)})()
         self.beta = type("B", (), {"messages": self.messages})()
@@ -145,9 +193,22 @@ def test_failures_are_logged_too(s):
 
 
 def test_open_food_facts_mapping_and_cache(s):
-    product = {"product_name": "Skyr naturel", "brands": "Arla, X", "product_quantity_unit": "g", "nutrition_data_per": "100g",
-               "serving_quantity": "150", "nutriments": {"energy-kcal_100g": 63, "proteins_100g": 11, "carbohydrates_100g": 4,
-                                                         "fat_100g": 0.2, "sodium_100g": 0.04, "calcium_100g": 0.12, "vitamin-d_100g": 0.0000002}}
+    product = {
+        "product_name": "Skyr naturel",
+        "brands": "Arla, X",
+        "product_quantity_unit": "g",
+        "nutrition_data_per": "100g",
+        "serving_quantity": "150",
+        "nutriments": {
+            "energy-kcal_100g": 63,
+            "proteins_100g": 11,
+            "carbohydrates_100g": 4,
+            "fat_100g": 0.2,
+            "sodium_100g": 0.04,
+            "calcium_100g": 0.12,
+            "vitamin-d_100g": 0.0000002,
+        },
+    }
     calls = []
     fetcher = lambda ean: calls.append(ean) or product  # noqa: E731
     assert off.valid_ean("8710400011234") is False and off.valid_ean("4006381333931") is True
@@ -159,7 +220,9 @@ def test_open_food_facts_mapping_and_cache(s):
     assert foods.search(s, "skyr")[0]["ref"] == "off:4006381333931"
     with pytest.raises(off.NoNutrients):
         off.lookup(s, "5000112637922", lambda ean: {"product_name": "Water", "nutriments": {}})
-    beer = off.to_food("1", {"product_name": "Pils", "product_quantity_unit": "ml", "nutriments": {"energy-kcal_100g": 42, "alcohol_100g": 5}})
+    beer = off.to_food(
+        "1", {"product_name": "Pils", "product_quantity_unit": "ml", "nutriments": {"energy-kcal_100g": 42, "alcohol_100g": 5}}
+    )
     assert beer["unit"] == "ml" and beer["per_100"]["alcohol_g"] == 3.945  # 5 % vol x 0.789 g/ml
     assert off.to_food("1", {"product_name": "No energy", "nutriments": {}}) is None
 
@@ -177,8 +240,10 @@ def test_favourites_and_again(s):
         meals.create_template(s, name=" ", items=[{"food_ref": "nevo:9001", "grams": 60}])
 
 
-@pytest.mark.skipif(os.environ.get("NUTRITION_LIVE_TEST") != "1" or not os.environ.get("ANTHROPIC_API_KEY"),
-                    reason="live call to Claude: NUTRITION_LIVE_TEST=1 and ANTHROPIC_API_KEY")
+@pytest.mark.skipif(
+    os.environ.get("NUTRITION_LIVE_TEST") != "1" or not os.environ.get("ANTHROPIC_API_KEY"),
+    reason="live call to Claude: NUTRITION_LIVE_TEST=1 and ANTHROPIC_API_KEY",
+)
 def test_live_photo(s):  # pragma: no cover - by hand, with a meal photo in NUTRITION_LIVE_PHOTO
     data = Path(os.environ["NUTRITION_LIVE_PHOTO"]).read_bytes()
     mime, image = photos.clean(data)

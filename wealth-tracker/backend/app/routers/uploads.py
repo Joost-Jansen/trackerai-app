@@ -1,18 +1,18 @@
 import os
 import sqlite3
 
-from domain.imports.degiro_export import read_export
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
-from domain.imports import degiro_cash
-from domain.money import categorization
-from domain import database
-from domain.imports import degiro_dividends as dividend_parser
-from domain.portfolio import positions as portfolio
-from domain.imports import degiro_transactions as transaction_parser
 from app.deps import CurrentUser, get_current_user, get_db
 from app.services import upload_store
+from domain import database
 from domain.i18n import tr
+from domain.imports import degiro_cash
+from domain.imports import degiro_dividends as dividend_parser
+from domain.imports import degiro_transactions as transaction_parser
+from domain.imports.degiro_export import read_export
+from domain.money import categorization
+from domain.portfolio import positions as portfolio
 
 router = APIRouter(prefix="/api", tags=["uploads"])
 
@@ -90,10 +90,14 @@ def upload_transactions(
         txs = transaction_parser.parse_transactions(path, warnings=unparsed)
         saved, skipped = database.save_transactions(conn, txs)
         upload_store.done(conn, user.username, path)
-        results.append({
-            "filename": os.path.basename(path), "saved": saved, "skipped": skipped,
-            "unparsed": unparsed,
-        })
+        results.append(
+            {
+                "filename": os.path.basename(path),
+                "saved": saved,
+                "skipped": skipped,
+                "unparsed": unparsed,
+            }
+        )
     return {"results": results}
 
 
@@ -121,10 +125,15 @@ def upload_dividends(
         categorization.seed(conn)
         categorization.relabel(conn)
         upload_store.done(conn, user.username, path)
-        results.append({
-            "filename": os.path.basename(path), "saved": saved, "skipped": skipped,
-            "unconverted": unconverted, "cash_days": cash["days"],
-        })
+        results.append(
+            {
+                "filename": os.path.basename(path),
+                "saved": saved,
+                "skipped": skipped,
+                "unconverted": unconverted,
+                "cash_days": cash["days"],
+            }
+        )
     return {"results": results}
 
 

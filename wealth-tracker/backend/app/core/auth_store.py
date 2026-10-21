@@ -33,13 +33,13 @@ import os
 import re
 import secrets
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import yaml
 
 from app.core import config, security
-from trackerai_accounts import passwords
 from domain.i18n import LOCALES, tr
+from trackerai_accounts import passwords
 
 # Must match database._safe_user so a username is always a valid folder name.
 USERNAME_RE = re.compile(r"[A-Za-z0-9_-]{1,40}")
@@ -93,7 +93,7 @@ def check_new_password(password: str, username: str) -> None:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
 def load_config() -> dict:
@@ -101,7 +101,7 @@ def load_config() -> dict:
         raise AuthError(tr("No accounts configured yet. Run manage_users.py add <username> on the server."))
     # A shared lock so a reader never observes the truncate-then-write window of
     # a concurrent `_locked_update` writer, which holds LOCK_EX on this file.
-    with open(config.AUTH_CONFIG_PATH, "r", encoding="utf-8") as f:
+    with open(config.AUTH_CONFIG_PATH, encoding="utf-8") as f:
         fcntl.flock(f, fcntl.LOCK_SH)
         try:
             return _upgrade(yaml.safe_load(f))
@@ -123,7 +123,7 @@ def _upgrade(cfg: dict | None) -> dict | None:
             if old in beta:
                 users = beta.pop(old) or []
                 beta[new] = list(dict.fromkeys([*(beta.get(new) or []), *users]))
-    users = (((cfg or {}).get("credentials") or {}).get("usernames") or {})
+    users = ((cfg or {}).get("credentials") or {}).get("usernames") or {}
     for user in users.values():
         for token in (user or {}).get("agent_tokens") or []:
             if token.get("scope") in _RENAMED_SCOPES:
@@ -206,7 +206,7 @@ def _locked_update():
         raise AuthError(tr("No accounts configured yet. Run manage_users.py add <username> on the server."))
     if _dir_writable():
         with _lock_file():
-            with open(config.AUTH_CONFIG_PATH, "r", encoding="utf-8") as f:
+            with open(config.AUTH_CONFIG_PATH, encoding="utf-8") as f:
                 cfg = _upgrade(yaml.safe_load(f)) or {}
             yield cfg
             _write_atomically(cfg)
@@ -318,9 +318,7 @@ def token_secret_and_expiry(cfg: dict | None = None) -> tuple[str, int]:
     return key, config.SESSION_DAYS
 
 
-def register_user(
-    username: str, name: str, password: str, invite_code: str, beta: tuple[str, ...] = ()
-) -> None:
+def register_user(username: str, name: str, password: str, invite_code: str, beta: tuple[str, ...] = ()) -> None:
     """`beta`: flags the new account gets straight away (wealth-tracker grants `money`)."""
     with _locked_update() as cfg:
         mode = registration_mode(cfg)
@@ -443,7 +441,7 @@ def _usable_invite(cfg: dict, code: str | None) -> dict | None:
     """The unused, unexpired personal invite with this code, or None."""
     if not code:
         return None
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for inv in cfg.get("invites") or []:
         if inv.get("used_by") or not hmac.compare_digest(str(inv.get("code", "")), code):
             continue
@@ -467,13 +465,13 @@ def create_invite(actor: str, days: int | None, beta: list[str] | None = None) -
             "code": secrets.token_urlsafe(9),
             "created_by": actor,
             "created_at": _now_iso(),
-            "expires_at": (datetime.now(timezone.utc) + timedelta(days=days)).replace(microsecond=0).isoformat() if days else None,
+            "expires_at": (datetime.now(UTC) + timedelta(days=days)).replace(microsecond=0).isoformat() if days else None,
             "used_by": None,
             "used_at": None,
             "beta": [f for f in BETA_FEATURES if f in (beta or [])],
         }
         # Keep the list short: drop links that were used or expired more than 30 days ago.
-        cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+        cutoff = datetime.now(UTC) - timedelta(days=30)
         keep = []
         for old in cfg.get("invites") or []:
             ended = _parse(old.get("used_at")) or _parse(old.get("expires_at"))
@@ -486,7 +484,7 @@ def create_invite(actor: str, days: int | None, beta: list[str] | None = None) -
 def list_invites(cfg: dict | None = None) -> list[dict]:
     """Open invites (unused, unexpired), newest first."""
     cfg = cfg or load_config()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     out = []
     for inv in cfg.get("invites") or []:
         expires = _parse(inv.get("expires_at"))
@@ -734,15 +732,17 @@ def list_users(actor: str) -> list[dict]:
     beta = cfg.get("beta") or {}
     out = []
     for uname, info in (cfg.get("credentials", {}).get("usernames", {}) or {}).items():
-        out.append({
-            "username": uname,
-            "name": info.get("name", uname),
-            "is_admin": uname in admins,
-            "suspended": bool(info.get("suspended")),
-            "created_at": info.get("created_at"),
-            "last_login": info.get("last_login"),
-            "beta_features": [f for f, users in beta.items() if uname in users],
-        })
+        out.append(
+            {
+                "username": uname,
+                "name": info.get("name", uname),
+                "is_admin": uname in admins,
+                "suspended": bool(info.get("suspended")),
+                "created_at": info.get("created_at"),
+                "last_login": info.get("last_login"),
+                "beta_features": [f for f, users in beta.items() if uname in users],
+            }
+        )
     return sorted(out, key=lambda u: u["username"])
 
 
@@ -779,7 +779,7 @@ def create_agent_token(username: str, name: str, scope: str, expires_days: int |
     import secrets
 
     if scope not in AGENT_SCOPES:
-        raise AuthError(tr("Choose a level: {0}.", ', '.join(AGENT_SCOPES)))
+        raise AuthError(tr("Choose a level: {0}.", ", ".join(AGENT_SCOPES)))
     if expires_days is not None and not 1 <= int(expires_days) <= AGENT_MAX_DAYS:
         raise AuthError(tr("A token is valid for 1 to {0} days, or without an end date.", AGENT_MAX_DAYS))
     name = (name or "").strip()[:60] or "Agent"
@@ -790,8 +790,7 @@ def create_agent_token(username: str, name: str, scope: str, expires_days: int |
         "scope": scope,
         "hash": _token_hash(token),
         "created_at": _now_iso(),
-        "expires_at": (datetime.now(timezone.utc) + timedelta(days=int(expires_days))).replace(microsecond=0).isoformat()
-        if expires_days else None,
+        "expires_at": (datetime.now(UTC) + timedelta(days=int(expires_days))).replace(microsecond=0).isoformat() if expires_days else None,
     }
     with _locked_update() as cfg:
         user = _existing_user(cfg, username)
@@ -801,7 +800,7 @@ def create_agent_token(username: str, name: str, scope: str, expires_days: int |
 
 def _expired(entry: dict) -> bool:
     expires = _parse(entry.get("expires_at"))
-    return expires is not None and expires <= datetime.now(timezone.utc)
+    return expires is not None and expires <= datetime.now(UTC)
 
 
 def _public_token(entry: dict) -> dict:
@@ -845,7 +844,7 @@ def record_agent_use(username: str, token_id: str) -> None:
         user = cfg.get("credentials", {}).get("usernames", {}).get(username) or {}
         entry = next((t for t in user.get("agent_tokens") or [] if t.get("id") == token_id), None)
         last = (entry or {}).get("last_used")
-        if entry is None or (last and (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() < 300):
+        if entry is None or (last and (datetime.now(UTC) - datetime.fromisoformat(last)).total_seconds() < 300):
             return
         with _locked_update() as cfg:
             user = cfg.get("credentials", {}).get("usernames", {}).get(username) or {}

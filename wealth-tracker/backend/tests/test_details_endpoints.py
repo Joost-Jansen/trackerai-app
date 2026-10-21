@@ -27,10 +27,20 @@ def _xlsx(rows: list[dict]) -> bytes:
 
 def _tx(isin="IE00B4L5Y983", name="iShares Core MSCI World", qty=10, price=80.5, order="order-1", date="05-01-2026"):
     return {
-        "Datum": date, "Tijd": "09:30", "Product": name, "ISIN": isin,
-        "Beurs": "EAM", "Uitvoeringsplaats": "EAM", "Aantal": qty, "Koers": price,
-        "Lokale waarde": -(qty * price), "Waarde": -(qty * price), "Wisselkoers": 1.0,
-        "Transactiekosten": -1.0, "Totaal": -(qty * price) - 1, "Order Id": order,
+        "Datum": date,
+        "Tijd": "09:30",
+        "Product": name,
+        "ISIN": isin,
+        "Beurs": "EAM",
+        "Uitvoeringsplaats": "EAM",
+        "Aantal": qty,
+        "Koers": price,
+        "Lokale waarde": -(qty * price),
+        "Waarde": -(qty * price),
+        "Wisselkoers": 1.0,
+        "Transactiekosten": -1.0,
+        "Totaal": -(qty * price) - 1,
+        "Order Id": order,
     }
 
 
@@ -43,8 +53,7 @@ def _upload_tx(client, rows):
 
 
 def test_details_endpoints_require_auth(client):
-    for path in ["/api/positions", "/api/positions/closed", "/api/transactions",
-                 "/api/dividends", "/api/ticker-overrides"]:
+    for path in ["/api/positions", "/api/positions/closed", "/api/transactions", "/api/dividends", "/api/ticker-overrides"]:
         assert client.get(path).status_code == 401, path
 
 
@@ -93,12 +102,33 @@ def test_dividends_group_by_stock_and_sort_by_net_descending(client):
     _login(client)
     mutations = [
         # Two payments for one ISIN, one for another that nets more.
-        {"Datum": "02-01-2026", "Omschrijving": "Dividend", "ISIN": "IE00B4L5Y983",
-         "Product": "iShares Core MSCI World", "Mutatie": "EUR", "Bedrag": 10.0, "Saldo": "EUR"},
-        {"Datum": "03-01-2026", "Omschrijving": "Dividend", "ISIN": "IE00B4L5Y983",
-         "Product": "iShares Core MSCI World", "Mutatie": "EUR", "Bedrag": 5.0, "Saldo": "EUR"},
-        {"Datum": "04-01-2026", "Omschrijving": "Dividend", "ISIN": "NL0010773842",
-         "Product": "NN Group", "Mutatie": "EUR", "Bedrag": 40.0, "Saldo": "EUR"},
+        {
+            "Datum": "02-01-2026",
+            "Omschrijving": "Dividend",
+            "ISIN": "IE00B4L5Y983",
+            "Product": "iShares Core MSCI World",
+            "Mutatie": "EUR",
+            "Bedrag": 10.0,
+            "Saldo": "EUR",
+        },
+        {
+            "Datum": "03-01-2026",
+            "Omschrijving": "Dividend",
+            "ISIN": "IE00B4L5Y983",
+            "Product": "iShares Core MSCI World",
+            "Mutatie": "EUR",
+            "Bedrag": 5.0,
+            "Saldo": "EUR",
+        },
+        {
+            "Datum": "04-01-2026",
+            "Omschrijving": "Dividend",
+            "ISIN": "NL0010773842",
+            "Product": "NN Group",
+            "Mutatie": "EUR",
+            "Bedrag": 40.0,
+            "Saldo": "EUR",
+        },
     ]
     resp = client.post(
         "/api/uploads/dividends",
@@ -111,6 +141,7 @@ def test_dividends_group_by_stock_and_sort_by_net_descending(client):
         # The parser needs the real DeGiro column shape; if this synthetic sheet
         # does not match it, the grouping is covered by the Pi parity run instead.
         import pytest
+
         pytest.skip("dividend parser did not recognise the synthetic sheet")
 
     nets = [row["net_eur"] for row in body["by_stock"]]
@@ -150,7 +181,8 @@ def test_ticker_override_rejects_a_non_eur_listing(client, monkeypatch):
     from domain.portfolio import positions as portfolio
 
     monkeypatch.setattr(
-        portfolio, "fetch_price_for_isin",
+        portfolio,
+        "fetch_price_for_isin",
         lambda *a, **k: {"ticker": "URTH", "price": 100.0, "currency": "USD"},
     )
     _login(client)
@@ -165,11 +197,13 @@ def test_saving_an_override_prices_the_position_and_deleting_it_restores(client,
     from domain.portfolio import positions as portfolio
 
     monkeypatch.setattr(
-        portfolio, "fetch_price_for_isin",
+        portfolio,
+        "fetch_price_for_isin",
         lambda *a, **k: {"ticker": "IWDA.AS", "price": 95.0, "currency": "EUR"},
     )
     monkeypatch.setattr(
-        portfolio, "refresh_all_prices",
+        portfolio,
+        "refresh_all_prices",
         lambda conn: portfolio.RefreshResult(refreshed=0, failed=[]),
     )
     _login(client)
@@ -213,25 +247,26 @@ def test_saving_an_override_keeps_the_previous_close(client, monkeypatch):
     — and the position then dropped out of the day chip ("today"), which read
     a euro amount short and qualified itself only with "(partly)".
     """
-    from domain.portfolio import positions as portfolio
     from app.services import dashboard_service
+    from domain.portfolio import positions as portfolio
 
     monkeypatch.setattr(
-        portfolio, "fetch_price_for_isin",
-        lambda *a, **k: {"ticker": "IWDA.AS", "price": 95.0, "currency": "EUR",
-                         "previous_close": 90.0},
+        portfolio,
+        "fetch_price_for_isin",
+        lambda *a, **k: {"ticker": "IWDA.AS", "price": 95.0, "currency": "EUR", "previous_close": 90.0},
     )
     monkeypatch.setattr(
-        portfolio, "refresh_all_prices",
+        portfolio,
+        "refresh_all_prices",
         lambda conn: portfolio.RefreshResult(refreshed=0, failed=[]),
     )
     _login(client)
     _upload_tx(client, [_tx()])
 
-    assert client.put("/api/ticker-overrides/IE00B4L5Y983",
-                      json={"ticker": "IWDA.AS"}).status_code == 200
+    assert client.put("/api/ticker-overrides/IE00B4L5Y983", json={"ticker": "IWDA.AS"}).status_code == 200
 
     from domain import database
+
     conn = database.connect("alice")
     try:
         prices = database.load_prices(conn)
@@ -242,5 +277,5 @@ def test_saving_an_override_keeps_the_previous_close(client, monkeypatch):
         conn.close()
 
     assert day is not None
-    assert day["delta_eur"] == 50.0     # 10 shares x (95 - 90)
+    assert day["delta_eur"] == 50.0  # 10 shares x (95 - 90)
     assert day["complete"] is True

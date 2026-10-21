@@ -8,9 +8,9 @@ import sqlite3
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from domain.money import label_queue
 from app.deps import CurrentUser, get_current_user, get_db, require_money
 from domain.i18n import tr
+from domain.money import label_queue
 
 router = APIRouter(prefix="/api/labelling", tags=["labelling"], dependencies=[Depends(require_money)])
 

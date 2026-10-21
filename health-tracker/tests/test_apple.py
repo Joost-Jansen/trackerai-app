@@ -67,7 +67,9 @@ def test_wellness_one_source_per_night_and_no_double_steps(parsed):
     assert 40 < day["sleep_hr"] < 70 and 10 < day["sleep_resp"] < 18 and 90 <= day["spo2_avg"] <= 100
     assert day["resting_hr"] and day["hrv_sdnn"] and day["intensity_min"]
     # steps: the Watch counted 6% more than the iPhone; the sum of both would be about double
-    phone_and_watch = sum(per_source for (d, k), src in parsed.counters.items() if d == "2026-10-05" and k == "steps" for per_source in src.values())
+    phone_and_watch = sum(
+        per_source for (d, k), src in parsed.counters.items() if d == "2026-10-05" and k == "steps" for per_source in src.values()
+    )
     assert day["steps"] < phone_and_watch * 0.6
     oldest = w[min(w)]
     assert oldest["sleep_h"] > 4 and "deep_sleep_h" not in oldest  # before iOS 16: asleep without stages
@@ -101,7 +103,7 @@ def test_not_an_export():
 
 def test_the_old_simple_export_xml_alone():
     """The shape of an export from 2016-2019 (from simonw/healthkit-to-sqlite's test data): inline route, miles."""
-    xml = b'''<?xml version="1.0" encoding="UTF-8"?>
+    xml = b"""<?xml version="1.0" encoding="UTF-8"?>
 <HealthData locale="en_US">
  <ExportDate value="2019-07-19 10:36:11 -0700"/>
  <Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Apple Watch" unit="count/min" creationDate="2016-11-14 07:30:35 -0700" startDate="2016-11-14 07:28:55 -0700" endDate="2016-11-14 07:28:55 -0700" value="142"/>
@@ -112,7 +114,7 @@ def test_the_old_simple_export_xml_alone():
    <Location date="2016-11-14 07:26:44 -0700" latitude="37.7790" longitude="-122.426" altitude="21.0" horizontalAccuracy="2.4" verticalAccuracy="1.6" course="-1" speed="2.48"/>
   </WorkoutRoute>
  </Workout>
-</HealthData>'''
+</HealthData>"""
     x = ah.read_export(io.BytesIO(xml))
     (run,) = ah.activities(x)
     assert run["start_local"] == "2016-11-14T07:25:41" and run["start_utc"] == "2016-11-14T14:25:41Z"
@@ -150,8 +152,17 @@ def test_garmin_stays_leading(parsed):
     db.write_intraday(s, "2026-10-05", {"hr": [[0, 50]]})
     run = next(a for a in ah.activities(parsed) if a["sport"] == "run" and a["start_local"] > "2026-09-25")
     run_day = run["start_local"][:10]
-    db.upsert_activity(s, {"start_utc": run["start_utc"].replace(":00Z", ":30Z"), "start_local": run["start_local"], "sport": "run",
-                           "name": "Amsterdam Running", "distance_km": 10.0, "sources": {"garmin": {"id": 1}}})
+    db.upsert_activity(
+        s,
+        {
+            "start_utc": run["start_utc"].replace(":00Z", ":30Z"),
+            "start_local": run["start_local"],
+            "sport": "run",
+            "name": "Amsterdam Running",
+            "distance_km": 10.0,
+            "sources": {"garmin": {"id": 1}},
+        },
+    )
     out = apply(s, parsed)
     assert out["kept_garmin_days"] == 1
     day = db.load_wellness(s)["2026-10-05"]
@@ -170,7 +181,9 @@ def test_garmin_stays_leading(parsed):
 
 def test_upload_through_the_api(client, engine, export_zip):  # noqa: F811
     login(client)
-    r = client.post("/api/apple/import", params={"name": "export.zip"}, content=export_zip, headers={"content-type": "application/octet-stream"})
+    r = client.post(
+        "/api/apple/import", params={"name": "export.zip"}, content=export_zip, headers={"content-type": "application/octet-stream"}
+    )
     assert r.status_code == 202, r.text
     for _ in range(200):
         state = client.get("/api/apple/import").json()
@@ -245,10 +258,14 @@ def test_chunked_upload_imports_like_the_single_one(chunked, export_zip):
     start = c.post("/api/apple/upload", json={"name": "export.zip", "size": len(export_zip)})
     assert start.status_code == 201
     up, size = start.json()["upload_id"], start.json()["chunk_size"]
-    parts = [export_zip[i:i + size] for i in range(0, len(export_zip), size)]
+    parts = [export_zip[i : i + size] for i in range(0, len(export_zip), size)]
     assert len(parts) > 3
     assert c.post(f"/api/apple/upload/{up}/finish").json()["code"] == "upload_incomplete"
-    assert put(c, up, 1, parts[1]).json() == {"detail": "verkeerd deel; verwacht deel 0", "code": "upload_out_of_order", "params": {"expected": 0}}
+    assert put(c, up, 1, parts[1]).json() == {
+        "detail": "verkeerd deel; verwacht deel 0",
+        "code": "upload_out_of_order",
+        "params": {"expected": 0},
+    }
     for i, part in enumerate(parts):
         assert put(c, up, i, part).status_code == 200
         if i == 1:  # the answer got lost: the browser sends the same part again

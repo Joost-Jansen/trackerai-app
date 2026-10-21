@@ -21,16 +21,16 @@ import logging
 import os
 import threading
 import urllib.request
-from datetime import datetime, timedelta, timezone
-from typing import Callable
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, Field
-from trackerai_accounts import Accounts
 
 from api.errors import ApiError
 from api.users import APP
 from tools import db
+from trackerai_accounts import Accounts
 
 MAX_SCREENSHOT = 3 * 1024 * 1024
 SCREENSHOT_TYPES = ("image/png", "image/jpeg", "image/webp")
@@ -109,7 +109,21 @@ def notify(kind: str, feedback_id: int, site: str | None = None) -> None:
     threading.Thread(target=send, daemon=True).start()
 
 
-FIELDS = ("id", "app", "kind", "message", "page", "context", "status", "reply", "created_at", "updated_at", "account_id", "username", "has_screenshot")
+FIELDS = (
+    "id",
+    "app",
+    "kind",
+    "message",
+    "page",
+    "context",
+    "status",
+    "reply",
+    "created_at",
+    "updated_at",
+    "account_id",
+    "username",
+    "has_screenshot",
+)
 
 
 def public(items: list[dict], accounts: Accounts) -> list[dict]:
@@ -118,7 +132,12 @@ def public(items: list[dict], accounts: Accounts) -> list[dict]:
     out = []
     for f in items:
         account = people.get(f["user_id"])
-        f = {**f, "app": APP, "account_id": account["id"] if account else None, "username": account["username"] if account else f.get("username")}
+        f = {
+            **f,
+            "app": APP,
+            "account_id": account["id"] if account else None,
+            "username": account["username"] if account else f.get("username"),
+        }
         out.append({k: f.get(k) for k in FIELDS})
     return out
 
@@ -146,7 +165,7 @@ def make_router(engine, accounts: Accounts, current_user: Callable) -> APIRouter
         message = body.message.strip()
         if not message:
             raise ApiError(422, "feedback_empty")
-        since = datetime.now(timezone.utc) - timedelta(days=1)
+        since = datetime.now(UTC) - timedelta(days=1)
         recent = [f for f in db.list_feedback(engine, user_id=u.id, limit=PER_DAY) if datetime.fromisoformat(f["created_at"]) > since]
         if len(recent) >= PER_DAY:
             raise ApiError(429, "feedback_too_many")

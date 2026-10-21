@@ -11,8 +11,20 @@ import io
 
 import pandas as pd
 
-COLUMNS = ["Datum", "Tijd", "Valutadatum", "Product", "ISIN", "Omschrijving",
-            "FX", "Mutatie", "Unnamed: 8", "Saldo", "Unnamed: 10", "Order Id"]
+COLUMNS = [
+    "Datum",
+    "Tijd",
+    "Valutadatum",
+    "Product",
+    "ISIN",
+    "Omschrijving",
+    "FX",
+    "Mutatie",
+    "Unnamed: 8",
+    "Saldo",
+    "Unnamed: 10",
+    "Order Id",
+]
 
 
 def _login(client, user="alice", pw="alicepw"):
@@ -20,9 +32,20 @@ def _login(client, user="alice", pw="alicepw"):
 
 
 def _row(date, time, balance):
-    return {"Datum": date, "Tijd": time, "Valutadatum": date, "Product": "",
-            "ISIN": "", "Omschrijving": "iDEAL Deposit", "FX": "", "Mutatie": "EUR",
-            "Unnamed: 8": 0.0, "Saldo": "EUR", "Unnamed: 10": balance, "Order Id": ""}
+    return {
+        "Datum": date,
+        "Tijd": time,
+        "Valutadatum": date,
+        "Product": "",
+        "ISIN": "",
+        "Omschrijving": "iDEAL Deposit",
+        "FX": "",
+        "Mutatie": "EUR",
+        "Unnamed: 8": 0.0,
+        "Saldo": "EUR",
+        "Unnamed: 10": balance,
+        "Order Id": "",
+    }
 
 
 def _overview(*rows) -> bytes:
@@ -34,20 +57,17 @@ def _overview(*rows) -> bytes:
 def _upload(client, content: bytes):
     return client.post(
         "/api/uploads/dividends",
-        files={"files": ("Account.xlsx", content,
-                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={"files": ("Account.xlsx", content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
     )
 
 
 def test_uploading_the_overview_also_sets_the_cash_balance(client):
     _login(client)
-    resp = _upload(client, _overview(_row("02-01-2026", "12:00", 1500.0),
-                                      _row("01-01-2026", "12:00", 1000.0)))
+    resp = _upload(client, _overview(_row("02-01-2026", "12:00", 1500.0), _row("01-01-2026", "12:00", 1000.0)))
     assert resp.status_code == 200, resp.text
     assert resp.json()["results"][0]["cash_days"] == 2
 
-    cash = [r for r in client.get("/api/accounts").json()["accounts"]
-            if r["provider"] == "degiro"]
+    cash = [r for r in client.get("/api/accounts").json()["accounts"] if r["provider"] == "degiro"]
     assert len(cash) == 1
     assert cash[0]["balance"] == 1500.0
     assert cash[0]["stack"] == "investments"
@@ -67,6 +87,5 @@ def test_uploading_again_creates_no_second_account(client):
     content = _overview(_row("01-01-2026", "12:00", 1000.0))
     _upload(client, content)
     _upload(client, content)
-    cash = [r for r in client.get("/api/accounts").json()["accounts"]
-            if r["provider"] == "degiro"]
+    cash = [r for r in client.get("/api/accounts").json()["accounts"] if r["provider"] == "degiro"]
     assert len(cash) == 1

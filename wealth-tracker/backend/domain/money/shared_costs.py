@@ -47,11 +47,12 @@ def category(conn: sqlite3.Connection) -> str | None:
 
 def _accounts_in_net_worth(conn: sqlite3.Connection) -> list[int]:
     """The accounts net_worth.series counts: active, with a stack and a balance."""
-    from domain.money import net_worth   # net_worth imports this module's neighbours
+    from domain.money import net_worth  # net_worth imports this module's neighbours
 
     with_balance = {r["account_id"] for r in conn.execute("SELECT DISTINCT account_id FROM account_balances")}
-    return sorted(r["id"] for r in accounts.load_accounts(conn, only_active=True)
-                  if net_worth.stack_of(r["kind"]) and r["id"] in with_balance)
+    return sorted(
+        r["id"] for r in accounts.load_accounts(conn, only_active=True) if net_worth.stack_of(r["kind"]) and r["id"] in with_balance
+    )
 
 
 def own_share_rows(conn: sqlite3.Connection) -> list[dict]:
@@ -88,22 +89,24 @@ def own_share_rows(conn: sqlite3.Connection) -> list[dict]:
     for i, (d, day) in enumerate(sorted(per_day.items())):
         if abs(day["amount"]) < 0.005:
             continue
-        out.append({
-            # Negative ids: never a real transaction, and nothing can act on it.
-            "id": -(i + 1),
-            "account_id": day["account_id"],
-            "date": d,
-            "amount": round(day["amount"], 2),
-            "name": tr("Your share of shared costs"),
-            "description": tr("Calculated from “Niet meetellen”: what you paid more than you received."),
-            "counterparty_iban": None,
-            "category_auto": None,
-            "category_manual": None,
-            "category_source": None,
-            "category": name,
-            "group_name": group["group_name"] if group else None,
-            "type": "EXPENSE",
-            "source": "derived",
-            "raw": {},
-        })
+        out.append(
+            {
+                # Negative ids: never a real transaction, and nothing can act on it.
+                "id": -(i + 1),
+                "account_id": day["account_id"],
+                "date": d,
+                "amount": round(day["amount"], 2),
+                "name": tr("Your share of shared costs"),
+                "description": tr("Calculated from “Niet meetellen”: what you paid more than you received."),
+                "counterparty_iban": None,
+                "category_auto": None,
+                "category_manual": None,
+                "category_source": None,
+                "category": name,
+                "group_name": group["group_name"] if group else None,
+                "type": "EXPENSE",
+                "source": "derived",
+                "raw": {},
+            }
+        )
     return out

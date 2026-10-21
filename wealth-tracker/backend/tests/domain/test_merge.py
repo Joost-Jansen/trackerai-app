@@ -9,9 +9,8 @@ equal coffees on one day stay two.
 
 import pytest
 
-from domain.money import bank_transactions
 from domain import database
-from domain.money import accounts
+from domain.money import accounts, bank_transactions
 from domain.money.bank_providers import base
 
 
@@ -35,8 +34,9 @@ def account(conn):
 
 
 def _rules(*rows, source="csv"):
-    return base.add_hashes([{"date": d, "amount": b, "name": f"{n} ({source})", "description": source,
-                                  "currency": "EUR"} for d, b, n in rows])
+    return base.add_hashes(
+        [{"date": d, "amount": b, "name": f"{n} ({source})", "description": source, "currency": "EUR"} for d, b, n in rows]
+    )
 
 
 def test_the_same_booking_from_another_source_is_not_added(conn, account):
@@ -45,22 +45,23 @@ def test_the_same_booking_from_another_source_is_not_added(conn, account):
 
 
 def test_two_equal_bookings_stay_two(conn, account):
-    assert bank_transactions.save(conn, account, _rules(("2026-09-01", 3.0, "KOFFIE"),
-                                                          ("2026-09-01", 3.0, "KOFFIE"))) == (2, 0)
+    assert bank_transactions.save(conn, account, _rules(("2026-09-01", 3.0, "KOFFIE"), ("2026-09-01", 3.0, "KOFFIE"))) == (2, 0)
 
 
 def test_a_third_equal_one_from_another_source_is_added(conn, account):
     bank_transactions.save(conn, account, _rules(("2026-09-01", 3.0, "KOFFIE"), ("2026-09-01", 3.0, "KOFFIE")))
-    saved, skipped = bank_transactions.save(conn, account, _rules(
-        ("2026-09-01", 3.0, "KOFFIE"), ("2026-09-01", 3.0, "KOFFIE"), ("2026-09-01", 3.0, "KOFFIE"), source="b"))
+    saved, skipped = bank_transactions.save(
+        conn, account, _rules(("2026-09-01", 3.0, "KOFFIE"), ("2026-09-01", 3.0, "KOFFIE"), ("2026-09-01", 3.0, "KOFFIE"), source="b")
+    )
     assert (saved, skipped) == (1, 2)
 
 
 def test_the_same_file_again_changes_nothing(conn, account):
     rules = _rules(("2026-09-01", 3.0, "KOFFIE"), ("2026-09-01", 3.0, "KOFFIE"), ("2026-09-02", 8.0, "WINKEL"))
     bank_transactions.save(conn, account, rules)
-    assert bank_transactions.save(conn, account, _rules(("2026-09-01", 3.0, "KOFFIE"), ("2026-09-01", 3.0, "KOFFIE"),
-                                                          ("2026-09-02", 8.0, "WINKEL"))) == (0, 3)
+    assert bank_transactions.save(
+        conn, account, _rules(("2026-09-01", 3.0, "KOFFIE"), ("2026-09-01", 3.0, "KOFFIE"), ("2026-09-02", 8.0, "WINKEL"))
+    ) == (0, 3)
 
 
 def test_another_account_does_not_count(conn, account):
@@ -71,5 +72,7 @@ def test_another_account_does_not_count(conn, account):
 
 def test_another_amount_or_another_day_is_another_booking(conn, account):
     bank_transactions.save(conn, account, _rules(("2026-09-01", 10.0, "WINKEL"), source="x"))
-    assert bank_transactions.save(conn, account, _rules(("2026-09-01", 10.5, "WINKEL"),
-                                                          ("2026-09-02", 10.0, "WINKEL"), source="y")) == (2, 0)
+    assert bank_transactions.save(conn, account, _rules(("2026-09-01", 10.5, "WINKEL"), ("2026-09-02", 10.0, "WINKEL"), source="y")) == (
+        2,
+        0,
+    )

@@ -7,11 +7,11 @@ import sqlite3
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from domain.money import categorization
-from domain import onboarding
-from app.services import example_service
 from app.deps import CurrentUser, get_current_user, get_db
+from app.services import example_service
+from domain import onboarding
 from domain.i18n import tr
+from domain.money import categorization
 
 router = APIRouter(prefix="/api/onboarding", tags=["onboarding"])
 
@@ -52,7 +52,7 @@ def put(
 ):
     unknown = set(fields) - _FIELDS
     if unknown:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, tr("Unknown field: {0}.", ', '.join(sorted(unknown))))
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, tr("Unknown field: {0}.", ", ".join(sorted(unknown))))
     if fields.get("choice") in ("money", "both") and "money" not in user.beta_features:
         raise HTTPException(status.HTTP_403_FORBIDDEN, tr("Money is not turned on for this account."))
     categorization.seed(conn)

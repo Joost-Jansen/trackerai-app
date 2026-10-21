@@ -24,8 +24,8 @@ import re
 import sqlite3
 from datetime import date
 
-from domain.money import month_periods
 from domain.i18n import tr
+from domain.money import month_periods
 
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -35,13 +35,11 @@ def today() -> str:
 
 
 def load(conn: sqlite3.Connection, account_id: int) -> dict | None:
-    row = conn.execute("SELECT interest, repayment, from_date FROM debt_schedules WHERE account_id = ?",
-                       (account_id,)).fetchone()
+    row = conn.execute("SELECT interest, repayment, from_date FROM debt_schedules WHERE account_id = ?", (account_id,)).fetchone()
     return dict(row) if row else None
 
 
-def put(conn: sqlite3.Connection, account_id: int, *, interest: float | None, repayment: float | None,
-        from_date: str) -> None:
+def put(conn: sqlite3.Connection, account_id: int, *, interest: float | None, repayment: float | None, from_date: str) -> None:
     """Records the schedule. Without interest *and* repayment it is removed."""
     if not interest and not repayment:
         remove(conn, account_id)
@@ -70,8 +68,7 @@ def remove(conn: sqlite3.Connection, account_id: int) -> None:
     conn.commit()
 
 
-def points(conn: sqlite3.Connection, account_id: int, measurements: list[dict], *,
-           end: str | None = None) -> list[dict]:
+def points(conn: sqlite3.Connection, account_id: int, measurements: list[dict], *, end: str | None = None) -> list[dict]:
     """The measurements plus a calculated point at every reference point *after* a
     measurement.
 

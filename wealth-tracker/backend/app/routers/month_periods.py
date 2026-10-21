@@ -10,10 +10,9 @@ import sqlite3
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from domain.money import categorization
-from domain.money import month_periods
 from app.deps import CurrentUser, get_current_user, get_db, require_money
 from domain.i18n import tr
+from domain.money import categorization, month_periods
 
 router = APIRouter(prefix="/api/month-periods", tags=["month_periods"], dependencies=[Depends(require_money)])
 
@@ -34,7 +33,7 @@ def put(
 ):
     unknown = set(fields) - _FIELDS
     if unknown:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, tr("Unknown field: {0}.", ', '.join(sorted(unknown))))
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, tr("Unknown field: {0}.", ", ".join(sorted(unknown))))
     categorization.seed(conn)
     try:
         month_periods.put(conn, **fields)

@@ -33,6 +33,7 @@ def _new_conn(username: str) -> sqlite3.Connection:
 # Basic plumbing
 # ---------------------------------------------------------------------------
 
+
 def test_safe_user_rejects_path_traversal():
     with pytest.raises(ValueError):
         database._safe_user("../../etc")
@@ -106,8 +107,13 @@ def test_init_db_creates_expected_tables():
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = {row["name"] for row in cursor.fetchall()}
     assert {
-        "transactions", "prices", "dividends",
-        "asset_categories", "settings", "ticker_overrides", "etf_api_cache",
+        "transactions",
+        "prices",
+        "dividends",
+        "asset_categories",
+        "settings",
+        "ticker_overrides",
+        "etf_api_cache",
     } <= tables
     conn.close()
 
@@ -115,6 +121,7 @@ def test_init_db_creates_expected_tables():
 # ---------------------------------------------------------------------------
 # CRUD round-trips
 # ---------------------------------------------------------------------------
+
 
 def test_settings_roundtrip_and_default():
     conn = _new_conn("alice")
@@ -138,7 +145,7 @@ def test_ticker_override_roundtrip_and_delete():
 
 
 def test_bond_isins_reads_both_spellings():
-    """"Bond" and "Bonds" both mean bonds, and a real database holds either.
+    """ "Bond" and "Bonds" both mean bonds, and a real database holds either.
 
     The Rebalancing tab saved "Bond" until it was rebuilt around "Stocks"/"Bonds"
     (5f136d3, 2026-07-16); the Benchmarks tab went on matching "Bond" alone, so
@@ -147,8 +154,8 @@ def test_bond_isins_reads_both_spellings():
     one spelling is the bug, not an implementation detail.
     """
     conn = _new_conn("alice")
-    database.save_asset_category(conn, "OLD", "Bond")     # pre-rebuild row
-    database.save_asset_category(conn, "NEW", "Bonds")    # post-rebuild row
+    database.save_asset_category(conn, "OLD", "Bond")  # pre-rebuild row
+    database.save_asset_category(conn, "NEW", "Bonds")  # post-rebuild row
     database.save_asset_category(conn, "EQ", "Stocks")
 
     assert database.bond_isins(conn) == {"OLD", "NEW"}
@@ -178,9 +185,7 @@ def test_etf_api_cache_respects_max_age(monkeypatch):
 
     # Backdate fetched_at beyond the TTL window.
     cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE etf_api_cache SET fetched_at = '2000-01-01T00:00:00' WHERE ticker = 'IWDA'"
-    )
+    cursor.execute("UPDATE etf_api_cache SET fetched_at = '2000-01-01T00:00:00' WHERE ticker = 'IWDA'")
     conn.commit()
     assert database.load_etf_api_cache(conn, "IWDA", max_age_days=7) is None
 
@@ -192,6 +197,7 @@ def test_etf_api_cache_respects_max_age(monkeypatch):
 # ---------------------------------------------------------------------------
 # Generic remote-call cache (get_or_fetch)
 # ---------------------------------------------------------------------------
+
 
 def test_get_or_fetch_calls_once_then_serves_from_cache():
     conn = _new_conn("alice")
@@ -261,20 +267,32 @@ def test_clear_api_cache_by_prefix_leaves_other_keys():
 
     database.clear_api_cache(conn, "benchmarks:")
     assert database.get_or_fetch(conn, "benchmarks:2021", 3600, lambda: 99) == 99  # re-fetched
-    assert database.get_or_fetch(conn, "other:thing", 3600, lambda: 99) == 2       # untouched
+    assert database.get_or_fetch(conn, "other:thing", 3600, lambda: 99) == 2  # untouched
     conn.close()
 
 
 def test_save_transactions_dedup_and_reupload():
     conn = _new_conn("alice")
-    txs = [{
-        "order_ref": "abc", "date": "2026-01-05", "time": "09:00",
-        "name": "iShares Core MSCI World", "isin": "IE00B4L5Y983",
-        "exchange": "EAM", "execution_venue": "EAM",
-        "transaction_type": "BUY", "quantity": 10.0, "price": 80.0,
-        "local_value": -800.0, "value_eur": -800.0, "exchange_rate": 1.0,
-        "autofx_cost": None, "transaction_fee": -1.0, "total_eur": -801.0,
-    }]
+    txs = [
+        {
+            "order_ref": "abc",
+            "date": "2026-01-05",
+            "time": "09:00",
+            "name": "iShares Core MSCI World",
+            "isin": "IE00B4L5Y983",
+            "exchange": "EAM",
+            "execution_venue": "EAM",
+            "transaction_type": "BUY",
+            "quantity": 10.0,
+            "price": 80.0,
+            "local_value": -800.0,
+            "value_eur": -800.0,
+            "exchange_rate": 1.0,
+            "autofx_cost": None,
+            "transaction_fee": -1.0,
+            "total_eur": -801.0,
+        }
+    ]
     saved, skipped = database.save_transactions(conn, txs)
     assert (saved, skipped) == (1, 0)
 
@@ -295,14 +313,19 @@ def test_save_transactions_dedup_and_reupload():
 def test_save_dividends_dedup():
     conn = _new_conn("alice")
     div = {
-        "date": "2026-02-01", "isin": "IE00B4L5Y983", "name": "iShares Core MSCI World",
-        "currency_original": "EUR", "amount_original": 12.5,
-        "gross_eur": 12.5, "tax_eur": -1.5, "net_eur": 11.0,
+        "date": "2026-02-01",
+        "isin": "IE00B4L5Y983",
+        "name": "iShares Core MSCI World",
+        "currency_original": "EUR",
+        "amount_original": 12.5,
+        "gross_eur": 12.5,
+        "tax_eur": -1.5,
+        "net_eur": 11.0,
     }
     saved, skipped = database.save_dividends(conn, [div])
     assert (saved, skipped) == (1, 0)
     saved2, skipped2 = database.save_dividends(conn, [div])
-    assert (saved2, skipped2) == (0, 1)   # re-uploading the same export is a no-op
+    assert (saved2, skipped2) == (0, 1)  # re-uploading the same export is a no-op
 
     assert database.load_dividends_by_isin(conn) == {"IE00B4L5Y983": 11.0}
     conn.close()
@@ -316,9 +339,14 @@ def test_two_payments_of_one_size_on_one_day_are_both_kept():
     duplicate skipped, which reads as things having gone right."""
     conn = _new_conn("alice")
     div = {
-        "date": "2026-02-01", "isin": "IE00B4L5Y983", "name": "iShares Core MSCI World",
-        "currency_original": "EUR", "amount_original": 12.5,
-        "gross_eur": 12.5, "tax_eur": 0.0, "net_eur": 12.5,
+        "date": "2026-02-01",
+        "isin": "IE00B4L5Y983",
+        "name": "iShares Core MSCI World",
+        "currency_original": "EUR",
+        "amount_original": 12.5,
+        "gross_eur": 12.5,
+        "tax_eur": 0.0,
+        "net_eur": 12.5,
     }
     saved, skipped = database.save_dividends(conn, [div, dict(div)])
     assert (saved, skipped) == (2, 0)
@@ -371,6 +399,7 @@ def test_an_existing_database_loses_the_unique_constraint_on_open():
 # there's no ambient "current user" thread-local state.
 # ---------------------------------------------------------------------------
 
+
 def test_two_users_get_physically_separate_databases():
     conn_a = _new_conn("alice")
     conn_b = _new_conn("bob")
@@ -378,14 +407,29 @@ def test_two_users_get_physically_separate_databases():
     database.save_setting(conn_a, "secret", "alice-only")
     assert database.load_setting(conn_b, "secret") is None
 
-    database.save_transactions(conn_a, [{
-        "order_ref": None, "date": "2026-01-01", "time": None,
-        "name": "Alice's fund", "isin": "IE00ALICE0001",
-        "exchange": None, "execution_venue": None,
-        "transaction_type": "BUY", "quantity": 1.0, "price": 1.0,
-        "local_value": -1.0, "value_eur": -1.0, "exchange_rate": None,
-        "autofx_cost": None, "transaction_fee": None, "total_eur": -1.0,
-    }])
+    database.save_transactions(
+        conn_a,
+        [
+            {
+                "order_ref": None,
+                "date": "2026-01-01",
+                "time": None,
+                "name": "Alice's fund",
+                "isin": "IE00ALICE0001",
+                "exchange": None,
+                "execution_venue": None,
+                "transaction_type": "BUY",
+                "quantity": 1.0,
+                "price": 1.0,
+                "local_value": -1.0,
+                "value_eur": -1.0,
+                "exchange_rate": None,
+                "autofx_cost": None,
+                "transaction_fee": None,
+                "total_eur": -1.0,
+            }
+        ],
+    )
 
     assert len(database.load_transactions(conn_a)) == 1
     assert len(database.load_transactions(conn_b)) == 0
@@ -410,26 +454,42 @@ def test_concurrent_writes_from_two_users_never_cross(tmp_path, monkeypatch):
             conn = _new_conn(username)
             for i in range(n):
                 database.save_setting(conn, "marker", f"{username}-{i}")
-                database.save_transactions(conn, [{
-                    "order_ref": None, "date": "2026-01-01", "time": None,
-                    "name": username, "isin": isin,
-                    "exchange": None, "execution_venue": None,
-                    "transaction_type": "BUY", "quantity": 1.0, "price": 1.0,
-                    "local_value": -1.0, "value_eur": -1.0, "exchange_rate": None,
-                    "autofx_cost": None, "transaction_fee": None, "total_eur": -1.0,
-                }])
+                database.save_transactions(
+                    conn,
+                    [
+                        {
+                            "order_ref": None,
+                            "date": "2026-01-01",
+                            "time": None,
+                            "name": username,
+                            "isin": isin,
+                            "exchange": None,
+                            "execution_venue": None,
+                            "transaction_type": "BUY",
+                            "quantity": 1.0,
+                            "price": 1.0,
+                            "local_value": -1.0,
+                            "value_eur": -1.0,
+                            "exchange_rate": None,
+                            "autofx_cost": None,
+                            "transaction_fee": None,
+                            "total_eur": -1.0,
+                        }
+                    ],
+                )
                 got = database.load_setting(conn, "marker")
                 if got != f"{username}-{i}":
-                    errors.append(AssertionError(f"{username}: expected marker "
-                                                  f"'{username}-{i}', got {got!r}"))
+                    errors.append(AssertionError(f"{username}: expected marker '{username}-{i}', got {got!r}"))
             conn.close()
         except Exception as e:  # pragma: no cover - surfaced via `errors`
             errors.append(e)
 
     t1 = threading.Thread(target=_worker, args=("alice", "IE00ALICE0001", 25))
     t2 = threading.Thread(target=_worker, args=("bob", "IE00BOB000001", 25))
-    t1.start(); t2.start()
-    t1.join(); t2.join()
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
 
     assert not errors, errors
 
@@ -494,21 +554,29 @@ def test_concurrent_opens_migrate_the_dividends_table_exactly_once(tmp_path):
         cur.execute("PRAGMA index_list(dividends)")
         assert not any(i["origin"] == "u" and i["unique"] for i in cur.fetchall())
         assert conn.execute("SELECT COUNT(*) FROM dividends").fetchone()[0] == 50
-        assert conn.execute(
-            "SELECT COUNT(*) FROM sqlite_master WHERE name = 'dividends_old'"
-        ).fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM sqlite_master WHERE name = 'dividends_old'").fetchone()[0] == 0
     finally:
         conn.close()
 
 
 def _tx(**remaining) -> dict:
     base = {
-        "order_ref": "o-1", "date": "2026-08-11", "time": "16:00",
-        "name": "PICTET MONEY MARKET", "isin": "LU0128494944",
-        "exchange": "KFS", "execution_venue": None,
-        "transaction_type": "BUY", "quantity": 10.0, "price": 150.0,
-        "local_value": -1500.0, "value_eur": -1500.0, "exchange_rate": None,
-        "autofx_cost": None, "transaction_fee": None, "total_eur": -1500.0,
+        "order_ref": "o-1",
+        "date": "2026-08-11",
+        "time": "16:00",
+        "name": "PICTET MONEY MARKET",
+        "isin": "LU0128494944",
+        "exchange": "KFS",
+        "execution_venue": None,
+        "transaction_type": "BUY",
+        "quantity": 10.0,
+        "price": 150.0,
+        "local_value": -1500.0,
+        "value_eur": -1500.0,
+        "exchange_rate": None,
+        "autofx_cost": None,
+        "transaction_fee": None,
+        "total_eur": -1500.0,
     }
     base.update(remaining)
     return base
@@ -522,9 +590,7 @@ def test_save_transactions_skips_unusable_quantity_instead_of_failing(bad):
     every good row in the file and answering the upload with a 500.
     """
     conn = _new_conn("tim")
-    saved, skipped = database.save_transactions(
-        conn, [_tx(quantity=bad, order_ref="o-bad"), _tx(order_ref="o-good")]
-    )
+    saved, skipped = database.save_transactions(conn, [_tx(quantity=bad, order_ref="o-bad"), _tx(order_ref="o-good")])
 
     assert saved == 1
     assert skipped == 1
@@ -541,8 +607,7 @@ def test_home_exchange_ignores_the_literal_none_a_blank_cell_leaves_behind():
     position silently lost its authoritative ticker.
     """
     conn = _new_conn("tim")
-    rows = [_tx(isin="US5801351017", exchange="None", order_ref=f"phantom-{i}",
-                quantity=0.0, price=None, total_eur=None) for i in range(8)]
+    rows = [_tx(isin="US5801351017", exchange="None", order_ref=f"phantom-{i}", quantity=0.0, price=None, total_eur=None) for i in range(8)]
     rows.append(_tx(isin="US5801351017", exchange="NSY", order_ref="real"))
     database.save_transactions(conn, rows)
 

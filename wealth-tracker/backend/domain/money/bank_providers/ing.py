@@ -16,15 +16,21 @@ Two things that stand out when you open such a file:
   read it too.
 """
 
-from domain.money.bank_providers import base
 from domain.i18n import tr
-
+from domain.money.bank_providers import base
 
 PROVIDER = "ing"
 
 COLUMNS = (
-    "Date", "Name / Description", "Account", "Counterparty", "Code",
-    "Debit/credit", "Amount (EUR)", "Transaction type", "Notifications",
+    "Date",
+    "Name / Description",
+    "Account",
+    "Counterparty",
+    "Code",
+    "Debit/credit",
+    "Amount (EUR)",
+    "Transaction type",
+    "Notifications",
 )
 
 _DATE_FORMAT = "%Y%m%d"
@@ -37,9 +43,7 @@ def recognises(columns: list[str]) -> bool:
 def parse_row(row: dict) -> dict:
     direction = base.clean(row.get("Debit/credit")).lower()
     if direction not in ("debit", "credit"):
-        raise base.UnreadableRule(
-            tr("Unknown direction in Debit/credit: {0}", repr(row.get('Debit/credit')))
-        )
+        raise base.UnreadableRule(tr("Unknown direction in Debit/credit: {0}", repr(row.get("Debit/credit"))))
 
     amount = abs(base.parse_amount(row.get("Amount (EUR)")))
     # Debit is money going out, so an expense, so positive. Credit the other way round.
@@ -54,7 +58,7 @@ def parse_row(row: dict) -> dict:
     return {
         "balance_after": base.parse_amount(balance) if balance else None,
         "date": base.parse_date(row.get("Date"), _DATE_FORMAT),
-        "interest_date": None,          # ING does not provide one
+        "interest_date": None,  # ING does not provide one
         "amount": amount,
         "currency": base.CURRENCY,
         "name": base.clean(row.get("Name / Description")),

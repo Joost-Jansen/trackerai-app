@@ -38,10 +38,11 @@ import os
 import threading
 import time
 
-from app.core import auth_store   # importing anything under `app` puts the
-                                  # repo root on sys.path (see app/__init__.py)
-from app.core import notify
-
+# repo root on sys.path (see app/__init__.py)
+from app.core import (
+    auth_store,  # importing anything under `app` puts the
+    notify,
+)
 from domain import database
 from domain.portfolio import positions as portfolio
 
@@ -95,14 +96,16 @@ def exchange_holidays(year: int) -> frozenset[datetime.date]:
     a number "today" the difference is the whole statement.
     """
     easter = _easter(year)
-    return frozenset({
-        datetime.date(year, 1, 1),
-        easter - datetime.timedelta(days=2),   # Good Friday
-        easter + datetime.timedelta(days=1),   # Easter Monday
-        datetime.date(year, 5, 1),
-        datetime.date(year, 12, 25),
-        datetime.date(year, 12, 26),
-    })
+    return frozenset(
+        {
+            datetime.date(year, 1, 1),
+            easter - datetime.timedelta(days=2),  # Good Friday
+            easter + datetime.timedelta(days=1),  # Easter Monday
+            datetime.date(year, 5, 1),
+            datetime.date(year, 12, 25),
+            datetime.date(year, 12, 26),
+        }
+    )
 
 
 def is_trading_day(day: datetime.date) -> bool:
@@ -197,18 +200,12 @@ def unpriced_positions(conn) -> list[dict]:
     owner's own screen. That is how a holding went uncounted for a week before
     its owner mentioned it in a chat message.
     """
-    from app.services import venue_price_service   # it imports this module
+    from app.services import venue_price_service  # it imports this module
 
     transactions = database.load_transactions(conn)
     # A position priced only off Tradegate is priced, not missing.
-    prices = venue_price_service.effective_prices(
-        transactions, database.load_prices(conn), database.load_venue_prices(conn)
-    )
-    return [
-        position
-        for position in portfolio.calculate_positions(transactions, prices)
-        if position["current_value"] is None
-    ]
+    prices = venue_price_service.effective_prices(transactions, database.load_prices(conn), database.load_venue_prices(conn))
+    return [position for position in portfolio.calculate_positions(transactions, prices) if position["current_value"] is None]
 
 
 def _alert_unpriced(conn, username: str) -> int:
@@ -224,10 +221,9 @@ def _alert_unpriced(conn, username: str) -> int:
         return 0
 
     pending = [
-        position for position in unpriced_positions(conn)
-        if database.load_etf_api_cache(
-            conn, f"price-alert:{position['isin']}", max_age_days=ALERT_REPEAT_DAYS
-        ) is None
+        position
+        for position in unpriced_positions(conn)
+        if database.load_etf_api_cache(conn, f"price-alert:{position['isin']}", max_age_days=ALERT_REPEAT_DAYS) is None
     ]
     if not pending:
         return 0
@@ -235,7 +231,8 @@ def _alert_unpriced(conn, username: str) -> int:
     lines = [f"• {p['name'][:44]} ({p['isin']})" for p in pending]
     sent = notify.push(
         f"Stock-tracker: {len(pending)} position(s) without a price",
-        f"Account {username}:\n" + "\n".join(lines)
+        f"Account {username}:\n"
+        + "\n".join(lines)
         + """
 
 These don't count in the portfolio total.""",
@@ -270,9 +267,10 @@ def refresh_every_user() -> dict[str, portfolio.RefreshResult]:
             done[username] = portfolio.refresh_all_prices(conn)
             # Imported here: venue_price_service reads this module's calendar.
             from app.services import venue_price_service
+
             venue_price_service.refresh(conn)
             _alert_unpriced(conn, username)
-        except Exception as e:   # one broken account must not stop the rest
+        except Exception as e:  # one broken account must not stop the rest
             print(f"[price-refresh] {username}: {e}")
         finally:
             if conn is not None:
@@ -293,8 +291,7 @@ def _walk() -> None:
             # most worth seeing, and gating on a success count is exactly how
             # it stayed invisible.
             if refreshed or failed or skipped:
-                line = (f"[price-refresh] {refreshed} refreshed for "
-                        f"{len(done)} account(s) in {time.monotonic() - started:.1f}s")
+                line = f"[price-refresh] {refreshed} refreshed for {len(done)} account(s) in {time.monotonic() - started:.1f}s"
                 if failed:
                     line += f", {failed} failed"
                 if skipped:

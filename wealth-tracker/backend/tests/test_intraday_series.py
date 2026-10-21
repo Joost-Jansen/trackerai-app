@@ -24,7 +24,6 @@ import pytest
 
 from domain.portfolio import series as charts
 
-
 TODAY = datetime.date.today()
 YESTERDAY = TODAY - datetime.timedelta(days=1)
 
@@ -72,7 +71,7 @@ def _utc(day, hour, minute=0):
 
 def _utc_aware(day, hour, minute=0):
     """Aware, the way the series hands timestamps back."""
-    return _utc(day, hour, minute).replace(tzinfo=datetime.timezone.utc)
+    return _utc(day, hour, minute).replace(tzinfo=datetime.UTC)
 
 
 @pytest.fixture
@@ -96,35 +95,36 @@ def fake_download(monkeypatch):
 # The series itself
 # ---------------------------------------------------------------------------
 
+
 def test_values_are_shares_times_the_bar_close(fake_download):
-    fake_download(_bars(
-        [
-            (_utc(YESTERDAY, 15, 25), {"A.AS": 10.0}),
-            (_utc(TODAY, 7, 0), {"A.AS": 11.0}),
-            (_utc(TODAY, 7, 5), {"A.AS": 12.0}),
-        ],
-        ["A.AS"],
-    ))
-    stamps, values, prev_close = charts.portfolio_intraday_series(
-        [_buy("ISIN_A", 3.0)], _prices(ISIN_A="A.AS")
+    fake_download(
+        _bars(
+            [
+                (_utc(YESTERDAY, 15, 25), {"A.AS": 10.0}),
+                (_utc(TODAY, 7, 0), {"A.AS": 11.0}),
+                (_utc(TODAY, 7, 5), {"A.AS": 12.0}),
+            ],
+            ["A.AS"],
+        )
     )
+    stamps, values, prev_close = charts.portfolio_intraday_series([_buy("ISIN_A", 3.0)], _prices(ISIN_A="A.AS"))
     assert values == [33.0, 36.0]
     assert prev_close == (_utc_aware(YESTERDAY, 15, 25), 30.0)
     assert len(stamps) == 2
 
 
 def test_only_todays_bars_are_returned(fake_download):
-    fake_download(_bars(
-        [
-            (_utc(YESTERDAY, 7, 0), {"A.AS": 8.0}),
-            (_utc(YESTERDAY, 15, 25), {"A.AS": 10.0}),
-            (_utc(TODAY, 7, 0), {"A.AS": 11.0}),
-        ],
-        ["A.AS"],
-    ))
-    stamps, values, prev_close = charts.portfolio_intraday_series(
-        [_buy("ISIN_A", 1.0)], _prices(ISIN_A="A.AS")
+    fake_download(
+        _bars(
+            [
+                (_utc(YESTERDAY, 7, 0), {"A.AS": 8.0}),
+                (_utc(YESTERDAY, 15, 25), {"A.AS": 10.0}),
+                (_utc(TODAY, 7, 0), {"A.AS": 11.0}),
+            ],
+            ["A.AS"],
+        )
     )
+    stamps, values, prev_close = charts.portfolio_intraday_series([_buy("ISIN_A", 1.0)], _prices(ISIN_A="A.AS"))
     # The previous session contributes prev_close and nothing else — otherwise
     # the "day" would be two days wide and its move would be wrong.
     assert values == [11.0]
@@ -136,9 +136,7 @@ def test_only_todays_bars_are_returned(fake_download):
 
 def test_timestamps_keep_their_offset(fake_download):
     fake_download(_bars([(_utc(TODAY, 7, 0), {"A.AS": 11.0})], ["A.AS"]))
-    stamps, _, _ = charts.portfolio_intraday_series(
-        [_buy("ISIN_A", 1.0)], _prices(ISIN_A="A.AS")
-    )
+    stamps, _, _ = charts.portfolio_intraday_series([_buy("ISIN_A", 1.0)], _prices(ISIN_A="A.AS"))
     # tz-aware, so the browser can render 07:00 UTC as 09:00 in Amsterdam. The
     # bug this replaced dropped the tz and shipped 07:00 as a local clock time.
     assert stamps[0].tzinfo is not None
@@ -146,33 +144,33 @@ def test_timestamps_keep_their_offset(fake_download):
 
 
 def test_a_gap_in_one_ticker_holds_its_last_price(fake_download):
-    fake_download(_bars(
-        [
-            (_utc(TODAY, 7, 0), {"A.AS": 10.0, "B.DE": 20.0}),
-            (_utc(TODAY, 7, 5), {"A.AS": 11.0}),          # B posted no bar
-            (_utc(TODAY, 7, 10), {"A.AS": 12.0, "B.DE": 21.0}),
-        ],
-        ["A.AS", "B.DE"],
-    ))
-    _, values, _ = charts.portfolio_intraday_series(
-        [_buy("ISIN_A", 1.0), _buy("ISIN_B", 1.0)], _prices(ISIN_A="A.AS", ISIN_B="B.DE")
+    fake_download(
+        _bars(
+            [
+                (_utc(TODAY, 7, 0), {"A.AS": 10.0, "B.DE": 20.0}),
+                (_utc(TODAY, 7, 5), {"A.AS": 11.0}),  # B posted no bar
+                (_utc(TODAY, 7, 10), {"A.AS": 12.0, "B.DE": 21.0}),
+            ],
+            ["A.AS", "B.DE"],
+        )
     )
+    _, values, _ = charts.portfolio_intraday_series([_buy("ISIN_A", 1.0), _buy("ISIN_B", 1.0)], _prices(ISIN_A="A.AS", ISIN_B="B.DE"))
     # Without the forward-fill the middle bar is 11.0 — the portfolio silently
     # losing B for one bar, which reads as a crash on the chart.
     assert values == [30.0, 31.0, 33.0]
 
 
 def test_share_count_is_todays_and_flat_across_the_day(fake_download):
-    fake_download(_bars(
-        [
-            (_utc(TODAY, 7, 0), {"A.AS": 10.0}),
-            (_utc(TODAY, 7, 5), {"A.AS": 10.0}),
-        ],
-        ["A.AS"],
-    ))
-    _, values, _ = charts.portfolio_intraday_series(
-        [_buy("ISIN_A", 2.0), _buy("ISIN_A", 3.0, date=TODAY)], _prices(ISIN_A="A.AS")
+    fake_download(
+        _bars(
+            [
+                (_utc(TODAY, 7, 0), {"A.AS": 10.0}),
+                (_utc(TODAY, 7, 5), {"A.AS": 10.0}),
+            ],
+            ["A.AS"],
+        )
     )
+    _, values, _ = charts.portfolio_intraday_series([_buy("ISIN_A", 2.0), _buy("ISIN_A", 3.0, date=TODAY)], _prices(ISIN_A="A.AS"))
     # Both bars value all five shares. Transactions carry no time, so the step
     # cannot be placed; holding it flat keeps the day's delta pure market move.
     assert values == [50.0, 50.0]
@@ -192,20 +190,17 @@ def test_sold_out_positions_drop_out(fake_download):
 # Degrading instead of raising — the card falls back to the daily series
 # ---------------------------------------------------------------------------
 
+
 def test_no_previous_session_leaves_prev_close_none(fake_download):
     fake_download(_bars([(_utc(TODAY, 7, 0), {"A.AS": 10.0})], ["A.AS"]))
-    _, values, prev_close = charts.portfolio_intraday_series(
-        [_buy("ISIN_A", 1.0)], _prices(ISIN_A="A.AS")
-    )
+    _, values, prev_close = charts.portfolio_intraday_series([_buy("ISIN_A", 1.0)], _prices(ISIN_A="A.AS"))
     assert values == [10.0]
     assert prev_close is None
 
 
 def test_empty_frame_returns_nothing(fake_download):
     fake_download(pd.DataFrame())
-    assert charts.portfolio_intraday_series(
-        [_buy("ISIN_A", 1.0)], _prices(ISIN_A="A.AS")
-    ) == ([], [], None)
+    assert charts.portfolio_intraday_series([_buy("ISIN_A", 1.0)], _prices(ISIN_A="A.AS")) == ([], [], None)
 
 
 def test_download_failure_returns_nothing(monkeypatch):
@@ -213,9 +208,7 @@ def test_download_failure_returns_nothing(monkeypatch):
         raise RuntimeError("no network")
 
     monkeypatch.setattr(charts.yf, "download", tree)
-    assert charts.portfolio_intraday_series(
-        [_buy("ISIN_A", 1.0)], _prices(ISIN_A="A.AS")
-    ) == ([], [], None)
+    assert charts.portfolio_intraday_series([_buy("ISIN_A", 1.0)], _prices(ISIN_A="A.AS")) == ([], [], None)
 
 
 def test_no_transactions_returns_nothing():
@@ -223,9 +216,7 @@ def test_no_transactions_returns_nothing():
 
 
 def test_prices_without_tickers_return_nothing():
-    assert charts.portfolio_intraday_series(
-        [_buy("ISIN_A", 1.0)], {"ISIN_A": {"price": 10.0, "currency": "EUR"}}
-    ) == ([], [], None)
+    assert charts.portfolio_intraday_series([_buy("ISIN_A", 1.0)], {"ISIN_A": {"price": 10.0, "currency": "EUR"}}) == ([], [], None)
 
 
 # ---------------------------------------------------------------------------
@@ -246,6 +237,7 @@ def test_prices_without_tickers_return_nothing():
 # Watched fail first (rule 3): both tests pass on the pre-fix code with a
 # silently understated total, which is exactly what made this worth closing.
 # ---------------------------------------------------------------------------
+
 
 def test_a_position_missing_from_the_frame_empties_the_series(fake_download):
     """Fail closed, rather than quietly leave a holding out of the total."""
@@ -296,7 +288,7 @@ def test_an_unpriced_holding_still_yields_bars_for_the_visit_strip(fake_download
     timestamps to find the gap between two sessions, and those are right
     whatever the values do.
     """
-    prices = _prices(X1="AAA.AS")            # X2 has never been priced
+    prices = _prices(X1="AAA.AS")  # X2 has never been priced
     transactions = [_buy("X1", 10), _buy("X2", 10)]
     frame = _bars(
         [

@@ -26,8 +26,18 @@ HEADERS = {
     "day": ("dag", "datum", "day", "date"),
 }
 MOMENT_WORDS = {
-    "ontbijt": "breakfast", "breakfast": "breakfast", "lunch": "lunch", "diner": "dinner", "avondeten": "dinner", "dinner": "dinner",
-    "tussendoor": "snack", "snack": "snack", "training": "training", "tijdens training": "training", "drinken": "drinks", "drinks": "drinks",
+    "ontbijt": "breakfast",
+    "breakfast": "breakfast",
+    "lunch": "lunch",
+    "diner": "dinner",
+    "avondeten": "dinner",
+    "dinner": "dinner",
+    "tussendoor": "snack",
+    "snack": "snack",
+    "training": "training",
+    "tijdens training": "training",
+    "drinken": "drinks",
+    "drinks": "drinks",
 }
 
 

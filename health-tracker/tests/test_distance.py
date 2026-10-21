@@ -12,9 +12,17 @@ OWS = {"activityType": {"typeKey": "open_water_swimming", "parentTypeId": 26}}
 
 def ows(km, moving, duration, day="2026-06-07", hh="08"):
     """A Garmin open-water swim as the activity list gives it: moving time broken, timer time right."""
-    return {**GARMIN_ACTIVITY, **OWS, "activityId": hash((day, hh)) % 10**9, "activityName": "Open Water Swimming",
-            "startTimeLocal": f"{day} {hh}:04:00", "startTimeGMT": f"{day} {int(hh) - 2:02d}:04:00",
-            "distance": km * 1000, "movingDuration": moving, "duration": duration}
+    return {
+        **GARMIN_ACTIVITY,
+        **OWS,
+        "activityId": hash((day, hh)) % 10**9,
+        "activityName": "Open Water Swimming",
+        "startTimeLocal": f"{day} {hh}:04:00",
+        "startTimeGMT": f"{day} {int(hh) - 2:02d}:04:00",
+        "distance": km * 1000,
+        "movingDuration": moving,
+        "duration": duration,
+    }
 
 
 def test_an_open_water_swim_takes_the_timer_time_not_garmins_moving_time():

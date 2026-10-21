@@ -20,7 +20,6 @@ import pytest
 
 from app.services import returns_service as rs
 
-
 D0 = datetime.date(2020, 1, 1)
 
 
@@ -36,14 +35,18 @@ def _pct(rate: float | None) -> float | None:
 # IRR against answers known by hand
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("end_value,days,expected", [
-    (1100.0, 365, 10.0),      # a tenth, in a year
-    (1000.0, 365, 0.0),       # nothing, in a year
-    (2000.0, 365, 100.0),     # doubled
-    (500.0, 365, -50.0),      # halved
-    (1210.0, 730, 10.0),      # 10% compounded twice
-    (1100.0, 182, 21.0),      # a tenth in half a year annualises to ~21%
-])
+
+@pytest.mark.parametrize(
+    "end_value,days,expected",
+    [
+        (1100.0, 365, 10.0),  # a tenth, in a year
+        (1000.0, 365, 0.0),  # nothing, in a year
+        (2000.0, 365, 100.0),  # doubled
+        (500.0, 365, -50.0),  # halved
+        (1210.0, 730, 10.0),  # 10% compounded twice
+        (1100.0, 182, 21.0),  # a tenth in half a year annualises to ~21%
+    ],
+)
 def test_irr_of_a_single_investment(end_value, days, expected):
     got = _pct(rs.irr([(D0, -1000.0), (_d(days), end_value)]))
     assert got == pytest.approx(expected, abs=0.3)
@@ -72,6 +75,7 @@ def test_irr_counts_the_days_not_the_flows():
 # The claim the tab is built on: timing moves IRR and not TWR
 # ---------------------------------------------------------------------------
 
+
 def _series(values: list[float], invested: list[float]):
     """A daily series at one-day spacing, as charts.portfolio_history_series gives."""
     dates = [_d(i) for i in range(len(values))]
@@ -93,7 +97,7 @@ def test_the_same_investment_bought_at_different_times_gives_a_different_irr():
     all_in_values = [2000.0, 2200.0, 1980.0]
 
     added_late_invested = [1000.0, 2000.0, 2000.0]
-    added_late_values = [1000.0, 2100.0, 1890.0]   # 1100 after the rise, +1000 in
+    added_late_values = [1000.0, 2100.0, 1890.0]  # 1100 after the rise, +1000 in
 
     # Same fund, same weeks: the sub-period returns match to the cent.
     assert all_in_values[1] / all_in_values[0] == pytest.approx(1.10)
@@ -114,9 +118,9 @@ def test_the_same_investment_bought_at_different_times_gives_a_different_irr():
 def test_cash_flows_signs_and_endpoints():
     dates, invested, values = _series([1000.0, 1000.0, 2100.0], [1000.0, 1000.0, 2000.0])
     flows = rs.cash_flows(dates, invested, values, 0, 2)
-    assert flows[0] == (_d(0), -1000.0)          # what was already at work
-    assert (_d(2), -1000.0) in flows             # the deposit, money leaving you
-    assert flows[-1] == (_d(2), 2100.0)          # what liquidating would return
+    assert flows[0] == (_d(0), -1000.0)  # what was already at work
+    assert (_d(2), -1000.0) in flows  # the deposit, money leaving you
+    assert flows[-1] == (_d(2), 2100.0)  # what liquidating would return
 
 
 def test_cash_flows_reads_a_withdrawal_as_money_coming_back():
@@ -135,6 +139,7 @@ def test_cash_flows_ignores_days_without_a_flow():
 # TWR over a window
 # ---------------------------------------------------------------------------
 
+
 def test_twr_over_is_the_ratio_of_two_index_levels():
     assert rs.twr_over([100.0, 110.0, 121.0], 0, 2) == pytest.approx(21.0)
     assert rs.twr_over([100.0, 110.0, 121.0], 1, 2) == pytest.approx(10.0)
@@ -148,6 +153,7 @@ def test_twr_over_refuses_a_zero_base():
 # What build() puts on the page
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def built(monkeypatch):
     """build() over a hand-made series, with the yfinance-backed pieces stubbed."""
@@ -157,12 +163,8 @@ def built(monkeypatch):
     values = [1000.0 + i for i in range(200)] + [2200.0 + i for i in range(200)]
     divs = list(values)
 
-    monkeypatch.setattr(
-        rs.charts, "portfolio_history_series", lambda *a: (dates, invested, values, divs)
-    )
-    monkeypatch.setattr(
-        rs.charts, "build_portfolio_segments", lambda *a: [(dates, values, [0.0] * 400)]
-    )
+    monkeypatch.setattr(rs.charts, "portfolio_history_series", lambda *a: (dates, invested, values, divs))
+    monkeypatch.setattr(rs.charts, "build_portfolio_segments", lambda *a: [(dates, values, [0.0] * 400)])
     return rs.build([{"x": 1}], {}, [])
 
 
@@ -209,6 +211,7 @@ def test_custom_range_from_the_cached_series_matches_build(built):
     window = (_d(50).isoformat(), _d(150).isoformat())
     direct = next(r for r in rs.build([{"x": 1}], {}, [], window)["ranges"] if r["label"] == "Custom")
     import json
+
     cached = json.loads(json.dumps(built["_series"]))  # as it comes back from the cache
     assert rs.custom_range(cached, window) == direct
 
@@ -223,11 +226,10 @@ def test_build_marks_the_stretches_the_portfolio_was_empty(monkeypatch):
     b_dates = [_d(i) for i in range(100, 110)]
     dates = a_dates + b_dates
     values = [100.0] * 10 + [200.0] * 10
+    monkeypatch.setattr(rs.charts, "portfolio_history_series", lambda *a: (dates, [100.0] * 20, values, values))
     monkeypatch.setattr(
-        rs.charts, "portfolio_history_series", lambda *a: (dates, [100.0] * 20, values, values)
-    )
-    monkeypatch.setattr(
-        rs.charts, "build_portfolio_segments",
+        rs.charts,
+        "build_portfolio_segments",
         lambda *a: [(a_dates, [100.0] * 10, [0.0] * 10), (b_dates, [200.0] * 10, [0.0] * 10)],
     )
     out = rs.build([{"x": 1}], {}, [])
@@ -252,15 +254,11 @@ def test_the_simple_return_divides_by_a_base_that_includes_earlier_dividends(mon
     dates = [datetime.date(2025, 1, 1) + datetime.timedelta(days=i) for i in range(400)]
     invested = [10000.0] * 400
     values = [10000.0 + i * 5 for i in range(400)]
-    values_divs = [v + 500.0 for v in values]      # EUR 500 received before day 0
+    values_divs = [v + 500.0 for v in values]  # EUR 500 received before day 0
 
-    monkeypatch.setattr(charts, "portfolio_history_series",
-                        lambda *a, **k: (dates, invested, values, values_divs))
-    monkeypatch.setattr(charts, "build_portfolio_segments",
-                        lambda *a, **k: [(dates, values_divs, [0.0] * 400)])
-    monkeypatch.setattr(charts, "_compute_twr_index",
-                        lambda *a, **k: pd.Series(
-                            [100.0] * 400, index=pd.to_datetime(dates)))
+    monkeypatch.setattr(charts, "portfolio_history_series", lambda *a, **k: (dates, invested, values, values_divs))
+    monkeypatch.setattr(charts, "build_portfolio_segments", lambda *a, **k: [(dates, values_divs, [0.0] * 400)])
+    monkeypatch.setattr(charts, "_compute_twr_index", lambda *a, **k: pd.Series([100.0] * 400, index=pd.to_datetime(dates)))
 
     out = rs.build([{"date": "2025-01-01"}], {}, [])
     # Measured on 1J and not on "All": a window reaching inception has no
@@ -268,7 +266,7 @@ def test_the_simple_return_divides_by_a_base_that_includes_earlier_dividends(mon
     # below). 1J opens on 2025-02-04, day 34 of the series.
     year = next(r for r in out["ranges"] if r["label"] == "1Y")
     assert year["gain_eur"] == 1825.0
-    assert year["simple_pct"] == 17.1      # 1825 / 10670, not 1825 / 10170
+    assert year["simple_pct"] == 17.1  # 1825 / 10670, not 1825 / 10170
 
 
 def test_all_counts_the_first_purchase_as_invested_not_as_return(monkeypatch):
@@ -287,16 +285,12 @@ def test_all_counts_the_first_purchase_as_invested_not_as_return(monkeypatch):
 
     dates = [datetime.date(2025, 1, 1) + datetime.timedelta(days=i) for i in range(400)]
     invested = [1000.0] * 400
-    values = [980.0 + i for i in range(400)]   # day one closed 20 below cost
-    monkeypatch.setattr(charts, "portfolio_history_series",
-                        lambda *a, **k: (dates, invested, values, values))
-    monkeypatch.setattr(charts, "build_portfolio_segments",
-                        lambda *a, **k: [(dates, values, [0.0] * 400)])
-    monkeypatch.setattr(charts, "_compute_twr_index",
-                        lambda *a, **k: pd.Series([100.0] * 400, index=pd.to_datetime(dates)))
+    values = [980.0 + i for i in range(400)]  # day one closed 20 below cost
+    monkeypatch.setattr(charts, "portfolio_history_series", lambda *a, **k: (dates, invested, values, values))
+    monkeypatch.setattr(charts, "build_portfolio_segments", lambda *a, **k: [(dates, values, [0.0] * 400)])
+    monkeypatch.setattr(charts, "_compute_twr_index", lambda *a, **k: pd.Series([100.0] * 400, index=pd.to_datetime(dates)))
 
-    everything = next(r for r in rs.build([{"date": "2025-01-01"}], {}, [])["ranges"]
-                 if r["label"] == "All")
+    everything = next(r for r in rs.build([{"date": "2025-01-01"}], {}, [])["ranges"] if r["label"] == "All")
     # 1379 on the books against 1000 put in. Measuring from day one's 980
     # instead would call it 399 (+40,7%) and quietly count the opening dip as
     # something the portfolio earned back.
@@ -309,23 +303,27 @@ def test_all_counts_the_first_purchase_as_invested_not_as_return(monkeypatch):
 # The range cutoffs — the same windows the dashboard's buttons mean
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("day, months, expected", [
-    # Ordinary months.
-    ((2026, 8, 5), 1, (2026, 7, 5)),
-    ((2026, 8, 5), 3, (2026, 5, 5)),
-    ((2026, 8, 5), 12, (2025, 8, 5)),
-    # Across a year boundary.
-    ((2026, 2, 4), 3, (2025, 11, 4)),
-    # Clamped rather than overflowed: "31 February" is 28 February, not 3 March.
-    ((2026, 3, 31), 1, (2026, 2, 28)),
-    ((2024, 3, 31), 1, (2024, 2, 29)),      # leap year
-    ((2026, 5, 31), 3, (2026, 2, 28)),
-    # 29 February minus twelve months is 28 February, not 1 March.
-    ((2024, 2, 29), 12, (2023, 2, 28)),
-    # The long ranges this tab has and the dashboard does not.
-    ((2026, 8, 5), 36, (2023, 8, 5)),
-    ((2026, 8, 5), 60, (2021, 8, 5)),
-])
+
+@pytest.mark.parametrize(
+    "day, months, expected",
+    [
+        # Ordinary months.
+        ((2026, 8, 5), 1, (2026, 7, 5)),
+        ((2026, 8, 5), 3, (2026, 5, 5)),
+        ((2026, 8, 5), 12, (2025, 8, 5)),
+        # Across a year boundary.
+        ((2026, 2, 4), 3, (2025, 11, 4)),
+        # Clamped rather than overflowed: "31 February" is 28 February, not 3 March.
+        ((2026, 3, 31), 1, (2026, 2, 28)),
+        ((2024, 3, 31), 1, (2024, 2, 29)),  # leap year
+        ((2026, 5, 31), 3, (2026, 2, 28)),
+        # 29 February minus twelve months is 28 February, not 1 March.
+        ((2024, 2, 29), 12, (2023, 2, 28)),
+        # The long ranges this tab has and the dashboard does not.
+        ((2026, 8, 5), 36, (2023, 8, 5)),
+        ((2026, 8, 5), 60, (2021, 8, 5)),
+    ],
+)
 def test_months_before_matches_the_frontends_calendar_arithmetic(day, months, expected):
     assert rs._months_before(datetime.date(*day), months) == datetime.date(*expected)
 

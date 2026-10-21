@@ -56,11 +56,15 @@ def normal_resting_hr(wellness: dict, day: date, fallback: float | None = None) 
     return None, None
 
 
-def readiness(wellness: dict, today: date, tsb: float | None = None, form_pct: float | None = None, rhr_fallback: float | None = None) -> dict | None:
+def readiness(
+    wellness: dict, today: date, tsb: float | None = None, form_pct: float | None = None, rhr_fallback: float | None = None
+) -> dict | None:
     """{verdict: klaar|rustig aan|herstel|onbekend, date: night used or None, no_night, signals: [{key, value, level, note}]}.
     `note` is {code, params}: vs_baseline {delta, baseline}, sleep {score?, baseline?}, highest {date, days_ago},
     form_yesterday {} (form is yesterday's fitness minus fatigue)."""
-    days = sorted((d for d, w in wellness.items() if date.fromisoformat(d) <= today and (w.get("resting_hr") or w.get("sleep_h"))), reverse=True)
+    days = sorted(
+        (d for d, w in wellness.items() if date.fromisoformat(d) <= today and (w.get("resting_hr") or w.get("sleep_h"))), reverse=True
+    )
     latest = days[0] if days and (today - date.fromisoformat(days[0])).days <= MAX_AGE_DAYS else None
     signals = []
     illness_hint = False
@@ -70,16 +74,34 @@ def readiness(wellness: dict, today: date, tsb: float | None = None, form_pct: f
         if w.get("resting_hr") and base_rhr:
             delta = w["resting_hr"] - base_rhr
             level = "warn" if delta >= 5 else "attention" if delta >= 3 else "ok"
-            signals.append({"key": "resting_hr", "value": w["resting_hr"], "note": _note("vs_baseline", delta=round(delta), baseline=round(base_rhr)), "level": level})
+            signals.append(
+                {
+                    "key": "resting_hr",
+                    "value": w["resting_hr"],
+                    "note": _note("vs_baseline", delta=round(delta), baseline=round(base_rhr)),
+                    "level": level,
+                }
+            )
         base_resp = baseline(wellness, "sleep_resp", date.fromisoformat(latest), 60)
         if w.get("sleep_resp") and base_resp:
             d_resp = round(w["sleep_resp"] - base_resp, 1)
             level = "warn" if d_resp >= RESP_WARN else "attention" if d_resp >= RESP_ATTENTION else "ok"
-            signals.append({"key": "respiration", "value": round(w["sleep_resp"], 1), "note": _note("vs_baseline", delta=d_resp, baseline=round(base_resp, 1)), "level": level})
+            signals.append(
+                {
+                    "key": "respiration",
+                    "value": round(w["sleep_resp"], 1),
+                    "note": _note("vs_baseline", delta=d_resp, baseline=round(base_resp, 1)),
+                    "level": level,
+                }
+            )
             base_shr = baseline(wellness, "sleep_hr", date.fromisoformat(latest), 60)
             illness_hint = bool(
-                base_rhr and w.get("resting_hr") and w["resting_hr"] - base_rhr >= ILLNESS_HR_DELTA
-                and base_shr and w.get("sleep_hr") and w["sleep_hr"] - base_shr >= ILLNESS_HR_DELTA
+                base_rhr
+                and w.get("resting_hr")
+                and w["resting_hr"] - base_rhr >= ILLNESS_HR_DELTA
+                and base_shr
+                and w.get("sleep_hr")
+                and w["sleep_hr"] - base_shr >= ILLNESS_HR_DELTA
                 and d_resp >= RESP_ATTENTION
             )
         if w.get("sleep_h"):
@@ -92,7 +114,14 @@ def readiness(wellness: dict, today: date, tsb: float | None = None, form_pct: f
     bb = (wellness.get(bb_day) or {}).get("body_battery_high") if bb_day else None
     if bb:
         days_ago = (today - date.fromisoformat(bb_day)).days
-        signals.append({"key": "body_battery", "value": bb, "note": _note("highest", date=bb_day, days_ago=days_ago), "level": "attention" if bb < 40 else "ok"})
+        signals.append(
+            {
+                "key": "body_battery",
+                "value": bb,
+                "note": _note("highest", date=bb_day, days_ago=days_ago),
+                "level": "attention" if bb < 40 else "ok",
+            }
+        )
     if tsb is not None:
         # judged as % of fitness (api/dashboard.py FORM_BANDS: below -30% is high risk); the absolute numbers only
         # when there is no percentage yet
@@ -119,20 +148,36 @@ def readiness(wellness: dict, today: date, tsb: float | None = None, form_pct: f
 
 def as_text(r: dict) -> str:
     """One line for AI assistants (MCP get_context): the verdict and every signal with its number."""
-    names = {"resting_hr": "rusthartslag", "respiration": "ademhaling in de slaap", "sleep_h": "slaap", "body_battery": "body battery", "tsb": "vorm"}
+    names = {
+        "resting_hr": "rusthartslag",
+        "respiration": "ademhaling in de slaap",
+        "sleep_h": "slaap",
+        "body_battery": "body battery",
+        "tsb": "vorm",
+    }
     units = {"resting_hr": " bpm", "respiration": "/min", "sleep_h": " u"}
     parts = []
     for s in r["signals"]:
         p = s["note"]["params"]
-        value = f"{s['value']:+.0f}" + (f" ({s['pct']:+.0f}%)" if s.get("pct") is not None else "") if s["key"] == "tsb" else f"{s['value']}{units.get(s['key'], '')}"
+        value = (
+            f"{s['value']:+.0f}" + (f" ({s['pct']:+.0f}%)" if s.get("pct") is not None else "")
+            if s["key"] == "tsb"
+            else f"{s['value']}{units.get(s['key'], '')}"
+        )
         detail = {
             "vs_baseline": f"{p.get('delta', 0):+g} t.o.v. mediaan {p.get('baseline')}",
-            "sleep": ", ".join(x for x in (f"score {p['score']}" if p.get("score") else "", f"normaal {p['baseline']} u" if p.get("baseline") else "") if x),
+            "sleep": ", ".join(
+                x for x in (f"score {p['score']}" if p.get("score") else "", f"normaal {p['baseline']} u" if p.get("baseline") else "") if x
+            ),
             "highest": f"hoogste op {p.get('date')}",
             "form_yesterday": "fitheid min vermoeidheid van gisteren",
         }.get(s["note"]["code"], "")
         parts.append(f"{names.get(s['key'], s['key'])} {value}" + (f" ({detail})" if detail else "") + f" [{s['level']}]")
     night = f"nacht van {r['date']}" if r["date"] else "geen nachtdata van afgelopen nacht"
     verdict = {"ready": "klaar", "easy": "rustig aan", "recover": "herstel", "unknown": "onbekend"}.get(r["verdict"], r["verdict"])
-    hint = "; rusthartslag, hartslag in de slaap en ademhaling samen verhoogd: mogelijk komt er een verkoudheid aan" if r.get("illness_hint") else ""
+    hint = (
+        "; rusthartslag, hartslag in de slaap en ademhaling samen verhoogd: mogelijk komt er een verkoudheid aan"
+        if r.get("illness_hint")
+        else ""
+    )
     return f"{verdict} ({night}); " + "; ".join(parts) + hint

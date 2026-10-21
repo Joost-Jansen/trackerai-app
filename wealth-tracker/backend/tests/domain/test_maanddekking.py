@@ -10,10 +10,8 @@ incomplete.
 
 import pytest
 
-from domain.money import bank_transactions
 from domain import database
-from domain.money import accounts
-from domain.money import net_worth
+from domain.money import accounts, bank_transactions, net_worth
 from domain.money.bank_providers import base
 
 
@@ -37,8 +35,9 @@ def _account(conn, name):
 
 def _import(conn, account_id, *dates):
     """Imported rows (manual ones do not count for coverage)."""
-    rules = [{"date": d, "amount": 10.0, "name": f"WINKEL {account_id}-{i}",
-               "description": "", "currency": "EUR"} for i, d in enumerate(dates)]
+    rules = [
+        {"date": d, "amount": 10.0, "name": f"WINKEL {account_id}-{i}", "description": "", "currency": "EUR"} for i, d in enumerate(dates)
+    ]
     bank_transactions.save(conn, account_id, base.add_hashes(rules))
 
 
@@ -48,15 +47,14 @@ def _months(conn):
 
 def _current_account_jan_until_march(conn):
     pay = _account(conn, "Betaal")
-    _import(conn, pay, "2026-01-01", "2026-01-31", "2026-02-01", "2026-02-28",
-            "2026-03-01", "2026-03-31")
+    _import(conn, pay, "2026-01-01", "2026-01-31", "2026-02-01", "2026-02-28", "2026-03-01", "2026-03-31")
     return pay
 
 
 def test_a_savings_account_with_a_balance_until_today_is_not_missing(conn):
     _current_account_jan_until_march(conn)
     savings = _account(conn, "Spaar")
-    _import(conn, savings, "2026-01-10")                     # one transfer
+    _import(conn, savings, "2026-01-10")  # one transfer
     accounts.set_balances(conn, savings, [("2026-01-10", 100.0), ("2026-03-31", 100.0)], source="sync")
 
     months = _months(conn)

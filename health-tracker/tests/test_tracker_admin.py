@@ -6,7 +6,6 @@ from datetime import date, datetime
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import inspect, text
-from trackerai_accounts import Config, crypto
 
 import api.main
 from api import betas, tracker_admin
@@ -15,17 +14,41 @@ from tests.test_api import engine, make_settings  # noqa: F401  (fixture)
 from tests.test_feedback import send
 from tests.test_multiuser_api import as_admin, register
 from tools import db
+from trackerai_accounts import Config, crypto
 
 NO_HASH = "".join(["!"])  # local users without a password of their own (the account holds it)
 
 TODAY = date(2026, 10, 9)  # a Friday: this ISO week starts on 2026-10-05, the twelfth week back on 2026-07-20
-FEEDBACK_FIELDS = {"id", "app", "kind", "message", "page", "context", "status", "reply", "created_at", "updated_at", "account_id", "username",
-                   "has_screenshot"}
+FEEDBACK_FIELDS = {
+    "id",
+    "app",
+    "kind",
+    "message",
+    "page",
+    "context",
+    "status",
+    "reply",
+    "created_at",
+    "updated_at",
+    "account_id",
+    "username",
+    "has_screenshot",
+}
 
 
 def workout(s, day: str, n: int):
-    db.upsert_activity(s, {"start_utc": f"{day}T05:00:00Z", "start_local": f"{day}T07:00:00", "sport": "run", "name": f"Loop {n}", "distance_km": 5.0,
-                           "moving_time_s": 1500, "sources": {"garmin": {"id": 1000 + n, "raw": {}}}})
+    db.upsert_activity(
+        s,
+        {
+            "start_utc": f"{day}T05:00:00Z",
+            "start_local": f"{day}T07:00:00",
+            "sport": "run",
+            "name": f"Loop {n}",
+            "distance_km": 5.0,
+            "moving_time_s": 1500,
+            "sources": {"garmin": {"id": 1000 + n, "raw": {}}},
+        },
+    )
 
 
 @pytest.fixture
@@ -123,7 +146,13 @@ def test_beta_toggle(hub, app, engine, monkeypatch):  # noqa: F811
     assert anna.get("/api/me").json()["betas"] == []
     r = admin.patch(f"/api/admin/tracker/betas/{ids['anna']}", json={"feature": "new_trends", "enabled": True})
     assert r.status_code == 200, r.text
-    assert r.json() == {"account_id": ids["anna"], "betas": ["new_trends"], "count": 3, "last_at": "2026-10-06T05:00:00+00:00", "disk_bytes": 0}
+    assert r.json() == {
+        "account_id": ids["anna"],
+        "betas": ["new_trends"],
+        "count": 3,
+        "last_at": "2026-10-06T05:00:00+00:00",
+        "disk_bytes": 0,
+    }
     out = admin.get("/api/admin/tracker").json()
     assert out["betas"][0] == feature
     assert {a["account_id"]: a["betas"] for a in out["accounts"]} == {ids["alice"]: [], ids["anna"]: ["new_trends"]}
@@ -168,8 +197,12 @@ def test_feedback_has_the_hub_shape_everywhere(app, engine):  # noqa: F811
     assert db.get_user(engine, anna.get("/api/me").json()["id"])["username"] == "anna-2"
     aid = app.state.accounts.by_username("anna")["id"]
     sent = send(anna).json()
-    items = [sent, anna.get("/api/feedback").json()[0], admin.get("/api/admin/feedback").json()[0],
-             admin.patch(f"/api/admin/feedback/{sent['id']}", json={"status": "planned"}).json()]
+    items = [
+        sent,
+        anna.get("/api/feedback").json()[0],
+        admin.get("/api/admin/feedback").json()[0],
+        admin.patch(f"/api/admin/feedback/{sent['id']}", json={"status": "planned"}).json(),
+    ]
     for f in items:
         assert set(f) == FEEDBACK_FIELDS
         assert f["app"] == "health" and f["account_id"] == aid and f["username"] == "anna" and f["id"] == sent["id"]
@@ -189,8 +222,14 @@ def test_feedback_of_an_unlinked_user_keeps_the_local_name(app, engine):  # noqa
 
 
 def test_front_door_origins_may_post(engine, tmp_path):  # noqa: F811
-    shared = Config(database_url=f"sqlite:///{tmp_path / 'accounts.db'}", session_secret="s" * 40, encryption_key=crypto.new_key(),
-                    cookie_domain="trackerai.nl", cookie_secure=False, require_totp="off")
+    shared = Config(
+        database_url=f"sqlite:///{tmp_path / 'accounts.db'}",
+        session_secret="s" * 40,
+        encryption_key=crypto.new_key(),
+        cookie_domain="trackerai.nl",
+        cookie_secure=False,
+        require_totp="off",
+    )
     c = TestClient(create_app(engine=engine, settings=make_settings(accounts=shared)))
     wrong = {"username": "alice", "password": "not-" + "the-pw"}
     c.cookies.set(api.main.account_session.COOKIE, "x")  # a cookie in the browser: the check applies

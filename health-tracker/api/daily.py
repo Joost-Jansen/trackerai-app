@@ -9,14 +9,15 @@ Times are minutes after local midnight of the day; the evening before is negativ
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date, timedelta
-from typing import Callable
 
 from fastapi import APIRouter, Depends
 
 from api import betas
 from api.errors import ApiError
-from api.readiness import baseline, normal_resting_hr as normal_rhr_with_source
+from api.readiness import baseline
+from api.readiness import normal_resting_hr as normal_rhr_with_source
 from tools import db
 from tools.intraday import SERIES, SLEEP_STAGES, night_summary
 from tools.nutrition import report as nutrition_report
@@ -41,8 +42,9 @@ def normals(wellness: dict, day: date, rhr_fallback: float | None = None) -> dic
     return {k: round(v, 1) if isinstance(v, float) else v for k, v in out.items()}
 
 
-def day_view(s: db.Scope, wellness: dict, day: date | None, rhr_fallback: float | None = None, today: date | None = None,
-             earliest: int | None = None) -> dict:
+def day_view(
+    s: db.Scope, wellness: dict, day: date | None, rhr_fallback: float | None = None, today: date | None = None, earliest: int | None = None
+) -> dict:
     """Everything the Health page needs for one day. Without `day`: the latest day with data (else today).
     `earliest`: a minute (negative: the evening before) the timeline should reach back to at least."""
     days = sorted(set(db.intraday_days(s)) | set(wellness))
@@ -129,20 +131,31 @@ def as_markdown(v: dict, block_min: int = 30) -> str:
             parts.append(f"{clock(sleep['start'])}-{clock(sleep['end'])}")
         if w.get("sleep_score"):
             parts.append(f"score {w['sleep_score']}")
-        stages = [f"{name} {w[k]:.1f} u" for k, name in (("deep_sleep_h", "diep"), ("light_sleep_h", "licht"), ("rem_sleep_h", "REM"), ("awake_h", "wakker")) if w.get(k)]
+        stages = [
+            f"{name} {w[k]:.1f} u"
+            for k, name in (("deep_sleep_h", "diep"), ("light_sleep_h", "licht"), ("rem_sleep_h", "REM"), ("awake_h", "wakker"))
+            if w.get(k)
+        ]
         if stages:
             parts.append(", ".join(stages))
         lines.append("- " + "; ".join(parts))
-    lines.append(f"- rusthartslag {_vs(w.get('resting_hr'), nrm.get('resting_hr'), ' bpm')}; hartslag in de slaap {_vs(w.get('sleep_hr'), nrm.get('sleep_hr'), ' bpm')}")
+    lines.append(
+        f"- rusthartslag {_vs(w.get('resting_hr'), nrm.get('resting_hr'), ' bpm')}; hartslag in de slaap {_vs(w.get('sleep_hr'), nrm.get('sleep_hr'), ' bpm')}"
+    )
     n = v["night"]
     if n:
         lines.append(
             f"- nacht: laagste {n['lowest']} bpm om {clock(n['lowest_at'])}, gemiddeld {n['avg']}; "
             f"laatste 2 uur slaap gemiddeld {n['last_avg']} tegen {n['before_avg']} daarvoor ({n['rise']:+d})"
         )
-    lines.append(f"- ademhaling in de slaap {_vs(w.get('sleep_resp'), nrm.get('sleep_resp'), '/min', 1)}" + (f", laagste {w['sleep_resp_low']}" if w.get("sleep_resp_low") else ""))
+    lines.append(
+        f"- ademhaling in de slaap {_vs(w.get('sleep_resp'), nrm.get('sleep_resp'), '/min', 1)}"
+        + (f", laagste {w['sleep_resp_low']}" if w.get("sleep_resp_low") else "")
+    )
     if w.get("spo2_avg"):
-        lines.append(f"- SpO2 {_vs(w.get('spo2_avg'), nrm.get('spo2_avg'), '%')}" + (f", laagste {w['spo2_low']}%" if w.get("spo2_low") else ""))
+        lines.append(
+            f"- SpO2 {_vs(w.get('spo2_avg'), nrm.get('spo2_avg'), '%')}" + (f", laagste {w['spo2_low']}%" if w.get("spo2_low") else "")
+        )
     lines.append(
         f"- Body Battery hoogste {w.get('body_battery_high', '-')}, laagste {w.get('body_battery_low', '-')}, "
         f"opgeladen in de slaap {_vs(w.get('bb_charged_sleep'), nrm.get('bb_charged_sleep'))}, overdag +{w.get('bb_charged', '-')} / -{w.get('bb_drained', '-')}"
@@ -151,12 +164,18 @@ def as_markdown(v: dict, block_min: int = 30) -> str:
         f"- stress gemiddeld {_vs(w.get('stress_avg'), nrm.get('stress_avg'))}, in de slaap {_vs(w.get('sleep_stress'), nrm.get('sleep_stress'), '', 1)}; "
         f"minuten rust/laag/gemiddeld/hoog {w.get('stress_rest_min', '-')}/{w.get('stress_low_min', '-')}/{w.get('stress_medium_min', '-')}/{w.get('stress_high_min', '-')}"
     )
-    lines.append(f"- stappen {w.get('steps', '-')}, intensiteitsminuten {w.get('intensity_min', '-')}, trappen {w.get('floors', '-')}, actieve kcal {w.get('active_kcal', '-')}")
+    lines.append(
+        f"- stappen {w.get('steps', '-')}, intensiteitsminuten {w.get('intensity_min', '-')}, trappen {w.get('floors', '-')}, actieve kcal {w.get('active_kcal', '-')}"
+    )
 
     if series:
         cols = [k for k in ("stress", "bb", "resp", "spo2") if k in series]
         names = {"stress": "Stress", "bb": "BB", "resp": "Adem", "spo2": "SpO2"}
-        lines += ["", "| Tijd | HR gem | HR min-max | " + " | ".join(names[c] for c in cols) + " | Slaapfase |", "|---" * (4 + len(cols)) + "|"]
+        lines += [
+            "",
+            "| Tijd | HR gem | HR min-max | " + " | ".join(names[c] for c in cols) + " | Slaapfase |",
+            "|---" * (4 + len(cols)) + "|",
+        ]
         stages = (sleep or {}).get("stages") or []
         blocks: dict[int, dict[str, list]] = {}
         for k, pts in series.items():
@@ -195,11 +214,20 @@ def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
         # Voeding: what was eaten and drunk the evening before this night (last meal, alcohol), marked on the timeline,
         # which reaches back to it. Without a day the view picks the latest one first (then once more, rarely).
         evening = nutrition_report.evening(u.scope, (when - timedelta(days=1)).isoformat()) if when else None
-        out = day_view(u.scope, u.store.wellness, when, u.store.rhr_fallback, today(), earliest=evening["minute"] - 1440 if evening else None)
+        out = day_view(
+            u.scope, u.store.wellness, when, u.store.rhr_fallback, today(), earliest=evening["minute"] - 1440 if evening else None
+        )
         if when is None:
             evening = nutrition_report.evening(u.scope, (date.fromisoformat(out["day"]) - timedelta(days=1)).isoformat())
             if evening and evening["minute"] - 1440 < out["from"]:
-                out = day_view(u.scope, u.store.wellness, date.fromisoformat(out["day"]), u.store.rhr_fallback, today(), earliest=evening["minute"] - 1440)
+                out = day_view(
+                    u.scope,
+                    u.store.wellness,
+                    date.fromisoformat(out["day"]),
+                    u.store.rhr_fallback,
+                    today(),
+                    earliest=evening["minute"] - 1440,
+                )
         out["evening"] = evening
         return out
 

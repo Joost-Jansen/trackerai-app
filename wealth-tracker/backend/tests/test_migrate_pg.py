@@ -34,8 +34,10 @@ def _sqlite_user(folder: str, *, extra=None) -> None:
     try:
         database.init_db(conn)
         conn.execute("INSERT INTO settings (key, value) VALUES ('theme', 'dark')")
-        conn.execute("INSERT INTO prices (isin, name, ticker, price, currency, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
-                     ("NL001", "Fund 50%", "FND", 12.3456789, "EUR", "2026-10-09 17:00:00"))
+        conn.execute(
+            "INSERT INTO prices (isin, name, ticker, price, currency, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
+            ("NL001", "Fund 50%", "FND", 12.3456789, "EUR", "2026-10-09 17:00:00"),
+        )
         conn.execute("INSERT INTO budgets (group_name, amount) VALUES (?, ?)", ("Wonen", 1250.5))
         if extra:
             extra(conn)
@@ -109,8 +111,12 @@ def test_needs_a_postgres(env):
 def test_a_child_whose_parent_is_gone_is_copied_as_it_is(env):
     # SQLite runs with foreign_keys off, so old data has balances of an account that was deleted (seen in production:
     # account_balances.account_id = 2 without account 2). The copy keeps them, as SQLite did.
-    _sqlite_user("anna", extra=lambda c: c.execute(
-        "INSERT INTO account_balances (account_id, date, balance, source) VALUES (2, '2026-01-01', 10, 'manual')"))
+    _sqlite_user(
+        "anna",
+        extra=lambda c: c.execute(
+            "INSERT INTO account_balances (account_id, date, balance, source) VALUES (2, '2026-01-01', 10, 'manual')"
+        ),
+    )
     _switch(env)
     assert migrate_pg.migrate_all()["copied"]["anna"]["account_balances"] == 1
 

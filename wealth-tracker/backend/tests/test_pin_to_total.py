@@ -12,7 +12,6 @@ import pytest
 
 from app.services import dashboard_service as ds
 
-
 TODAY = datetime.date.today().isoformat()
 YESTERDAY = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
 

@@ -18,12 +18,16 @@ import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from domain import database
 from app.deps import get_db
 from app.services import (
-    asset_service, etf_service, holdings_service, tradegate_service, venue_price_service,
+    asset_service,
+    etf_service,
+    holdings_service,
+    tradegate_service,
+    venue_price_service,
 )
 from app.services.portfolio_service import load_portfolio
+from domain import database
 from domain.i18n import tr
 
 router = APIRouter(prefix="/api/holdings", tags=["holdings"])
@@ -116,7 +120,7 @@ def tradegate_quote(
             "status": "not_applicable",
             "isin": isin,
             "venue": tradegate_service.VENUE_CODE,
-            "message": tr("This position is not on Tradegate but on {0}.", detail['position']['exchange'] or 'one onbekende exchange'),
+            "message": tr("This position is not on Tradegate but on {0}.", detail["position"]["exchange"] or "one onbekende exchange"),
         }
     quote = tradegate_service.get_quote(isin)
     # A fresh quote is this position's price from here on — stored, so the
@@ -152,9 +156,7 @@ def intraday(
     for); the page falls back to the daily series.
     """
     info = _price_row(conn, isin)
-    quote = venue_price_service.position_quote(
-        isin, exchange, database.load_prices(conn), database.load_venue_prices(conn)
-    ) or info
+    quote = venue_price_service.position_quote(isin, exchange, database.load_prices(conn), database.load_venue_prices(conn)) or info
     # The bars are in the ticker's own currency, so the anchors must be too: a
     # converted listing's stored (EUR) prices are divided back. A Tradegate
     # quote is in euros, and so is the XETRA ticker its bars come from.

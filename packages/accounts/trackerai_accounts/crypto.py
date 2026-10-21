@@ -41,7 +41,7 @@ def encrypt(value: str, key: str) -> str:
 def decrypt(value: str, key: str) -> str:
     token = value
     if value.startswith(PREFIX):
-        kid, _, token = value[len(PREFIX):].partition(":")
+        kid, _, token = value[len(PREFIX) :].partition(":")
         if kid != key_id(key):
             raise WrongKey(kid)
     try:

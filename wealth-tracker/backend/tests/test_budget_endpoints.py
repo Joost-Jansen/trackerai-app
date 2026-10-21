@@ -55,7 +55,6 @@ def test_everyone_their_own_budget(client):
     assert client.get("/api/budget").json()["total"]["budget"] is None
 
 
-
 def test_fixed_costs_admin_and_choice(client):
     _login(client)
     assert client.get("/api/spending/fixed-costs/manage").json() == {"is_fixed": [], "candidates": [], "excluded": []}

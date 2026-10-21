@@ -3,9 +3,9 @@
 import time
 
 import jwt
-from trackerai_accounts.session import COOKIE
 
 from app.core import security
+from trackerai_accounts.session import COOKIE
 
 SECRET = "s" * 40  # the session secret of the tests' accounts (conftest.py)
 

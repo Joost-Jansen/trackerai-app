@@ -21,8 +21,7 @@ from domain.money.bank_providers import enablebanking
 @pytest.fixture(scope="module")
 def key():
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    pem = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
-                            serialization.NoEncryption())
+    pem = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
     return pem, key.public_key()
 
 
@@ -50,6 +49,7 @@ class _Server:
 # Signing
 # ---------------------------------------------------------------------------
 
+
 def test_every_request_is_signed_with_the_own_key(key):
     pem, is_public = key
     server = _Server([_Answer({"aspsps": []})])
@@ -74,10 +74,12 @@ def test_a_refusal_becomes_a_readable_error(key):
 
 
 def test_transactions_come_in_pages(key):
-    server = _Server([
-        _Answer({"transactions": [{"entry_reference": "1"}], "continuation_key": "k2"}),
-        _Answer({"transactions": [{"entry_reference": "2"}], "continuation_key": None}),
-    ])
+    server = _Server(
+        [
+            _Answer({"transactions": [{"entry_reference": "1"}], "continuation_key": "k2"}),
+            _Answer({"transactions": [{"entry_reference": "2"}], "continuation_key": None}),
+        ]
+    )
     txs = enablebanking.Client("app", key[0], http=server).transactions("uid-1", "2026-01-01")
     assert [t["entry_reference"] for t in txs] == ["1", "2"]
     assert server.requests[1]["params"]["continuation_key"] == "k2"
@@ -87,12 +89,19 @@ def test_transactions_come_in_pages(key):
 # From Enable Banking to a bank row
 # ---------------------------------------------------------------------------
 
+
 def _tx(**remaining):
     tx = {
-        "entry_reference": "ref-1", "status": "BOOK", "booking_date": "2026-09-10", "value_date": "2026-09-10",
-        "transaction_amount": {"currency": "EUR", "amount": "42.50"}, "credit_debit_indicator": "DBIT",
-        "creditor": {"name": "SUPERMARKT 1 BV"}, "creditor_account": {"iban": "NL00BANK0000000001"},
-        "debtor": {"name": "A. Voorbeeld"}, "debtor_account": {"iban": "NL00BANK0000000002"},
+        "entry_reference": "ref-1",
+        "status": "BOOK",
+        "booking_date": "2026-09-10",
+        "value_date": "2026-09-10",
+        "transaction_amount": {"currency": "EUR", "amount": "42.50"},
+        "credit_debit_indicator": "DBIT",
+        "creditor": {"name": "SUPERMARKT 1 BV"},
+        "creditor_account": {"iban": "NL00BANK0000000001"},
+        "debtor": {"name": "A. Voorbeeld"},
+        "debtor_account": {"iban": "NL00BANK0000000002"},
         "remittance_information": ["Boodschappen", "week 37"],
     }
     tx.update(remaining)
@@ -147,13 +156,13 @@ def test_an_expected_balance_takes_back_what_is_still_pending():
 
 
 def test_without_a_date_on_the_balance_today_counts():
-    assert enablebanking.chosen_balance([{"balance_type": "OTHR", "balance_amount": {"amount": "5"}}],
-                                      "2026-09-13") == ("2026-09-13", 5.0)
+    assert enablebanking.chosen_balance([{"balance_type": "OTHR", "balance_amount": {"amount": "5"}}], "2026-09-13") == ("2026-09-13", 5.0)
 
 
 # ---------------------------------------------------------------------------
 # Encrypting
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def datamap(tmp_path, monkeypatch):
@@ -180,6 +189,7 @@ def test_without_an_environment_key_the_server_makes_one_for_the_owner_only(data
 
 def test_a_key_file_with_its_old_name_keeps_working(datamap):
     from cryptography.fernet import Fernet
+
     key = Fernet.generate_key()
     (datamap / ".versleutelsleutel").write_bytes(key)
     token = Fernet(key).encrypt(b"from before").decode()
@@ -190,6 +200,7 @@ def test_a_key_file_with_its_old_name_keeps_working(datamap):
 
 def test_a_key_from_the_environment_comes_first(datamap, monkeypatch):
     from cryptography.fernet import Fernet
+
     monkeypatch.setenv("APP_ENCRYPTION_KEY", Fernet.generate_key().decode())
     token = secret.encrypt(b"z")
     assert not (datamap / ".encryption_key").exists()
@@ -200,6 +211,7 @@ def test_with_another_key_it_is_unreadable(datamap, monkeypatch):
     import os
 
     from cryptography.fernet import Fernet
+
     from domain import database
 
     token = secret.encrypt(b"z")
@@ -215,6 +227,5 @@ def test_without_iban_the_counterparty_account_number_counts():
     """A savings account at the same bank sometimes has no IBAN in the connection;
     the number is how accounts.py recognises it.
     """
-    rule = enablebanking.to_rule(
-        _tx(creditor_account={"other": {"identification": "H12284579", "scheme_name": "BBAN"}}), None)
+    rule = enablebanking.to_rule(_tx(creditor_account={"other": {"identification": "H12284579", "scheme_name": "BBAN"}}), None)
     assert rule["counterparty_iban"] == "H12284579"

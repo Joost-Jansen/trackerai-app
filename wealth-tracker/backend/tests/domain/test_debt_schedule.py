@@ -10,12 +10,8 @@ from datetime import date
 
 import pytest
 
-from domain.money import bank_transactions
-from domain.money import categorization
 from domain import database
-from domain.money import month_periods
-from domain.money import accounts
-from domain.money import debt_schedule
+from domain.money import accounts, bank_transactions, categorization, debt_schedule, month_periods
 
 
 @pytest.fixture(autouse=True)
@@ -92,11 +88,25 @@ def test_a_repaid_debt_stays_at_zero(conn, debt):
 def test_with_the_salary_month_on_the_day_of_the_salary(conn, debt):
     bank = accounts.make_bank_account(conn, kind="bank", provider="manual", name="Bank")
     for day in ("2026-01-21", "2026-02-20"):
-        bank_transactions.save(conn, bank, [{
-            "date": day, "interest_date": None, "amount": -3000.0, "currency": "EUR", "name": "WERKGEVER",
-            "counterparty_iban": None, "description": "", "code": None, "kind": None,
-            "dedup_hash": day, "raw": {},
-        }])
+        bank_transactions.save(
+            conn,
+            bank,
+            [
+                {
+                    "date": day,
+                    "interest_date": None,
+                    "amount": -3000.0,
+                    "currency": "EUR",
+                    "name": "WERKGEVER",
+                    "counterparty_iban": None,
+                    "description": "",
+                    "code": None,
+                    "kind": None,
+                    "dedup_hash": day,
+                    "raw": {},
+                }
+            ],
+        )
     conn.execute("UPDATE bank_transactions SET category_auto = 'Salaris'")
     conn.commit()
     month_periods.put(conn, mode="salary")

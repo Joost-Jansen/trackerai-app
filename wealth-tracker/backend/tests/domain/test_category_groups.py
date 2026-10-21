@@ -5,10 +5,8 @@ category. Labels and rules point to the category, so they stay right.
 
 import pytest
 
-from domain.money import bank_transactions
-from domain.money import categorization
 from domain import database
-from domain.money import accounts
+from domain.money import accounts, bank_transactions, categorization
 
 
 @pytest.fixture(autouse=True)
@@ -108,14 +106,17 @@ def test_the_last_category_takes_the_budget_along(conn):
 # Renaming a category
 # ---------------------------------------------------------------------------
 
+
 def test_renaming_takes_transactions_rules_and_suggestions_along(conn):
     rid = accounts.make_bank_account(conn, kind="bank", provider="manual", name="Bank")
     auto = bank_transactions.add_manually(conn, account_id=rid, date="2026-03-01", amount=30.0, name="BASIC-FIT 12")
     hand = bank_transactions.add_manually(conn, account_id=rid, date="2026-03-02", amount=20.0, name="Zaak 9")
     bank_transactions.set_category_manual(conn, hand, "Sport abonnement")
     categorization.relabel(conn)
-    conn.execute("INSERT INTO ai_suggestions (transaction_id, category, confidence, created_at) "
-                 "VALUES (?, 'Sport abonnement', 0.5, '2026-01-01')", (hand,))
+    conn.execute(
+        "INSERT INTO ai_suggestions (transaction_id, category, confidence, created_at) VALUES (?, 'Sport abonnement', 0.5, '2026-01-01')",
+        (hand,),
+    )
     conn.commit()
 
     categorization.rename_category(conn, _cat(conn, "Sport abonnement")["id"], "  Sportschool  ")

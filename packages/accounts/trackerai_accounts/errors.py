@@ -6,7 +6,7 @@ renders the code itself, wealth-tracker runs `detail` through `tr()`).
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse

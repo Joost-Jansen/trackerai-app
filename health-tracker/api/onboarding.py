@@ -17,7 +17,7 @@ already on the way: `done` defaults to true for them, so existing users are neve
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import APIRouter, Body, Depends
 
@@ -119,7 +119,11 @@ def read(u, running: bool = False, apple_running: bool = False) -> dict:
         stand = {"done": st["activities"]["count"] > 0}
     choice = stand.get("choice") if stand.get("choice") in CHOICES else None
     # without a stored choice: Apple when an Apple import is all there is, else Garmin
-    device = stand.get("device") if stand.get("device") in DEVICES else ("apple" if st["apple"]["imported"] and not st["garmin"]["connected"] else "garmin")
+    device = (
+        stand.get("device")
+        if stand.get("device") in DEVICES
+        else ("apple" if st["apple"]["imported"] and not st["garmin"]["connected"] else "garmin")
+    )
     step = stand.get("step") if isinstance(stand.get("step"), int) and not isinstance(stand.get("step"), bool) and stand["step"] >= 0 else 0
     hidden = [b for b in stand.get("hidden") or [] if b in BANNERS]
     visited = [p for p in dict.fromkeys(OLD_PAGES.get(p, p) for p in stand.get("visited") or []) if p in PAGES]

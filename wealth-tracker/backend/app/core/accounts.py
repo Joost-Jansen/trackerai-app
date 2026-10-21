@@ -22,11 +22,10 @@ import re
 import secrets
 import threading
 
-from trackerai_accounts import Accounts, Config, connect, crypto
-from trackerai_accounts.routes import Session
-
 from app.core import audit, auth_store, config, security
 from domain import database
+from trackerai_accounts import Accounts, Config, connect, crypto
+from trackerai_accounts.routes import Session
 
 APP = "wealth"
 
@@ -53,8 +52,11 @@ def _dev_config() -> Config:
         database_url=f"sqlite:///{os.path.join(root, 'accounts.db')}",
         session_secret=kept(".accounts_session_secret", lambda: secrets.token_hex(32)),
         encryption_key=kept(".accounts_key", crypto.new_key),
-        cookie_domain=env.cookie_domain, cookie_secure=config.COOKIE_SECURE, session_days=config.SESSION_DAYS,
-        require_totp=env.require_totp, front_door=env.front_door,
+        cookie_domain=env.cookie_domain,
+        cookie_secure=config.COOKIE_SECURE,
+        session_days=config.SESSION_DAYS,
+        require_totp=env.require_totp,
+        front_door=env.front_door,
     )
 
 
@@ -152,9 +154,19 @@ def bring_in(username: str, password: str) -> None:
     # someone must run the installation: wealth-tracker's admin, while there is no account admin yet
     first = app_admin and not any(a["is_admin"] for a in accounts.list_accounts())
     try:
-        accounts.create_linked(username, user["password"], APP, folder, is_admin=first, app_admin=app_admin, display_name=user.get("name"),
-                               locale=user.get("locale"), suspended=bool(user.get("suspended")),
-                               totp_secret=secret, totp_backup=state.get("backup_codes") if secret else None)
+        accounts.create_linked(
+            username,
+            user["password"],
+            APP,
+            folder,
+            is_admin=first,
+            app_admin=app_admin,
+            display_name=user.get("name"),
+            locale=user.get("locale"),
+            suspended=bool(user.get("suspended")),
+            totp_secret=secret,
+            totp_backup=state.get("backup_codes") if secret else None,
+        )
     except Exception:  # noqa: BLE001 - someone took the name meanwhile: the login is checked as usual
         return
     auth_store.forget_login(folder)  # the password and two-step secret live in the accounts now
@@ -179,6 +191,7 @@ def purge() -> int:
 
 # --- the account routes (packages/accounts), the same paths in every tracker ---
 
+
 def _client_ip(request) -> str:
     from app.core import throttle
 
@@ -186,10 +199,9 @@ def _client_ip(request) -> str:
 
 
 def _router():
+    from app.core import throttle
     from trackerai_accounts import make_router
     from trackerai_accounts.routes import Guards
-
-    from app.core import throttle
 
     # wealth-tracker's own limiters (core/throttle.py), so its limits and their reset in the tests stay one set
     guards = Guards(login_ip=throttle.LOGIN_PER_IP, login_name=throttle.LOGIN_PER_USER, register_ip=throttle.REGISTER_PER_IP)

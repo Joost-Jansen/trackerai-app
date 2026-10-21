@@ -24,8 +24,8 @@ the clicks.
 """
 
 import datetime
-import sqlite3
 import os
+import sqlite3
 import urllib.parse
 
 from domain import database
@@ -83,6 +83,7 @@ def is_us(isin: str | None) -> bool:
 # SEC EDGAR
 # ---------------------------------------------------------------------------
 
+
 def _sec_get(url: str) -> dict:
     import requests
 
@@ -94,11 +95,7 @@ def _sec_get(url: str) -> dict:
 def _fetch_ticker_map() -> dict:
     """{TICKER: cik} for every SEC registrant."""
     raw = _sec_get("https://www.sec.gov/files/company_tickers.json")
-    return {
-        str(row["ticker"]).upper(): int(row["cik_str"])
-        for row in raw.values()
-        if row.get("ticker") and row.get("cik_str") is not None
-    }
+    return {str(row["ticker"]).upper(): int(row["cik_str"]) for row in raw.values() if row.get("ticker") and row.get("cik_str") is not None}
 
 
 def _fetch_submissions(cik: int) -> list[dict]:
@@ -120,11 +117,13 @@ def _fetch_submissions(cik: int) -> list[dict]:
         if form not in _FORMS or not date or not accession or not document:
             continue
         folder = accession.replace("-", "")
-        out.append({
-            "form": form,
-            "date": date[:10],
-            "url": f"https://www.sec.gov/Archives/edgar/data/{cik}/{folder}/{document}",
-        })
+        out.append(
+            {
+                "form": form,
+                "date": date[:10],
+                "url": f"https://www.sec.gov/Archives/edgar/data/{cik}/{folder}/{document}",
+            }
+        )
         if len(out) >= _MAX_FILINGS:
             break
     return out
@@ -138,9 +137,7 @@ def _edgar_filings(conn: sqlite3.Connection, ticker: str) -> list[dict]:
     calendar, which is still the thing the tab is for.
     """
     try:
-        ticker_map = database.get_or_fetch(
-            conn, "filings:sec:tickers", _TICKER_MAP_TTL_SECONDS, _fetch_ticker_map
-        )
+        ticker_map = database.get_or_fetch(conn, "filings:sec:tickers", _TICKER_MAP_TTL_SECONDS, _fetch_ticker_map)
     except Exception:
         return []
 
@@ -152,9 +149,7 @@ def _edgar_filings(conn: sqlite3.Connection, ticker: str) -> list[dict]:
         return []
 
     try:
-        return database.get_or_fetch(
-            conn, f"filings:sec:{cik}", _SUBMISSIONS_TTL_SECONDS, lambda: _fetch_submissions(cik)
-        )
+        return database.get_or_fetch(conn, f"filings:sec:{cik}", _SUBMISSIONS_TTL_SECONDS, lambda: _fetch_submissions(cik))
     except Exception:
         return []
 
@@ -162,6 +157,7 @@ def _edgar_filings(conn: sqlite3.Connection, ticker: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Everywhere else: the company's own site
 # ---------------------------------------------------------------------------
+
 
 def _fetch_website(ticker: str) -> str | None:
     import yfinance as yf
@@ -172,15 +168,13 @@ def _fetch_website(ticker: str) -> str | None:
         return None
     parsed = urllib.parse.urlparse(site if "//" in site else f"https://{site}")
     if parsed.scheme not in ("http", "https") or not parsed.netloc:
-        return None   # never hand the browser a link this module cannot vouch for
+        return None  # never hand the browser a link this module cannot vouch for
     return parsed.geturl()
 
 
 def _company_site(conn: sqlite3.Connection, ticker: str) -> str | None:
     try:
-        return database.get_or_fetch(
-            conn, f"filings:site:{ticker}", _PROFILE_TTL_SECONDS, lambda: _fetch_website(ticker)
-        )
+        return database.get_or_fetch(conn, f"filings:site:{ticker}", _PROFILE_TTL_SECONDS, lambda: _fetch_website(ticker))
     except Exception:
         return None
 
@@ -188,6 +182,7 @@ def _company_site(conn: sqlite3.Connection, ticker: str) -> str | None:
 # ---------------------------------------------------------------------------
 # What the tab asks for
 # ---------------------------------------------------------------------------
+
 
 def reports_for(conn: sqlite3.Connection, positions: list[dict]) -> dict[str, dict]:
     """{isin: {kind, filings|url, label}} for the shares in *positions*.
@@ -209,10 +204,7 @@ def reports_for(conn: sqlite3.Connection, positions: list[dict]) -> dict[str, di
             out[isin] = {
                 "kind": "filing",
                 "source": "SEC EDGAR",
-                "filings": [
-                    {**f, "label": _FORM_LABELS.get(f["form"], f["form"])}
-                    for f in filings
-                ],
+                "filings": [{**f, "label": _FORM_LABELS.get(f["form"], f["form"])} for f in filings],
             }
             continue
 

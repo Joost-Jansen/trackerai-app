@@ -9,11 +9,15 @@ the savings accounts.
 
 IBAN = "NL00INGB0000000001"
 
-PAY_HEADER = ('"Date";"Name / Description";"Account";"Counterparty";"Code";'
-              '"Debit/credit";"Amount (EUR)";"Transaction type";"Notifications";'
-              '"Resulting balance";"Tag"')
-SAVINGS_HEADER = ('"Date";"Description";"Account";"Account name";"Counterparty";"Debit/credit";'
-             '"Amount";"Currency";"Transaction type";"Notifications";"Resulting balance"')
+PAY_HEADER = (
+    '"Date";"Name / Description";"Account";"Counterparty";"Code";'
+    '"Debit/credit";"Amount (EUR)";"Transaction type";"Notifications";'
+    '"Resulting balance";"Tag"'
+)
+SAVINGS_HEADER = (
+    '"Date";"Description";"Account";"Account name";"Counterparty";"Debit/credit";'
+    '"Amount";"Currency";"Transaction type";"Notifications";"Resulting balance"'
+)
 BALANCE_HEADER = '"Date";"Account";"Account name";"Currency";"Book balance"'
 
 
@@ -35,8 +39,7 @@ PAY = _csv(
 def _savings(date, number, direction, amount, balance, kind="Deposit"):
     counterparty = "" if kind == "Interest" else IBAN
     oms = "Interest" if kind == "Interest" else f"Transfer from current account {IBAN}"
-    return (f'"{date}";"{oms}";"{number}";"savings account";"{counterparty}";"{direction}";'
-            f'"{amount}";"EUR";"{kind}";"";"{balance}"')
+    return f'"{date}";"{oms}";"{number}";"savings account";"{counterparty}";"{direction}";"{amount}";"EUR";"{kind}";"";"{balance}"'
 
 
 SAVINGS = _csv(
@@ -66,8 +69,7 @@ def _login(client, user="alice", pw="alicepw"):
 
 
 def _upload(client, *files: tuple[str, bytes]):
-    r = client.post("/api/uploads/bank",
-                    files=[("files", (name, content, "text/csv")) for name, content in files])
+    r = client.post("/api/uploads/bank", files=[("files", (name, content, "text/csv")) for name, content in files])
     assert r.status_code == 200, r.text
     return {x["file"]: x for x in r.json()["results"]}
 
@@ -85,6 +87,7 @@ def _savings_account(client, final: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+
 
 def test_without_a_session_nothing(client):
     r = client.post("/api/uploads/bank", files=[("files", ("x.csv", PAY, "text/csv"))])
@@ -129,9 +132,9 @@ def test_savings_transactions_and_overview_complement_each_other(client):
     _login(client)
     _upload(client, ("savings.csv", SAVINGS), ("balances.csv", OVERVIEW))
     a = _balances(client, _savings_account(client, "2233")["id"])
-    assert a["2026-07-01"] == 1100.0          # only from the transactions
-    assert a["2026-08-23"] == 1100.0          # only from the overview
-    assert a["2026-08-25"] == 1350.0          # from both, and they agree
+    assert a["2026-07-01"] == 1100.0  # only from the transactions
+    assert a["2026-08-23"] == 1100.0  # only from the overview
+    assert a["2026-08-25"] == 1350.0  # from both, and they agree
 
 
 def test_uploading_again_changes_nothing(client):
@@ -160,8 +163,9 @@ def test_transfers_to_the_current_account_are_internal_even_if_it_comes_later(cl
     _upload(client, ("savings.csv", SAVINGS))
     _upload(client, ("pay.csv", PAY))
     savings_ids = {r["id"] for r in _accounts(client) if r["iban"] is None}
-    rows = [t for t in client.get("/api/bank-transactions").json()["transactions"]
-             if t["account_id"] in savings_ids and t["name"] != "Interest"]
+    rows = [
+        t for t in client.get("/api/bank-transactions").json()["transactions"] if t["account_id"] in savings_ids and t["name"] != "Interest"
+    ]
     assert rows and all(t["type"] == "INTERNAL" for t in rows)
 
 

@@ -51,7 +51,9 @@ def test_locale_is_per_user(app):
     a = admin(app)
     a.patch("/api/trackerai/admin/registration", json={"registration": "open"})
     anna = TestClient(app)
-    r = anna.post("/api/register", json={"username": "anna", "email": "anna@example.org", "password": ANNA_PW, "locale": "en", "consent": True})
+    r = anna.post(
+        "/api/register", json={"username": "anna", "email": "anna@example.org", "password": ANNA_PW, "locale": "en", "consent": True}
+    )
     assert r.status_code == 200
     assert anna.get("/api/me").json()["locale"] == "en"
     assert a.get("/api/me").json()["locale"] is None
@@ -60,9 +62,14 @@ def test_locale_is_per_user(app):
 def test_register_with_unknown_locale_fails_before_creating_the_account(app):
     admin(app).patch("/api/trackerai/admin/registration", json={"registration": "open"})
     c = TestClient(app)
-    r = c.post("/api/register", json={"username": "anna", "email": "anna@example.org", "password": ANNA_PW, "locale": "xx", "consent": True})
+    r = c.post(
+        "/api/register", json={"username": "anna", "email": "anna@example.org", "password": ANNA_PW, "locale": "xx", "consent": True}
+    )
     assert r.status_code == 422 and r.json()["code"] == "invalid_locale"
-    assert c.post("/api/register", json={"username": "anna", "email": "anna@example.org", "password": ANNA_PW, "consent": True}).status_code == 200
+    assert (
+        c.post("/api/register", json={"username": "anna", "email": "anna@example.org", "password": ANNA_PW, "consent": True}).status_code
+        == 200
+    )
 
 
 def test_agents_cannot_set_the_locale(app):
@@ -78,7 +85,12 @@ def test_agents_cannot_set_the_locale(app):
     [
         (lambda c: c.post("/api/login", json={"username": "alice", "password": "fout-wachtwoord"}), 401, "bad_credentials", {}),
         (lambda c: c.get("/api/dashboard"), 401, "not_logged_in", {}),
-        (lambda c: c.post("/api/register", json={"username": "bob", "email": "bob@example.org", "password": "x" * 12}), 403, "registration_closed", {}),
+        (
+            lambda c: c.post("/api/register", json={"username": "bob", "email": "bob@example.org", "password": "x" * 12}),
+            403,
+            "registration_closed",
+            {},
+        ),
     ],
 )
 def test_errors_without_login_have_codes(app, call, status, code, params):

@@ -4,11 +4,11 @@ from datetime import timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy import insert, select
+from test_accounts import PASSWORD, accounts, config, health, make_app, register, wealth  # noqa: F401  (fixtures)
 
 from trackerai_accounts import Accounts, connect
 from trackerai_accounts.service import now
 from trackerai_accounts.store import daily_use
-from test_accounts import PASSWORD, accounts, config, health, make_app, register, wealth  # noqa: F401  (fixtures)
 
 
 def _anna(client, accounts):  # noqa: F811
@@ -52,12 +52,15 @@ def test_usage_per_week_and_active_accounts(health, accounts):  # noqa: F811
     bob = accounts.by_username("bob")["id"]
     today = now().date()
     with accounts.engine.begin() as c:
-        c.execute(insert(daily_use), [
-            {"day": today, "app": "health", "account_id": anna, "visits": 4},
-            {"day": today, "app": "wealth", "account_id": anna, "visits": 1},
-            {"day": today - timedelta(days=20), "app": "health", "account_id": bob, "visits": 2},
-            {"day": today - timedelta(days=200), "app": "health", "account_id": bob, "visits": 9},  # outside the weeks
-        ])
+        c.execute(
+            insert(daily_use),
+            [
+                {"day": today, "app": "health", "account_id": anna, "visits": 4},
+                {"day": today, "app": "wealth", "account_id": anna, "visits": 1},
+                {"day": today - timedelta(days=20), "app": "health", "account_id": bob, "visits": 2},
+                {"day": today - timedelta(days=200), "app": "health", "account_id": bob, "visits": 9},  # outside the weeks
+            ],
+        )
     u = accounts.usage(weeks=12)
     assert len(u["weeks"]) == 12 and u["weeks"][-1] == (today - timedelta(days=today.weekday())).isoformat()
     assert u["apps"]["health"]["visits"][-1] == 4 and u["apps"]["health"]["users"][-1] == 1

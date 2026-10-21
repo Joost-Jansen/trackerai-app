@@ -14,11 +14,11 @@ import sqlite3
 import pandas as pd
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from domain import database
-from domain.portfolio import positions as portfolio
 from app.deps import get_db
 from app.services.portfolio_service import load_portfolio
+from domain import database
 from domain.i18n import tr
+from domain.portfolio import positions as portfolio
 
 router = APIRouter(prefix="/api", tags=["details"])
 
@@ -123,8 +123,12 @@ def save_ticker_override(
 
     if result and result.get("currency") == "EUR":
         database.save_price(
-            conn, isin=isin, name=position["name"], ticker=result["ticker"],
-            price=result["price"], currency=result["currency"],
+            conn,
+            isin=isin,
+            name=position["name"],
+            ticker=result["ticker"],
+            price=result["price"],
+            currency=result["currency"],
             # save_price rewrites the whole row, so omitting this blanks the
             # previous close — and the position then silently drops out of the
             # day chip ("today") until the next full refresh puts one back.

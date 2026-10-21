@@ -47,20 +47,32 @@ def test_authorize_url_asks_for_the_three_scopes():
 
 
 def test_an_expired_token_is_refreshed_first_and_a_refused_refresh_means_revoked():
-    http = Http({("POST", "/oauth/token"): [Resp(200, {"access_token": "a2", "refresh_token": "r2", "expires_in": 7200})],
-                 ("GET", "/v1/workouts"): [Resp(200, {"workouts": [], "total": 0})]})
+    http = Http(
+        {
+            ("POST", "/oauth/token"): [Resp(200, {"access_token": "a2", "refresh_token": "r2", "expires_in": 7200})],
+            ("GET", "/v1/workouts"): [Resp(200, {"workouts": [], "total": 0})],
+        }
+    )
     c = wahoo.WahooClient({"access_token": "a1", "refresh_token": "r1", "expires_at": 0}, CREDS, http=http, now=lambda: 1000)
     c.workouts()
     assert ("auth", "Bearer a2") in http.calls and c.tokens() == {"access_token": "a2", "refresh_token": "r2", "expires_at": 8200}
-    gone = wahoo.WahooClient({"access_token": "a", "refresh_token": "r", "expires_at": 0}, CREDS,
-                             http=Http({("POST", "/oauth/token"): [Resp(400, {}, b'{"error":"invalid_grant"}')]}), now=lambda: 1000)
+    gone = wahoo.WahooClient(
+        {"access_token": "a", "refresh_token": "r", "expires_at": 0},
+        CREDS,
+        http=Http({("POST", "/oauth/token"): [Resp(400, {}, b'{"error":"invalid_grant"}')]}),
+        now=lambda: 1000,
+    )
     with pytest.raises(wahoo.WahooRevoked):
         gone.workouts()
 
 
 def test_a_refused_call_with_a_fresh_token_is_an_error_not_a_revoke():
-    http = Http({("POST", "/oauth/token"): [Resp(200, {"access_token": "a2", "refresh_token": "r2", "expires_in": 7200})],
-                 ("GET", "/v1/workouts"): [Resp(401, {}, b'{"error":"nope"}'), Resp(401, {}, b'{"error":"nope"}')]})
+    http = Http(
+        {
+            ("POST", "/oauth/token"): [Resp(200, {"access_token": "a2", "refresh_token": "r2", "expires_in": 7200})],
+            ("GET", "/v1/workouts"): [Resp(401, {}, b'{"error":"nope"}'), Resp(401, {}, b'{"error":"nope"}')],
+        }
+    )
     c = wahoo.WahooClient({"access_token": "a1", "refresh_token": "r1", "expires_at": 9e9}, CREDS, http=http, now=lambda: 1000)
     with pytest.raises(wahoo.WahooError) as err:
         c.workouts()
@@ -69,9 +81,19 @@ def test_a_refused_call_with_a_fresh_token_is_an_error_not_a_revoke():
 
 
 def ride(day, hh, km, hr=130):
-    return {"manufacturer": "wahoo_fitness", "sport": "ride", "start_utc": f"{day}T{hh}:00:00Z", "start_local": f"{day}T{int(hh) + 2:02d}:00:00",
-            "distance_m": km * 1000, "timer_s": 3600, "elapsed_s": 3700, "avg_hr": hr, "max_hr": hr + 20, "laps": [],
-            "streams": {"time": [0, 1], "heartrate": [hr, hr]}}
+    return {
+        "manufacturer": "wahoo_fitness",
+        "sport": "ride",
+        "start_utc": f"{day}T{hh}:00:00Z",
+        "start_local": f"{day}T{int(hh) + 2:02d}:00:00",
+        "distance_m": km * 1000,
+        "timer_s": 3600,
+        "elapsed_s": 3700,
+        "avg_hr": hr,
+        "max_hr": hr + 20,
+        "laps": [],
+        "streams": {"time": [0, 1], "heartrate": [hr, hr]},
+    }
 
 
 class FakeWahoo:
@@ -100,17 +122,28 @@ RIDES = {
     b"https://cdn/2.fit": ride("2026-09-20", "08", 40.0),
     b"https://cdn/1.fit": ride("2025-01-01", "08", 30.0),
 }
-WORKOUTS = [{"id": 3, "starts": "2026-10-02T13:59:00.000Z", "name": "Zondagrit"}, {"id": 2, "starts": "2026-09-20T08:00:00.000Z"},
-            {"id": 1, "starts": "2025-01-01T08:00:00.000Z"}]
+WORKOUTS = [
+    {"id": 3, "starts": "2026-10-02T13:59:00.000Z", "name": "Zondagrit"},
+    {"id": 2, "starts": "2026-09-20T08:00:00.000Z"},
+    {"id": 1, "starts": "2025-01-01T08:00:00.000Z"},
+]
 
 
 def test_sync_brings_in_the_past_year_merges_with_garmin_and_keeps_the_fit_file():
     e = db.connect("sqlite://")
     db.create_schema(e)
     s = db.Scope(e, 1)
-    garmin = {"start_utc": "2026-10-02T13:59:00Z", "start_local": "2026-10-02T15:59:00", "sport": "ride", "name": "Amsterdam Cycling",
-              "distance_km": 52.24, "moving_time_s": 6679, "streams": {"time": [0, 1], "heartrate": [120, 121]}, "fit_file": "garmin-1",
-              "sources": {"garmin": {"id": 1}}}
+    garmin = {
+        "start_utc": "2026-10-02T13:59:00Z",
+        "start_local": "2026-10-02T15:59:00",
+        "sport": "ride",
+        "name": "Amsterdam Cycling",
+        "distance_km": 52.24,
+        "moving_time_s": 6679,
+        "streams": {"time": [0, 1], "heartrate": [120, 121]},
+        "fit_file": "garmin-1",
+        "sources": {"garmin": {"id": 1}},
+    }
     gid = db.upsert_activity(s, garmin)
     client, state = FakeWahoo(WORKOUTS), {}
     n = wahoo.sync_wahoo(s, client, state, date(2026, 10, 5), read_activity=lambda b: RIDES[b])
@@ -133,10 +166,26 @@ def test_access_revoked_at_wahoo_ends_the_connection_and_removes_its_data(monkey
     db.create_schema(e)
     s = db.Scope(e, 1)
     wahoo.save_tokens(s, {"access_token": "a", "refresh_token": "r", "expires_at": 9e9}, key)
-    db.upsert_activity(s, {"start_utc": "2026-09-20T08:00:00Z", "start_local": "2026-09-20T10:00:00", "sport": "ride", "distance_km": 40.0,
-                           "sources": {"wahoo_api": {"id": 2}}})
-    db.upsert_activity(s, {"start_utc": "2026-09-21T08:00:00Z", "start_local": "2026-09-21T10:00:00", "sport": "ride", "distance_km": 30.0,
-                           "sources": {"wahoo": {"file": "upload.fit"}}})  # uploaded by the user: stays
+    db.upsert_activity(
+        s,
+        {
+            "start_utc": "2026-09-20T08:00:00Z",
+            "start_local": "2026-09-20T10:00:00",
+            "sport": "ride",
+            "distance_km": 40.0,
+            "sources": {"wahoo_api": {"id": 2}},
+        },
+    )
+    db.upsert_activity(
+        s,
+        {
+            "start_utc": "2026-09-21T08:00:00Z",
+            "start_local": "2026-09-21T10:00:00",
+            "sport": "ride",
+            "distance_km": 30.0,
+            "sources": {"wahoo": {"file": "upload.fit"}},
+        },
+    )  # uploaded by the user: stays
     status = run_db_sync(s, key, None, today=date(2026, 10, 5), wahoo_factory=lambda tokens, creds: FakeWahoo([], revoked=True))
     assert status == 0
     assert db.get_setting(s, "wahoo_tokens") is None
@@ -173,7 +222,9 @@ def test_a_workout_whose_summary_wahoo_refuses_is_skipped_and_the_rest_comes_in(
 
 
 def test_a_refused_summary_does_not_refresh_the_token():
-    http = Http({("GET", "/v1/workouts/7/workout_summary"): [Resp(401, {}, b'{"error":"You are not authorized to view this workout summary"}')]})
+    http = Http(
+        {("GET", "/v1/workouts/7/workout_summary"): [Resp(401, {}, b'{"error":"You are not authorized to view this workout summary"}')]}
+    )
     c = wahoo.WahooClient({"access_token": "a1", "refresh_token": "r1", "expires_at": 9e9}, CREDS, http=http, now=lambda: 1000)
     with pytest.raises(wahoo.WahooError):
         c.summary(7)
@@ -205,7 +256,9 @@ def test_a_file_that_does_not_download_is_skipped_and_retried_next_sync():
 def test_download_tries_three_times_on_a_server_error():
     http = Http({("GET", "https://cdn/x.fit"): [Resp(504), Resp(502), Resp(200, None, b"fit")]})
     slept = []
-    c = wahoo.WahooClient({"access_token": "a", "refresh_token": "r", "expires_at": 9e9}, CREDS, http=http, now=lambda: 1000, sleep=slept.append)
+    c = wahoo.WahooClient(
+        {"access_token": "a", "refresh_token": "r", "expires_at": 9e9}, CREDS, http=http, now=lambda: 1000, sleep=slept.append
+    )
     assert c.download("https://cdn/x.fit") == b"fit" and slept == [2, 4]
 
 
@@ -213,6 +266,12 @@ def test_progress_says_how_far_back_the_sync_is():
     e = db.connect("sqlite://")
     db.create_schema(e)
     steps = []
-    wahoo.sync_wahoo(db.Scope(e, 1), FakeWahoo(WORKOUTS), {}, date(2026, 10, 5), read_activity=lambda b: RIDES[b],
-                     progress=lambda step, done=None, total=None: steps.append((step, done, total)))
+    wahoo.sync_wahoo(
+        db.Scope(e, 1),
+        FakeWahoo(WORKOUTS),
+        {},
+        date(2026, 10, 5),
+        read_activity=lambda b: RIDES[b],
+        progress=lambda step, done=None, total=None: steps.append((step, done, total)),
+    )
     assert steps == [("wahoo", 0, 365), ("wahoo", 3, 365), ("wahoo", 15, 365)]

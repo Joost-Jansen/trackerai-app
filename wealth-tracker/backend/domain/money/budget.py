@@ -27,10 +27,8 @@ import statistics
 from collections import defaultdict
 from datetime import date, timedelta
 
-from domain.money import month_periods
-from domain.money import fixed_costs
-from domain.money import net_worth
 from domain.i18n import tr
+from domain.money import fixed_costs, month_periods, net_worth
 
 # Over how many complete months the median runs: a year, so a season (the
 # insurance in January, the holiday in summer) is in it once.
@@ -66,15 +64,13 @@ def put(conn: sqlite3.Connection, group_name: str, amount: float | None) -> None
         raise ValueError(tr("A budget is an amount you want to spend, so positive."))
     else:
         conn.execute(
-            "INSERT INTO budgets (group_name, amount) VALUES (?, ?) "
-            "ON CONFLICT(group_name) DO UPDATE SET amount = excluded.amount",
+            "INSERT INTO budgets (group_name, amount) VALUES (?, ?) ON CONFLICT(group_name) DO UPDATE SET amount = excluded.amount",
             (group_name, round(float(amount), 2)),
         )
     conn.commit()
 
 
-def refunded_per_month_per_group(conn: sqlite3.Connection,
-                                     layout: "month_periods.Layout") -> dict[str, dict[str, float]]:
+def refunded_per_month_per_group(conn: sqlite3.Connection, layout: "month_periods.Layout") -> dict[str, dict[str, float]]:
     """{month: {group: amount}}: what came in on a spending category.
 
     A Tikkie for drinks or a return to a web shop is on the category of the
@@ -83,18 +79,22 @@ def refunded_per_month_per_group(conn: sqlite3.Connection,
     lower — or at zero.
     """
     outcome: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
-    for row in conn.execute("""
+    for row in conn.execute(
+        """
         SELECT date, COALESCE(group_name, ?) AS group_name, SUM(amount) AS summed
         FROM bank_transactions_typed
         WHERE type_effective = 'EXPENSE' AND amount < 0
         GROUP BY 1, 2
-    """, (net_worth.MISC,)):
+    """,
+        (net_worth.MISC,),
+    ):
         outcome[layout.key(row["date"])][row["group_name"]] -= row["summed"]
     return outcome
 
 
-def expected_until_today(conn: sqlite3.Connection, layout: "month_periods.Layout",
-                         present_day: date, budgets: dict[str, float]) -> dict[str, float]:
+def expected_until_today(
+    conn: sqlite3.Connection, layout: "month_periods.Layout", present_day: date, budgets: dict[str, float]
+) -> dict[str, float]:
     """{group: amount}: what you expect to have spent in the current month up to and
     including today, for every group with a budget.
 
@@ -111,7 +111,7 @@ def expected_until_today(conn: sqlite3.Connection, layout: "month_periods.Layout
     today = present_day.isoformat()
     start, end = layout.period(layout.key(today))
     length = (date.fromisoformat(end) - date.fromisoformat(start)).days + 1
-    day = min(length - 1, (present_day - date.fromisoformat(start)).days)   # 0 = first day
+    day = min(length - 1, (present_day - date.fromisoformat(start)).days)  # 0 = first day
     pace = (day + 1) / length
     is_fixed = [v for v in fixed_costs.find(conn, present_day=present_day, layout=layout) if not v["stopped"]]
 
@@ -172,14 +172,16 @@ def overview(conn: sqlite3.Connection, *, months: int = 13, present_day: date | 
         # A complete month without spending in this group counts as zero: that too is
         # a normal month.
         values = [per_month.get(m, {}).get(group_name, 0.0) for m in base]
-        rows.append({
-            "group_name": group_name,
-            "budget": budgets.get(group_name),
-            "median": round(statistics.median(values), 2) if values else None,
-            "actual": {m: round(per_month.get(m, {}).get(group_name, 0.0), 2) for m in shown},
-            "back": {m: round(back[m][group_name], 2) for m in shown if back.get(m, {}).get(group_name)},
-            "expected": expected.get(group_name),
-        })
+        rows.append(
+            {
+                "group_name": group_name,
+                "budget": budgets.get(group_name),
+                "median": round(statistics.median(values), 2) if values else None,
+                "actual": {m: round(per_month.get(m, {}).get(group_name, 0.0), 2) for m in shown},
+                "back": {m: round(back[m][group_name], 2) for m in shown if back.get(m, {}).get(group_name)},
+                "expected": expected.get(group_name),
+            }
+        )
 
     return {
         "months": shown,

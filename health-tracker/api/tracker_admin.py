@@ -12,18 +12,18 @@ users without a linked account are left out.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
-from typing import Callable
+from collections.abc import Callable
+from datetime import UTC, date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from trackerai_accounts import Accounts
 
 from api import betas
 from api.errors import ApiError
 from api.users import APP
 from tools import db
 from tools.nutrition import accuracy as nutrition_accuracy
+from trackerai_accounts import Accounts
 
 WEEKS = 12
 MEASURE = {"en": "workouts", "nl": "trainingen"}
@@ -57,7 +57,7 @@ def _utc_iso(start_utc: str | None) -> str | None:
         t = datetime.fromisoformat(start_utc.replace("Z", "+00:00"))
     except ValueError:
         return None
-    return (t if t.tzinfo else t.replace(tzinfo=timezone.utc)).isoformat()
+    return (t if t.tzinfo else t.replace(tzinfo=UTC)).isoformat()
 
 
 def make_router(engine, accounts: Accounts, current_user: Callable, today: Callable[[], date]) -> APIRouter:
@@ -70,14 +70,21 @@ def make_router(engine, accounts: Accounts, current_user: Callable, today: Calla
 
     def entry(account_id: int, user_id: int, stored: list[str], totals: dict, files: dict) -> dict:
         count, last = totals.get(user_id, (0, None))
-        return {"account_id": account_id, "betas": [f for f in betas.ids() if f in stored], "count": count, "last_at": _utc_iso(last),
-                "disk_bytes": files.get(user_id, 0)}
+        return {
+            "account_id": account_id,
+            "betas": [f for f in betas.ids() if f in stored],
+            "count": count,
+            "last_at": _utc_iso(last),
+            "disk_bytes": files.get(user_id, 0),
+        }
 
     @r.get("/api/admin/tracker")
     def tracker(a=Depends(admin)):
         day = today()
         stored, totals, files = db.all_user_betas(engine), db.activity_totals(engine), db.files_bytes(engine)
-        linked = sorted((x["id"], int(x["local_keys"][APP])) for x in accounts.list_accounts() if (x["local_keys"].get(APP) or "").isdigit())
+        linked = sorted(
+            (x["id"], int(x["local_keys"][APP])) for x in accounts.list_accounts() if (x["local_keys"].get(APP) or "").isdigit()
+        )
         return {
             "app": APP,
             "betas": betas.BETA_FEATURES,
@@ -98,7 +105,13 @@ def make_router(engine, accounts: Accounts, current_user: Callable, today: Calla
         uid = int(key)
         now = db.set_user_beta(engine, uid, body.feature, body.enabled)
         account = accounts.get(account_id) or {}
-        db.add_audit(engine, a.username, "set_beta", account.get("username") or f"account {account_id}", f"{body.feature} {'on' if body.enabled else 'off'}")
+        db.add_audit(
+            engine,
+            a.username,
+            "set_beta",
+            account.get("username") or f"account {account_id}",
+            f"{body.feature} {'on' if body.enabled else 'off'}",
+        )
         return entry(account_id, uid, now, db.activity_totals(engine), db.files_bytes(engine))
 
     return r

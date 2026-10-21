@@ -8,8 +8,32 @@ from api.routes_api import make_router, route_detail, route_summary, suggest
 from tests.helpers import HOME, FakeStore, fake_user_dep, square_loop
 
 ROUTES = [
-    {"id": "r1", "name": "Park", "distance_km": 4.0, "is_loop": True, "runs": 2, "last_run": "2026-09-10", "start": list(HOME), "end": list(HOME), "median_pace": "5:00", "median_hr": 140, "activity_ids": ["2026-09-01T08:00:00", "b"]},
-    {"id": "r2", "name": "Lang", "distance_km": 8.0, "is_loop": True, "runs": 1, "last_run": "2026-08-01", "start": list(HOME), "end": list(HOME), "median_pace": "5:10", "median_hr": 142, "activity_ids": ["c"]},
+    {
+        "id": "r1",
+        "name": "Park",
+        "distance_km": 4.0,
+        "is_loop": True,
+        "runs": 2,
+        "last_run": "2026-09-10",
+        "start": list(HOME),
+        "end": list(HOME),
+        "median_pace": "5:00",
+        "median_hr": 140,
+        "activity_ids": ["2026-09-01T08:00:00", "b"],
+    },
+    {
+        "id": "r2",
+        "name": "Lang",
+        "distance_km": 8.0,
+        "is_loop": True,
+        "runs": 1,
+        "last_run": "2026-08-01",
+        "start": list(HOME),
+        "end": list(HOME),
+        "median_pace": "5:10",
+        "median_hr": 142,
+        "activity_ids": ["c"],
+    },
 ]
 ACTS = [
     {"id": "a", "start_local": "2026-09-01T08:00:00", "sport": "run", "distance_km": 4.0, "moving_time_s": 1300, "avg_hr": 142},
@@ -63,7 +87,21 @@ def test_endpoints(client):
     assert client.saved["items"][0]["name"] == "Vondelpark"
 
 
-RIDE = {"id": "f1", "sport": "ride", "name": "Heuvelrug", "distance_km": 40.0, "is_loop": True, "runs": 2, "last_run": "2026-09-20", "start": list(HOME), "end": list(HOME), "median_pace": None, "median_speed_kmh": 30.0, "median_hr": 130, "activity_ids": ["d", "e"]}
+RIDE = {
+    "id": "f1",
+    "sport": "ride",
+    "name": "Heuvelrug",
+    "distance_km": 40.0,
+    "is_loop": True,
+    "runs": 2,
+    "last_run": "2026-09-20",
+    "start": list(HOME),
+    "end": list(HOME),
+    "median_pace": None,
+    "median_speed_kmh": 30.0,
+    "median_hr": 130,
+    "activity_ids": ["d", "e"],
+}
 RIDE_ACTS = [
     {"id": "d", "start_local": "2026-09-13T09:00:00", "sport": "ride", "distance_km": 40.0, "moving_time_s": 5000, "avg_hr": 128},
     {"id": "e", "start_local": "2026-09-20T09:00:00", "sport": "ride", "distance_km": 40.0, "moving_time_s": 4800, "avg_hr": 132},
@@ -89,7 +127,11 @@ def test_suggest_is_per_sport():
 @pytest.fixture
 def mixed_client():
     app = FastAPI()
-    app.include_router(make_router(lambda: date(2026, 9, 30), fake_user_dep(FakeStore(activities=ACTS + RIDE_ACTS, routes=ROUTES + [RIDE], streams=streams))))
+    app.include_router(
+        make_router(
+            lambda: date(2026, 9, 30), fake_user_dep(FakeStore(activities=ACTS + RIDE_ACTS, routes=ROUTES + [RIDE], streams=streams))
+        )
+    )
     return TestClient(app)
 
 
@@ -120,16 +162,53 @@ def v_len(s):
 
 CAND_ROUTES = [
     {**ROUTES[0], "sport": "run", "name": "4.0 km loop (r1)", "activity_ids": ["a", "b"], "medoid_id": "a"},
-    {"id": "r3", "sport": "run", "name": "Met de brug", "distance_km": 5.0, "is_loop": True, "runs": 1, "first_run": "2026-09-20", "last_run": "2026-09-20", "start": list(HOME), "end": list(HOME), "median_pace": "5:20", "median_hr": 140, "activity_ids": ["g"], "medoid_id": "g"},
+    {
+        "id": "r3",
+        "sport": "run",
+        "name": "Met de brug",
+        "distance_km": 5.0,
+        "is_loop": True,
+        "runs": 1,
+        "first_run": "2026-09-20",
+        "last_run": "2026-09-20",
+        "start": list(HOME),
+        "end": list(HOME),
+        "median_pace": "5:20",
+        "median_hr": 140,
+        "activity_ids": ["g"],
+        "medoid_id": "g",
+    },
 ]
 CAND_ACTS = ACTS + [
     {"id": "g", "start_local": "2026-09-20T08:00:00", "sport": "run", "distance_km": 5.0, "moving_time_s": 1600, "avg_hr": 140},
-    {"id": "h", "start_local": "2026-09-25T08:00:00", "sport": "run", "name": "Avondloop", "distance_km": 4.6, "moving_time_s": 1500, "avg_hr": 141},
+    {
+        "id": "h",
+        "start_local": "2026-09-25T08:00:00",
+        "sport": "run",
+        "name": "Avondloop",
+        "distance_km": 4.6,
+        "moving_time_s": 1500,
+        "avg_hr": 141,
+    },
 ]
 PENDING = {
     "candidates": [
-        {"a": {"id": "r1", "kind": "route", "name": "4.0 km loop (r1)", "distance_km": 4.0, "runs": 2}, "b": {"id": "r3", "kind": "route", "name": "Met de brug", "distance_km": 5.0, "runs": 1}, "sport": "run", "outcome": "candidate", "confidence": 0.7, "reason": "zelfde rondje met een extra lus of omweg"},
-        {"a": {"id": "r1", "kind": "route", "name": "4.0 km loop (r1)", "distance_km": 4.0, "runs": 2}, "b": {"id": "h", "kind": "activity", "name": None, "distance_km": 4.6, "runs": 1, "date": "2026-09-25"}, "sport": "run", "outcome": "candidate", "confidence": 0.6, "reason": "zelfde rondje, ander startpunt"},
+        {
+            "a": {"id": "r1", "kind": "route", "name": "4.0 km loop (r1)", "distance_km": 4.0, "runs": 2},
+            "b": {"id": "r3", "kind": "route", "name": "Met de brug", "distance_km": 5.0, "runs": 1},
+            "sport": "run",
+            "outcome": "candidate",
+            "confidence": 0.7,
+            "reason": "zelfde rondje met een extra lus of omweg",
+        },
+        {
+            "a": {"id": "r1", "kind": "route", "name": "4.0 km loop (r1)", "distance_km": 4.0, "runs": 2},
+            "b": {"id": "h", "kind": "activity", "name": None, "distance_km": 4.6, "runs": 1, "date": "2026-09-25"},
+            "sport": "run",
+            "outcome": "candidate",
+            "confidence": 0.6,
+            "reason": "zelfde rondje, ander startpunt",
+        },
     ]
 }
 
@@ -148,7 +227,11 @@ def cand_client(monkeypatch):
     monkeypatch.setattr(routes_api.db, "set_setting", lambda scope, key, value: settings.update({key: value}))
     monkeypatch.setattr(routes_api.db, "save_routes", lambda scope, items: saved.update(items=items))
     app = FastAPI()
-    app.include_router(make_router(lambda: date(2026, 9, 30), fake_user_dep(FakeStore(activities=CAND_ACTS, routes=CAND_ROUTES + [RIDE], streams=_cand_streams))))
+    app.include_router(
+        make_router(
+            lambda: date(2026, 9, 30), fake_user_dep(FakeStore(activities=CAND_ACTS, routes=CAND_ROUTES + [RIDE], streams=_cand_streams))
+        )
+    )
     c = TestClient(app)
     c.settings, c.saved = settings, saved
     return c
@@ -211,4 +294,6 @@ def test_summary_has_length_variants():
     route = {**ROUTES[0], "distance_variants": [{"distance_km": 4.0, "runs": 2, "activity_ids": ["a", "b"], "last_run": "2026-09-10"}]}
     assert route_summary(route, ACTS, streams)["distance_variants"][0]["runs"] == 2
     # routes stored before length variants existed get them computed from their runs
-    assert route_summary(ROUTES[0], ACTS, streams)["distance_variants"] == [{"distance_km": 4.0, "runs": 2, "activity_ids": ["a", "b"], "last_run": "2026-09-10"}]
+    assert route_summary(ROUTES[0], ACTS, streams)["distance_variants"] == [
+        {"distance_km": 4.0, "runs": 2, "activity_ids": ["a", "b"], "last_run": "2026-09-10"}
+    ]

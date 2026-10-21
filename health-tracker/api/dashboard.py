@@ -27,8 +27,22 @@ LOAD_MIN_CTL = 5.0  # below this (hardly any training) a ratio swings wildly on 
 RACE_KIND = re.compile(r"\b(wedstrijd|race|marathon|triathlon)\b(?!\s*-?\s*(tempo|pace))", re.I)
 # Dates in the free race field, in the order api.plans.parse_date tries them: 2026-10-18, 18-10(-2026), 18 okt (2026).
 RACE_FIELD_DATES = (r"\d{4}-\d{1,2}-\d{1,2}", r"\b\d{1,2}[-/.]\d{1,2}(?:[-/.]\d{2,4})?\b", r"\b\d{1,2}\s+[a-z]{3}[a-z]*\.?(?:\s+\d{4})?")
-SUMMARY_FIELDS = ("id", "start_local", "sport", "name", "distance_km", "moving_time_s", "avg_hr", "max_hr", "elevation_gain_m", "hr_zones_s",
-                  "open_water", "distance_doubtful", "gps_distance_km", "distance_manual")  # tools/distance.py
+SUMMARY_FIELDS = (
+    "id",
+    "start_local",
+    "sport",
+    "name",
+    "distance_km",
+    "moving_time_s",
+    "avg_hr",
+    "max_hr",
+    "elevation_gain_m",
+    "hr_zones_s",
+    "open_water",
+    "distance_doubtful",
+    "gps_distance_km",
+    "distance_manual",
+)  # tools/distance.py
 
 
 def _day(a: dict) -> date:
@@ -89,7 +103,11 @@ def _volume(activities: list[dict], weeks: int = 1) -> dict:
         v["km"] += a.get("distance_km") or 0
         v["seconds"] += a.get("moving_time_s") or 0
     return {
-        sport: {"count": round(v["count"] / weeks, 1) if weeks > 1 else v["count"], "km": round(v["km"] / weeks, 1), "seconds": round(v["seconds"] / weeks)}
+        sport: {
+            "count": round(v["count"] / weeks, 1) if weeks > 1 else v["count"],
+            "km": round(v["km"] / weeks, 1),
+            "seconds": round(v["seconds"] / weeks),
+        }
         for sport, v in out.items()
     }
 
@@ -191,7 +209,9 @@ def next_race(plan: dict, sessions: list[dict], today: date) -> dict | None:
         return None
     day = ahead[0]
     on_day = [s for s in ordered if s["date"] == day and s["sport"] != "rest"]
-    main = next((s for s in on_day if RACE_KIND.search(s.get("kind") or "")), None) or max(on_day, key=lambda s: s.get("distance_km") or 0, default=None)
+    main = next((s for s in on_day if RACE_KIND.search(s.get("kind") or "")), None) or max(
+        on_day, key=lambda s: s.get("distance_km") or 0, default=None
+    )
     return {
         "date": day,
         "days": (date.fromisoformat(day) - today).days,
@@ -237,7 +257,9 @@ def recent_items(activities: list[dict], n: int = 6) -> list[dict]:
     return sorted(items, key=lambda x: x["start_local"], reverse=True)[:n]
 
 
-def build_dashboard(activities: list[dict], wellness: dict, zones: dict, today: date, last_sync: str, rhr_fallback: float | None = None) -> dict:
+def build_dashboard(
+    activities: list[dict], wellness: dict, zones: dict, today: date, last_sync: str, rhr_fallback: float | None = None
+) -> dict:
     monday = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
     week = [a for a in activities if monday <= _day(a) <= today]

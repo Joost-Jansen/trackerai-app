@@ -4,8 +4,8 @@ import pytest
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 
-from tests.helpers import FakeStore, fake_user_dep
 from api.zones_api import make_router, period_bounds, period_label, zone_history, zones_for_period
+from tests.helpers import FakeStore, fake_user_dep
 
 ZONES = {"run": {"bounds": [132, 147, 162, 176], "max_hr": 189}, "ride": {"bounds": [127, 141, 156, 169], "max_hr": 182}}
 

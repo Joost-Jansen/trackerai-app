@@ -23,8 +23,7 @@ def _account(client) -> int:
 
 
 def _book(client, account, name, amount, direction="expense", description="", date="2026-01-15", category=None):
-    body = {"account_id": account, "date": date, "amount": amount, "direction": direction,
-            "name": name, "description": description}
+    body = {"account_id": account, "date": date, "amount": amount, "direction": direction, "name": name, "description": description}
     if category:
         body["category"] = category
     r = client.post("/api/bank-transactions", json=body)
@@ -41,6 +40,7 @@ def _unknown(client):
 # ---------------------------------------------------------------------------
 # The list
 # ---------------------------------------------------------------------------
+
 
 def test_the_largest_group_is_on_top(client):
     _login(client)
@@ -77,8 +77,10 @@ def test_after_a_rule_the_group_disappears(client):
     acct = _account(client)
     for _ in range(3):
         _book(client, acct, "Xyzzy Werkplaats 12 BV", 5.50)
-    r = client.post("/api/categories/rules", json={
-        "priority": 25, "field": "N", "pattern": "XYZZY WERKPLAATS 12 BV", "direction": "", "category": "Lunch werk"})
+    r = client.post(
+        "/api/categories/rules",
+        json={"priority": 25, "field": "N", "pattern": "XYZZY WERKPLAATS 12 BV", "direction": "", "category": "Lunch werk"},
+    )
     assert r.status_code == 201, r.text
     client.post("/api/categories/relabel?everything=true")
     assert _unknown(client) == []
@@ -99,6 +101,7 @@ def test_without_a_session_nothing(client):
 # ---------------------------------------------------------------------------
 # The general rules that were added
 # ---------------------------------------------------------------------------
+
 
 def test_salary_is_recognised_by_the_description(client):
     """The employer differs per person; the word in the description does not."""
@@ -121,8 +124,7 @@ def test_at_worldpay_the_shop_in_the_description_counts(client):
     it already worked for Mollie and CCV; Worldpay came back unknown 74 times.
     """
     _login(client)
-    t = _book(client, _account(client), "WORLDPAY", 23.10,
-              description="Name: WORLDPAY Description: Albert Heijn 1234 Amsterdam")
+    t = _book(client, _account(client), "WORLDPAY", 23.10, description="Name: WORLDPAY Description: Albert Heijn 1234 Amsterdam")
     assert t["category"] == "Supermarkt"
 
 

@@ -15,6 +15,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.p
 # the code, as on the Pi.
 AUTH_CONFIG_PATH = os.environ.get("AUTH_CONFIG_PATH") or os.path.join(REPO_ROOT, "auth_config.yaml")
 
+
 # S11: a session lasts SESSION_DAYS (default 30) and is renewed while in use
 # (sliding): a request with a cookie older than a day gets a fresh one. Never
 # beyond SESSION_MAX_DAYS after the password was last typed. The old
@@ -49,6 +50,7 @@ ALPHAVANTAGE_API_KEY = os.environ.get("ALPHAVANTAGE_API_KEY", "").strip()
 
 
 # --- Hosting and security (shared variable names with health-tracker) --------
+
 
 def _flag(name: str, default: bool) -> bool:
     value = os.environ.get(name)

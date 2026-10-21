@@ -14,16 +14,14 @@ import pytest
 
 from app.services import tradegate_service as tg
 
-pytestmark = pytest.mark.skipif(
-    os.environ.get("TRADEGATE_LIVE") != "1", reason="live Tradegate check; set TRADEGATE_LIVE=1"
-)
+pytestmark = pytest.mark.skipif(os.environ.get("TRADEGATE_LIVE") != "1", reason="live Tradegate check; set TRADEGATE_LIVE=1")
 
 LIVE_ISINS = [
-    "IE00B4L5YC18",   # iShares MSCI EM (Acc) — held on TDG in the owner's portfolio
-    "IE00B3XXRP09",   # Vanguard S&P 500 (Dist)
-    "NL0010773842",   # NN Group
-    "US0378331005",   # Apple
-    "DE0007664039",   # Volkswagen Vz.
+    "IE00B4L5YC18",  # iShares MSCI EM (Acc) — held on TDG in the owner's portfolio
+    "IE00B3XXRP09",  # Vanguard S&P 500 (Dist)
+    "NL0010773842",  # NN Group
+    "US0378331005",  # Apple
+    "DE0007664039",  # Volkswagen Vz.
 ]
 
 
@@ -37,7 +35,7 @@ def fresh_cache():
 @pytest.mark.parametrize("isin", LIVE_ISINS)
 def test_a_real_quote_comes_back_sane(isin):
     q = tg.get_quote(isin)
-    time.sleep(1.5)   # be gentle between instruments
+    time.sleep(1.5)  # be gentle between instruments
     assert q["status"] == "ok", q
     assert q["stale"] is False
     assert q["currency"] == "EUR"
@@ -47,8 +45,10 @@ def test_a_real_quote_comes_back_sane(isin):
         assert q["bid"] <= q["ask"]
     if q["low"] is not None and q["high"] is not None:
         assert q["low"] <= q["high"]
-    print(f"\n{isin}: last={q['last']} bid={q['bid']} ask={q['ask']} "
-          f"close={q['previous_close']} exec={q['executions']} fetched={q['fetched_at']}")
+    print(
+        f"\n{isin}: last={q['last']} bid={q['bid']} ask={q['ask']} "
+        f"close={q['previous_close']} exec={q['executions']} fetched={q['fetched_at']}"
+    )
 
 
 def test_a_second_call_is_served_from_the_cache(monkeypatch):

@@ -27,19 +27,29 @@ As in database.py every function takes an explicit `conn` as its first
 argument; there is no implicit "current user".
 """
 
-from collections import Counter
 import json
 import math
 import re
 import sqlite3
 import uuid
+from collections import Counter
+
 from domain import db
 from domain.i18n import tr
 
-
 _COLUMNS = (
-    "account_id", "date", "interest_date", "amount", "currency", "name",
-    "counterparty_iban", "description", "code", "kind", "dedup_hash", "raw",
+    "account_id",
+    "date",
+    "interest_date",
+    "amount",
+    "currency",
+    "name",
+    "counterparty_iban",
+    "description",
+    "code",
+    "kind",
+    "dedup_hash",
+    "raw",
 )
 
 
@@ -59,9 +69,8 @@ def _known_hashes(cursor, hashes: list[str | None]) -> set[str]:
     hashes = [h for h in hashes if h]
     known: set[str] = set()
     for i in range(0, len(hashes), 500):
-        piece = hashes[i:i + 500]
-        cursor.execute(f"SELECT dedup_hash FROM bank_transactions WHERE dedup_hash IN ({','.join('?' * len(piece))})",
-                       piece)
+        piece = hashes[i : i + 500]
+        cursor.execute(f"SELECT dedup_hash FROM bank_transactions WHERE dedup_hash IN ({','.join('?' * len(piece))})", piece)
         known.update(r[0] for r in cursor.fetchall())
     return known
 
@@ -171,8 +180,7 @@ def add_manually(
             (account_id, date, amount, currency, name, description, dedup_hash, raw, source)
         VALUES (?, ?, ?, 'EUR', ?, ?, ?, ?, 'manual')
         """,
-        (account_id, date, float(amount), name, (description or "").strip(),
-         uuid.uuid4().hex[:16], json.dumps({"source": "manual"})),
+        (account_id, date, float(amount), name, (description or "").strip(), uuid.uuid4().hex[:16], json.dumps({"source": "manual"})),
     )
     conn.commit()
     return cursor.lastrowid
@@ -225,8 +233,9 @@ def load(
     return [_from_row(row) for row in cursor.fetchall()]
 
 
-def set_category_auto(conn: sqlite3.Connection, transaction_id: int, category: str | None,
-                       source: str | None = "rule", *, commit: bool = True) -> None:
+def set_category_auto(
+    conn: sqlite3.Connection, transaction_id: int, category: str | None, source: str | None = "rule", *, commit: bool = True
+) -> None:
     """What the rules concluded. Never touches a manual choice.
 
     That last part is not in this function but in the derived `category`: manual
@@ -242,9 +251,7 @@ def set_category_auto(conn: sqlite3.Connection, transaction_id: int, category: s
         conn.commit()
 
 
-def set_category_manual(
-    conn: sqlite3.Connection, transaction_id: int, category: str | None
-) -> None:
+def set_category_manual(conn: sqlite3.Connection, transaction_id: int, category: str | None) -> None:
     """Your judgement. None clears it, after which auto takes over again."""
     conn.cursor().execute(
         "UPDATE bank_transactions SET category_manual = ? WHERE id = ?",
@@ -253,16 +260,13 @@ def set_category_manual(
     conn.commit()
 
 
-def set_category_manual_for(
-    conn: sqlite3.Connection, transaction_ids: list[int], category: str | None
-) -> int:
+def set_category_manual_for(conn: sqlite3.Connection, transaction_ids: list[int], category: str | None) -> int:
     """set_category_manual for many transactions at once. Returns how many existed."""
     ids = sorted({int(i) for i in transaction_ids})
     if not ids:
         return 0
     cursor = conn.cursor()
-    cursor.executemany("UPDATE bank_transactions SET category_manual = ? WHERE id = ?",
-                       [(category, i) for i in ids])
+    cursor.executemany("UPDATE bank_transactions SET category_manual = ? WHERE id = ?", [(category, i) for i in ids])
     conn.commit()
     return cursor.rowcount if cursor.rowcount >= 0 else len(ids)
 
@@ -288,8 +292,8 @@ def date_range(conn: sqlite3.Connection, account_id: int | None = None) -> dict:
         cursor.execute("SELECT COUNT(*) AS n, MIN(date) AS start, MAX(date) AS end FROM bank_transactions")
     else:
         cursor.execute(
-            "SELECT COUNT(*) AS n, MIN(date) AS start, MAX(date) AS end "
-            "FROM bank_transactions WHERE account_id = ?", (account_id,))
+            "SELECT COUNT(*) AS n, MIN(date) AS start, MAX(date) AS end FROM bank_transactions WHERE account_id = ?", (account_id,)
+        )
     row = cursor.fetchone()
     return {"total": row["n"], "first": row["start"], "last": row["end"]}
 
@@ -299,7 +303,5 @@ def count(conn: sqlite3.Connection, account_id: int | None = None) -> int:
     if account_id is None:
         cursor.execute("SELECT COUNT(*) AS n FROM bank_transactions")
     else:
-        cursor.execute(
-            "SELECT COUNT(*) AS n FROM bank_transactions WHERE account_id = ?", (account_id,)
-        )
+        cursor.execute("SELECT COUNT(*) AS n FROM bank_transactions WHERE account_id = ?", (account_id,))
     return cursor.fetchone()["n"]

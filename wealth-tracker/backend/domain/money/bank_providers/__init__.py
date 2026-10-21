@@ -25,9 +25,10 @@ bank_providers/base.py for the fields and for the sign convention.
 
 import csv
 
-from domain.money.bank_providers import base, bunq, ing, ing_balances as ing_balances, ing_savings as ing_saving
 from domain.i18n import tr
-
+from domain.money.bank_providers import base, bunq, ing
+from domain.money.bank_providers import ing_balances as ing_balances
+from domain.money.bank_providers import ing_savings as ing_saving
 
 # Order matters where columns overlap: ing_savings itself refuses a file with
 # "Name / Description", so ing is not lost to it.
@@ -46,9 +47,7 @@ def _choose_parser(columns: list[str] | None):
         if columns and parser.recognises(columns):
             return parser
     found = ", ".join(columns) if columns else tr("(no columns)")
-    raise UnknownFormat(
-        tr("This file belongs to none of the banks we know ({0}). Columns found: {1}", ', '.join(PROVIDERS), found)
-    )
+    raise UnknownFormat(tr("This file belongs to none of the banks we know ({0}). Columns found: {1}", ", ".join(PROVIDERS), found))
 
 
 def _separator(header_row: str) -> str:

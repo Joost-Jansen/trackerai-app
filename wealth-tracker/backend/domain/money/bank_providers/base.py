@@ -26,8 +26,8 @@ in the amount; here both end up on the same convention.
 import hashlib
 import re
 from datetime import datetime
-from domain.i18n import tr
 
+from domain.i18n import tr
 
 CURRENCY = "EUR"
 
@@ -86,8 +86,7 @@ def normalise_iban(iban) -> str | None:
     return text or None
 
 
-def dedup_hash(date: str, amount: float, name: str, description: str, sequence_number: int,
-               extra: str = "") -> str:
+def dedup_hash(date: str, amount: float, name: str, description: str, sequence_number: int, extra: str = "") -> str:
     """The fingerprint by which a second import recognises itself.
 
     Over date, amount, name and description — on purpose not over the rest of
@@ -119,8 +118,7 @@ def add_hashes(rows: list[dict]) -> list[dict]:
     seen: dict[tuple, int] = {}
     for row in rows:
         extra = row.get("hash_extra") or ""
-        key = (row["date"], round(row["amount"], 2),
-                   row["name"], row["description"], extra)
+        key = (row["date"], round(row["amount"], 2), row["name"], row["description"], extra)
         sequence_number = seen.get(key, 0) + 1
         seen[key] = sequence_number
         row["dedup_hash"] = dedup_hash(*key[:4], sequence_number, extra)

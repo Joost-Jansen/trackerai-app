@@ -15,13 +15,7 @@ def _payload(**columns):
     return {
         "componentsByNameMap": {
             "holdings": {
-                "containersByNameMap": {
-                    "all": {
-                        "dataPointsByNameMap": {
-                            name: {"value": value} for name, value in columns.items()
-                        }
-                    }
-                }
+                "containersByNameMap": {"all": {"dataPointsByNameMap": {name: {"value": value} for name, value in columns.items()}}}
             }
         }
     }
@@ -41,10 +35,8 @@ def test_ishares_api_parses_equity_rows_with_sector_and_country():
     holdings = issuer_holdings._parse_ishares_api(ISHARES_API_SAMPLE)
 
     assert holdings == [
-        {"symbol": "NVDA", "name": "NVIDIA CORP", "weight": 0.0516038,
-         "sector": "Information Technology", "country": "United States"},
-        {"symbol": "AAPL", "name": "APPLE INC", "weight": 0.0504996,
-         "sector": "Information Technology", "country": "United States"},
+        {"symbol": "NVDA", "name": "NVIDIA CORP", "weight": 0.0516038, "sector": "Information Technology", "country": "United States"},
+        {"symbol": "AAPL", "name": "APPLE INC", "weight": 0.0504996, "sector": "Information Technology", "country": "United States"},
     ]
 
 
@@ -59,15 +51,16 @@ def test_ishares_api_drops_cash_futures_and_zero_weight_rows():
 
 
 def test_ishares_api_falls_back_to_name_when_ticker_is_missing():
-    holdings = issuer_holdings._parse_ishares_api(_payload(
-        issueName=["SOME UNLISTED CO"],
-        ticker=[None],
-        holdingPercent=[1.0],
-        assetClass=["Equity"],
-    ))
+    holdings = issuer_holdings._parse_ishares_api(
+        _payload(
+            issueName=["SOME UNLISTED CO"],
+            ticker=[None],
+            holdingPercent=[1.0],
+            assetClass=["Equity"],
+        )
+    )
 
-    assert holdings == [{"symbol": "SOME UNLISTED CO", "name": "SOME UNLISTED CO",
-                         "weight": 0.01, "sector": None, "country": None}]
+    assert holdings == [{"symbol": "SOME UNLISTED CO", "name": "SOME UNLISTED CO", "weight": 0.01, "sector": None, "country": None}]
 
 
 def test_ishares_api_returns_empty_on_an_unexpected_shape():
@@ -137,26 +130,21 @@ def test_degiro_issuer_abbreviations_do_not_survive_the_index_name():
 def test_the_index_name_still_keeps_what_identifies_the_basket():
     """Guards the test above: dropping issuer words must not start dropping the
     qualifiers that make two baskets different."""
-    assert issuer_holdings._norm_index_name(
-        "VNGU FTSE DEVELOPED EUROPE EX UK UCITS ETF") == "ftse developed europe ex uk"
-    assert issuer_holdings._norm_index_name(
-        "VNGU FTSE DEVELOPED EUROPE UCITS ETF") == "ftse developed europe"
+    assert issuer_holdings._norm_index_name("VNGU FTSE DEVELOPED EUROPE EX UK UCITS ETF") == "ftse developed europe ex uk"
+    assert issuer_holdings._norm_index_name("VNGU FTSE DEVELOPED EUROPE UCITS ETF") == "ftse developed europe"
 
 
 def _stub_catalog(monkeypatch, names):
     monkeypatch.setattr(
-        issuer_holdings, "_vanguard_catalog",
-        lambda conn: [{"productType": "ETF", "assetClass": "Equity",
-                       "portId": str(9500 + i), "name": n}
-                      for i, n in enumerate(names)],
+        issuer_holdings,
+        "_vanguard_catalog",
+        lambda conn: [{"productType": "ETF", "assetClass": "Equity", "portId": str(9500 + i), "name": n} for i, n in enumerate(names)],
     )
 
 
 def test_an_abbreviated_vanguard_fund_still_gets_its_own_exact_holdings(monkeypatch):
     _stub_catalog(monkeypatch, ["FTSE All-World UCITS ETF", "S&P 500 UCITS ETF"])
-    for spelling in ("VANGUARD FTSE ALL-WORLD UCITS ETF USD ACC",
-                     "VNGU FTSE ALL-WORLD UCITS ETF USDACC",
-                     "VGRD FTSE ALL-WORLD UCITS ETF"):
+    for spelling in ("VANGUARD FTSE ALL-WORLD UCITS ETF USD ACC", "VNGU FTSE ALL-WORLD UCITS ETF USDACC", "VGRD FTSE ALL-WORLD UCITS ETF"):
         kind, ref, _label, quality = issuer_holdings._resolve(None, "IE00NEW00001", spelling)
         assert (kind, ref, quality) == ("vanguard_auto", "9500", "exact"), spelling
 
@@ -164,8 +152,7 @@ def test_an_abbreviated_vanguard_fund_still_gets_its_own_exact_holdings(monkeypa
 def test_another_issuer_on_the_same_index_stays_a_proxy(monkeypatch):
     """The abbreviation list must not turn someone else's fund into "exact"."""
     _stub_catalog(monkeypatch, ["FTSE All-World UCITS ETF"])
-    kind, ref, _label, quality = issuer_holdings._resolve(
-        None, "IE00NEW00002", "Invesco FTSE All-World UCITS ETF")
+    kind, ref, _label, quality = issuer_holdings._resolve(None, "IE00NEW00002", "Invesco FTSE All-World UCITS ETF")
     assert (kind, ref, quality) == ("vanguard_auto", "9500", "proxy")
 
 

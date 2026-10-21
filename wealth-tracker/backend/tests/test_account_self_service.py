@@ -11,7 +11,6 @@ import yaml
 from app.core import auth_store, config, feedback_store
 from app.services import account_data
 from domain import database
-
 from tests.test_bank_upload import PAY
 
 
@@ -26,7 +25,7 @@ def _users():
 def _with_data(client, user, pw):
     _login(client, user, pw)
     assert client.post("/api/accounts/import", files={"file": ("pay.csv", PAY, "text/csv")}).status_code == 200
-    feedback_store.add(user, "stock", "idea", f"=HYPERLINK(\"http://x\") from {user}", "/x", {}, b"\x89PNG", "image/png")
+    feedback_store.add(user, "stock", "idea", f'=HYPERLINK("http://x") from {user}', "/x", {}, b"\x89PNG", "image/png")
 
 
 def test_export_holds_every_table_and_no_secrets(client):

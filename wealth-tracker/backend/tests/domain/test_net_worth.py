@@ -17,8 +17,7 @@ import sqlite3
 import pytest
 
 from domain import database
-from domain.money import accounts
-from domain.money import net_worth
+from domain.money import accounts, net_worth
 
 
 @pytest.fixture(autouse=True)
@@ -33,9 +32,7 @@ def _conn() -> sqlite3.Connection:
 
 
 def _account(conn, name, kind="bank", iban=None) -> int:
-    return accounts.make_bank_account(
-        conn, kind=kind, provider="manual", name=name, iban=iban
-    )
+    return accounts.make_bank_account(conn, kind=kind, provider="manual", name=name, iban=iban)
 
 
 def _investments(*pairs) -> list[dict]:
@@ -50,6 +47,7 @@ def _point(series, date):
 # ---------------------------------------------------------------------------
 # Putting it together
 # ---------------------------------------------------------------------------
+
 
 def test_without_anything_there_is_no_series():
     conn = _conn()
@@ -123,6 +121,7 @@ def test_a_broker_account_counts_as_investment():
 # The two paces
 # ---------------------------------------------------------------------------
 
+
 def test_between_two_measurements_runs_a_straight_line():
     conn = _conn()
     bank = _account(conn, "ING")
@@ -130,8 +129,7 @@ def test_between_two_measurements_runs_a_straight_line():
     accounts.set_balance(conn, bank, "2026-01-04", 1300.0)
 
     series = net_worth.series(conn, _investments(("2026-01-01", 0.0), ("2026-01-04", 0.0)))
-    assert [_point(series, d)["bank"] for d in
-            ("2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04")] == [1000.0, 1100.0, 1200.0, 1300.0]
+    assert [_point(series, d)["bank"] for d in ("2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04")] == [1000.0, 1100.0, 1200.0, 1300.0]
     conn.close()
 
 
@@ -152,8 +150,7 @@ def test_before_the_first_measurement_an_account_counts_as_zero():
     conn = _conn()
     accounts.set_balance(conn, _account(conn, "ING"), "2026-01-03", 1000.0)
 
-    series = net_worth.series(conn, _investments(
-        ("2026-01-01", 500.0), ("2026-01-02", 500.0), ("2026-01-03", 500.0)))
+    series = net_worth.series(conn, _investments(("2026-01-01", 500.0), ("2026-01-02", 500.0), ("2026-01-03", 500.0)))
 
     assert series["from_date"] == "2026-01-01"
     assert _point(series, "2026-01-02")["bank"] == 0.0
@@ -167,13 +164,11 @@ def test_the_series_continues_after_the_last_measurement():
     conn = _conn()
     accounts.set_balance(conn, _account(conn, "ING"), "2026-01-01", 1000.0)
 
-    series = net_worth.series(conn, _investments(
-        ("2026-01-01", 500.0), ("2026-02-01", 700.0), ("2026-03-01", 900.0)))
+    series = net_worth.series(conn, _investments(("2026-01-01", 500.0), ("2026-02-01", 700.0), ("2026-03-01", 900.0)))
 
     assert series["points"][-1]["d"] == "2026-03-01"
     assert _point(series, "2026-03-01")["net"] == pytest.approx(1900.0)
-    assert _point(series, "2026-02-15")["portfolio"] == pytest.approx(700.0), \
-        "een dag zonder slotkoers staat op de vorige"
+    assert _point(series, "2026-02-15")["portfolio"] == pytest.approx(700.0), "een dag zonder slotkoers staat op de vorige"
     conn.close()
 
 
@@ -188,8 +183,7 @@ def test_measurements_are_marked():
     accounts.set_balance(conn, bank, "2026-01-01", 1000.0)
     accounts.set_balance(conn, bank, "2026-01-03", 1100.0)
 
-    series = net_worth.series(conn, _investments(
-        ("2026-01-01", 0.0), ("2026-01-02", 0.0), ("2026-01-03", 0.0)))
+    series = net_worth.series(conn, _investments(("2026-01-01", 0.0), ("2026-01-02", 0.0), ("2026-01-03", 0.0)))
 
     assert [p["measured"] for p in series["points"]] == [True, False, True]
     assert series["measurements"] == 2
@@ -210,6 +204,7 @@ def test_a_closed_account_does_not_count():
 # ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
+
 
 def test_summary_gives_the_last_point_and_the_change():
     conn = _conn()
@@ -242,23 +237,42 @@ def test_no_change_for_a_one_point_series():
 # Months: income, spending, what is left
 # ---------------------------------------------------------------------------
 
+
 def _tx(conn, account_id, date, amount, type_, hash_):
     from domain.money import bank_transactions
-    bank_transactions.save(conn, account_id, [{
-        "date": date, "interest_date": None, "amount": amount, "currency": "EUR",
-        "name": "X", "counterparty_iban": None, "description": "",
-        "code": None, "kind": None, "dedup_hash": hash_, "raw": {},
-    }])
+
+    bank_transactions.save(
+        conn,
+        account_id,
+        [
+            {
+                "date": date,
+                "interest_date": None,
+                "amount": amount,
+                "currency": "EUR",
+                "name": "X",
+                "counterparty_iban": None,
+                "description": "",
+                "code": None,
+                "kind": None,
+                "dedup_hash": hash_,
+                "raw": {},
+            }
+        ],
+    )
     # The type is not a column you set but follows from the category, so here a
     # category of the requested type.
     from domain.money import categorization
+
     categorization.seed(conn)
-    category = {"EXPENSE": "Supermarkt", "INCOME": "Salaris",
-                 "INTERNAL": "Naar spaarrekening",
-                 "INVEST": categorization.INVESTMENT_CATEGORY,
-                 "FRIENDS": categorization.EXCLUDE}.get(type_)
-    conn.cursor().execute("UPDATE bank_transactions SET category_auto = ? WHERE dedup_hash = ?",
-                          (category, hash_))
+    category = {
+        "EXPENSE": "Supermarkt",
+        "INCOME": "Salaris",
+        "INTERNAL": "Naar spaarrekening",
+        "INVEST": categorization.INVESTMENT_CATEGORY,
+        "FRIENDS": categorization.EXCLUDE,
+    }.get(type_)
+    conn.cursor().execute("UPDATE bank_transactions SET category_auto = ? WHERE dedup_hash = ?", (category, hash_))
     conn.commit()
 
 
@@ -333,15 +347,17 @@ def test_spending_is_split_per_group():
     conn = _conn()
     r = _account(conn, "ING")
     from domain.money import categorization
+
     categorization.seed(conn)
-    for i, (name, amount, cat) in enumerate([
-        ("AH", 100.0, "Supermarkt"),
-        ("JUMBO", 50.0, "Supermarkt"),
-        ("NS", 30.0, "Openbaar vervoer"),
-    ]):
+    for i, (name, amount, cat) in enumerate(
+        [
+            ("AH", 100.0, "Supermarkt"),
+            ("JUMBO", 50.0, "Supermarkt"),
+            ("NS", 30.0, "Openbaar vervoer"),
+        ]
+    ):
         _tx(conn, r, "2026-01-05", amount, "EXPENSE", f"{i}" * 16)
-        conn.cursor().execute("UPDATE bank_transactions SET category_auto = ? WHERE dedup_hash = ?",
-                              (cat, f"{i}" * 16))
+        conn.cursor().execute("UPDATE bank_transactions SET category_auto = ? WHERE dedup_hash = ?", (cat, f"{i}" * 16))
     conn.commit()
 
     groups = net_worth.per_month(conn)[0]["groups"]
@@ -357,16 +373,22 @@ def test_small_groups_merge_under_other():
     conn = _conn()
     r = _account(conn, "ING")
     from domain.money import categorization
+
     categorization.seed(conn)
     # Nine groups: eight large and one small.
-    pairs = [("Supermarkt", 900.0), ("Huur", 800.0), ("Verzekeringen", 700.0),
-             ("Openbaar vervoer", 600.0), ("Uitjes & evenementen", 500.0),
-             ("Kleding & schoenen", 400.0), ("Media & software", 300.0),
-             ("Betaald aan vrienden", 5.0)]
+    pairs = [
+        ("Supermarkt", 900.0),
+        ("Huur", 800.0),
+        ("Verzekeringen", 700.0),
+        ("Openbaar vervoer", 600.0),
+        ("Uitjes & evenementen", 500.0),
+        ("Kleding & schoenen", 400.0),
+        ("Media & software", 300.0),
+        ("Betaald aan vrienden", 5.0),
+    ]
     for i, (cat, amount) in enumerate(pairs):
         _tx(conn, r, "2026-01-05", amount, "EXPENSE", f"{i:x}" * 16)
-        conn.cursor().execute("UPDATE bank_transactions SET category_auto = ? WHERE dedup_hash = ?",
-                              (cat, f"{i:x}" * 16))
+        conn.cursor().execute("UPDATE bank_transactions SET category_auto = ? WHERE dedup_hash = ?", (cat, f"{i:x}" * 16))
     conn.commit()
 
     groups = net_worth.per_month(conn)[0]["groups"]
@@ -384,15 +406,17 @@ def test_a_group_keeps_the_same_name_in_every_month():
     conn = _conn()
     r = _account(conn, "ING")
     from domain.money import categorization
+
     categorization.seed(conn)
-    for i, (month, cat, amount) in enumerate([
-        ("2026-01-05", "Supermarkt", 500.0),
-        ("2026-02-05", "Supermarkt", 10.0),
-        ("2026-02-05", "Huur", 900.0),
-    ]):
+    for i, (month, cat, amount) in enumerate(
+        [
+            ("2026-01-05", "Supermarkt", 500.0),
+            ("2026-02-05", "Supermarkt", 10.0),
+            ("2026-02-05", "Huur", 900.0),
+        ]
+    ):
         _tx(conn, r, month, amount, "EXPENSE", f"{i}" * 16)
-        conn.cursor().execute("UPDATE bank_transactions SET category_auto = ? WHERE dedup_hash = ?",
-                              (cat, f"{i}" * 16))
+        conn.cursor().execute("UPDATE bank_transactions SET category_auto = ? WHERE dedup_hash = ?", (cat, f"{i}" * 16))
     conn.commit()
 
     months = {m["month"]: m["groups"] for m in net_worth.per_month(conn)}
@@ -405,6 +429,7 @@ def test_a_group_keeps_the_same_name_in_every_month():
 # A month is only complete when *every* account covers it
 # ---------------------------------------------------------------------------
 
+
 def test_a_month_is_complete_only_when_every_account_covers_it():
     """Coverage was decided over all accounts together, and that made a half month
     look like a whole one — just one level higher.
@@ -416,10 +441,15 @@ def test_a_month_is_complete_only_when_every_account_covers_it():
     conn = _conn()
     ing = _account(conn, "ING", iban="NL00INGB0000000001")
     bunq = _account(conn, "bunq", iban="NL00BUNQ0000000002")
-    for i, (r, d) in enumerate([
-        (ing, "2026-01-21"), (ing, "2026-02-20"),
-        (bunq, "2026-01-03"), (bunq, "2026-03-15"), (bunq, "2026-04-30"),
-    ]):
+    for i, (r, d) in enumerate(
+        [
+            (ing, "2026-01-21"),
+            (ing, "2026-02-20"),
+            (bunq, "2026-01-03"),
+            (bunq, "2026-03-15"),
+            (bunq, "2026-04-30"),
+        ]
+    ):
         _tx(conn, r, d, 10.0, "EXPENSE", f"{i}" * 16)
 
     months = {m["month"]: m for m in net_worth.per_month(conn)}
@@ -435,10 +465,14 @@ def test_a_month_every_account_covers_is_complete():
     conn = _conn()
     ing = _account(conn, "ING", iban="NL00INGB0000000001")
     bunq = _account(conn, "bunq", iban="NL00BUNQ0000000002")
-    for i, (r, d) in enumerate([
-        (ing, "2026-01-01"), (ing, "2026-03-31"),
-        (bunq, "2026-01-01"), (bunq, "2026-03-31"),
-    ]):
+    for i, (r, d) in enumerate(
+        [
+            (ing, "2026-01-01"),
+            (ing, "2026-03-31"),
+            (bunq, "2026-01-01"),
+            (bunq, "2026-03-31"),
+        ]
+    ):
         _tx(conn, r, d, 10.0, "EXPENSE", f"{i}" * 16)
 
     months = {m["month"]: m for m in net_worth.per_month(conn)}
@@ -455,10 +489,14 @@ def test_a_closed_account_does_not_hold_back_a_month():
     conn = _conn()
     ing = _account(conn, "ING", iban="NL00INGB0000000001")
     old = _account(conn, "Oude rekening", iban="NL91ABNA0417164300")
-    for i, (r, d) in enumerate([
-        (ing, "2026-01-01"), (ing, "2026-03-31"),
-        (old, "2026-01-05"), (old, "2026-01-10"),
-    ]):
+    for i, (r, d) in enumerate(
+        [
+            (ing, "2026-01-01"),
+            (ing, "2026-03-31"),
+            (old, "2026-01-05"),
+            (old, "2026-01-10"),
+        ]
+    ):
         _tx(conn, r, d, 10.0, "EXPENSE", f"{i}" * 16)
     accounts.update_account(conn, old, active=0)
 
@@ -470,6 +508,7 @@ def test_a_closed_account_does_not_hold_back_a_month():
 # ---------------------------------------------------------------------------
 # The portfolio is included, and you can see how much
 # ---------------------------------------------------------------------------
+
 
 def test_investments_split_into_portfolio_and_the_rest():
     """The portfolio is *in* your net worth, not next to it — and that must be
@@ -496,8 +535,7 @@ def test_a_measurement_after_the_last_price_day_is_not_lost():
     bank = _account(conn, "ING")
     accounts.set_balance(conn, bank, "2026-01-05", 1000.0)
 
-    series = net_worth.series(conn, _investments(
-        ("2026-01-01", 100.0), ("2026-01-02", 110.0), ("2026-01-03", 120.0)))
+    series = net_worth.series(conn, _investments(("2026-01-01", 100.0), ("2026-01-02", 110.0), ("2026-01-03", 120.0)))
 
     p = _point(series, "2026-01-05")
     assert p["portfolio"] == pytest.approx(120.0)
@@ -513,8 +551,7 @@ def test_net_is_always_the_sum_of_the_stacks():
     accounts.set_balance(conn, _account(conn, "Coinbase", kind="broker"), "2026-01-02", 300.0)
     accounts.set_balance(conn, _account(conn, "Studieschuld", kind="debt"), "2026-01-01", 5000.0)
 
-    series = net_worth.series(conn, _investments(
-        ("2026-01-01", 100.0), ("2026-01-02", 150.0), ("2026-01-03", 125.0)))
+    series = net_worth.series(conn, _investments(("2026-01-01", 100.0), ("2026-01-02", 150.0), ("2026-01-03", 125.0)))
     for p in series["points"]:
         assert p["net"] == pytest.approx(p["investments"] + p["bank"] + p["debt"]), p["d"]
         assert p["debt"] == pytest.approx(-5000.0), "positief ingevuld, negatief geteld"
@@ -524,6 +561,7 @@ def test_net_is_always_the_sum_of_the_stacks():
 # ---------------------------------------------------------------------------
 # When net worth starts, and when a percentage says something
 # ---------------------------------------------------------------------------
+
 
 def test_the_line_runs_per_calendar_day():
     """Also when the sources only say something now and then: otherwise the time axis
@@ -536,7 +574,7 @@ def test_the_line_runs_per_calendar_day():
     accounts.set_balance(conn, bank, "2026-03-01", 300.0)
 
     series = net_worth.series(conn, [])
-    assert len(series["points"]) == 60   # 1 January up to and including 1 March
+    assert len(series["points"]) == 60  # 1 January up to and including 1 March
     assert series["measurements"] == 2
     conn.close()
 
@@ -556,13 +594,29 @@ def test_no_percentage_on_an_almost_empty_base():
 # Money of others: "Niet meetellen"
 # ---------------------------------------------------------------------------
 
+
 def _from_others(conn, account_id, date, amount, hash_):
     from domain.money import bank_transactions
-    bank_transactions.save(conn, account_id, [{
-        "date": date, "interest_date": None, "amount": amount, "currency": "EUR",
-        "name": "FRIENDS", "counterparty_iban": None, "description": "",
-        "code": None, "kind": None, "dedup_hash": hash_, "raw": {},
-    }])
+
+    bank_transactions.save(
+        conn,
+        account_id,
+        [
+            {
+                "date": date,
+                "interest_date": None,
+                "amount": amount,
+                "currency": "EUR",
+                "name": "FRIENDS",
+                "counterparty_iban": None,
+                "description": "",
+                "code": None,
+                "kind": None,
+                "dedup_hash": hash_,
+                "raw": {},
+            }
+        ],
+    )
     conn.execute("UPDATE bank_transactions SET category_manual = 'Niet meetellen' WHERE dedup_hash = ?", (hash_,))
     conn.commit()
 
@@ -686,8 +740,7 @@ def test_bank_tx_counts_only_categories_that_land_in_bank_and_cash():
     _tx(conn, r, "2026-01-05", 500.0, "INVEST", "b" * 16)
     _tx(conn, r, "2026-01-05", -80.0, "FRIENDS", "c" * 16)
     _tx(conn, r, "2026-01-06", 60.0, "EXPENSE", "d" * 16)
-    conn.cursor().execute("UPDATE bank_transactions SET category_auto = 'Contant opnemen' WHERE dedup_hash = ?",
-                          ("d" * 16,))
+    conn.cursor().execute("UPDATE bank_transactions SET category_auto = 'Contant opnemen' WHERE dedup_hash = ?", ("d" * 16,))
     conn.commit()
     flows = {f["d"]: f for f in net_worth.daily_flows(conn)}
     assert flows["2026-01-05"]["bank_tx"] == 0.0
@@ -709,16 +762,19 @@ def test_points_carry_what_went_into_the_holdings_and_dividend():
     ]
     series = net_worth.series(conn, points)
     first, last = _point(series, "2026-01-01"), _point(series, "2026-01-03")
-    market = ((last["portfolio"] - first["portfolio"])
-              - (last["portfolio_invested"] - first["portfolio_invested"])
-              + (last["portfolio_dividends"] - first["portfolio_dividends"]))
-    assert market == pytest.approx(150.0)   # 100 price + 50 dividend
+    market = (
+        (last["portfolio"] - first["portfolio"])
+        - (last["portfolio_invested"] - first["portfolio_invested"])
+        + (last["portfolio_dividends"] - first["portfolio_dividends"])
+    )
+    assert market == pytest.approx(150.0)  # 100 price + 50 dividend
     conn.close()
 
 
 # ---------------------------------------------------------------------------
 # Balance corrections per account: where the corrections in Bank & cash come from
 # ---------------------------------------------------------------------------
+
 
 def _bridge_corrections(conn, start, end):
     """What split() calls corrections, for the same period."""
@@ -741,8 +797,7 @@ def test_corrections_of_an_account_with_only_balances_are_its_measurements():
     [acc] = out["accounts"]
     assert acc["account_id"] == r and acc["start_balance"] == 1000.0 and acc["end_balance"] == 1500.0
     assert acc["transactions"] == 0.0 and acc["correction"] == pytest.approx(500.0)
-    assert acc["events"] == [{"date": "2026-01-15", "kind": "measurement", "source": "sync",
-                              "balance": 1500.0, "amount": 500.0}]
+    assert acc["events"] == [{"date": "2026-01-15", "kind": "measurement", "source": "sync", "balance": 1500.0, "amount": 500.0}]
     conn.close()
 
 
@@ -767,8 +822,7 @@ def test_the_first_data_of_an_account_is_a_start_not_a_mistake():
     out = net_worth.bank_corrections(conn, "2026-01-10", "2026-01-31")
     [acc] = out["accounts"]
     assert acc["correction"] == pytest.approx(1000.0)
-    assert acc["events"] == [{"date": "2026-01-19", "kind": "start", "source": "derived",
-                              "balance": 1000.0, "amount": 1000.0}]
+    assert acc["events"] == [{"date": "2026-01-19", "kind": "start", "source": "derived", "balance": 1000.0, "amount": 1000.0}]
     assert out["total"] == pytest.approx(_bridge_corrections(conn, "2026-01-10", "2026-01-31"))
     conn.close()
 
@@ -776,17 +830,31 @@ def test_the_first_data_of_an_account_is_a_start_not_a_mistake():
 def test_a_savings_account_moves_with_transfers_from_your_current_account():
     conn = _conn()
     ing = _account(conn, "ING")
-    spaar = accounts.make_bank_account(conn, kind="bank", provider="manual", name="Spaar",
-                                       iban="NL11INGB0001234567")
+    spaar = accounts.make_bank_account(conn, kind="bank", provider="manual", name="Spaar", iban="NL11INGB0001234567")
     _tx(conn, ing, "2026-01-02", 10.0, "EXPENSE", "a" * 16)
     accounts.set_balance(conn, ing, "2026-01-02", 2000.0, source="manual")
     accounts.set_balance(conn, spaar, "2026-01-01", 500.0, source="manual")
     from domain.money import bank_transactions
-    bank_transactions.save(conn, ing, [{
-        "date": "2026-01-15", "interest_date": None, "amount": 300.0, "currency": "EUR",
-        "name": "Spaar", "counterparty_iban": "NL11INGB0001234567", "description": "",
-        "code": None, "kind": None, "dedup_hash": "c" * 16, "raw": {},
-    }])
+
+    bank_transactions.save(
+        conn,
+        ing,
+        [
+            {
+                "date": "2026-01-15",
+                "interest_date": None,
+                "amount": 300.0,
+                "currency": "EUR",
+                "name": "Spaar",
+                "counterparty_iban": "NL11INGB0001234567",
+                "description": "",
+                "code": None,
+                "kind": None,
+                "dedup_hash": "c" * 16,
+                "raw": {},
+            }
+        ],
+    )
     out = net_worth.bank_corrections(conn, "2026-01-10", "2026-01-15")
     [acc] = out["accounts"]
     assert acc["account_id"] == spaar and acc["correction"] == pytest.approx(300.0)

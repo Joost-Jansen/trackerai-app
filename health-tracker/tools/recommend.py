@@ -1,8 +1,8 @@
 """Recommend one of the regular routes (or a combination of loops) for a target distance, per sport.
 
-    python tools/recommend.py --km 14
-    python tools/recommend.py --km 14 --tolerance 0.08 --start r2
-    python tools/recommend.py --km 60 --sport ride
+python tools/recommend.py --km 14
+python tools/recommend.py --km 14 --tolerance 0.08 --start r2
+python tools/recommend.py --km 60 --sport ride
 """
 
 from __future__ import annotations
@@ -82,9 +82,7 @@ def recommend(
 
 def _describe(parts: list[str], by_id: dict) -> str:
     counts = Counter(parts)
-    return " + ".join(
-        f"{n}× {by_id[rid]['name']}" if n > 1 else by_id[rid]["name"] for rid, n in counts.items()
-    )
+    return " + ".join(f"{n}× {by_id[rid]['name']}" if n > 1 else by_id[rid]["name"] for rid, n in counts.items())
 
 
 def _typical(route: dict, sport: str) -> str:

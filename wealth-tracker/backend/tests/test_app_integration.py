@@ -57,8 +57,7 @@ def test_two_users_never_see_each_others_dashboard_data(client):
     xlsx_bytes = _build_transactions_xlsx()
     resp = client.post(
         "/api/uploads/transactions",
-        files={"files": ("Transactions.xlsx", xlsx_bytes,
-                          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={"files": ("Transactions.xlsx", xlsx_bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
     )
     assert resp.status_code == 200
     assert resp.json()["results"][0]["saved"] == 1
@@ -78,8 +77,9 @@ def test_the_summary_names_a_position_without_a_price(client):
     client.post("/api/auth/login", json={"username": "alice", "password": "alicepw"})
     client.post(
         "/api/uploads/transactions",
-        files={"files": ("Transactions.xlsx", _build_transactions_xlsx(),
-                          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={
+            "files": ("Transactions.xlsx", _build_transactions_xlsx(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        },
     )
 
     body = client.get("/api/dashboard/summary").json()
@@ -114,6 +114,7 @@ def test_get_db_connection_survives_teardown_on_another_thread(client):
 
     user = CurrentUser(username="alice", name="Alice", is_admin=False, beta_features=[])
     from starlette.requests import Request
+
     gen = get_db(Request({"type": "http", "method": "GET", "path": "/api/dashboard", "headers": []}), user)
 
     def teardown():
@@ -130,15 +131,29 @@ def test_get_db_connection_survives_teardown_on_another_thread(client):
 
 def _build_transactions_xlsx() -> bytes:
     import io
+
     import pandas as pd
 
-    df = pd.DataFrame([{
-        "Datum": "05-01-2026", "Tijd": "09:30", "Product": "iShares Core MSCI World",
-        "ISIN": "IE00B4L5Y983", "Beurs": "EAM", "Uitvoeringsplaats": "EAM",
-        "Aantal": 10, "Koers": 80.5, "Lokale waarde": -805.0, "Waarde": -805.0,
-        "Wisselkoers": 1.0, "Transactiekosten": -1.0, "Totaal": -806.0,
-        "Order Id": "order-1",
-    }])
+    df = pd.DataFrame(
+        [
+            {
+                "Datum": "05-01-2026",
+                "Tijd": "09:30",
+                "Product": "iShares Core MSCI World",
+                "ISIN": "IE00B4L5Y983",
+                "Beurs": "EAM",
+                "Uitvoeringsplaats": "EAM",
+                "Aantal": 10,
+                "Koers": 80.5,
+                "Lokale waarde": -805.0,
+                "Waarde": -805.0,
+                "Wisselkoers": 1.0,
+                "Transactiekosten": -1.0,
+                "Totaal": -806.0,
+                "Order Id": "order-1",
+            }
+        ]
+    )
     buf = io.BytesIO()
     df.to_excel(buf, index=False)
     return buf.getvalue()

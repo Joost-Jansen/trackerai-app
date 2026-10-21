@@ -1,3 +1,5 @@
+from datetime import UTC
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -21,13 +23,21 @@ def as_admin(app):
 
 def register(app, username="anna", password=ANNA_PW, **kw):
     c = TestClient(app)
-    return c, c.post("/api/register", json={"username": username, "email": f"{username}@example.org", "password": password, "consent": True, **kw})
+    return c, c.post(
+        "/api/register", json={"username": username, "email": f"{username}@example.org", "password": password, "consent": True, **kw}
+    )
 
 
 def test_first_env_user_is_admin_and_registration_is_closed(app):
     admin = as_admin(app)
     assert admin.get("/api/me").json()["is_admin"] is True
-    assert TestClient(app).get("/api/auth/config").json() | {"privacy": None} == {"registration": "closed", "first_user": False, "privacy": None, "session_days": 30, "front_door_url": None}
+    assert TestClient(app).get("/api/auth/config").json() | {"privacy": None} == {
+        "registration": "closed",
+        "first_user": False,
+        "privacy": None,
+        "session_days": 30,
+        "front_door_url": None,
+    }
     _, r = register(app)
     assert r.status_code == 403
 
@@ -68,7 +78,9 @@ def test_open_registration_and_data_isolation(app, engine):  # noqa: F811
     assert agent.get("/api/me").json()["username"] == "anna"
     assert agent.get("/api/activities").json() == []
     assert [t["name"] for t in admin.get("/api/agent-tokens").json()] == []
-    mcp = agent.post("/api/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "list_activities", "arguments": {}}}).json()
+    mcp = agent.post(
+        "/api/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "list_activities", "arguments": {}}}
+    ).json()
     assert "Ochtendloop" not in mcp["result"]["content"][0]["text"]
 
 
@@ -156,7 +168,13 @@ def test_first_person_to_register_is_admin_on_an_empty_install(tmp_path):
     settings = make_settings()
     settings.user, settings.password_hash = "", ""
     app = create_app(engine=e, settings=settings)
-    assert TestClient(app).get("/api/auth/config").json() | {"privacy": None} == {"registration": "open", "first_user": True, "privacy": None, "session_days": 30, "front_door_url": None}
+    assert TestClient(app).get("/api/auth/config").json() | {"privacy": None} == {
+        "registration": "open",
+        "first_user": True,
+        "privacy": None,
+        "session_days": 30,
+        "front_door_url": None,
+    }
     c, r = register(app, username="eerste")
     assert r.json()["is_admin"] is True
     assert TestClient(app).get("/api/auth/config").json()["registration"] == "closed"
@@ -175,7 +193,11 @@ def test_new_user_without_zones_gets_dashboard_and_trends(app, engine):  # noqa:
     assert d.status_code == 200 and d.json()["zones_set"] == [] and d.json()["zone_estimates"] == []
     assert anna.get("/api/trends").status_code == 200
     # Joost's zones say which sports are estimates; Anna's say nothing about him
-    db.set_setting(db.Scope(engine, 1), "zones", {"run": {"max_hr": 189, "bounds": [132, 147, 162, 176]}, "ride": {"max_hr": 182, "bounds": [127, 141, 156, 169], "estimate": True}})
+    db.set_setting(
+        db.Scope(engine, 1),
+        "zones",
+        {"run": {"max_hr": 189, "bounds": [132, 147, 162, 176]}, "ride": {"max_hr": 182, "bounds": [127, 141, 156, 169], "estimate": True}},
+    )
     assert admin.get("/api/dashboard").json()["zone_estimates"] == ["ride"]
     assert anna.get("/api/dashboard").json()["zone_estimates"] == []
 
@@ -192,13 +214,13 @@ def test_profile_resting_hr_is_used_without_sleep_data(app, engine):  # noqa: F8
 
 
 def test_logins_from_before_the_accounts_move_over_at_startup(tmp_path, monkeypatch):
-    import bcrypt
     from datetime import datetime, timezone
 
-    from trackerai_accounts import totp
+    import bcrypt
 
     from api.main import test_accounts
     from tools import secretbox
+    from trackerai_accounts import totp
 
     key = secretbox.default_key() or __import__("cryptography.fernet", fromlist=["Fernet"]).Fernet.generate_key().decode()
     monkeypatch.setenv("APP_ENCRYPTION_KEY", key)
@@ -209,7 +231,7 @@ def test_logins_from_before_the_accounts_move_over_at_startup(tmp_path, monkeypa
     anna = db.create_user(e, "anna", bcrypt.hashpw(pw.encode(), bcrypt.gensalt(4)).decode())
     db.create_user(e, "made-by-an-account", "!")
     secret = totp.new_secret()
-    db.update_user(e, anna, totp_secret=secretbox.encrypt(secret, key), totp_enabled_at=datetime.now(timezone.utc), totp_backup=[])
+    db.update_user(e, anna, totp_secret=secretbox.encrypt(secret, key), totp_enabled_at=datetime.now(UTC), totp_backup=[])
     settings = make_settings()
     settings.user, settings.password_hash = "", ""
     accounts = test_accounts(settings)

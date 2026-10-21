@@ -34,8 +34,7 @@ class Client:
 
 
 def message(content, stop="end_turn", **usage):
-    return {"model": "claude-test", "content": content, "stop_reason": stop,
-            "usage": {"input_tokens": 100, "output_tokens": 20, **usage}}
+    return {"model": "claude-test", "content": content, "stop_reason": stop, "usage": {"input_tokens": 100, "output_tokens": 20, **usage}}
 
 
 def test_structured_output_and_counts():
@@ -54,15 +53,27 @@ def test_fallbacks_go_through_the_beta_with_the_default_form():
 
 
 def test_tool_input():
-    r = ask({"model": "m", "max_tokens": 10, "messages": []},
-            client=Client(message([{"type": "tool_use", "name": "labels", "input": {"labels": [2]}}], stop="tool_use")))
+    r = ask(
+        {"model": "m", "max_tokens": 10, "messages": []},
+        client=Client(message([{"type": "tool_use", "name": "labels", "input": {"labels": [2]}}], stop="tool_use")),
+    )
     assert r.tool_input("labels") == {"labels": [2]} and r.tool_input("other") == {}
 
 
-@pytest.mark.parametrize("answer, code", [
-    (message([], stop="refusal", ) | {"stop_details": {"category": "bio"}}, "refused"),
-    (message([{"type": "text", "text": '{"a":'}], stop="max_tokens"), "truncated"),
-])
+@pytest.mark.parametrize(
+    "answer, code",
+    [
+        (
+            message(
+                [],
+                stop="refusal",
+            )
+            | {"stop_details": {"category": "bio"}},
+            "refused",
+        ),
+        (message([{"type": "text", "text": '{"a":'}], stop="max_tokens"), "truncated"),
+    ],
+)
 def test_refused_or_cut_off_is_an_error(answer, code):
     with pytest.raises(AiError) as e:
         ask({"model": "m", "max_tokens": 10, "messages": []}, client=Client(answer))

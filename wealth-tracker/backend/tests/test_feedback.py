@@ -24,7 +24,10 @@ def _admin(name="alice"):
 
 def _send(client, **kw):
     body = {
-        "kind": "bug", "message": "De budgetgrafiek blijft leeg", "page": "/budget", "app": "money",
+        "kind": "bug",
+        "message": "De budgetgrafiek blijft leeg",
+        "page": "/budget",
+        "app": "money",
         "context": {"browser": "Firefox 130", "screen": "1440x900", "errors": [{"message": "500 internal", "where": "GET /api/budget"}]},
     }
     return client.post("/api/feedback", json={**body, **kw})
@@ -69,6 +72,7 @@ def test_others_see_nothing_of_it(client):
     assert client.get("/api/admin/feedback").status_code == 403
     assert client.patch(f"/api/admin/feedback/{fid}", json={"status": "fixed"}).status_code == 403
     from app.main import app
+
     assert TestClient(app).post("/api/feedback", json={"kind": "bug", "message": "x"}).status_code == 401
 
 
@@ -100,6 +104,7 @@ def test_an_agent_token_cannot_send_feedback(client):
     _login(client)
     token = client.post("/api/agent-tokens", json={"name": "Claude", "scope": "write"}).json()["token"]
     from app.main import app
+
     agent = TestClient(app, headers={"Authorization": f"Bearer {token}"})
     assert _send(agent).status_code == 403
     assert agent.get("/api/admin/feedback").status_code == 403
@@ -144,7 +149,9 @@ def test_mcp_feedback_tools_only_for_an_admins_token(client):
     assert rpc(read, "tools/call", {"name": "update_feedback", "arguments": {"id": fid, "status": "fixed"}})["isError"]
     assert rpc(bob_token, "tools/call", {"name": "list_feedback", "arguments": {}})["isError"]
 
-    done = rpc(write, "tools/call", {"name": "update_feedback", "arguments": {"id": fid, "status": "planned", "reply": "Staat op de lijst"}})
+    done = rpc(
+        write, "tools/call", {"name": "update_feedback", "arguments": {"id": fid, "status": "planned", "reply": "Staat op de lijst"}}
+    )
     assert not done["isError"], done
     _login(client, "bob", "bobpw")
     assert client.get("/api/feedback").json()["feedback"][0]["reply"] == "Staat op de lijst"

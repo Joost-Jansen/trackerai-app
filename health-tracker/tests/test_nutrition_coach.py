@@ -49,7 +49,9 @@ def test_the_tools_come_with_the_beta(client, engine):  # noqa: F811
     assert err and "Voeding staat niet aan" in text
     on(engine)
     assert {"get_nutrition", "log_meal", "search_foods"} <= names()
-    init = rpc(client, "initialize", {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}).json()
+    init = rpc(
+        client, "initialize", {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}
+    ).json()
     assert "Voeding: waarden zijn schattingen" in init["result"]["instructions"]
 
 
@@ -67,7 +69,11 @@ def test_search_and_log_a_meal(client, engine):  # noqa: F811
     m = logged[0]
     assert (m["eaten_at"], m["moment"], m["input"], len(m["items"])) == ("07:30", "breakfast", "agent", 2)
     text, _ = call(client, "get_nutrition")
-    assert "# Voeding 2026-10-19 (rustdag)" in text and "Havermout: 60 g" in text and "| Koolhydraten | 59 g (0,8 g/kg) | 3,0-5,0 g/kg |" in text
+    assert (
+        "# Voeding 2026-10-19 (rustdag)" in text
+        and "Havermout: 60 g" in text
+        and "| Koolhydraten | 59 g (0,8 g/kg) | 3,0-5,0 g/kg |" in text
+    )
     assert "Waarschijnlijk niet alles gelogd (1 maaltijd)" in text
 
 
@@ -76,8 +82,14 @@ def test_a_range_and_the_context(client, engine):  # noqa: F811
     s = db.Scope(engine, 1)
     for day, n in (("2026-10-17", 2), ("2026-10-18", 1)):
         for i in range(n):
-            meals.create(s, day=day, eaten_at=f"{8 + 5 * i:02d}:00", moment="breakfast" if i == 0 else "lunch", input="search",
-                         items=[{"food_ref": "nevo:9001", "grams": 100}])
+            meals.create(
+                s,
+                day=day,
+                eaten_at=f"{8 + 5 * i:02d}:00",
+                moment="breakfast" if i == 0 else "lunch",
+                input="search",
+                items=[{"food_ref": "nevo:9001", "grams": 100}],
+            )
     text, _ = call(client, "get_nutrition", **{"from": "2026-10-17", "to": "2026-10-19"})
     assert "| 2026-10-17 | rustdag | 740 |" in text and "| 2026-10-19 | rustdag | - |" in text
     assert "Dekking: 1 van 3 dagen met minstens 2 maaltijden (2 met iets gelogd)" in text
@@ -90,12 +102,21 @@ def test_the_evening_before_a_night(client, app, engine):  # noqa: F811
     on(engine)
     s = db.Scope(engine, 1)
     meals.create(s, day="2026-10-18", eaten_at="18:30", moment="dinner", input="search", items=[{"food_ref": "nevo:9004", "grams": 100}])
-    meals.create(s, day="2026-10-18", eaten_at="21:30", moment="drinks", input="search",
-                 items=[{"food_ref": "nevo:9005", "grams": 1000}, {"food_ref": "nevo:9001", "grams": 200}])
+    meals.create(
+        s,
+        day="2026-10-18",
+        eaten_at="21:30",
+        moment="drinks",
+        input="search",
+        items=[{"food_ref": "nevo:9005", "grams": 1000}, {"food_ref": "nevo:9001", "grams": 200}],
+    )
     e = report.evening(s, "2026-10-18")
     assert e == {"day": "2026-10-18", "last_meal": "21:30", "alcohol_units": 3.9, "kcal": 1160, "late_large": True, "minute": 1290}
     assert report.evening(s, "2026-10-17") is None
-    assert report.evening_line(e) == "Avond ervoor (voeding): laatste maaltijd 21:30, 1160 kcal na 19:00, alcohol 3,9 eenheden, late grote maaltijd (na 20:30, 600+ kcal)."
+    assert (
+        report.evening_line(e)
+        == "Avond ervoor (voeding): laatste maaltijd 21:30, 1160 kcal na 19:00, alcohol 3,9 eenheden, late grote maaltijd (na 20:30, 600+ kcal)."
+    )
     text, _ = call(client, "get_day", day="2026-10-19")
     assert "Avond ervoor (voeding): laatste maaltijd 21:30" in text
     site = TestClient(app)
@@ -126,7 +147,9 @@ def test_the_table_parser():
     assert rows[0]["moment"] == "lunch" and rows[0]["eaten_at"] == "13:05"  # the moment from the row's own time
     assert warnings == ["regel 3: geen hoeveelheid in gram"]
     assert parse("x\ny", TODAY, "09:00")[1] == ["kolommen Voedingsmiddel en Gram zijn verplicht"]
-    assert parse("| Voedingsmiddel | Gram | Moment |\n|---|---|---|\n| banaan | 1 | brunch |", TODAY, "09:00")[1] == ["regel 2: onbekend moment 'brunch'"]  # counted as the table reads, header first
+    assert parse("| Voedingsmiddel | Gram | Moment |\n|---|---|---|\n| banaan | 1 | brunch |", TODAY, "09:00")[1] == [
+        "regel 2: onbekend moment 'brunch'"
+    ]  # counted as the table reads, header first
 
 
 def test_log_meal_is_all_or_nothing_and_teaches_no_portion(client, engine):  # noqa: F811

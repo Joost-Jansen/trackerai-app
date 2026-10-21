@@ -27,17 +27,59 @@ _DEFAULT_MARKET_TARGETS = {"US": 65, "Europe": 20, "Emerging Markets": 15}
 # markets rather than Europe, which is why this is a list and not a continent
 # lookup — the ETF tab's continent chart answers a different question.
 _EUROPE_MARKET_COUNTRIES = {
-    "United Kingdom", "Netherlands", "France", "Germany", "Switzerland", "Spain",
-    "Italy", "Sweden", "Denmark", "Norway", "Finland", "Belgium", "Ireland",
-    "Austria", "Portugal", "Luxembourg", "Iceland", "Jersey", "Guernsey",
-    "Liechtenstein", "Monaco",
+    "United Kingdom",
+    "Netherlands",
+    "France",
+    "Germany",
+    "Switzerland",
+    "Spain",
+    "Italy",
+    "Sweden",
+    "Denmark",
+    "Norway",
+    "Finland",
+    "Belgium",
+    "Ireland",
+    "Austria",
+    "Portugal",
+    "Luxembourg",
+    "Iceland",
+    "Jersey",
+    "Guernsey",
+    "Liechtenstein",
+    "Monaco",
 }
 _EM_MARKET_COUNTRIES = {
-    "China", "Taiwan", "India", "South Korea", "Brazil", "Mexico", "South Africa",
-    "Indonesia", "Thailand", "Malaysia", "Philippines", "Vietnam", "Saudi Arabia",
-    "United Arab Emirates", "Qatar", "Kuwait", "Turkey", "Poland", "Czechia",
-    "Hungary", "Greece", "Russia", "Chile", "Colombia", "Peru", "Argentina",
-    "Egypt", "Nigeria", "Morocco", "Kenya",
+    "China",
+    "Taiwan",
+    "India",
+    "South Korea",
+    "Brazil",
+    "Mexico",
+    "South Africa",
+    "Indonesia",
+    "Thailand",
+    "Malaysia",
+    "Philippines",
+    "Vietnam",
+    "Saudi Arabia",
+    "United Arab Emirates",
+    "Qatar",
+    "Kuwait",
+    "Turkey",
+    "Poland",
+    "Czechia",
+    "Hungary",
+    "Greece",
+    "Russia",
+    "Chile",
+    "Colombia",
+    "Peru",
+    "Argentina",
+    "Egypt",
+    "Nigeria",
+    "Morocco",
+    "Kenya",
 }
 
 _BOND_KEYWORDS = ["bond", "obligat", "government", "treasury", "gilt", "aggregate", "corporate"]
@@ -97,9 +139,7 @@ def load_market_targets(conn: sqlite3.Connection) -> dict:
         "US": int(saved.get("US", _DEFAULT_MARKET_TARGETS["US"])),
         "Europe": int(saved.get("Europe", _DEFAULT_MARKET_TARGETS["Europe"])),
         # "EM" is an older key for the same bucket (app.py:1403).
-        "Emerging Markets": int(
-            saved.get("Emerging Markets", saved.get("EM", _DEFAULT_MARKET_TARGETS["Emerging Markets"]))
-        ),
+        "Emerging Markets": int(saved.get("Emerging Markets", saved.get("EM", _DEFAULT_MARKET_TARGETS["Emerging Markets"]))),
     }
 
 
@@ -131,12 +171,14 @@ def categorise(conn: sqlite3.Connection, positions: list[dict]) -> list[dict]:
     rows = []
     for position in positions:
         category = _normalise_category(saved.get(position["isin"]))
-        rows.append({
-            "isin": position["isin"],
-            "name": position["name"],
-            "value": position.get("current_value") or 0.0,
-            "category": category or auto_guess_category(position["name"]),
-        })
+        rows.append(
+            {
+                "isin": position["isin"],
+                "name": position["name"],
+                "value": position.get("current_value") or 0.0,
+                "category": category or auto_guess_category(position["name"]),
+            }
+        )
     return rows
 
 
@@ -179,20 +221,11 @@ def split_investment(
     zero it recommends nothing.
     """
     new_total = total_value + amount
-    gaps = {
-        b: max(0.0, new_total * (targets[b] / 100.0) - by_bucket.get(b, 0.0))
-        for b in buckets
-    }
+    gaps = {b: max(0.0, new_total * (targets[b] / 100.0) - by_bucket.get(b, 0.0)) for b in buckets}
     total_gap = sum(gaps.values())
 
-    recommendations = {
-        b: (amount * gaps[b] / total_gap) if total_gap > 0 else 0.0
-        for b in buckets
-    }
-    after_pcts = {
-        b: ((by_bucket.get(b, 0.0) + recommendations[b]) / new_total * 100) if new_total > 0 else 0.0
-        for b in buckets
-    }
+    recommendations = {b: (amount * gaps[b] / total_gap) if total_gap > 0 else 0.0 for b in buckets}
+    after_pcts = {b: ((by_bucket.get(b, 0.0) + recommendations[b]) / new_total * 100) if new_total > 0 else 0.0 for b in buckets}
     return {
         "recommendations": recommendations,
         "after_pcts": after_pcts,
