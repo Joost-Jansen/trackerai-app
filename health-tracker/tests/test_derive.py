@@ -1,6 +1,7 @@
 from tests.helpers import square_loop
 from tools import db
 from tools.derive import derive
+from trackerai_testing import new_database_url
 
 ZONES = {"run": {"bounds": [132, 147, 162, 176], "max_hr": 189}}
 
@@ -20,7 +21,7 @@ def run(day, seed, hr=(140, 150, 150)):
 
 
 def setup():
-    e = db.connect("sqlite://")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     e = db.Scope(e, 1)
     db.set_setting(e, "zones", ZONES)
@@ -50,7 +51,7 @@ def test_derive_builds_routes_and_keeps_user_names():
 
 
 def test_derive_without_zones_setting_leaves_activities_untouched():
-    e = db.connect("sqlite://")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     e = db.Scope(e, 1)
     db.upsert_activity(e, run("2026-09-20", 1))

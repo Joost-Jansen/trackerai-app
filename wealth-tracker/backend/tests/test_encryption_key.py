@@ -20,7 +20,7 @@ def test_production_refuses_to_start_without_a_key(data, monkeypatch):
     monkeypatch.setattr(config, "ALLOW_INSECURE_DEFAULTS", False)
     monkeypatch.delenv("ALLOW_INSECURE_DEFAULTS", raising=False)
     # the shared accounts are set up (test_the_shared_accounts_are_required covers them missing)
-    monkeypatch.setenv("ACCOUNTS_DATABASE_URL", "sqlite://")
+    monkeypatch.setenv("ACCOUNTS_DATABASE_URL", "postgresql://never-connected/accounts")
     monkeypatch.setenv("ACCOUNTS_SESSION_SECRET", "s" * 40)
     monkeypatch.setenv("ACCOUNTS_ENCRYPTION_KEY", Fernet.generate_key().decode())
     with pytest.raises(RuntimeError, match="APP_ENCRYPTION_KEY"):

@@ -39,13 +39,6 @@ def now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _aware(value: datetime | None) -> datetime | None:
-    """SQLite hands back naive datetimes; they were written as UTC."""
-    if value is not None and value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value
-
-
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode()[:72], bcrypt.gensalt(rounds=12)).decode()
 
@@ -280,11 +273,11 @@ class Accounts:
         return any(verify_password(password, h) for h in (account or {}).get("legacy_password_hashes") or [])
 
     def _throttled(self, account: dict) -> bool:
-        since = _aware(account.get("failed_since"))
+        since = account.get("failed_since")
         return bool(since and now() - since < LOGIN_WINDOW and (account.get("failed_logins") or 0) >= LOGIN_FAILURES)
 
     def _failed(self, account: dict) -> None:
-        since = _aware(account.get("failed_since"))
+        since = account.get("failed_since")
         with self.engine.begin() as c:
             if since and now() - since < LOGIN_WINDOW:
                 c.execute(update(accounts).where(accounts.c.id == account["id"]).values(failed_logins=accounts.c.failed_logins + 1))
@@ -462,7 +455,7 @@ class Accounts:
             row = c.execute(select(email_codes).where(and_(
                 email_codes.c.account_id == account_id, email_codes.c.purpose == purpose, email_codes.c.used_at.is_(None)))
                 .order_by(email_codes.c.id.desc()).limit(1).with_for_update()).mappings().first()
-            if not row or _aware(row["expires_at"]) < now() or row["attempts"] >= CODE_ATTEMPTS:
+            if not row or row["expires_at"] < now() or row["attempts"] >= CODE_ATTEMPTS:
                 return None
             if not hmac.compare_digest(row["code_hash"], self._code_hash(account_id, purpose, code)):
                 c.execute(update(email_codes).where(email_codes.c.id == row["id"]).values(attempts=email_codes.c.attempts + 1))
@@ -876,7 +869,7 @@ class Accounts:
             row = c.execute(select(invites).where(invites.c.code == code)).mappings().first()
         if not row or row["used_by"] is not None:
             return None
-        expires = _aware(row["expires_at"])
+        expires = row["expires_at"]
         if expires and expires < now():
             return None
         return dict(row)

@@ -13,8 +13,9 @@ from trackerai_accounts.store import accounts as accounts_table
 PASSWORD = "a long enough passphrase"
 
 
-def config(tmp_path, **kw) -> Config:
-    base = dict(database_url=f"sqlite:///{tmp_path}/accounts.db", session_secret="s" * 40, encryption_key=crypto.new_key(),
+def config(database_url: str = "postgresql://never-connected/accounts", **kw) -> Config:
+    """A config for tests; `database_url` is a test database (pg_url) whenever the test connects."""
+    base = dict(database_url=database_url, session_secret="s" * 40, encryption_key=crypto.new_key(),
                 cookie_domain=None, cookie_secure=False)
     return Config(**{**base, **kw})
 
@@ -33,8 +34,8 @@ def make_app(accounts: Accounts, app: str | None) -> FastAPI:
 
 
 @pytest.fixture
-def accounts(tmp_path):
-    cfg = config(tmp_path)
+def accounts(pg_url):
+    cfg = config(pg_url)
     return Accounts(connect(cfg.database_url), cfg)
 
 
@@ -89,8 +90,8 @@ def test_one_login_for_both_apps(accounts, health, wealth):
     assert me["username"] == "bob" and me["apps"] == ["wealth"]
 
 
-def test_cookie_on_the_shared_domain(tmp_path):
-    cfg = config(tmp_path, cookie_domain="trackerai.nl", cookie_secure=True)
+def test_cookie_on_the_shared_domain(pg_url):
+    cfg = config(pg_url, cookie_domain="trackerai.nl", cookie_secure=True)
     accounts = Accounts(connect(cfg.database_url), cfg)
     client = TestClient(make_app(accounts, "wealth"), base_url="https://wealth.trackerai.nl")
     r = register(client)
@@ -184,10 +185,9 @@ def test_shared_policy_for_a_normal_account(accounts, health):
     assert bob.get("/api/data").json()["code"] == "totp_setup_required"
 
 
-def test_policy_off_and_all(tmp_path):
+def test_policy_off_and_all(new_pg_url):
     for policy, expected in (("off", 200), ("all", 403)):
-        cfg = config(tmp_path / policy, require_totp=policy)
-        (tmp_path / policy).mkdir()
+        cfg = config(new_pg_url(), require_totp=policy)
         accounts = Accounts(connect(cfg.database_url), cfg)
         c = TestClient(make_app(accounts, "wealth"))
         register(c)
@@ -296,10 +296,10 @@ def test_legacy_password_opens_the_account_until_changed(accounts, health):
     assert again.post("/api/auth/login", json={"username": "anna", "password": PASSWORD}).json()["code"] == "bad_credentials"
 
 
-def test_session_from_another_secret_is_refused(accounts, health, tmp_path):
+def test_session_from_another_secret_is_refused(accounts, health):
     register(health)
     token = health.cookies.get(session.COOKIE)
-    other_cfg = config(tmp_path / "x", session_secret="t" * 40)
+    other_cfg = config(session_secret="t" * 40)
     assert session.claims(token, other_cfg) is None
 
 
@@ -398,11 +398,11 @@ def test_stay_logged_in_or_a_browser_session(health, accounts):
     assert health.get("/api/auth/registration-status").json()["session_days"] == 30
 
 
-def test_registration_status_tells_the_front_door(tmp_path, health):
+def test_registration_status_tells_the_front_door(new_pg_url, health):
     assert health.get("/api/auth/registration-status").json()["front_door_url"] is None
     for kw, url in (({"cookie_domain": "trackerai.nl"}, "https://www.trackerai.nl"),
                     ({"cookie_domain": "trackerai.nl", "front_door": "https://trackerai.example/"}, "https://trackerai.example")):
-        cfg = config(tmp_path, **kw)
+        cfg = config(new_pg_url(), **kw)
         c = TestClient(make_app(Accounts(connect(cfg.database_url), cfg), "wealth"))
         assert c.get("/api/auth/registration-status").json()["front_door_url"] == url
     assert c.get("/api/auth/registration-status").json()["tracker_urls"] == {"health": "https://health.trackerai.nl",

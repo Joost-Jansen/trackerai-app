@@ -23,14 +23,15 @@ os.environ.setdefault("ACCOUNTS_SWEEP", "off")
 
 
 @pytest.fixture(autouse=True)
-def _accounts(tmp_path):
-    """Accounts of this test's own: SQLite in its folder, two-step login not required (a test about it sets
+def _accounts():
+    """Accounts of this test's own: a Postgres database of its own (packages/testing), two-step login not required (a test about it sets
     `accounts.config` itself). Logins from auth_config.yaml become accounts on their first use (core/accounts.py)."""
     from trackerai_accounts import Accounts, Config, connect, crypto
+    from trackerai_testing import new_database_url
 
     from app.core import accounts as shared
 
-    cfg = Config(database_url=f"sqlite:///{tmp_path / 'accounts.db'}", session_secret="s" * 40, encryption_key=crypto.new_key(),
+    cfg = Config(database_url=new_database_url(), session_secret="s" * 40, encryption_key=crypto.new_key(),
                  cookie_secure=False, require_totp="off")
     a = Accounts(connect(cfg.database_url), cfg)
     shared.use(a)

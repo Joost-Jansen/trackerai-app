@@ -42,6 +42,6 @@ def check() -> None:
     if problems:
         if not insecure:
             raise RuntimeError("The shared accounts are not set up: " + "; ".join(problems) + " (packages/accounts/README.md)")
-        _log.warning("[startup] ACCOUNTS_* not set; accounts in SQLite in the data folder (ALLOW_INSECURE_DEFAULTS=true).")
+        _log.warning("[startup] ACCOUNTS_* not set; accounts in compose.dev.yml's Postgres, keys in the data folder (ALLOW_INSECURE_DEFAULTS=true).")
     if insecure and config.COOKIE_SECURE:
         _log.warning("[startup] ALLOW_INSECURE_DEFAULTS=true while COOKIE_SECURE is on: is this production?")

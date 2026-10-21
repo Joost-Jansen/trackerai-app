@@ -6,10 +6,11 @@ from tests.test_sync import FakeGarmin
 from tools import db
 from tools.secretbox import decrypt, encrypt
 from tools.sync import DbSink, run_db_sync, sync_garmin
+from trackerai_testing import new_database_url
 
 
 def engine():
-    e = db.connect("sqlite://")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     e = db.Scope(e, 1)
     db.set_setting(e, "zones", {"run": {"bounds": [132, 147, 162, 176], "max_hr": 189}})

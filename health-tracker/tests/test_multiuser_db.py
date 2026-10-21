@@ -7,10 +7,11 @@ from sqlalchemy import insert
 from tests.test_store import GARMIN_ACTIVITY, GARMIN_SPLITS
 from tools import db
 from tools.store import from_garmin
+from trackerai_testing import new_database_url
 
 
 def fresh():
-    e = db.connect("sqlite://")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     return e
 
@@ -113,12 +114,12 @@ def _check_migrated(e):
     assert db.get_app_setting(e, "schema_version") == db.SCHEMA_VERSION
 
 
-def test_migration_from_single_user_sqlite(tmp_path):
-    _check_migrated(_v1_database(f"sqlite:///{tmp_path / 'v1.db'}"))
+def test_migration_from_a_single_user_database():
+    _check_migrated(_v1_database(new_database_url()))
 
 
 def test_schema_3_turns_stored_dutch_values_into_english(tmp_path):
-    e = db.connect(f"sqlite:///{tmp_path / 'v2.db'}")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     s = db.Scope(e, 1)
     old = db.create_plan(s, "Oud", "alice")
@@ -137,7 +138,7 @@ def test_schema_3_turns_stored_dutch_values_into_english(tmp_path):
 
 
 def test_schema_4_recomputes_the_sport_from_the_raw_type(tmp_path):
-    e = db.connect(f"sqlite:///{tmp_path / 'v3.db'}")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     s = db.Scope(e, 1)
     raw = lambda key, parent: {"garmin": {"id": 1, "raw": {"activityType": {"typeKey": key, "parentTypeId": parent}}}}  # noqa: E731

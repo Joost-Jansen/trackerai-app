@@ -7,27 +7,30 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import DBAPIError
 
 from api import example
 from api.main import create_app, today
 from scripts.seed_demo import HOME as DEMO_HOME
 from tests.test_api import engine, login, make_settings  # noqa: F401  (engine is a fixture)
 from tools import db
+from trackerai_testing import create_database, drop_database
 
 EX = {"X-Example-Data": "1"}
 TOKEN = "example-test-token"
 
 
 @pytest.fixture(scope="module")
-def example_dir(tmp_path_factory):
-    return tmp_path_factory.mktemp("example")  # one seed for the whole module
+def example_url():
+    url = create_database()  # the example account's schemas: one seed for the whole module
+    yield url
+    drop_database(url)
 
 
 @pytest.fixture
-def app(engine, tmp_path, example_dir):  # noqa: F811
+def app(engine, example_url):  # noqa: F811
     settings = make_settings(agent_token_hash=hashlib.sha256(TOKEN.encode()).hexdigest())
-    return create_app(engine=engine, settings=settings, example_dir=example_dir)
+    return create_app(engine=engine, settings=settings, example_url=example_url)
 
 
 @pytest.fixture
@@ -40,7 +43,7 @@ def alice(app):
 def snapshot(engine):  # noqa: F811
     """Every row in the users' database, to prove example mode never changes it."""
     with engine.connect() as conn:
-        names = [r[0] for r in conn.execute(text("select name from sqlite_master where type='table'"))]
+        names = [r[0] for r in conn.execute(text("select tablename from pg_tables where schemaname = current_schema()"))]
         return {name: sorted(map(repr, conn.execute(text(f'select * from "{name}"')).all())) for name in names}
 
 
@@ -122,7 +125,7 @@ def test_every_write_is_refused_and_nothing_changes(alice, engine, app):  # noqa
     assert snapshot(engine) == before
     # the example database itself cannot be written either, not even past the API
     store = app.state.examples.store()
-    with pytest.raises(OperationalError):
+    with pytest.raises(DBAPIError, match="read-only transaction"):
         db.add_entry(store.scope, "log", "t", "b", "x")
     # and without the header the same write works as usual
     assert alice.post("/api/entries", json={"kind": "log", "title": "mine", "body": "b"}).status_code == 200
@@ -161,8 +164,8 @@ def test_header_needs_value_one_and_a_login(alice, app):
     assert TestClient(app).get("/api/activities", headers=EX).status_code == 401
 
 
-def rows(path):
-    e = example.read_only_engine(path)
+def rows(url, schema):
+    e = example._engine(url, schema, read_only=True)
     try:
         uid = db.get_user_by_name(e, example.USERNAME)["id"]
         s = db.Scope(e, uid)
@@ -182,24 +185,31 @@ def rows(path):
         e.dispose()
 
 
-def test_seed_is_deterministic(tmp_path, example_dir):
+def test_seed_is_deterministic(example_url, pg_url):
     day = today()
-    first = example_dir / f"example-{day.isoformat()}.db"
-    if not first.exists():
-        example.build(first, day)
-    again = tmp_path / "again.db"
-    example.build(again, day)
-    a, b = rows(first), rows(again)
+    a = rows(example_url, example.build(example_url, day))
+    b = rows(pg_url, example.build(pg_url, day))
     assert a == b
     assert a["user"]["password_hash"] == "!" and not a["user"]["is_admin"]
     assert len(a["activities"]) > 40 and len(a["wellness"]) == example.DAYS + 1
 
 
-def test_a_new_day_gives_a_new_example_database(tmp_path):
-    days = iter([date(2026, 3, 1), date(2026, 3, 1), date(2026, 3, 2)])
-    ex = example.ExampleData(tmp_path, lambda: next(days))
+def schemas(url):
+    e = db.connect(url)
+    try:
+        with e.connect() as conn:
+            return sorted(r[0] for r in conn.execute(text("select nspname from pg_namespace where nspname like 'example%'")))
+    finally:
+        e.dispose()
+
+
+def test_a_new_day_gives_a_new_example_schema_and_the_old_ones_go(pg_url):
+    days = iter([date(2026, 3, 1), date(2026, 3, 1), date(2026, 3, 2), date(2026, 3, 4)])
+    ex = example.ExampleData(pg_url, lambda: next(days))
     s1 = ex.store()
-    assert ex.store() is s1 and (tmp_path / "example-2026-03-01.db").exists()
+    assert ex.store() is s1 and schemas(pg_url) == ["example_20260301"]
     s2 = ex.store()
     assert s2 is not s1 and max(a["start_local"] for a in s2.activities) < "2026-03-02"
-    assert not (tmp_path / "example-2026-03-01.db").exists() and (tmp_path / "example-2026-03-02.db").exists()
+    assert schemas(pg_url) == ["example_20260301", "example_20260302"]  # yesterday's stays a day for other workers
+    ex.store()
+    assert schemas(pg_url) == ["example_20260304"]

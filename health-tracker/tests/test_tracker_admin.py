@@ -15,6 +15,7 @@ from tests.test_api import engine, make_settings  # noqa: F401  (fixture)
 from tests.test_feedback import send
 from tests.test_multiuser_api import as_admin, register
 from tools import db
+from trackerai_testing import new_database_url
 
 NO_HASH = "".join(["!"])  # local users without a password of their own (the account holds it)
 
@@ -144,7 +145,7 @@ def test_beta_toggle(hub, app, engine, monkeypatch):  # noqa: F811
 
 
 def test_betas_column_is_added_to_an_existing_database(tmp_path):
-    e = db.connect(f"sqlite:///{tmp_path / 'v6.db'}")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     uid = db.create_user(e, "anna", NO_HASH)
     with e.begin() as c:  # a schema 6 database: no betas yet
@@ -189,7 +190,7 @@ def test_feedback_of_an_unlinked_user_keeps_the_local_name(app, engine):  # noqa
 
 
 def test_front_door_origins_may_post(engine, tmp_path):  # noqa: F811
-    shared = Config(database_url=f"sqlite:///{tmp_path / 'accounts.db'}", session_secret="s" * 40, encryption_key=crypto.new_key(),
+    shared = Config(database_url=new_database_url(), session_secret="s" * 40, encryption_key=crypto.new_key(),
                     cookie_domain="trackerai.nl", cookie_secure=False, require_totp="off")
     c = TestClient(create_app(engine=engine, settings=make_settings(accounts=shared)))
     wrong = {"username": "alice", "password": "not-" + "the-pw"}

@@ -17,10 +17,10 @@ RUN pip install /tmp/websec /tmp/accounts /tmp/ai && rm -rf /tmp/websec /tmp/acc
 COPY health-tracker/api/ api/
 COPY health-tracker/tools/ tools/
 COPY health-tracker/scripts/seed_demo.py scripts/seed_demo.py
-# /data: temporary files (Apple uploads up to 2 GB, exports) and the example account, on a volume in docker-compose.yml so
+# /data: temporary files (Apple uploads up to 2 GB, exports), on a volume in docker-compose.yml so
 # the container's own filesystem can stay read-only. Owned by appuser: a new named volume copies that ownership.
-RUN useradd --uid 1000 --create-home appuser && mkdir -p /data/tmp /data/uploads /data/example && chown -R appuser:appuser /data
-ENV TMPDIR=/data/tmp APPLE_UPLOAD_DIR=/data/uploads EXAMPLE_DATA_DIR=/data/example
+RUN useradd --uid 1000 --create-home appuser && mkdir -p /data/tmp /data/uploads && chown -R appuser:appuser /data
+ENV TMPDIR=/data/tmp APPLE_UPLOAD_DIR=/data/uploads
 USER appuser
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

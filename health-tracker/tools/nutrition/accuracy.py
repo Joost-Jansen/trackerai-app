@@ -9,10 +9,11 @@ An item counts when it came from a photo (grams_ai set) and the user set its amo
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 from statistics import median
 import time
 import weakref
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 
@@ -20,6 +21,7 @@ from tools import db
 
 MONTHS = 3
 MIN_ITEMS = 5  # a food group with fewer corrected items shows no median
+TZ = ZoneInfo("Europe/Amsterdam")  # where a month starts, as the hub shows it
 
 
 def _group(conn) -> dict[str, str]:
@@ -28,7 +30,7 @@ def _group(conn) -> dict[str, str]:
 
 
 def stats(engine, today: date) -> dict:
-    month = today.replace(day=1).isoformat()
+    month = datetime(today.year, today.month, 1, tzinfo=TZ)  # created_at is a timestamp: compare it with one
     with engine.connect() as conn:
         runs = conn.execute(select(func.count(), func.coalesce(func.sum(db.nutrition_ai_runs.c.tokens_in), 0),
                                    func.coalesce(func.sum(db.nutrition_ai_runs.c.tokens_out), 0))

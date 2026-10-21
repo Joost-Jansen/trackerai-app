@@ -15,13 +15,14 @@ from sqlalchemy import inspect, update
 from tools import db
 from tools.nutrition import foods, meals, nevo
 from tools.nutrition.nutrients import energy_split, scale, total
+from trackerai_testing import new_database_url
 
 SAMPLE = (Path(__file__).parent / "nevo_sample.csv").read_bytes()
 
 
 @pytest.fixture
 def engine(tmp_path):
-    e = db.connect(f"sqlite:///{tmp_path / 'n.db'}")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     foods.invalidate()
     nevo.import_foods(e, nevo.csv_text(SAMPLE))
@@ -29,7 +30,7 @@ def engine(tmp_path):
 
 
 def test_schema_v8_adds_the_nutrition_tables_to_a_v7_database(tmp_path):
-    e = db.connect(f"sqlite:///{tmp_path / 'v7.db'}")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     with e.begin() as c:
         for t in ("meal_items", "meals", "foods", "user_foods", "meal_photos", "portion_memory", "meal_templates", "nutrition_ai_runs"):
@@ -127,8 +128,9 @@ def test_the_usual_portion_learns_from_what_you_set_not_from_estimates(engine):
     # an edit teaches only what it changed: saving untouched items again, or moving the time, leaves the portion be
     m = _breakfast(s, 100)
     before = meals.portions(s)["nevo:9001"]
-    meals.change(s, m["id"], eaten_at="09:00", items=[{"id": i["id"]} for i in m["items"]])
-    meals.change(s, m["id"], items=[{"id": i["id"], "grams": i["grams"]} for i in m["items"]])
+    # each save gives the items new ids, so every edit goes on from the meal the last one returned, as the site does
+    m = meals.change(s, m["id"], eaten_at="09:00", items=[{"id": i["id"]} for i in m["items"]])
+    m = meals.change(s, m["id"], items=[{"id": i["id"], "grams": i["grams"]} for i in m["items"]])
     assert meals.portions(s)["nevo:9001"] == before
     meals.change(s, m["id"], items=[{"id": m["items"][0]["id"], "grams": 40}, {"id": m["items"][1]["id"]}])
     assert meals.portions(s)["nevo:9001"]["uses"] == before["uses"] + 1

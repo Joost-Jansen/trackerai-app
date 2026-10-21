@@ -132,7 +132,7 @@ Light and dark mode both work:
 |---|---|
 | Web | Next.js 16 (App Router, standalone server), React 19, TypeScript, Tailwind, TanStack Query, Leaflet with OpenStreetMap tiles, hand-written SVG charts |
 | API | Python 3.12, FastAPI, Pydantic, SQLAlchemy Core, bcrypt, PyJWT |
-| Data | PostgreSQL in production, SQLite for tests and local runs (same code) |
+| Data | PostgreSQL everywhere: production, local runs and every test |
 | Sync | [`garminconnect`](https://github.com/cyberjunky/python-garminconnect) (unofficial) for activities and wellness, `fitdecode` for per-second streams from the original FIT files |
 | Agents | MCP over streamable HTTP (`api/mcp.py`), a REST API and a dependency-free CLI (`tools/tr.py`) |
 | Accounts | The shared trackerai account ([packages/accounts](../packages/accounts)), in its own accounts database |
@@ -203,8 +203,9 @@ refuses to start without the key (older installs used one derived from `TRAINING
   "typical" track.
 - **Context-aware comparisons.** Runs with 30 minutes or less between them are one session, and a run after a swim or a
   ride (a triathlon or brick) is excluded from pace trends and race predictions instead of being compared with a fresh run.
-- **One codebase, two databases.** SQLAlchemy Core with JSON columns runs unchanged on Postgres and SQLite, so the whole
-  test suite (270+ tests) runs in seconds against throwaway SQLite files, and the app runs locally without Docker.
+- **Tests on the database production runs.** Every test gets a Postgres database of its own (`packages/testing`, about
+  20 ms each from an empty template), so the 600+ tests check the same SQL, types and constraints as production and
+  can't share state.
 - **Schema migration in one transaction.** The move from a single-user to a multi-user schema happens at startup, in one
   transaction, and is idempotent; it was tested on a full copy of production data before it shipped.
 - **Agents are first-class users of the API.** The MCP tools return compact markdown designed for a language model
@@ -267,7 +268,7 @@ Every push to your fork's `main` redeploys the service whose watch paths it touc
 
 | Variable | Service | Required | What it does | How to get a value |
 |---|---|---|---|---|
-| `DATABASE_URL` | api, sync | yes | SQLAlchemy URL of the database. `postgresql://...` (Railway: `${{Postgres.DATABASE_URL}}`) or `sqlite:///path/to/file.db` | from your database |
+| `DATABASE_URL` | api, sync | yes | SQLAlchemy URL of the database. `postgresql://...` (Railway: `${{Postgres.DATABASE_URL}}`) | from your database |
 | `ACCOUNTS_DATABASE_URL`, `ACCOUNTS_SESSION_SECRET`, `ACCOUNTS_ENCRYPTION_KEY`, `SESSION_COOKIE_DOMAIN`, `REQUIRE_TOTP` | api | yes (the first three) | The shared trackerai account: the same values on every tracker. See [packages/accounts](../packages/accounts/README.md) | see there |
 | `RESEND_API_KEY`, `MAIL_FROM` (or `SMTP_*`) | web | for sign-up | Sends the welcome mail and login codes; the same on every tracker | a sending-only key from resend.com |
 | `FRONT_DOOR_URL` | api | no | The front door the site links to (the trackerai.nl admin page). Default: `https://www.<SESSION_COOKIE_DOMAIN>`; without a shared domain, no link. See [packages/accounts](../packages/accounts/README.md) | `https://www.trackerai.nl` |
@@ -280,7 +281,7 @@ Every push to your fork's `main` redeploys the service whose watch paths it touc
 | `PRIVACY_CONTROLLER`, `PRIVACY_CONTACT` | api | when others use it | Name and contact of whoever runs the installation (the GDPR controller), shown on /privacy | `Jane Doe`, `privacy@example.org` |
 | `MAX_UPLOAD_MB` | api | no | Largest FIT upload (default 25) | `25` |
 | `APPLE_IMPORT_MAX_MB`, `APPLE_CHUNK_MB`, `APPLE_UPLOAD_TTL_MIN` | api | no | Largest Apple Health export (default 2048), the parts the site uploads it in (default 32; below Cloudflare's 100 MB), minutes before an unfinished upload is removed (default 60) | `2048`, `32`, `60` |
-| `APPLE_UPLOAD_DIR`, `EXAMPLE_DATA_DIR`, `TMPDIR` | api | no | Where uploads in progress, the example account and temporary files (exports) go; the image sets them under `/data` | `/data/uploads` |
+| `APPLE_UPLOAD_DIR`, `TMPDIR` | api | no | Where uploads in progress and temporary files (exports) go; the image sets them under `/data` | `/data/uploads` |
 | `PUBLIC_URL` | api | no | The site's address for links in the feedback ping | `https://health.example.org` |
 | `PORT` | api | Railway: yes | Port uvicorn listens on (default 8000) | `8000` |
 | `HOST` | api | no | Bind address (default `0.0.0.0`). Keep it IPv4; `::` breaks Railway's healthcheck in new environments | `0.0.0.0` |
@@ -314,8 +315,7 @@ docker run -d -p 8000:8000 \
 curl localhost:8000/api/health   # {"status":"ok"}
 ```
 
-For a quick try without Postgres, `-e DATABASE_URL=sqlite:////tmp/health.db` works too (the data is gone with the
-container). Put a TLS-terminating proxy in front for anything public; the cookie is `Secure` by default.
+Put a TLS-terminating proxy in front for anything public; the cookie is `Secure` by default.
 
 ## Self-hosting (Docker Compose)
 
@@ -342,16 +342,18 @@ git clone https://github.com/Joost-Jansen/trackerai-app && cd trackerai-app/heal
 python3.12 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 (cd .. && npm ci)                                # one npm install at the repo root
 
-# the accounts in a local SQLite file too
-export ACCOUNTS_DATABASE_URL=sqlite:///accounts.db
+# Postgres for every app, with an `accounts`, `health` and `wealth` database (from the repo root)
+(cd .. && docker compose -f compose.dev.yml up -d)
+export DATABASE_URL=postgresql://postgres:dev@127.0.0.1:55432/health
+export ACCOUNTS_DATABASE_URL=postgresql://postgres:dev@127.0.0.1:55432/accounts
 export REQUIRE_TOTP=off                      # no two-step login for the local demo
 export ACCOUNTS_SESSION_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 export ACCOUNTS_ENCRYPTION_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
 
-# a fresh SQLite database with the synthetic "demo" user (about six months of training)
-DATABASE_URL=sqlite:///demo.db .venv/bin/python scripts/seed_demo.py   # prints the demo password
+# the synthetic "demo" user (about six months of training)
+.venv/bin/python scripts/seed_demo.py         # prints the demo password
 
-ALLOW_INSECURE_DEFAULTS=true COOKIE_SECURE=false SYNC_IN_WEB=false DATABASE_URL=sqlite:///demo.db \
+ALLOW_INSECURE_DEFAULTS=true COOKIE_SECURE=false SYNC_IN_WEB=false \
 .venv/bin/uvicorn api.main:create_app --factory --port 8000 &
 (cd web && npm run dev)                      # the site on :3000, /api/* to the API on :8000
 ```
@@ -364,7 +366,8 @@ entries and an analysis, and then runs the same derive step as a real sync. Opti
 ## Development
 
 ```bash
-.venv/bin/python -m pytest -q          # backend: API, database, sync, zones, routes, plans, MCP (SQLite, no network)
+.venv/bin/pip install -e ../packages/testing   # once: a Postgres database per test (compose.dev.yml must be up)
+.venv/bin/python -m pytest -q          # backend: API, database, sync, zones, routes, plans, MCP (no network)
 cd web && npx tsc --noEmit             # frontend type check
 cd web && npm run build                # the Next server (standalone), also run by the Docker build
 cd web && npm run dev                  # hot reload on :3000, proxies /api/* to the API on :8000

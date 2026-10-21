@@ -115,7 +115,6 @@ def attach(s: db.Scope, photo_id: int, keep: str) -> None:
     with s.engine.begin() as conn:
         created = conn.execute(select(db.meal_photos.c.created_at).where(db.meal_photos.c.user_id == s.user_id, db.meal_photos.c.id == photo_id)).scalar_one_or_none()
         if created is not None:
-            created = created if created.tzinfo else created.replace(tzinfo=timezone.utc)
             conn.execute(db.meal_photos.update().where(db.meal_photos.c.id == photo_id).values(expires_at=_expiry(created, keep)))
 
 
@@ -125,8 +124,7 @@ def load(s: db.Scope, photo_id: int) -> tuple[str, bytes] | None:
                            .where(db.meal_photos.c.user_id == s.user_id, db.meal_photos.c.id == photo_id)).first()
     if row is None:
         return None
-    expires = row.expires_at
-    if expires is not None and (expires if expires.tzinfo else expires.replace(tzinfo=timezone.utc)) < _now():
+    if row.expires_at is not None and row.expires_at < _now():
         return None
     return row.mime, bytes(row.data)
 
@@ -161,5 +159,4 @@ def retention_changed(s: db.Scope, keep: str) -> None:
         claimed = select(db.meals.c.photo_id).where(db.meals.c.user_id == s.user_id, db.meals.c.photo_id.isnot(None))
         for pid, created in conn.execute(select(db.meal_photos.c.id, db.meal_photos.c.created_at)
                                          .where(db.meal_photos.c.user_id == s.user_id, db.meal_photos.c.id.in_(claimed))).all():
-            created = created if created.tzinfo else created.replace(tzinfo=timezone.utc)
             conn.execute(db.meal_photos.update().where(db.meal_photos.c.id == pid).values(expires_at=_expiry(created, keep)))

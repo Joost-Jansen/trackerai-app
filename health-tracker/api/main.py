@@ -9,15 +9,14 @@ Data comes from the database (DATABASE_URL), per user. Auth: the shared trackera
 from __future__ import annotations
 
 import os
-import tempfile
 import threading
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, Query
 from pydantic import BaseModel
+from sqlalchemy import text
 from trackerai_accounts import Accounts, Config, connect as connect_accounts, crypto, install as install_accounts, make_router as accounts_router
 from trackerai_accounts import open_accounts, session as account_session
 from trackerai_accounts.config import front_door_origins
@@ -60,7 +59,7 @@ class Settings:
     agent_token_hash: str = ""  # legacy env token, belongs to the first admin
     public_origins: tuple[str, ...] = ()  # PUBLIC_ORIGINS: extra origins allowed to post (the CSRF check)
     trusted_proxies: str = ""  # TRUSTED_PROXIES: whose CF-Connecting-IP / X-Forwarded-For is believed
-    accounts: Config | None = None  # the shared accounts (ACCOUNTS_*); tests get their own on SQLite
+    accounts: Config | None = None  # the shared accounts (ACCOUNTS_*); tests get their own in the test database
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -107,21 +106,24 @@ def check_production_secrets(settings: Settings) -> None:
         raise RuntimeError("APP_ENCRYPTION_KEY is not a valid Fernet key (32 url-safe base64-encoded bytes)")
 
 
-def test_accounts(settings: Settings) -> Accounts:
-    """Accounts of their own for a test app: SQLite in a fresh folder, two-step login not required (a test that is
-    about it passes its own Settings.accounts)."""
-    folder = tempfile.mkdtemp(prefix="accounts-")
-    cfg = Config(database_url=f"sqlite:///{folder}/accounts.db", session_secret=(settings.jwt_secret or "test").ljust(32, "x"),
+def test_accounts(settings: Settings, engine) -> Accounts:
+    """Accounts of their own for a test app: an `accounts` schema in the test's database (its tables would clash with
+    health-tracker's `settings`), two-step login not required (a test that is about it passes its own
+    Settings.accounts)."""
+    with engine.begin() as conn:
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS accounts"))
+    url = engine.url.update_query_dict({"options": "-csearch_path=accounts"}).render_as_string(hide_password=False)
+    cfg = Config(database_url=url, session_secret=(settings.jwt_secret or "test").ljust(32, "x"),
                  encryption_key=secretbox.default_key() or crypto.new_key(), cookie_secure=settings.cookie_secure,
                  session_days=settings.session_days, require_totp="off")
     return Accounts(connect_accounts(cfg.database_url), cfg)
 
 
 def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, garmin_client=None,
-               example_dir: Path | None = None, accounts: Accounts | None = None, **sync_kwargs) -> FastAPI:
+               example_url: str | None = None, accounts: Accounts | None = None, **sync_kwargs) -> FastAPI:
     """`garmin_auth`, `garmin_client` and `sync_kwargs` replace the real Garmin login, client and FIT reader (tests).
-    `example_dir` holds the example account's database (api/example.py; default EXAMPLE_DATA_DIR or the temp dir).
-    `accounts`: the shared accounts (default: from ACCOUNTS_* in production, a private SQLite one in tests)."""
+    `example_url`: the database the example account's schemas live in (api/example.py; default the app's own).
+    `accounts`: the shared accounts (default: from ACCOUNTS_* in production, a schema in the test's database in tests)."""
     settings = settings or Settings.from_env()
     production = engine is None  # engine from DATABASE_URL: the real service (tests pass their own engine)
     if production:
@@ -131,7 +133,7 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
         if settings.accounts is not None:
             accounts = Accounts(connect_accounts(settings.accounts.database_url), settings.accounts)
         else:
-            accounts = open_accounts() if production else test_accounts(settings)
+            accounts = open_accounts() if production else test_accounts(settings, engine)
     migrated = db.create_schema(engine)
     if migrated:
         print(f"database: omgezet naar meerdere gebruikers, alle data naar gebruiker 1: {migrated}", flush=True)
@@ -140,7 +142,7 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
         print(f"accounts: {moved} login(s) moved to the shared accounts", flush=True)
 
     stores = users.Stores(engine)
-    examples = example.ExampleData(example_dir, today)
+    examples = example.ExampleData(example_url or engine.url.render_as_string(hide_password=False), today)
     guards = users.Guards.from_env(settings.trusted_proxies)
     account_routes, sessions = accounts_router(
         accounts, users.APP, client_ip=guards.ip, after_leave=lambda: purge(),

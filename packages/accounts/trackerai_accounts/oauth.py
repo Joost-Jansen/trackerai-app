@@ -21,7 +21,7 @@ from sqlalchemy import insert, select, update
 
 from .config import APPS, CONSENT_APPS
 from .limits import Limiter
-from .service import now, _aware
+from .service import now
 from .store import accounts as people, account_apps, oauth_clients as clients, oauth_requests as pending
 from .store import oauth_grants as grants, oauth_codes as codes, oauth_tokens as tokens
 
@@ -94,7 +94,7 @@ class OAuth:
         app = apps.get(grant["app"])
         if (not account or account["suspended"] or account["deleted_at"] or not app
                 or (account["session_version"] or 0) != grant["session_version"]
-                or grant["revoked_at"] or _aware(grant["expires_at"]) <= now()
+                or grant["revoked_at"] or grant["expires_at"] <= now()
                 or (grant["app"] in CONSENT_APPS and not app["consent_at"])
                 or self.accounts.email_verify_required(dict(account))
                 or (self.accounts.totp_required(dict(account), apps) and not self.accounts.two_step(dict(account)))):
@@ -106,7 +106,7 @@ class OAuth:
             return None
         with self.accounts.engine.begin() as c:
             row = c.execute(select(tokens).where(tokens.c.digest == digest(token))).mappings().first()
-            if not row or row["used_at"] or _aware(row["expires_at"]) <= now():
+            if not row or row["used_at"] or row["expires_at"] <= now():
                 return None
             grant = c.execute(select(grants).where(grants.c.id == row["grant_id"])).mappings().first()
             if not grant or grant["app"] != app or grant["resource"] != self.accounts.config.resources.get(app):
@@ -114,7 +114,7 @@ class OAuth:
             person = self.eligible(c, grant)
             if not person:
                 return None
-            if not grant["last_used_at"] or (now() - _aware(grant["last_used_at"])).total_seconds() >= 300:
+            if not grant["last_used_at"] or (now() - grant["last_used_at"]).total_seconds() >= 300:
                 c.execute(update(grants).where(grants.c.id == grant["id"]).values(last_used_at=now()))
             account, apps = person
             return {"account": account, "apps": apps, "scope": "write" if f"{app}:write" in row["scope"].split() else "read",
@@ -175,7 +175,7 @@ class Validator(RequestValidator):
 
     def validate_code(self, client_id, code, client, request, *args, **kwargs):
         row = self.c.execute(select(codes).where(codes.c.digest == digest(code)).with_for_update()).mappings().first()
-        if not row or _aware(row["expires_at"]) <= now():
+        if not row or row["expires_at"] <= now():
             return False
         grant = self.c.execute(select(grants).where(grants.c.id == row["grant_id"])).mappings().first()
         if not grant or grant["client_id"] != client_id or request.resource != grant["resource"]:
@@ -348,7 +348,7 @@ def make_router(accounts, sessions, app: str, client_ip) -> APIRouter:
 
     def pending_request(c, nonce, who):
         row = c.execute(select(pending).where(pending.c.digest == digest(nonce)).with_for_update()).mappings().first()
-        if not row or row["used_at"] or _aware(row["expires_at"]) <= now() or row["account_id"] not in (None, who.id):
+        if not row or row["used_at"] or row["expires_at"] <= now() or row["account_id"] not in (None, who.id):
             return None
         bound = c.execute(update(pending).where(pending.c.digest == row["digest"],
             pending.c.used_at.is_(None),

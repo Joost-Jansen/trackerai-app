@@ -8,12 +8,13 @@ from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, MetaData, Prima
 
 from trackerai_accounts import Accounts, Config, connect, crypto, migrate, totp
 from trackerai_accounts.service import hash_password
+from trackerai_accounts.store import sqlalchemy_url
 
 T = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 
-def health_db(path, key):
-    url = f"sqlite:///{path}"
+def health_db(url, key):
+    """health-tracker's users table as it was before the shared accounts, in the database at `url`."""
     m = MetaData()
     users = Table("users", m, Column("id", Integer, primary_key=True), Column("username", String(40)), Column("display_name", String(80)),
                   Column("password_hash", String(100)), Column("is_admin", Boolean), Column("suspended", Boolean),
@@ -23,7 +24,7 @@ def health_db(path, key):
                   Column("totp_backup", JSON))
     settings = Table("settings", m, Column("user_id", Integer), Column("key", String(64)), Column("value", JSON), PrimaryKeyConstraint("user_id", "key"))
     app_settings = Table("app_settings", m, Column("key", String(64), primary_key=True), Column("value", JSON))
-    engine = create_engine(url)
+    engine = create_engine(sqlalchemy_url(url))
     m.create_all(engine)
     with engine.begin() as c:
         for row in [
@@ -57,11 +58,11 @@ def wealth_yaml(path, key):
 
 
 @pytest.fixture
-def setup(tmp_path):
-    cfg = Config(database_url=f"sqlite:///{tmp_path}/accounts.db", session_secret="s" * 40, encryption_key=crypto.new_key(), cookie_secure=False)
+def setup(tmp_path, new_pg_url):
+    cfg = Config(database_url=new_pg_url(), session_secret="s" * 40, encryption_key=crypto.new_key(), cookie_secure=False)
     target = Accounts(connect(cfg.database_url), cfg)
     hkey, wkey = crypto.new_key(), crypto.new_key()
-    health, hmode = migrate.read_health(health_db(tmp_path / "health.db", hkey), hkey)
+    health, hmode = migrate.read_health(health_db(new_pg_url(), hkey), hkey)
     return target, health, hmode, tmp_path, wkey
 
 

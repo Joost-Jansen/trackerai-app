@@ -6,8 +6,8 @@ and recovery values, four weeks of heart rate, stress, Body Battery, respiration
 Afterwards it runs `tools/derive.py` so zone times and routes exist, just like after a real sync.
 Nothing here comes from a real person: every number is generated from a fixed random seed.
 
-    DATABASE_URL=sqlite:///demo.db python scripts/seed_demo.py              # prints a generated password
-    DATABASE_URL=sqlite:///demo.db python scripts/seed_demo.py --reset      # delete the demo user first
+    DATABASE_URL=postgresql://postgres:dev@127.0.0.1:55432/health python scripts/seed_demo.py           # prints a generated password
+    DATABASE_URL=postgresql://postgres:dev@127.0.0.1:55432/health python scripts/seed_demo.py --reset   # delete the demo user first
     DEMO_PASSWORD=... python scripts/seed_demo.py --days 90 --end 2026-10-03
 
 On an empty database the demo user becomes the admin (like the first registration). The login lives in the shared
@@ -724,7 +724,7 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
     url = os.environ.get("DATABASE_URL")
     if not url:
-        p.error("set DATABASE_URL, e.g. sqlite:///demo.db")
+        p.error("set DATABASE_URL, e.g. postgresql://postgres:dev@127.0.0.1:55432/health (compose.dev.yml)")
     engine = db.connect(url)
     out = seed(engine, args.end, args.days, args.password, args.reset)
     shown = out.pop("password")

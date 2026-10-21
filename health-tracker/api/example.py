@@ -7,24 +7,23 @@ who you are, account, agent tokens, connections, onboarding, feedback. Admin, MC
 request with a Bearer agent token, ignore the header. Any write that carries the header is refused (403
 `example_read_only`, see `refuse_writes`), so example mode can never change anyone's data.
 
-The example account lives in its own SQLite database, apart from the users' database, and is opened read-only
-(`mode=ro`). It is made on first use with `scripts/seed_demo.py` (fixed random seeds, so the same day always gives the
-same data) around a made-up start point, and made again when the date changes so it always ends today. Nothing in it
-comes from a real person.
+The example account lives in a schema of its own in the app's database (`example_<yyyymmdd>`), apart from the users'
+tables, and is read through an engine whose every transaction is read-only, so Postgres itself refuses a write. It is
+made on first use with `scripts/seed_demo.py` (fixed random seeds, so the same day always gives the same data) around a
+made-up start point, and made again when the date changes so it always ends today. Nothing in it comes from a real
+person.
 """
 
 from __future__ import annotations
 
 import os
-import tempfile
 import threading
 from datetime import date
-from pathlib import Path
 from typing import Callable
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import create_engine
+from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from api.data import DataStore
@@ -76,30 +75,77 @@ async def refuse_writes(request: Request, call_next):
     return await call_next(request)
 
 
-def read_only_engine(path: Path) -> Engine:
-    """SQLite opened with mode=ro: a write fails in SQLite itself, whatever the code above it does."""
-    return create_engine(f"sqlite:///file:{path}?mode=ro&uri=true", future=True)
+SCHEMA_PREFIX = "example_"
+BUILDING = SCHEMA_PREFIX + "build"  # the one being seeded; a lock makes sure only one process seeds at a time
+_LOCK = 0x6865616C7468  # pg_advisory_lock key for seeding ("health")
 
 
-def build(path: Path, end: date) -> None:
-    """Seed the example account into a new database file at `path` (written next to it, then moved in place)."""
+def schema_for(day: date) -> str:
+    return f"{SCHEMA_PREFIX}{day:%Y%m%d}"
+
+
+def _engine(url: str, schema: str, read_only: bool = False) -> Engine:
+    """`url`'s database with `schema` as its search path. Read-only: every transaction is, so a write fails in Postgres
+    itself, whatever the code above it does."""
+    options = f"-csearch_path={schema}" + (" -cdefault_transaction_read_only=on" if read_only else "")
+    return db.connect(url, connect_args={"options": options})
+
+
+def _schemas(conn) -> set[str]:
+    return {r[0] for r in conn.execute(text("SELECT nspname FROM pg_namespace WHERE nspname LIKE 'example\\_%'"))}
+
+
+def build(url: str, day: date) -> str:
+    """Seed the example account for `day` into its schema, unless another process already did. It is seeded under a
+    temporary name and renamed into place, so a reader never sees half of it. Returns the schema."""
     from scripts.seed_demo import seed  # the demo seed, reused: same synthetic training, sleep and plan
 
-    tmp = path.with_name(path.name + f".{os.getpid()}.{threading.get_ident()}.tmp")
-    tmp.unlink(missing_ok=True)
-    engine = db.connect(f"sqlite:///{tmp}")
+    target = schema_for(day)
+    admin = db.connect(url)
     try:
-        seed(engine, end, days=DAYS, username=USERNAME, display_name="Example", home=HOME, login=False)
+        with admin.connect() as lock:
+            lock.execute(text("SELECT pg_advisory_lock(:k)"), {"k": _LOCK})
+            try:
+                with admin.begin() as conn:
+                    if target in _schemas(conn):
+                        return target
+                    conn.execute(text(f'DROP SCHEMA IF EXISTS "{BUILDING}" CASCADE'))  # left by a process that stopped
+                    conn.execute(text(f'CREATE SCHEMA "{BUILDING}"'))
+                engine = _engine(url, BUILDING)
+                try:
+                    seed(engine, day, days=DAYS, username=USERNAME, display_name="Example", home=HOME, login=False)
+                finally:
+                    engine.dispose()
+                with admin.begin() as conn:
+                    conn.execute(text(f'ALTER SCHEMA "{BUILDING}" RENAME TO "{target}"'))
+            finally:
+                lock.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": _LOCK})
+                lock.commit()
     finally:
-        engine.dispose()
-    os.replace(tmp, path)
+        admin.dispose()
+    return target
+
+
+def drop_before(url: str, day: date) -> None:
+    """The example schemas of days before `day`'s yesterday (yesterday's stays a little: another process may still read
+    it until its first request of the new day)."""
+    keep = {schema_for(day), schema_for(date.fromordinal(day.toordinal() - 1)), BUILDING}
+    admin = db.connect(url)
+    try:
+        with admin.begin() as conn:
+            for schema in sorted(_schemas(conn) - keep):
+                if schema[len(SCHEMA_PREFIX):].isdigit():
+                    conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+    finally:
+        admin.dispose()
 
 
 class ExampleData:
-    """The example account's data for today: seeded on first use, then read-only."""
+    """The example account's data for today: seeded on first use, then read-only. `url`: the database it lives in
+    (the app's own)."""
 
-    def __init__(self, directory: Path | None, today: Callable[[], date]):
-        self.directory = Path(directory or os.environ.get("EXAMPLE_DATA_DIR") or Path(tempfile.gettempdir()) / "health-tracker-example")
+    def __init__(self, url: str, today: Callable[[], date]):
+        self.url = url
         self.today = today
         self._lock = threading.Lock()
         self._day: date | None = None
@@ -107,7 +153,7 @@ class ExampleData:
         self._engine: Engine | None = None
 
     def warm(self) -> None:
-        """Make today's example database in a background thread (at startup)."""
+        """Make today's example account in a background thread (at startup)."""
 
         def run():
             try:
@@ -117,9 +163,6 @@ class ExampleData:
 
         threading.Thread(target=run, name="example-data", daemon=True).start()
 
-    def path(self, day: date) -> Path:
-        return self.directory / f"example-{day.isoformat()}.db"
-
     def store(self) -> DataStore:
         day = self.today()
         if self._day == day and self._store:
@@ -127,19 +170,15 @@ class ExampleData:
         with self._lock:
             if self._day == day and self._store:
                 return self._store
-            self.directory.mkdir(parents=True, exist_ok=True)
-            path = self.path(day)
-            if not path.exists():
-                build(path, day)
-            engine = read_only_engine(path)
+            schema = build(self.url, day)
+            engine = _engine(self.url, schema, read_only=True)
             user = db.get_user_by_name(engine, USERNAME)
             if not user:
-                raise RuntimeError(f"example database without '{USERNAME}': {path}")
-            old, old_day = self._engine, self._day
+                raise RuntimeError(f"example schema without '{USERNAME}': {schema}")
+            old = self._engine
             self._engine, self._day = engine, day
             self._store = DataStore(db.Scope(engine, user["id"]))
             if old is not None:
                 old.dispose()
-            if old_day and old_day != day:
-                self.path(old_day).unlink(missing_ok=True)
+            drop_before(self.url, day)
             return self._store

@@ -4,6 +4,7 @@ from tests.test_store import STRAVA_ACTIVITY, STRAVA_STREAMS
 from tools import db
 from tools.migrate_files_to_db import migrate, split_log
 from tools.store import from_strava, upsert_activity, write_wellness
+from trackerai_testing import new_database_url
 
 LOG = """# Log september 2026
 
@@ -37,7 +38,7 @@ def test_migrate_moves_files_into_database(tmp_path):
     (tmp_path / "routes" / "routes.json").write_text(json.dumps([{"id": "r1", "name": "Park", "distance_km": 6.2}]))
     (tmp_path / "data" / "sync_state.json").write_text(json.dumps({"last_sync_local": "2026-09-30 20:42"}))
 
-    engine = db.Scope(db.connect("sqlite://"), 1)
+    engine = db.Scope(db.connect(new_database_url()), 1)
     migrate(tmp_path, engine)
 
     acts = db.load_activities(engine)
@@ -55,7 +56,7 @@ def test_migrate_twice_does_not_duplicate(tmp_path):
     upsert_activity(tmp_path, from_strava(STRAVA_ACTIVITY, None))
     (tmp_path / "log").mkdir()
     (tmp_path / "log" / "2026-09.md").write_text(LOG)
-    engine = db.Scope(db.connect("sqlite://"), 1)
+    engine = db.Scope(db.connect(new_database_url()), 1)
     migrate(tmp_path, engine)
     migrate(tmp_path, engine)
     assert len(db.load_activities(engine)) == 1

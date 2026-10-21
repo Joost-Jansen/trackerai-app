@@ -67,8 +67,8 @@ def test_usage_per_week_and_active_accounts(health, accounts):  # noqa: F811
     assert u["last_seen"] == {str(anna): today.isoformat(), str(bob): (today - timedelta(days=20)).isoformat()}
 
 
-def test_usage_is_for_admins_and_goes_with_a_deleted_account(tmp_path):
-    cfg = config(tmp_path, require_totp="off")
+def test_usage_is_for_admins_and_goes_with_a_deleted_account(pg_url):
+    cfg = config(pg_url, require_totp="off")
     accounts = Accounts(connect(cfg.database_url), cfg)  # noqa: F811
     admin = TestClient(make_app(accounts, "health"), base_url="https://health.example")
     register(admin, name="rita")  # the first account: an admin

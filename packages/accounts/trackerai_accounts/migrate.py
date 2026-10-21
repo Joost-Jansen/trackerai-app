@@ -34,7 +34,7 @@ from sqlalchemy import MetaData, Table, create_engine, insert, select, update
 
 from trackerai_accounts import crypto
 from trackerai_accounts.service import Accounts, now
-from trackerai_accounts.store import account_apps, accounts, settings
+from trackerai_accounts.store import account_apps, accounts, settings, sqlalchemy_url
 
 STRICTNESS = ("closed", "invite", "open")
 
@@ -78,7 +78,7 @@ def read_health(url: str, key: str) -> tuple[list[Person], str | None]:
         url = "postgresql+psycopg://" + url[len("postgres://"):]
     elif url.startswith("postgresql://"):
         url = "postgresql+psycopg://" + url[len("postgresql://"):]
-    engine = create_engine(url)
+    engine = create_engine(sqlalchemy_url(url))
     users = Table("users", MetaData(), autoload_with=engine)
     user_settings = Table("settings", MetaData(), autoload_with=engine)
     app_settings = Table("app_settings", MetaData(), autoload_with=engine)

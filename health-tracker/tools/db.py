@@ -1,6 +1,6 @@
 """The training database: the single source of truth for the website, the sync and the agents.
 
-SQLAlchemy Core, so the same code runs on Postgres (Railway) and SQLite (tests, local).
+SQLAlchemy Core on Postgres: on Railway, on a laptop (compose.dev.yml at the repository root) and in the tests (packages/testing).
 
 Multi-user: every data table carries `user_id`, and every function that
 touches a user's data takes a `Scope(engine, user_id)` instead of an engine, so no query can forget the user.
@@ -413,23 +413,14 @@ class Scope:
     user_id: int
 
 
-def connect(url: str) -> Engine:
-    if url.startswith("postgres://"):
-        url = "postgresql+psycopg://" + url[len("postgres://") :]
-    elif url.startswith("postgresql://"):
-        url = "postgresql+psycopg://" + url[len("postgresql://") :]
-    if url.startswith("sqlite"):
-        # local runs and tests: wait for a lock instead of failing at once (a background import writes while the page
-        # reads), and WAL so readers do not wait for a writer. Postgres (production) needs neither.
-        engine = create_engine(url, pool_pre_ping=True, future=True, connect_args={"timeout": 30})
-        if ":memory:" not in url and url.rstrip("/") not in ("sqlite:", "sqlite:/"):
-            from sqlalchemy import event
-
-            @event.listens_for(engine, "connect")
-            def _wal(dbapi_conn, _record):
-                dbapi_conn.execute("PRAGMA journal_mode=WAL")
-        return engine
-    return create_engine(url, pool_pre_ping=True, future=True)
+def connect(url: str, **kwargs) -> Engine:
+    """An engine for DATABASE_URL (postgres:// or postgresql://, as Railway gives it), on psycopg 3."""
+    for scheme in ("postgres://", "postgresql://"):
+        if url.startswith(scheme):
+            url = "postgresql+psycopg://" + url[len(scheme) :]
+    if not url.startswith("postgresql+psycopg://"):
+        raise ValueError("DATABASE_URL must be a postgresql:// URL")
+    return create_engine(url, pool_pre_ping=True, future=True, **kwargs)
 
 
 def _now() -> datetime:
@@ -459,8 +450,6 @@ def _v1_meta() -> tuple[MetaData, dict[str, Table]]:
 
 def _fix_sequences(conn, tables) -> None:
     """After inserting explicit ids into Postgres serial columns, move the sequences past the highest id."""
-    if conn.dialect.name != "postgresql":
-        return
     for t in tables:
         conn.execute(text(f"SELECT setval(pg_get_serial_sequence('{t.name}', 'id'), COALESCE((SELECT MAX(id) FROM {t.name}), 0) + 1, false)"))
 
@@ -679,7 +668,7 @@ def add_audit(engine: Engine, actor: str, action: str, target: str | None = None
 def list_audit(engine: Engine, limit: int = 30) -> list[dict]:
     with engine.connect() as conn:
         rows = conn.execute(select(admin_audit).order_by(admin_audit.c.id.desc()).limit(limit)).mappings().all()
-    return [{**dict(r), "at": (r["at"] if r["at"].tzinfo else r["at"].replace(tzinfo=timezone.utc)).isoformat()} for r in rows]
+    return [{**dict(r), "at": r["at"].isoformat()} for r in rows]
 
 
 def count_users(engine: Engine) -> int:
@@ -823,12 +812,8 @@ def use_invite(engine: Engine, code: str, user_id: int) -> bool:
         row = conn.execute(select(invites).where(invites.c.code == code)).mappings().first()
         if not row or row["used_by"] is not None:
             return False
-        expires = row["expires_at"]
-        if expires is not None:
-            if expires.tzinfo is None:
-                expires = expires.replace(tzinfo=timezone.utc)
-            if expires < _now():
-                return False
+        if row["expires_at"] is not None and row["expires_at"] < _now():
+            return False
         conn.execute(update(invites).where(invites.c.code == code).values(used_by=user_id, used_at=_now()))
     return True
 
@@ -838,10 +823,7 @@ def invite_usable(engine: Engine, code: str) -> bool:
         row = conn.execute(select(invites).where(invites.c.code == code)).mappings().first()
     if not row or row["used_by"] is not None:
         return False
-    expires = row["expires_at"]
-    if expires is not None and (expires if expires.tzinfo else expires.replace(tzinfo=timezone.utc)) < _now():
-        return False
-    return True
+    return row["expires_at"] is None or row["expires_at"] >= _now()
 
 
 def delete_invite(engine: Engine, code: str) -> None:
@@ -865,9 +847,8 @@ def add_feedback(engine: Engine, user_id: int, kind: str, message: str, page: st
 def _feedback_out(row) -> dict:
     out = {k: row[k] for k in ("id", "user_id", "kind", "message", "page", "context", "status", "reply")}
     out["has_screenshot"] = bool(row["has_screenshot"])
-    utc = lambda d: (d if d.tzinfo else d.replace(tzinfo=timezone.utc)).isoformat() if d else None  # noqa: E731  (SQLite drops the zone)
-    out["created_at"] = utc(row["created_at"])
-    out["updated_at"] = utc(row["updated_at"])
+    out["created_at"] = row["created_at"].isoformat() if row["created_at"] else None
+    out["updated_at"] = row["updated_at"].isoformat() if row["updated_at"] else None
     if "username" in row:
         out["username"] = row["username"]
     return out

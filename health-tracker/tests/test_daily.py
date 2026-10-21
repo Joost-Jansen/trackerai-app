@@ -13,6 +13,7 @@ from tools import db
 from tools.intraday import intraday_from_garmin, night_summary
 from tools.store import wellness_from_garmin
 from tools.sync import DbSink, GarminClient, sync_garmin, today_report
+from trackerai_testing import new_database_url
 
 
 def ms(iso_utc: str) -> int:
@@ -141,7 +142,7 @@ class FakeGarminDay(FakeGarmin):
 
 
 def scope():
-    e = db.connect("sqlite://")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     return db.Scope(e, 1)
 
