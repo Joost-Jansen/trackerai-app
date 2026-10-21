@@ -9,10 +9,8 @@ and their history is then relabelled.
 
 import pytest
 
-from domain.money import bank_transactions
-from domain.money import categorization
 from domain import database
-from domain.money import accounts
+from domain.money import accounts, bank_transactions, categorization
 
 
 @pytest.fixture(autouse=True)
@@ -29,16 +27,29 @@ def conn():
 
 
 def _tx(conn, account_id, date, amount, name, description=""):
-    bank_transactions.save(conn, account_id, [{
-        "date": date, "interest_date": None, "amount": amount, "currency": "EUR", "name": name,
-        "counterparty_iban": None, "description": description, "code": None, "kind": None,
-        "dedup_hash": f"{date}{amount}{name}"[:40], "raw": {},
-    }])
+    bank_transactions.save(
+        conn,
+        account_id,
+        [
+            {
+                "date": date,
+                "interest_date": None,
+                "amount": amount,
+                "currency": "EUR",
+                "name": name,
+                "counterparty_iban": None,
+                "description": description,
+                "code": None,
+                "kind": None,
+                "dedup_hash": f"{date}{amount}{name}"[:40],
+                "raw": {},
+            }
+        ],
+    )
 
 
 def _category(conn, name):
-    return conn.execute("SELECT category_effective, type_effective FROM bank_transactions_typed "
-                        "WHERE name = ?", (name,)).fetchone()[:]
+    return conn.execute("SELECT category_effective, type_effective FROM bank_transactions_typed WHERE name = ?", (name,)).fetchone()[:]
 
 
 @pytest.fixture()

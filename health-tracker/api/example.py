@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import os
 import threading
+from collections.abc import Callable
 from datetime import date
-from typing import Callable
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -40,8 +40,19 @@ HOME = (52.0590, 5.8270)
 
 # Data routes that read from the example account in example mode (prefixes). Everything else stays the caller's own.
 EXAMPLE_PATHS = (
-    "/api/dashboard", "/api/activities", "/api/heatmap", "/api/trends", "/api/plans", "/api/docs", "/api/entries",
-    "/api/context", "/api/routes", "/api/zones", "/api/wellness", "/api/settings/zones", "/api/settings/profile",
+    "/api/dashboard",
+    "/api/activities",
+    "/api/heatmap",
+    "/api/trends",
+    "/api/plans",
+    "/api/docs",
+    "/api/entries",
+    "/api/context",
+    "/api/routes",
+    "/api/zones",
+    "/api/wellness",
+    "/api/settings/zones",
+    "/api/settings/profile",
     "/api/settings/resting-hr",
 )
 # Routes that ignore the header completely (no example data, no refusal).
@@ -135,7 +146,7 @@ def drop_before(url: str, day: date) -> None:
     try:
         with admin.begin() as conn:
             for schema in sorted(_schemas(conn) - keep):
-                if schema[len(SCHEMA_PREFIX):].isdigit():
+                if schema[len(SCHEMA_PREFIX) :].isdigit():
                     conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
     finally:
         admin.dispose()

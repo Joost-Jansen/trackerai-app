@@ -65,11 +65,7 @@ _HEADERS = {
 # To add a fund: find its page on ishares.com and copy the path here.
 
 _ISHARES_BASE = "https://www.ishares.com"
-_ISHARES_CSV_SUFFIX = (
-    "/1506575576011.ajax"
-    "?fileType=csv&fileName=holdings&dataType=fund"
-    "&switchLocale=y&siteEntryPassthrough=true"
-)
+_ISHARES_CSV_SUFFIX = "/1506575576011.ajax?fileType=csv&fileName=holdings&dataType=fund&switchLocale=y&siteEntryPassthrough=true"
 
 # The UK retail site was rebuilt (Astro) in 2026 and the CSV suffix above no
 # longer downloads anything there: it answers 200 with the product page HTML,
@@ -91,11 +87,7 @@ _PORTFOLIO_ID_RE = re.compile(r"/products/(\d+)")
 # site; they're served from the Swiss/German sites and publish holdings as
 # SpreadsheetML (Excel-2003 XML) rather than CSV.  The download module id is
 # constant across that site, so this suffix works for any registered DE path.
-_ISHARES_DE_SUFFIX = (
-    "/1535604580403.ajax"
-    "?fileType=xls&fileName=holdings&dataType=fund"
-    "&switchLocale=y&siteEntryPassthrough=true"
-)
+_ISHARES_DE_SUFFIX = "/1535604580403.ajax?fileType=xls&fileName=holdings&dataType=fund&switchLocale=y&siteEntryPassthrough=true"
 
 ISHARES_PRODUCTS: dict[str, str] = {
     # iShares Core MSCI World UCITS ETF USD (Acc) — IWDA
@@ -144,11 +136,11 @@ def _parse_ishares_csv(text: str) -> list[dict]:
 
     header = rows[header_idx]
     col = {name: j for j, name in enumerate(header)}
-    ticker_i  = col.get("Ticker")
-    name_i    = col.get("Name")
-    weight_i  = next((j for j, c in enumerate(header) if c.startswith("Weight")), None)
-    asset_i   = col.get("Asset Class")
-    sector_i  = col.get("Sector")
+    ticker_i = col.get("Ticker")
+    name_i = col.get("Name")
+    weight_i = next((j for j, c in enumerate(header) if c.startswith("Weight")), None)
+    asset_i = col.get("Asset Class")
+    sector_i = col.get("Sector")
     country_i = col.get("Location")
     if ticker_i is None or name_i is None or weight_i is None:
         return []
@@ -160,7 +152,7 @@ def _parse_ishares_csv(text: str) -> list[dict]:
         return v if v and v != "-" else None
 
     holdings = []
-    for row in rows[header_idx + 1:]:
+    for row in rows[header_idx + 1 :]:
         if len(row) <= weight_i:
             continue
         if asset_i is not None and len(row) > asset_i:
@@ -170,18 +162,20 @@ def _parse_ishares_csv(text: str) -> list[dict]:
         if weight is None or weight <= 0:
             continue
         symbol = row[ticker_i].strip()
-        name   = row[name_i].strip() or symbol
+        name = row[name_i].strip() or symbol
         if not symbol:
             symbol = name
         if not symbol:
             continue
-        holdings.append({
-            "symbol":  symbol,
-            "name":    name,
-            "weight":  weight / 100.0,
-            "sector":  _cell(row, sector_i),
-            "country": _cell(row, country_i),
-        })
+        holdings.append(
+            {
+                "symbol": symbol,
+                "name": name,
+                "weight": weight / 100.0,
+                "sector": _cell(row, sector_i),
+                "country": _cell(row, country_i),
+            }
+        )
     return holdings
 
 
@@ -197,8 +191,7 @@ def _parse_ishares_api(payload: dict) -> list[dict]:
     FX and futures rows are dropped.
     """
     try:
-        cols = (payload["componentsByNameMap"]["holdings"]
-                       ["containersByNameMap"]["all"]["dataPointsByNameMap"])
+        cols = payload["componentsByNameMap"]["holdings"]["containersByNameMap"]["all"]["dataPointsByNameMap"]
     except (KeyError, TypeError):
         return []
 
@@ -206,13 +199,13 @@ def _parse_ishares_api(payload: dict) -> list[dict]:
         value = (cols.get(key) or {}).get("value")
         return value if isinstance(value, list) else []
 
-    names   = column("issueName")
+    names = column("issueName")
     weights = column("holdingPercent")
     if not names or not weights:
         return []
-    tickers   = column("ticker")
-    assets    = column("assetClass")
-    sectors   = column("sectorName")
+    tickers = column("ticker")
+    assets = column("assetClass")
+    sectors = column("sectorName")
     countries = column("countryOfRisk")
 
     def _cell(arr, i):
@@ -234,21 +227,22 @@ def _parse_ishares_api(payload: dict) -> list[dict]:
         symbol = _cell(tickers, i) or name
         if not name:
             continue
-        holdings.append({
-            "symbol":  symbol or name,
-            "name":    name,
-            "weight":  weight / 100.0,
-            "sector":  _cell(sectors, i),
-            "country": _cell(countries, i),
-        })
+        holdings.append(
+            {
+                "symbol": symbol or name,
+                "name": name,
+                "weight": weight / 100.0,
+                "sector": _cell(sectors, i),
+                "country": _cell(countries, i),
+            }
+        )
     return holdings
 
 
 def _fetch_ishares_api(portfolio_id: str) -> list[dict] | None:
     """Fetch a fund's complete holdings from BlackRock's product-data API."""
     try:
-        r = requests.get(_ISHARES_API_URL.format(pid=portfolio_id),
-                         headers=_HEADERS, timeout=30)
+        r = requests.get(_ISHARES_API_URL.format(pid=portfolio_id), headers=_HEADERS, timeout=30)
         if r.status_code != 200:
             print(f"iShares API: HTTP {r.status_code} for portfolioId {portfolio_id}")
             return None
@@ -327,7 +321,7 @@ def _parse_ishares_xml(content: bytes) -> list[dict]:
         for r in table.findall(f"{ns}Row"):
             cells, col = [], 0
             for cell in r.findall(f"{ns}Cell"):
-                idx = cell.get(f"{ns}Index")   # sparse cells jump columns
+                idx = cell.get(f"{ns}Index")  # sparse cells jump columns
                 if idx:
                     col = int(idx) - 1
                 while len(cells) < col:
@@ -342,9 +336,7 @@ def _parse_ishares_xml(content: bytes) -> list[dict]:
     for ws in root.findall(f"{ns}Worksheet"):
         ws_rows = _worksheet_rows(ws)
         header_idx = next(
-            (i for i, row in enumerate(ws_rows[:40])
-             if any(c == "Name" for c in row)
-             and any((c or "").startswith("Weight") for c in row)),
+            (i for i, row in enumerate(ws_rows[:40]) if any(c == "Name" for c in row) and any((c or "").startswith("Weight") for c in row)),
             None,
         )
         if header_idx is not None:
@@ -355,11 +347,11 @@ def _parse_ishares_xml(content: bytes) -> list[dict]:
 
     header = [c or "" for c in rows[0]]
     col = {name: j for j, name in enumerate(header)}
-    ticker_i  = col.get("Ticker", col.get("Issuer Ticker"))
-    name_i    = col.get("Name")
-    weight_i  = next((j for j, c in enumerate(header) if c.startswith("Weight")), None)
-    asset_i   = col.get("Asset Class")
-    sector_i  = col.get("Sector")
+    ticker_i = col.get("Ticker", col.get("Issuer Ticker"))
+    name_i = col.get("Name")
+    weight_i = next((j for j, c in enumerate(header) if c.startswith("Weight")), None)
+    asset_i = col.get("Asset Class")
+    sector_i = col.get("Sector")
     country_i = col.get("Location")
     if name_i is None or weight_i is None:
         return []
@@ -384,13 +376,15 @@ def _parse_ishares_xml(content: bytes) -> list[dict]:
         symbol = _cell(row, ticker_i) or name
         if not name:
             continue
-        holdings.append({
-            "symbol":  symbol or name,
-            "name":    name,
-            "weight":  weight / 100.0,
-            "sector":  _cell(row, sector_i),
-            "country": _cell(row, country_i),
-        })
+        holdings.append(
+            {
+                "symbol": symbol or name,
+                "name": name,
+                "weight": weight / 100.0,
+                "sector": _cell(row, sector_i),
+                "country": _cell(row, country_i),
+            }
+        )
     return holdings
 
 
@@ -436,7 +430,7 @@ def _parse_spdr_xlsx(content: bytes) -> list[dict]:
     import openpyxl
 
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore")   # "no default style" noise from ssga files
+        warnings.simplefilter("ignore")  # "no default style" noise from ssga files
         wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
     ws = wb.active
 
@@ -451,9 +445,9 @@ def _parse_spdr_xlsx(content: bytes) -> list[dict]:
         return []
 
     header = [str(c) if c is not None else "" for c in rows[header_idx]]
-    name_i    = header.index("Security Name")
-    weight_i  = next(j for j, c in enumerate(header) if "Percent of Fund" in c)
-    sector_i  = next((j for j, c in enumerate(header) if "Sector Classification" in c), None)
+    name_i = header.index("Security Name")
+    weight_i = next(j for j, c in enumerate(header) if "Percent of Fund" in c)
+    sector_i = next((j for j, c in enumerate(header) if "Sector Classification" in c), None)
     country_i = next((j for j, c in enumerate(header) if "Trade Country Name" in c), None)
 
     def _cell(row, i):
@@ -463,10 +457,10 @@ def _parse_spdr_xlsx(content: bytes) -> list[dict]:
         return v if v and v.lower() not in ("-", "unassigned") else None
 
     holdings = []
-    for row in rows[header_idx + 1:]:
+    for row in rows[header_idx + 1 :]:
         if row is None or len(row) <= max(name_i, weight_i):
             continue
-        name   = row[name_i]
+        name = row[name_i]
         weight = row[weight_i]
         if name is None or weight is None:
             continue
@@ -476,13 +470,15 @@ def _parse_spdr_xlsx(content: bytes) -> list[dict]:
             continue
         if weight <= 0:
             continue
-        holdings.append({
-            "symbol":  "",
-            "name":    str(name).strip(),
-            "weight":  weight / 100.0,
-            "sector":  _cell(row, sector_i),
-            "country": _cell(row, country_i),
-        })
+        holdings.append(
+            {
+                "symbol": "",
+                "name": str(name).strip(),
+                "weight": weight / 100.0,
+                "sector": _cell(row, sector_i),
+                "country": _cell(row, country_i),
+            }
+        )
     return holdings
 
 
@@ -535,17 +531,46 @@ _VANGUARD_QUERY = """query FundsHoldingsQuery($portIds: [String!], $securityType
 # Vanguard reports countries as ISO 3166 alpha-2 codes; the other issuers
 # use names.  Unknown codes pass through unchanged.
 _ISO_COUNTRY = {
-    "US": "United States", "GB": "United Kingdom", "NL": "Netherlands",
-    "IE": "Ireland", "CH": "Switzerland", "DE": "Germany", "FR": "France",
-    "BE": "Belgium", "ES": "Spain", "IT": "Italy", "PT": "Portugal",
-    "AT": "Austria", "FI": "Finland", "SE": "Sweden", "NO": "Norway",
-    "DK": "Denmark", "LU": "Luxembourg", "JP": "Japan", "CN": "China",
-    "HK": "Hong Kong", "TW": "Taiwan", "KR": "South Korea", "IN": "India",
-    "SG": "Singapore", "AU": "Australia", "NZ": "New Zealand",
-    "CA": "Canada", "MX": "Mexico", "BR": "Brazil", "ZA": "South Africa",
-    "IL": "Israel", "AE": "United Arab Emirates", "SA": "Saudi Arabia",
-    "BM": "Bermuda", "KY": "Cayman Islands", "JE": "Jersey", "GG": "Guernsey",
-    "CW": "Curacao", "LI": "Liechtenstein", "MC": "Monaco",
+    "US": "United States",
+    "GB": "United Kingdom",
+    "NL": "Netherlands",
+    "IE": "Ireland",
+    "CH": "Switzerland",
+    "DE": "Germany",
+    "FR": "France",
+    "BE": "Belgium",
+    "ES": "Spain",
+    "IT": "Italy",
+    "PT": "Portugal",
+    "AT": "Austria",
+    "FI": "Finland",
+    "SE": "Sweden",
+    "NO": "Norway",
+    "DK": "Denmark",
+    "LU": "Luxembourg",
+    "JP": "Japan",
+    "CN": "China",
+    "HK": "Hong Kong",
+    "TW": "Taiwan",
+    "KR": "South Korea",
+    "IN": "India",
+    "SG": "Singapore",
+    "AU": "Australia",
+    "NZ": "New Zealand",
+    "CA": "Canada",
+    "MX": "Mexico",
+    "BR": "Brazil",
+    "ZA": "South Africa",
+    "IL": "Israel",
+    "AE": "United Arab Emirates",
+    "SA": "Saudi Arabia",
+    "BM": "Bermuda",
+    "KY": "Cayman Islands",
+    "JE": "Jersey",
+    "GG": "Guernsey",
+    "CW": "Curacao",
+    "LI": "Liechtenstein",
+    "MC": "Monaco",
 }
 
 
@@ -553,7 +578,7 @@ def _fetch_vanguard_portid(port_id: str) -> list[dict] | None:
     """Fetch full holdings for a Vanguard fund by its numeric portId."""
     holdings: list[dict] = []
     last_key = None
-    for _ in range(10):   # pagination safety cap (1500 rows per page)
+    for _ in range(10):  # pagination safety cap (1500 rows per page)
         try:
             r = requests.post(
                 _VANGUARD_GRAPHQL,
@@ -581,18 +606,20 @@ def _fetch_vanguard_portid(port_id: str) -> list[dict] | None:
             weight = it.get("marketValuePercentage")
             if weight is None or weight <= 0:
                 continue
-            name   = (it.get("issuerName") or it.get("securityLongDescription") or "").strip()
+            name = (it.get("issuerName") or it.get("securityLongDescription") or "").strip()
             symbol = (it.get("ticker") or "").strip()
             if not name and not symbol:
                 continue
             iso = (it.get("bloombergIsoCountry") or "").strip().upper()
-            holdings.append({
-                "symbol":  symbol,
-                "name":    name or symbol,
-                "weight":  weight / 100.0,
-                "sector":  (it.get("gicsSectorDescription") or "").strip() or None,
-                "country": _ISO_COUNTRY.get(iso, iso) if iso else None,
-            })
+            holdings.append(
+                {
+                    "symbol": symbol,
+                    "name": name or symbol,
+                    "weight": weight / 100.0,
+                    "sector": (it.get("gicsSectorDescription") or "").strip() or None,
+                    "country": _ISO_COUNTRY.get(iso, iso) if iso else None,
+                }
+            )
 
         last_key = block.get("lastItemKey")
         if not last_key:
@@ -622,7 +649,14 @@ _VANGUARD_PRODUCTLIST = "https://www.vanguardinvestor.co.uk/api/productList"
 # "FTSE All-World UCITS ETF" both collapse to "ftse all world".  "ex" is kept
 # on purpose — it distinguishes "Developed Europe" from "Developed Europe ex UK".
 _FUND_NAME_NOISE = {
-    "vanguard", "ucits", "etf", "fund", "shares", "share", "class", "plc",
+    "vanguard",
+    "ucits",
+    "etf",
+    "fund",
+    "shares",
+    "share",
+    "class",
+    "plc",
 }
 
 # Share-class / currency fragments.  A token made up only of these (e.g. the
@@ -630,8 +664,17 @@ _FUND_NAME_NOISE = {
 # Longest form first: the bits are stripped in order, so "dist" must be tried
 # before "dis" or "distributing" would leave a stray "t" behind.
 _CLASS_BITS = (
-    "accumulating", "distributing", "income", "usd", "eur", "gbp", "chf",
-    "acc", "dist", "dis", "inc",
+    "accumulating",
+    "distributing",
+    "income",
+    "usd",
+    "eur",
+    "gbp",
+    "chf",
+    "acc",
+    "dist",
+    "dis",
+    "inc",
 )
 
 
@@ -643,10 +686,7 @@ def _is_shareclass_token(t: str) -> bool:
 
 def _norm_fund_name(name: str) -> str:
     low = re.sub(r"[^a-z0-9 ]", " ", (name or "").lower())
-    return " ".join(
-        t for t in low.split()
-        if t not in _FUND_NAME_NOISE and not _is_shareclass_token(t)
-    )
+    return " ".join(t for t in low.split() if t not in _FUND_NAME_NOISE and not _is_shareclass_token(t))
 
 
 def _is_subsequence(q: str, s: str) -> bool:
@@ -686,9 +726,27 @@ def _vanguard_catalog(conn: sqlite3.Connection) -> list[dict] | None:
 # to the Vanguard ETF on the same index, e.g. "Invesco FTSE All-World" and the
 # catalogue's "FTSE All-World UCITS ETF" both reduce to "ftse all world".
 _INDEX_NAME_DROP = {
-    "ishares", "invesco", "amundi", "xtrackers", "lyxor", "hsbc", "spdr",
-    "ssga", "vaneck", "wisdomtree", "franklin", "fidelity", "jpmorgan", "jpm",
-    "ubs", "deka", "lgim", "blackrock", "source", "core", "index",
+    "ishares",
+    "invesco",
+    "amundi",
+    "xtrackers",
+    "lyxor",
+    "hsbc",
+    "spdr",
+    "ssga",
+    "vaneck",
+    "wisdomtree",
+    "franklin",
+    "fidelity",
+    "jpmorgan",
+    "jpm",
+    "ubs",
+    "deka",
+    "lgim",
+    "blackrock",
+    "source",
+    "core",
+    "index",
     # DeGiro's own abbreviations for the same issuers — the names arriving here
     # come out of its export, so these are the spellings half the portfolios
     # actually use. Left out, "VNGU FTSE ALL-WORLD" reduced to "vngu ftse all
@@ -696,7 +754,11 @@ _INDEX_NAME_DROP = {
     # holdings at all; spelled out in full the very same fund resolves to exact
     # issuer holdings. Same set as portfolio._NAME_EXPANSIONS, which exists
     # because DeGiro really does write them this way.
-    "vngu", "vgrd", "ishs", "ishrs", "stst",
+    "vngu",
+    "vgrd",
+    "ishs",
+    "ishrs",
+    "stst",
 }
 
 #: Issuer spellings that mean Vanguard, for the test that decides whether a fund
@@ -705,8 +767,7 @@ _VANGUARD_SPELLINGS = ("vanguard", "vngu", "vgrd")
 
 
 def _norm_index_name(name: str) -> str:
-    return " ".join(t for t in _norm_fund_name(name).split()
-                    if t not in _INDEX_NAME_DROP)
+    return " ".join(t for t in _norm_fund_name(name).split() if t not in _INDEX_NAME_DROP)
 
 
 def _vanguard_match(conn: sqlite3.Connection, name: str | None, allow_subseq: bool) -> tuple[str, str] | None:
@@ -739,8 +800,7 @@ def _vanguard_match(conn: sqlite3.Connection, name: str | None, allow_subseq: bo
             continue
         pid = it.get("portId")
         if pid:
-            by_name.setdefault(_norm_index_name(it.get("name") or ""),
-                               (pid, it.get("name") or ""))
+            by_name.setdefault(_norm_index_name(it.get("name") or ""), (pid, it.get("name") or ""))
 
     if want in by_name:
         return by_name[want]
@@ -748,8 +808,7 @@ def _vanguard_match(conn: sqlite3.Connection, name: str | None, allow_subseq: bo
     if allow_subseq:
         qs = want.replace(" ", "")
         if len(qs) >= 12:
-            hits = [v for nm, v in by_name.items()
-                    if _is_subsequence(qs, nm.replace(" ", ""))]
+            hits = [v for nm, v in by_name.items() if _is_subsequence(qs, nm.replace(" ", ""))]
             if len(hits) == 1:
                 return hits[0]
     return None
@@ -797,38 +856,51 @@ def _fetch_proxy(isin: str) -> list[dict] | None:
 # and a matching rule in _INDEX_RULES.
 
 _INDEX_PROXY_SOURCES: dict[str, dict] = {
-    "msci_world":    {"path": "/uk/individual/en/products/251882/ishares-msci-world-ucits-etf-acc-fund",
-                      "label": "Index proxy (iShares MSCI World)"},
-    "sp500":         {"path": "/uk/individual/en/products/251900/ishares-sp-500-ucits-etf-inc-fund",
-                      "label": "Index proxy (iShares S&P 500)"},
-    "euro_stoxx_50": {"path": "/uk/individual/en/products/251781/ishares-euro-stoxx-50-ucits-etf-inc-fund",
-                      "label": "Index proxy (iShares EURO STOXX 50)"},
-    "msci_europe":   {"path": "/uk/individual/en/products/251861/ishares-msci-europe-ucits-etf-acc-fund",
-                      "label": "Index proxy (iShares MSCI Europe)"},
-    "msci_em":       {"path": "/uk/individual/en/products/251858/ishares-msci-emerging-markets-ucits-etf-acc-fund",
-                      "label": "Index proxy (iShares MSCI EM)"},
-    "msci_em_imi":   {"path": "/uk/individual/en/products/264659/ishares-msci-emerging-markets-imi-ucits-etf",
-                      "label": "Index proxy (iShares MSCI EM IMI)"},
-    "msci_acwi":     {"path": "/uk/individual/en/products/251850/ishares-msci-acwi-ucits-etf",
-                      "label": "Index proxy (iShares MSCI ACWI)"},
-    "nasdaq_100":    {"path": "/uk/individual/en/products/253741/ishares-nasdaq-100-ucits-etf",
-                      "label": "Index proxy (iShares Nasdaq 100)"},
-    "aex":           {"path": "/uk/individual/en/products/251712/ishares-aex-ucits-etf",
-                      "label": "Index proxy (iShares AEX)"},
+    "msci_world": {
+        "path": "/uk/individual/en/products/251882/ishares-msci-world-ucits-etf-acc-fund",
+        "label": "Index proxy (iShares MSCI World)",
+    },
+    "sp500": {"path": "/uk/individual/en/products/251900/ishares-sp-500-ucits-etf-inc-fund", "label": "Index proxy (iShares S&P 500)"},
+    "euro_stoxx_50": {
+        "path": "/uk/individual/en/products/251781/ishares-euro-stoxx-50-ucits-etf-inc-fund",
+        "label": "Index proxy (iShares EURO STOXX 50)",
+    },
+    "msci_europe": {
+        "path": "/uk/individual/en/products/251861/ishares-msci-europe-ucits-etf-acc-fund",
+        "label": "Index proxy (iShares MSCI Europe)",
+    },
+    "msci_em": {
+        "path": "/uk/individual/en/products/251858/ishares-msci-emerging-markets-ucits-etf-acc-fund",
+        "label": "Index proxy (iShares MSCI EM)",
+    },
+    "msci_em_imi": {
+        "path": "/uk/individual/en/products/264659/ishares-msci-emerging-markets-imi-ucits-etf",
+        "label": "Index proxy (iShares MSCI EM IMI)",
+    },
+    "msci_acwi": {"path": "/uk/individual/en/products/251850/ishares-msci-acwi-ucits-etf", "label": "Index proxy (iShares MSCI ACWI)"},
+    "nasdaq_100": {"path": "/uk/individual/en/products/253741/ishares-nasdaq-100-ucits-etf", "label": "Index proxy (iShares Nasdaq 100)"},
+    "aex": {"path": "/uk/individual/en/products/251712/ishares-aex-ucits-etf", "label": "Index proxy (iShares AEX)"},
     # Single-country MSCI indices (verified full-replication iShares funds)
-    "msci_usa":      {"path": "/uk/individual/en/products/253740/ishares-msci-usa-b-ucits-etf",
-                      "label": "Index proxy (iShares MSCI USA)"},
-    "msci_japan":    {"path": "/uk/individual/en/products/251866/ishares-msci-japan-ucits-etf-inc-fund",
-                      "label": "Index proxy (iShares MSCI Japan)"},
-    "msci_china":    {"path": "/uk/individual/en/products/308751/ishares-msci-china-ucits-etf-usd-acc-fund",
-                      "label": "Index proxy (iShares MSCI China)"},
-    "msci_india":    {"path": "/uk/individual/en/products/297617/ishares-msci-india-ucits-etf-usd-acc-fund",
-                      "label": "Index proxy (iShares MSCI India)"},
-    "msci_uk":       {"path": "/uk/individual/en/products/253739/ishares-msci-uk-ucits-etf",
-                      "label": "Index proxy (iShares MSCI UK)"},
+    "msci_usa": {"path": "/uk/individual/en/products/253740/ishares-msci-usa-b-ucits-etf", "label": "Index proxy (iShares MSCI USA)"},
+    "msci_japan": {
+        "path": "/uk/individual/en/products/251866/ishares-msci-japan-ucits-etf-inc-fund",
+        "label": "Index proxy (iShares MSCI Japan)",
+    },
+    "msci_china": {
+        "path": "/uk/individual/en/products/308751/ishares-msci-china-ucits-etf-usd-acc-fund",
+        "label": "Index proxy (iShares MSCI China)",
+    },
+    "msci_india": {
+        "path": "/uk/individual/en/products/297617/ishares-msci-india-ucits-etf-usd-acc-fund",
+        "label": "Index proxy (iShares MSCI India)",
+    },
+    "msci_uk": {"path": "/uk/individual/en/products/253739/ishares-msci-uk-ucits-etf", "label": "Index proxy (iShares MSCI UK)"},
     # German-domiciled iShares fund → SpreadsheetML holdings ("fmt": "de_xls").
-    "stoxx_600":     {"path": "/ch/individual/en/products/251931/ishares-stoxx-europe-600-ucits-etf-de-fund",
-                      "label": "Index proxy (iShares STOXX Europe 600)", "fmt": "de_xls"},
+    "stoxx_600": {
+        "path": "/ch/individual/en/products/251931/ishares-stoxx-europe-600-ucits-etf-de-fund",
+        "label": "Index proxy (iShares STOXX Europe 600)",
+        "fmt": "de_xls",
+    },
 }
 
 # Name phrases → index key.  Only indices that genuinely mean the *same basket*
@@ -848,21 +920,21 @@ _INDEX_RULES_SPECIFIC: list[tuple[list[str], str]] = [
 # World (different baskets) don't get mismapped.
 _INDEX_RULES: list[tuple[list[str], str]] = [
     (["euro stoxx 50", "eurostoxx 50", "euro stoxx50", "estoxx 50", "ez50"], "euro_stoxx_50"),
-    (["stoxx europe 600", "stoxx 600", "stoxx600"],                          "stoxx_600"),
-    (["s&p 500", "s&p500", "sp 500", "sp500", "s & p 500"],                  "sp500"),
-    (["nasdaq 100", "nasdaq-100", "nasdaq100"],                              "nasdaq_100"),
-    (["msci acwi", "msci all country world", "acwi"],                        "msci_acwi"),
-    (["msci world"],                                                         "msci_world"),
-    (["msci europe"],                                                        "msci_europe"),
-    (["msci em", "msci emerging markets"],                                   "msci_em"),
-    (["aex"],                                                                "aex"),
+    (["stoxx europe 600", "stoxx 600", "stoxx600"], "stoxx_600"),
+    (["s&p 500", "s&p500", "sp 500", "sp500", "s & p 500"], "sp500"),
+    (["nasdaq 100", "nasdaq-100", "nasdaq100"], "nasdaq_100"),
+    (["msci acwi", "msci all country world", "acwi"], "msci_acwi"),
+    (["msci world"], "msci_world"),
+    (["msci europe"], "msci_europe"),
+    (["msci em", "msci emerging markets"], "msci_em"),
+    (["aex"], "aex"),
     # Single-country MSCI indices (matched only when spelled with "MSCI",
     # so a FTSE/CSI/Topix tracker on the same country isn't mismapped).
-    (["msci usa"],                                                           "msci_usa"),
-    (["msci japan"],                                                         "msci_japan"),
-    (["msci china"],                                                         "msci_china"),
-    (["msci india"],                                                         "msci_india"),
-    (["msci united kingdom", "msci uk"],                                     "msci_uk"),
+    (["msci usa"], "msci_usa"),
+    (["msci japan"], "msci_japan"),
+    (["msci china"], "msci_china"),
+    (["msci india"], "msci_india"),
+    (["msci united kingdom", "msci uk"], "msci_uk"),
 ]
 
 # Tokens that signal a *different* basket than the plain index (factor tilts,
@@ -874,26 +946,81 @@ _INDEX_RULES: list[tuple[list[str], str]] = [
 # it's a valid index for EM but small-cap-inclusive for the broad ones.
 _INDEX_VARIANT_GUARDS: list[str] = [
     # Size / coverage variants
-    "small cap", "smallcap", "small-cap", "mid cap", "mid-cap",
-    " ex ", " ex-", "ex usa", "ex uk", "ex japan", "ex europe",
-    "top 30", "ex-top", "ex top",
+    "small cap",
+    "smallcap",
+    "small-cap",
+    "mid cap",
+    "mid-cap",
+    " ex ",
+    " ex-",
+    "ex usa",
+    "ex uk",
+    "ex japan",
+    "ex europe",
+    "top 30",
+    "ex-top",
+    "ex top",
     # Factor / strategy tilts
-    "value", "growth", "momentum", "quality", "minimum volatility",
-    "min vol", "multifactor", "multi-factor", "high dividend", "dividend",
-    "buyback", "equal weight", "equal-weight", "leveraged", "2x", "3x",
-    "short", "inverse", "covered call", "swap",
+    "value",
+    "growth",
+    "momentum",
+    "quality",
+    "minimum volatility",
+    "min vol",
+    "multifactor",
+    "multi-factor",
+    "high dividend",
+    "dividend",
+    "buyback",
+    "equal weight",
+    "equal-weight",
+    "leveraged",
+    "2x",
+    "3x",
+    "short",
+    "inverse",
+    "covered call",
+    "swap",
     # Screens
-    "esg", "sri", "screened", "sustainab", "paris", "climate",
+    "esg",
+    "sri",
+    "screened",
+    "sustainab",
+    "paris",
+    "climate",
     # Sector / industry sub-indices (a "MSCI World <sector>" fund holds a
     # different basket than the parent index — never proxy these).
-    "sector", "information technology", "technology", "tech", "health care",
-    "healthcare", "financials", "financial", "consumer", "communication",
-    "industrials", "materials", "utilities", "energy", "real estate",
-    "banks", "insurance", "semiconductor", "biotech",
+    "sector",
+    "information technology",
+    "technology",
+    "tech",
+    "health care",
+    "healthcare",
+    "financials",
+    "financial",
+    "consumer",
+    "communication",
+    "industrials",
+    "materials",
+    "utilities",
+    "energy",
+    "real estate",
+    "banks",
+    "insurance",
+    "semiconductor",
+    "biotech",
     # Single-country lookalikes that are a *different* index than the plain
     # MSCI country index (China A-shares / CSI / Islamic / Leaders, etc.).
-    "china a", "a shares", "a-share", "a share", "csi", "a50", "hscei",
-    "islamic", "leaders", "onshore",
+    "china a",
+    "a shares",
+    "a-share",
+    "a share",
+    "csi",
+    "a50",
+    "hscei",
+    "islamic",
+    "leaders",
+    "onshore",
 ]
 
 

@@ -43,7 +43,9 @@ def test_seed_creates_demo_admin_with_data(seeded):
     assert last["sleep"]["start"] < last["sleep"]["end"] and last["sleep"]["end"] > 0
     assert last["sleep"]["stages"] and len(last["hr"]) > 100
     assert all(last.get(k) for k in ("stress", "bb", "resp", "spo2"))
-    assert all(k in db.load_wellness(s)[END.isoformat()] for k in ("sleep_resp", "sleep_stress", "bb_charged_sleep", "sleep_hr", "intensity_min"))
+    assert all(
+        k in db.load_wellness(s)[END.isoformat()] for k in ("sleep_resp", "sleep_stress", "bb_charged_sleep", "sleep_hr", "intensity_min")
+    )
 
 
 def test_seed_refuses_existing_user_without_reset(seeded):

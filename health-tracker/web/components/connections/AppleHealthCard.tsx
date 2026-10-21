@@ -38,10 +38,15 @@ export type AppleImport = {
 function Bar({ label, pct }: { label: string; pct: number | null }) {
   return (
     <div className="flex max-w-md flex-col gap-1.5 text-[12.5px] text-ink-muted" role="status" aria-live="polite">
-      <span>{label}{pct !== null && ` · ${pct}%`}</span>
+      <span>
+        {label}
+        {pct !== null && ` · ${pct}%`}
+      </span>
       <div className="h-1.5 overflow-hidden rounded-full bg-surface-sunk">
-        <div className={`h-full rounded-full bg-brand transition-[width] duration-500 ${pct === null ? "w-1/3 animate-pulse" : ""}`}
-             style={pct === null ? undefined : { width: `${pct}%` }} />
+        <div
+          className={`h-full rounded-full bg-brand transition-[width] duration-500 ${pct === null ? "w-1/3 animate-pulse" : ""}`}
+          style={pct === null ? undefined : { width: `${pct}%` }}
+        />
       </div>
     </div>
   );
@@ -55,7 +60,11 @@ const ATTEMPTS = 3; // per part, before the card asks the user
 
 function errorFrom(xhr: XMLHttpRequest): ApiError {
   let body: { code?: string; detail?: string; params?: Record<string, unknown> } = {};
-  try { body = JSON.parse(xhr.responseText); } catch { /* not json */ }
+  try {
+    body = JSON.parse(xhr.responseText);
+  } catch {
+    /* not json */
+  }
   return new ApiError(xhr.status, typeof body.detail === "string" ? body.detail : xhr.statusText, body.code, body.params);
 }
 
@@ -133,7 +142,13 @@ export default function AppleHealthCard({ highlight = false }: { highlight?: boo
     setUploading(Math.round(((p.next * p.started.chunk_size) / p.started.size) * 100));
     let next = p.next;
     try {
-      const state = await sendFrom(p, (n) => { next = n; }, setUploading);
+      const state = await sendFrom(
+        p,
+        (n) => {
+          next = n;
+        },
+        setUploading,
+      );
       qc.setQueryData(["apple-import"], state);
       was.current = true;
     } catch (err) {
@@ -169,82 +184,125 @@ export default function AppleHealthCard({ highlight = false }: { highlight?: boo
   }
 
   const p = q.data?.progress;
-  const stepLabel = !p ? m.progress.starting
-    : p.step === "read" ? m.progress.read
-    : p.step === "workouts" ? m.progress.workouts(p.done, p.total)
-    : p.step === "days" ? m.progress.days
-    : m.progress.derive;
+  const stepLabel = !p
+    ? m.progress.starting
+    : p.step === "read"
+      ? m.progress.read
+      : p.step === "workouts"
+        ? m.progress.workouts(p.done, p.total)
+        : p.step === "days"
+          ? m.progress.days
+          : m.progress.derive;
   const pct = p?.total && p.done != null ? Math.min(100, Math.round((p.done / p.total) * 100)) : null;
   const last = q.data?.last;
   const done = last?.imported_at ? last : null; // also after a failed later import: that earlier data is still here
 
   return (
-    <CollapsibleCard id="apple" title={m.title} icon={<HeartIcon className="h-5 w-5" />}
-      summary={uploading !== null ? `${m.uploading} · ${uploading}%` : running ? stepLabel
-        : last?.status === "failed" || error ? <span className="text-loss">{m.failed}</span> : m.manual}
+    <CollapsibleCard
+      id="apple"
+      title={m.title}
+      icon={<HeartIcon className="h-5 w-5" />}
+      summary={
+        uploading !== null ? (
+          `${m.uploading} · ${uploading}%`
+        ) : running ? (
+          stepLabel
+        ) : last?.status === "failed" || error ? (
+          <span className="text-loss">{m.failed}</span>
+        ) : (
+          m.manual
+        )
+      }
       reveal={highlight || running || uploading !== null || !!error || last?.status === "failed"}
-      className={highlight ? "ring-2 ring-[var(--border-focus)]" : ""}>
-        <div className="flex flex-col gap-3 text-[13px]">
-          {!done && <p className="max-w-prose leading-relaxed text-ink-muted">{m.intro}</p>}
-          {note && <p className="max-w-prose text-[12.5px]">{note}</p>}
-          {error && <p className="max-w-prose text-[12.5px] text-loss">{error}</p>}
-          {last?.status === "failed" && !running && uploading === null && (
-            <p className="max-w-prose text-[12.5px] text-loss">{errorText(new ApiError(422, "", last.error), t, m.failed)}</p>
-          )}
+      className={highlight ? "ring-2 ring-[var(--border-focus)]" : ""}
+    >
+      <div className="flex flex-col gap-3 text-[13px]">
+        {!done && <p className="max-w-prose leading-relaxed text-ink-muted">{m.intro}</p>}
+        {note && <p className="max-w-prose text-[12.5px]">{note}</p>}
+        {error && <p className="max-w-prose text-[12.5px] text-loss">{error}</p>}
+        {last?.status === "failed" && !running && uploading === null && (
+          <p className="max-w-prose text-[12.5px] text-loss">{errorText(new ApiError(422, "", last.error), t, m.failed)}</p>
+        )}
 
-          {uploading !== null ? (
-            <Bar label={m.uploading} pct={uploading} />
-          ) : running ? (
-            <Bar label={stepLabel} pct={pct} />
-          ) : done ? (
-            <dl className="grid max-w-md grid-cols-[150px_1fr] gap-y-1.5">
-              <dt className="text-ink-muted">{m.lastImport}</dt>
-              <dd>{done.imported_at ? f.dateTime(done.imported_at) : "–"}</dd>
-              <dt className="text-ink-muted">{m.workouts}</dt>
-              <dd>{m.workoutsValue(done.workouts ?? 0, done.merged ?? 0)}</dd>
-              <dt className="text-ink-muted">{m.nights}</dt>
-              <dd>{m.nightsValue(done.nights ?? 0, done.staged_nights ?? 0)}</dd>
-              <dt className="text-ink-muted">{m.period}</dt>
-              <dd>{done.first && done.last ? `${f.day(done.first)} – ${f.day(done.last)}` : "–"}</dd>
-              {!!done.kept_garmin_days && (<><dt className="text-ink-muted">Garmin</dt><dd>{m.keptGarmin(done.kept_garmin_days)}</dd></>)}
-            </dl>
-          ) : null}
+        {uploading !== null ? (
+          <Bar label={m.uploading} pct={uploading} />
+        ) : running ? (
+          <Bar label={stepLabel} pct={pct} />
+        ) : done ? (
+          <dl className="grid max-w-md grid-cols-[150px_1fr] gap-y-1.5">
+            <dt className="text-ink-muted">{m.lastImport}</dt>
+            <dd>{done.imported_at ? f.dateTime(done.imported_at) : "–"}</dd>
+            <dt className="text-ink-muted">{m.workouts}</dt>
+            <dd>{m.workoutsValue(done.workouts ?? 0, done.merged ?? 0)}</dd>
+            <dt className="text-ink-muted">{m.nights}</dt>
+            <dd>{m.nightsValue(done.nights ?? 0, done.staged_nights ?? 0)}</dd>
+            <dt className="text-ink-muted">{m.period}</dt>
+            <dd>{done.first && done.last ? `${f.day(done.first)} – ${f.day(done.last)}` : "–"}</dd>
+            {!!done.kept_garmin_days && (
+              <>
+                <dt className="text-ink-muted">Garmin</dt>
+                <dd>{m.keptGarmin(done.kept_garmin_days)}</dd>
+              </>
+            )}
+          </dl>
+        ) : null}
 
-          {!done && !running && uploading === null && (
-            <ol className="flex max-w-prose list-decimal flex-col gap-1 pl-5 text-[12.5px] leading-relaxed">
-              {m.steps.map((s) => <li key={s}>{s}</li>)}
-            </ol>
-          )}
+        {!done && !running && uploading === null && (
+          <ol className="flex max-w-prose list-decimal flex-col gap-1 pl-5 text-[12.5px] leading-relaxed">
+            {m.steps.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ol>
+        )}
 
-          <input ref={input} type="file" accept=".zip,.xml,application/zip,application/xml,text/xml" className="hidden"
-                 onChange={(e) => pick(e.target.files?.[0])} />
-          {pending && uploading === null && (
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="primary" onClick={() => run(pending)}>{m.retry}</Button>
-              <Button size="sm" variant="ghost" onClick={() => {
+        <input
+          ref={input}
+          type="file"
+          accept=".zip,.xml,application/zip,application/xml,text/xml"
+          className="hidden"
+          onChange={(e) => pick(e.target.files?.[0])}
+        />
+        {pending && uploading === null && (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="primary" onClick={() => run(pending)}>
+              {m.retry}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
                 api.del(`/api/apple/upload/${encodeURIComponent(pending.started.upload_id)}`).catch(() => {});
                 setPending(null);
                 setError(null);
-              }}>{m.cancel}</Button>
-            </div>
-          )}
-          {!running && uploading === null && !pending && (
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant={done ? "secondary" : "primary"} onClick={() => input.current?.click()}>
-                {done ? m.again : m.choose}
+              }}
+            >
+              {m.cancel}
+            </Button>
+          </div>
+        )}
+        {!running && uploading === null && !pending && (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant={done ? "secondary" : "primary"} onClick={() => input.current?.click()}>
+              {done ? m.again : m.choose}
+            </Button>
+            {done && (
+              <Button size="sm" variant="ghost" onClick={removeAll}>
+                {m.remove}
               </Button>
-              {done && <Button size="sm" variant="ghost" onClick={removeAll}>{m.remove}</Button>}
-            </div>
-          )}
-          {done && <p className="max-w-prose text-[12px] text-ink-muted">{m.againHint}</p>}
+            )}
+          </div>
+        )}
+        {done && <p className="max-w-prose text-[12px] text-ink-muted">{m.againHint}</p>}
 
-          <details className="max-w-prose text-[12px] text-ink-muted">
-            <summary className="cursor-pointer select-none hover:text-[var(--text-primary)]">{m.whatTitle}</summary>
-            <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-5 leading-relaxed">
-              {m.what.map((s) => <li key={s}>{s}</li>)}
-            </ul>
-          </details>
-        </div>
+        <details className="max-w-prose text-[12px] text-ink-muted">
+          <summary className="cursor-pointer select-none hover:text-[var(--text-primary)]">{m.whatTitle}</summary>
+          <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-5 leading-relaxed">
+            {m.what.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ul>
+        </details>
+      </div>
     </CollapsibleCard>
   );
 }

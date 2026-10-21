@@ -18,13 +18,13 @@ const sports = (items: string[]) => f.list(items.map(sport));
 const Sport = (s: string) => sport(s).charAt(0).toUpperCase() + sport(s).slice(1);
 const num = (n: number, digits = 1) => f.trim(n, digits);
 const RECORD_NAME: Record<RecordKey, string> = { "1k": "1 km", "5k": "5 km", "10k": "10 km", "21k": "half marathon" };
-const goalName = (km: number) => (Math.abs(km - 42.195) < 0.3 ? "marathon" : Math.abs(km - 21.0975) < 0.2 ? "half marathon" : `${num(km)} km`);
+const goalName = (km: number) =>
+  Math.abs(km - 42.195) < 0.3 ? "marathon" : Math.abs(km - 21.0975) < 0.2 ? "half marathon" : `${num(km)} km`;
 
 export const textsEn = {
   noMedicalAdvice: "Not medical advice: if you feel ill or are in pain, don't train and ask a doctor or physio.",
 
   readinessBasis: "Compares last night with your own normal (resting heart rate, sleep) and your form.",
-
 
   zonesFootnote(estimated: string[], set: string[]): string {
     if (!set.length) return "You haven't set heart-rate zones yet (Settings, Zones and profile).";
@@ -36,11 +36,13 @@ export const textsEn = {
   zoneEstimate: (s: string) => `${Sport(s)} zones are an estimate (Settings, Zones and profile).`,
 
   formStatus: {
-    transition: "More than 20% fresher than your fitness: you have trained less than you are used to for a while and your fitness is slipping away.",
+    transition:
+      "More than 20% fresher than your fitness: you have trained less than you are used to for a while and your fitness is slipping away.",
     fresh: "5 to 20% fresher than your fitness: there is room for a race or a hard session.",
     neutral: "Between -10% and +5%: load and recovery are in balance; your fitness stays about the same.",
     optimal: "-10 to -30% of your fitness: you train more than you are used to and build fitness. Do plan easy days.",
-    high_risk: "More than 30% below your fitness: the load is high compared with what you are used to. Take a rest; the risk of overload goes up.",
+    high_risk:
+      "More than 30% below your fitness: the load is high compared with what you are used to. Take a rest; the risk of overload goes up.",
   } as Record<string, string>,
 
   formMethod:
@@ -48,7 +50,8 @@ export const textsEn = {
 
   formTsb: "Form = fitness minus fatigue as of yesterday: where you stand at the start of today.",
 
-  formChartNote: "Fitness and fatigue are averages themselves (42 and 7 days); the button only averages form. Form in percent: against yesterday's fitness. Diamonds are races and tests.",
+  formChartNote:
+    "Fitness and fatigue are averages themselves (42 and 7 days); the button only averages form. Form in percent: against yesterday's fitness. Diamonds are races and tests.",
 
   syncStale: (days: number) =>
     `The last sync is ${days} days old. Sessions and recovery since then are still missing; fitness, fatigue and form stay at the last synced day.`,
@@ -70,13 +73,16 @@ export const textsEn = {
   prediction: (days: number) =>
     `Riegel formula from your longest fast effort of the last ${days} days. Optimistic for the marathon without long runs of 30+ km; expect a few minutes more then.`,
 
-  afterMultisport: (before: string[]) => `This run followed ${sports(before)} on the same day. Don't compare heart rate and pace with a standalone run.`,
+  afterMultisport: (before: string[]) =>
+    `This run followed ${sports(before)} on the same day. Don't compare heart rate and pace with a standalone run.`,
 
   driftGood: "Pace per heartbeat stayed almost the same in the second half: your aerobic base holds this pace and this duration.",
-  driftHigh: "In the second half the same pace cost more heartbeats (over 5%). Heat, hydration, fatigue or starting too fast can cause this.",
+  driftHigh:
+    "In the second half the same pace cost more heartbeats (over 5%). Heat, hydration, fatigue or starting too fast can cause this.",
   driftMethod: "Drift = drop in speed per heartbeat between the first and the second half (moving time only).",
 
-  easySession: (pct: number, z2Top: number) => `${pct}% in Z1-Z2 (below ${z2Top} bpm by your own zones): the intensity that builds the base.`,
+  easySession: (pct: number, z2Top: number) =>
+    `${pct}% in Z1-Z2 (below ${z2Top} bpm by your own zones): the intensity that builds the base.`,
   hardSession: (pct: number) => `${pct}% in Z4-Z5. Keep the next day easy.`,
 
   efficiency: (s: string) =>
@@ -116,8 +122,10 @@ export const textsEn = {
     },
     zoneFitMethod:
       "Time per heart-rate zone by your own zones. Easy sessions (up to Z2): time at or below the target zone counts, because easier is fine. Quality (Z3 and up): time within the target zone counts.",
-    matching: "A session counts as done once there is an activity of the same sport that day, or up to 2 days before or after while the session was still open. A run in pieces (less than 30 minutes apart) counts as one session. Unlink an activity, or link one to a session yourself. Kilometres per week count every activity of the sports in the plan, also those without a session.",
-    volume: "Kilometres per week: planned against done. Done counts every activity of that sport in the week, in a session or not. Sessions without a distance (only a duration) don't count for planned.",
+    matching:
+      "A session counts as done once there is an activity of the same sport that day, or up to 2 days before or after while the session was still open. A run in pieces (less than 30 minutes apart) counts as one session. Unlink an activity, or link one to a session yourself. Kilometres per week count every activity of the sports in the plan, also those without a session.",
+    volume:
+      "Kilometres per week: planned against done. Done counts every activity of that sport in the week, in a session or not. Sessions without a distance (only a duration) don't count for planned.",
   },
 
   onboarding: {
@@ -133,22 +141,34 @@ export const textsEn = {
       "Year of birth, weight, height and resting heart rate. The site uses the resting heart rate for the load per session on days without sleep data from your watch.",
     firstSync: (days: number) =>
       `The first time, the site fetches your sessions and recovery (sleep, resting heart rate, Body Battery) of the last ${days} days. After that, every morning, whatever is new.`,
-    wristHr: "Heart rate usually comes from the wrist: with an odd spike or dip in a session it's worth looking at the chart before drawing conclusions.",
+    wristHr:
+      "Heart rate usually comes from the wrist: with an odd spike or dip in a session it's worth looking at the chart before drawing conclusions.",
   },
 
   today: {
     readiness: {
       title: "Ready for today?",
-      verdict: { ready: "Ready to train", easy: "Take it easy", recover: "Recover first", unknown: "No overnight data" } as Record<string, string>,
+      verdict: { ready: "Ready to train", easy: "Take it easy", recover: "Recover first", unknown: "No overnight data" } as Record<
+        string,
+        string
+      >,
       advice: {
         recover: "Several signs of fatigue. Make it a rest day or a very easy session.",
         easy: "One or two signals are off. Train if you like, but keep it easy (Z1-Z2) or short.",
         ready: "Recovery looks normal. The planned session can go ahead as intended.",
       } as Record<string, string>,
-      unknown: (labels: string[]) => `${f.list(labels)} ${labels.length > 1 ? "are" : "is"} fine; without overnight data recovery is hard to judge.`,
+      unknown: (labels: string[]) =>
+        `${f.list(labels)} ${labels.length > 1 ? "are" : "is"} fine; without overnight data recovery is hard to judge.`,
       noNight: "No sleep or resting heart rate from last night (watch not worn or not synced yet).",
-      label: { resting_hr: "Resting heart rate", respiration: "Breathing (night)", sleep_h: "Sleep", body_battery: "Body Battery", tsb: "Form" } as Record<string, string>,
-      illness: "Resting heart rate, heart rate while asleep and breathing are all above your normal together. That combination often shows up a day or two before a cold: take it easy and see how you feel.",
+      label: {
+        resting_hr: "Resting heart rate",
+        respiration: "Breathing (night)",
+        sleep_h: "Sleep",
+        body_battery: "Body Battery",
+        tsb: "Form",
+      } as Record<string, string>,
+      illness:
+        "Resting heart rate, heart rate while asleep and breathing are all above your normal together. That combination often shows up a day or two before a cold: take it easy and see how you feel.",
       value(key: string, v: number): string {
         if (key === "resting_hr") return `${v} bpm`;
         if (key === "respiration") return `${num(v)} /min`;
@@ -158,8 +178,10 @@ export const textsEn = {
       },
       note(code: string, p: { delta?: number; baseline?: number; score?: number; date?: string; days_ago?: number }): string {
         if (code === "vs_baseline") return `${(p.delta ?? 0) >= 0 ? "+" : ""}${num(p.delta ?? 0)} vs normal (${num(p.baseline ?? 0)})`;
-        if (code === "sleep") return [p.score ? `score ${p.score}` : "", p.baseline ? `normal ${f.num(p.baseline, 1)} h` : ""].filter(Boolean).join(", ");
-        if (code === "highest") return p.days_ago === 0 ? "highest today" : p.days_ago === 1 ? "highest yesterday" : `highest on ${f.dayMonth(p.date ?? "")}`;
+        if (code === "sleep")
+          return [p.score ? `score ${p.score}` : "", p.baseline ? `normal ${f.num(p.baseline, 1)} h` : ""].filter(Boolean).join(", ");
+        if (code === "highest")
+          return p.days_ago === 0 ? "highest today" : p.days_ago === 1 ? "highest yesterday" : `highest on ${f.dayMonth(p.date ?? "")}`;
         if (code === "form_yesterday") return "yesterday's fitness minus fatigue";
         return "";
       },
@@ -173,7 +195,8 @@ export const textsEn = {
         build: "Your last week matches what you are used to: a good base to build up gradually.",
         unknown: "After about four weeks of training with heart rate you can see how your last week compares with what you are used to.",
       } as Record<string, string>,
-      highRatio: (high: string) => `Your last week was much harder than you are used to (above ${high}). Build up more gradually or plan an easy day.`,
+      highRatio: (high: string) =>
+        `Your last week was much harder than you are used to (above ${high}). Build up more gradually or plan an easy day.`,
       highRamp: (ramp: string) => `Your fitness is rising fast (+${ramp} in 7 days). Build up more gradually or plan an easy day.`,
       ratio: "Last week against usual",
       ramp: "Fitness in 7 days",
@@ -191,7 +214,8 @@ export const textsEn = {
       upcoming: (n: number) => `${n} to go`,
       unsynced: (n: number) => `${n} not synced yet`,
       ofPlanned: (done: string, planned: string) => `${done} of ${planned}`,
-      method: "Done per sport counts every activity of that sport this week, even when it belongs to no session. A session counts as done with an activity of the same sport that day, or up to 2 days before or after; link or unlink by hand on the plan page.",
+      method:
+        "Done per sport counts every activity of that sport this week, even when it belongs to no session. A session counts as done with an activity of the same sport that day, or up to 2 days before or after; link or unlink by hand on the plan page.",
     },
     race: {
       today: "Today",
@@ -241,7 +265,11 @@ export const textsEn = {
       help: "In every chart: drag to move, Ctrl/⌘ + scroll or pinch to zoom, double-click resets the period. On a phone you read values with one finger and zoom with two.",
       close: "Close",
     },
-    sport: { label: "Sport", all: "All sports", runOnly: "Pace in Z2, VO2max, longest run, records and predictions are about running only: choose All sports or Running to see them." },
+    sport: {
+      label: "Sport",
+      all: "All sports",
+      runOnly: "Pace in Z2, VO2max, longest run, records and predictions are about running only: choose All sports or Running to see them.",
+    },
     /** Performance in swimming and cycling (api/trends.py sport_performance). */
     sportPerf: {
       bests: (s: string) => `Bests in ${s.toLowerCase()}`,
@@ -269,31 +297,49 @@ export const textsEn = {
       switch (i.code) {
         case "record_set": {
           const p = i.params;
-          return { title: `New record over ${RECORD_NAME[p.key]}: ${f.clock(p.seconds)}`, text: `${f.clock(p.previous_seconds - p.seconds)} faster than your previous best (${f.clock(p.previous_seconds)}), on ${f.day(p.date)}.` };
+          return {
+            title: `New record over ${RECORD_NAME[p.key]}: ${f.clock(p.seconds)}`,
+            text: `${f.clock(p.previous_seconds - p.seconds)} faster than your previous best (${f.clock(p.previous_seconds)}), on ${f.day(p.date)}.`,
+          };
         }
         case "acwr_high":
-          return { title: "Load is rising fast", text: `Fatigue (${i.params.atl}) is ${num(i.params.ratio)}× your fitness (${i.params.ctl}). Above 1.5 the injury risk goes up; plan an easier day.` };
+          return {
+            title: "Load is rising fast",
+            text: `Fatigue (${i.params.atl}) is ${num(i.params.ratio)}× your fitness (${i.params.ctl}). Above 1.5 the injury risk goes up; plan an easier day.`,
+          };
         case "ramp_fast":
-          return { title: "Fast build-up", text: `Fitness +${num(i.params.ramp)} in 7 days. More than about 5 to 7 per week is hard for your body to keep up with.` };
+          return {
+            title: "Fast build-up",
+            text: `Fitness +${num(i.params.ramp)} in 7 days. More than about 5 to 7 per week is hard for your body to keep up with.`,
+          };
         case "fresh":
-          return { title: "Fresh", text: `Form +${i.params.tsb} (+${i.params.pct}% of your fitness): a good moment for a race or a hard session.` };
+          return {
+            title: "Fresh",
+            text: `Form +${i.params.tsb} (+${i.params.pct}% of your fitness): a good moment for a race or a hard session.`,
+          };
         case "easy_share": {
           const p = i.params;
           const low = i.level !== "good";
           return {
             title: `${p.easy_pct}% easy (Z1-Z2) over the last 4 weeks`,
-            text: `Z3 ${p.grey_pct}%, Z4-Z5 ${p.hard_pct}%. For endurance training about 80% easy is the usual guideline.` + (low ? " Races count too; without races most of it should be in Z1-Z2." : ""),
+            text:
+              `Z3 ${p.grey_pct}%, Z4-Z5 ${p.hard_pct}%. For endurance training about 80% easy is the usual guideline.` +
+              (low ? " Races count too; without races most of it should be in Z1-Z2." : ""),
           };
         }
         case "longest_run":
-          return { title: `Longest run in the last 4 weeks: ${num(i.params.km)} km`, text: "Pieces less than 30 minutes apart count as one run." };
+          return {
+            title: `Longest run in the last 4 weeks: ${num(i.params.km)} km`,
+            text: "Pieces less than 30 minutes apart count as one run.",
+          };
         case "long_run_goal": {
           const p = i.params;
           return {
             title: `Longest run in the last 4 weeks: ${num(p.km)} km`,
-            text: p.km >= p.target_km
-              ? `Long run at the level of your goal (${goalName(p.goal_km)}).`
-              : `For a ${goalName(p.goal_km)} a long run of up to about ${p.target_km} km is the usual build-up, a few weeks before the race.`,
+            text:
+              p.km >= p.target_km
+                ? `Long run at the level of your goal (${goalName(p.goal_km)}).`
+                : `For a ${goalName(p.goal_km)} a long run of up to about ${p.target_km} km is the usual build-up, a few weeks before the race.`,
           };
         }
         case "goal_prediction": {
@@ -306,7 +352,10 @@ export const textsEn = {
           };
         }
         case "run_volume":
-          return { title: `Running volume ${num(i.params.avg_km, 0)} km/week (4-week average)`, text: `This week so far ${num(i.params.week_km)} km.` };
+          return {
+            title: `Running volume ${num(i.params.avg_km, 0)} km/week (4-week average)`,
+            text: `This week so far ${num(i.params.week_km)} km.`,
+          };
       }
     },
     predictions: {
@@ -335,13 +384,15 @@ export const textsEn = {
       aria: "Volume per week per sport",
       other: "Other",
       total: "Total",
-      avg: (value: string, weeks: number) => `Average ${value} per week over ${f.plural(weeks, { one: "# full week", other: "# full weeks" })} (the current week doesn't count)`,
+      avg: (value: string, weeks: number) =>
+        `Average ${value} per week over ${f.plural(weeks, { one: "# full week", other: "# full weeks" })} (the current week doesn't count)`,
       noWholeWeek: "No full week in this period yet.",
     },
     z2: {
       title: "Pace in Z2 (running)",
       label: "Pace in Z2",
-      excluded: (n: number) => `${f.plural(n, { one: "# run", other: "# runs" })} in this period left out: the wrist heart rate looked unreliable (diamonds in the chart).`,
+      excluded: (n: number) =>
+        `${f.plural(n, { one: "# run", other: "# runs" })} in this period left out: the wrist heart rate looked unreliable (diamonds in the chart).`,
       marker: (reasons: string) => `Wrist heart rate unreliable: ${reasons}`,
     },
     hrReason: {
@@ -349,7 +400,8 @@ export const textsEn = {
       flat: "exactly flat for minutes",
       dropout: "dropped out for a minute or longer",
     } as Record<HrFlagReason, string>,
-    hrMethod: "Compared with your own relation between pace and heart rate from your other runs. Such a run doesn't count for the pace in Z2.",
+    hrMethod:
+      "Compared with your own relation between pace and heart rate from your other runs. Such a run doesn't count for the pace in Z2.",
     vo2: { title: "VO2max", label: "VO2max" },
     longest: {
       title: "Longest run per week",
@@ -365,13 +417,15 @@ export const textsEn = {
       bbShort: "Body Battery",
       stress: "Stress",
       hrv: "HRV (overnight)",
-      hrvNote: "Average heart-rate variability during the night, measured by the watch. Compare with your own trend, not with other people's. From an Apple Watch it is SDNN (Apple's measure), from Garmin RMSSD: the two are not comparable.",
+      hrvNote:
+        "Average heart-rate variability during the night, measured by the watch. Compare with your own trend, not with other people's. From an Apple Watch it is SDNN (Apple's measure), from Garmin RMSSD: the two are not comparable.",
       resp: "Breathing while asleep",
       sleepStress: "Stress while asleep",
       bbCharged: "Body Battery charged while asleep",
       spo2: "Blood oxygen while asleep (SpO2)",
       normal: (v: string) => `Your normal: ${v} (60-day median).`,
-      respNote: "Breathing at rest is very steady from night to night; one or two breaths a minute more already stands out, for example after a hard day or when you are coming down with something.",
+      respNote:
+        "Breathing at rest is very steady from night to night; one or two breaths a minute more already stands out, for example after a hard day or when you are coming down with something.",
       openDay: "Click a day in a chart to see that day in detail under Today, Sleep & body.",
     },
     sleepStages: {
@@ -382,13 +436,16 @@ export const textsEn = {
       night: "Night",
       per: "Per night, week or month",
       none: "No nights with sleep stages in this period.",
-      summary: (nights: number, asleep: string): string => `${nights} ${nights === 1 ? "night" : "nights"}, on average ${asleep} asleep per night:`,
+      summary: (nights: number, asleep: string): string =>
+        `${nights} ${nights === 1 ? "night" : "nights"}, on average ${asleep} asleep per night:`,
       asleep: (h: string): string => `${h} asleep`,
       asleepAvg: (h: string, nights: number): string => `${h} asleep per night (${nights} nights)`,
       overTime: "Deep sleep and REM over time",
-      rolling: (n: number, p: "night" | "week" | "month", mode: "pct" | "hours"): string => `${mode === "hours" ? "hours per night" : "share of the time in bed"}, average of the last ${n} ${p === "night" ? "nights" : p === "week" ? "weeks" : "months"}`,
+      rolling: (n: number, p: "night" | "week" | "month", mode: "pct" | "hours"): string =>
+        `${mode === "hours" ? "hours per night" : "share of the time in bed"}, average of the last ${n} ${p === "night" ? "nights" : p === "week" ? "weeks" : "months"}`,
       note: "%: the share of the time in bed (asleep and awake). Hours: per night, on average over the bar's nights. Older nights, synced before awake time was stored, show none. The stages are the watch's estimate from heart rate and movement (not brain waves) and deep sleep is the hardest to get right, so read the trend over weeks rather than single nights; the goals are general guidelines for adults, and deep sleep naturally decreases with age.",
-      lastN: (n: number, p: "night" | "week" | "month"): string => `Last ${n} ${p === "night" ? "nights" : p === "week" ? "weeks" : "months"}, per night`,
+      lastN: (n: number, p: "night" | "week" | "month"): string =>
+        `Last ${n} ${p === "night" ? "nights" : p === "week" ? "weeks" : "months"}, per night`,
       onGoal: "on goal",
       below: (d: string): string => `${d} below goal`,
       above: (d: string): string => `${d} above goal`,

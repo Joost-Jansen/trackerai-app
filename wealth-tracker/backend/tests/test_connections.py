@@ -8,6 +8,8 @@ not next to an earlier CSV import), and everyone sees only their own
 connection.
 """
 
+from datetime import UTC
+
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -29,13 +31,13 @@ def _public_origin(monkeypatch):
 @pytest.fixture(scope="module")
 def pem():
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    return key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
-                             serialization.NoEncryption())
+    return key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
 
 
 @pytest.fixture(autouse=True)
 def _own_encryption_key(tmp_path, monkeypatch):
     from cryptography.fernet import Fernet
+
     monkeypatch.setenv("APP_ENCRYPTION_KEY", Fernet.generate_key().decode())
 
 
@@ -48,11 +50,16 @@ class _Answer:
 
 
 def _tx(ref, date, amount, dbit=True, status="BOOK", name="WINKEL 1 BV"):
-    return {"entry_reference": ref, "status": status, "booking_date": date,
-            "transaction_amount": {"currency": "EUR", "amount": f"{amount:.2f}"},
-            "credit_debit_indicator": "DBIT" if dbit else "CRDT",
-            "creditor": {"name": name}, "debtor": {"name": "A. VOORBEELD"},
-            "remittance_information": [f"betaling {ref}"]}
+    return {
+        "entry_reference": ref,
+        "status": status,
+        "booking_date": date,
+        "transaction_amount": {"currency": "EUR", "amount": f"{amount:.2f}"},
+        "credit_debit_indicator": "DBIT" if dbit else "CRDT",
+        "creditor": {"name": name},
+        "debtor": {"name": "A. VOORBEELD"},
+        "remittance_information": [f"betaling {ref}"],
+    }
 
 
 IBAN2 = "NL00BANK0000000017"
@@ -68,7 +75,8 @@ class _Bank:
         self.sessions = 0
         self.last_bank = None
         self.transactions = [
-            _tx("1", "2026-09-01", 10.0), _tx("2", "2026-09-02", 20.0),
+            _tx("1", "2026-09-01", 10.0),
+            _tx("2", "2026-09-02", 20.0),
             _tx("3", "2026-09-03", 5.0, status="PDNG"),
         ]
 
@@ -76,19 +84,24 @@ class _Bank:
         path = url.removeprefix(enablebanking.BASE_URL)
         self.requests.append((method, path, params, json))
         if path == "/aspsps":
-            return _Answer({"aspsps": [{"name": name, "country": "NL", "maximum_consent_validity": 90 * 86400}
-                                         for name in _ACCOUNT]})
+            return _Answer({"aspsps": [{"name": name, "country": "NL", "maximum_consent_validity": 90 * 86400} for name in _ACCOUNT]})
         if path == "/auth":
             self.last_bank = json["aspsp"]["name"]
             return _Answer({"url": "https://bank.voorbeeld/toestemming", "authorization_id": "a1"})
         if path == "/sessions":
             self.sessions += 1
             uid, iban = _ACCOUNT[self.last_bank]
-            return _Answer({"session_id": f"s{self.sessions}", "access": {"valid_until": "2099-01-01T00:00:00+00:00"},
-                              "accounts": [{"uid": uid, "account_id": {"iban": iban}, "currency": "EUR"}]})
+            return _Answer(
+                {
+                    "session_id": f"s{self.sessions}",
+                    "access": {"valid_until": "2099-01-01T00:00:00+00:00"},
+                    "accounts": [{"uid": uid, "account_id": {"iban": iban}, "currency": "EUR"}],
+                }
+            )
         if path.endswith("/balances"):
-            return _Answer({"balances": [{"balance_type": "CLBD", "balance_amount": {"amount": "1234.56"},
-                                            "reference_date": "2026-09-03"}]})
+            return _Answer(
+                {"balances": [{"balance_type": "CLBD", "balance_amount": {"amount": "1234.56"}, "reference_date": "2026-09-03"}]}
+            )
         if path.endswith("/transactions"):
             from_date = params["date_from"]
             return _Answer({"transactions": [t for t in self.transactions if t["booking_date"] >= from_date]})
@@ -109,13 +122,13 @@ def _login(client, user="alice", pw="alicepw"):
 
 
 def _set_up(client, pem, app_id="app-123"):
-    return client.put("/api/connections/enablebanking", data={"app_id": app_id},
-                      files={"key": ("app-123.pem", pem, "application/x-pem-file")})
+    return client.put(
+        "/api/connections/enablebanking", data={"app_id": app_id}, files={"key": ("app-123.pem", pem, "application/x-pem-file")}
+    )
 
 
 def _link(client, bank="Voorbeeldbank"):
-    r = client.post("/api/connections/enablebanking/start",
-                    json={"bank": bank, "country": "NL", "origin": APP})
+    r = client.post("/api/connections/enablebanking/start", json={"bank": bank, "country": "NL", "origin": APP})
     assert r.status_code == 200, r.text
     state = client._last_state  # set by captured_state
     return client.get(f"/api/connections/enablebanking/callback?state={state}&code=c1", follow_redirects=False)
@@ -138,6 +151,7 @@ def captured_state(client, bank):
 
 
 # ---------------------------------------------------------------------------
+
 
 def test_without_a_session_nothing(client):
     assert client.get("/api/connections").status_code == 401
@@ -181,8 +195,7 @@ def test_the_bank_redirects_to_the_apps_own_address(client, pem, bank):
 def test_a_foreign_address_is_refused(client, pem, bank):
     _login(client)
     _set_up(client, pem)
-    r = client.post("/api/connections/enablebanking/start",
-                    json={"bank": "Voorbeeldbank", "origin": "http://kwaadwillend.example/path"})
+    r = client.post("/api/connections/enablebanking/start", json={"bank": "Voorbeeldbank", "origin": "http://kwaadwillend.example/path"})
     assert r.status_code == 400
 
 
@@ -244,8 +257,7 @@ def test_next_to_an_earlier_csv_import_nothing_doubles(captured_state, pem, bank
     _link(client)
 
     account = next(x for x in client.get("/api/accounts").json()["accounts"] if x["iban"] == IBAN)
-    amounts = sorted(t["amount"] for t in client.get("/api/bank-transactions").json()["transactions"]
-                      if t["account_id"] == account["id"])
+    amounts = sorted(t["amount"] for t in client.get("/api/bank-transactions").json()["transactions"] if t["account_id"] == account["id"])
     assert amounts == [7.5, 20.0], "de 2e één keer, de 1e ligt vóór de export en de 4e is nieuw"
 
 
@@ -259,17 +271,23 @@ def test_a_csv_after_connecting_adds_only_what_was_not_there_yet(captured_state,
     _set_up(client, pem)
     _link(client)
     header = '"Date","Interest Date","Amount","Account","Counterparty","Name","Description"'
-    csv = "\n".join([header,
-                     f'"2026-08-20","2026-08-20","-3,00","{IBAN}","","KOFFIE 1","ouder"',
-                     f'"2026-09-01","2026-09-01","-10,00","{IBAN}","","WINKEL 1","andere tekst"',
-                     f'"2026-09-02","2026-09-02","-20,00","{IBAN}","","WINKEL 1","andere tekst"']) + "\n"
+    csv = (
+        "\n".join(
+            [
+                header,
+                f'"2026-08-20","2026-08-20","-3,00","{IBAN}","","KOFFIE 1","ouder"',
+                f'"2026-09-01","2026-09-01","-10,00","{IBAN}","","WINKEL 1","andere tekst"',
+                f'"2026-09-02","2026-09-02","-20,00","{IBAN}","","WINKEL 1","andere tekst"',
+            ]
+        )
+        + "\n"
+    )
     r = client.post("/api/uploads/bank", files=[("files", ("bank.csv", csv.encode(), "text/csv"))])
     res = r.json()["results"][0]
     assert (res["saved"], res["skipped"]) == (1, 2)
 
     account = next(x for x in client.get("/api/accounts").json()["accounts"] if x["iban"] == IBAN)
-    amounts = sorted(t["amount"] for t in client.get("/api/bank-transactions").json()["transactions"]
-                      if t["account_id"] == account["id"])
+    amounts = sorted(t["amount"] for t in client.get("/api/bank-transactions").json()["transactions"] if t["account_id"] == account["id"])
     assert amounts == [3.0, 10.0, 20.0]
 
 
@@ -278,8 +296,10 @@ def test_refusing_at_the_bank_comes_back_cleanly(captured_state, pem, bank):
     _login(client)
     _set_up(client, pem)
     client.post("/api/connections/enablebanking/start", json={"bank": "Voorbeeldbank", "country": "NL", "origin": APP})
-    r = client.get(f"/api/connections/enablebanking/callback?state={client._last_state}&error=access_denied"
-                   "&error_description=Geweigerd", follow_redirects=False)
+    r = client.get(
+        f"/api/connections/enablebanking/callback?state={client._last_state}&error=access_denied&error_description=Geweigerd",
+        follow_redirects=False,
+    )
     assert r.status_code == 303 and "error=Geweigerd" in r.headers["location"]
     assert client.get("/api/connections").json()["consents"][0]["status"] == "error"
 
@@ -311,7 +331,7 @@ def test_on_open_only_what_is_outdated_is_fetched(captured_state, pem, bank):
     client = captured_state
     _login(client)
     _set_up(client, pem)
-    _link(client)                     # fetches right away
+    _link(client)  # fetches right away
     before = len(bank.requests)
 
     quiet = client.post("/api/connections/enablebanking/fetch?only_if_older_than_hours=6").json()
@@ -330,8 +350,7 @@ def test_two_banks_each_their_own_consent_and_accounts(captured_state, pem, bank
     _link(client, "Tweede Bank")
     consents = client.get("/api/connections").json()["consents"]
     assert {t["bank"]: t["status"] for t in consents} == {"Voorbeeldbank": "active", "Tweede Bank": "active"}
-    assert {t["bank"]: [r["iban"] for r in t["accounts"]] for t in consents} == {
-        "Voorbeeldbank": [IBAN], "Tweede Bank": [IBAN2]}
+    assert {t["bank"]: [r["iban"] for r in t["accounts"]] for t in consents} == {"Voorbeeldbank": [IBAN], "Tweede Bank": [IBAN2]}
 
 
 def test_back_from_the_bank_says_which_bank_it_was(captured_state, pem, bank):
@@ -370,7 +389,8 @@ def test_if_the_bank_does_not_say_until_when_what_we_asked_applies(captured_stat
     _link(client)
     t = client.get("/api/connections").json()["consents"][0]
     from datetime import datetime, timedelta, timezone
-    remaining = datetime.fromisoformat(t["valid_until"]) - datetime.now(timezone.utc)
+
+    remaining = datetime.fromisoformat(t["valid_until"]) - datetime.now(UTC)
     assert timedelta(days=89) < remaining <= timedelta(days=90), "de 90 dagen van de bank, niet de 180 van de EU"
 
 
@@ -379,15 +399,15 @@ def test_retrying_cleans_up_the_failed_attempt(captured_state, pem, bank):
     _login(client)
     _set_up(client, pem)
     client.post("/api/connections/enablebanking/start", json={"bank": "Voorbeeldbank", "country": "NL", "origin": APP})
-    client.get(f"/api/connections/enablebanking/callback?state={client._last_state}&error=access_denied",
-               follow_redirects=False)
+    client.get(f"/api/connections/enablebanking/callback?state={client._last_state}&error=access_denied", follow_redirects=False)
     _link(client)
     assert [t["status"] for t in client.get("/api/connections").json()["consents"]] == ["active"]
 
 
 def test_an_aborted_attempt_disappears_from_the_overview(client, pem, bank, monkeypatch):
-    from domain.money import bank_link
     from datetime import timedelta
+
+    from domain.money import bank_link
 
     _login(client)
     _set_up(client, pem)
@@ -410,10 +430,10 @@ def test_everyone_their_own_connection(client, pem):
 def test_the_return_address_must_be_this_site(client, pem, bank, captured_state):
     _login(client)
     _set_up(client, pem)
-    r = client.post("/api/connections/enablebanking/start",
-                    json={"bank": "Voorbeeldbank", "country": "NL", "origin": "https://evil.example"})
+    r = client.post(
+        "/api/connections/enablebanking/start", json={"bank": "Voorbeeldbank", "country": "NL", "origin": "https://evil.example"}
+    )
     assert r.status_code == 400
     # The host the request came to also counts (same origin, no PUBLIC_ORIGINS needed).
-    r = client.post("/api/connections/enablebanking/start",
-                    json={"bank": "Voorbeeldbank", "country": "NL", "origin": "https://testserver"})
+    r = client.post("/api/connections/enablebanking/start", json={"bank": "Voorbeeldbank", "country": "NL", "origin": "https://testserver"})
     assert r.status_code == 200, r.text

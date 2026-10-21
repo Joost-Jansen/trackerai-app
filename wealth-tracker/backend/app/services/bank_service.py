@@ -23,11 +23,9 @@ overview with one state per day.
 
 import sqlite3
 
-from domain.money import bank_providers as bank
-from domain.money import bank_transactions
-from domain.money import categorization
-from domain.money import accounts
 from domain.i18n import tr
+from domain.money import accounts, bank_transactions, categorization
+from domain.money import bank_providers as bank
 
 
 class ImportRefused(Exception):
@@ -38,14 +36,10 @@ def _iban_of_the_export(rows: list[dict]) -> str:
     ibans = {r["account_iban"] for r in rows if r["account_iban"]}
 
     if not ibans:
-        raise ImportRefused(
-            tr("There is no account number in this file, so I don't know which account it belongs to.")
-        )
+        raise ImportRefused(tr("There is no account number in this file, so I don't know which account it belongs to."))
     if len(ibans) > 1:
         named = ", ".join(sorted(ibans))
-        raise ImportRefused(
-            tr("This file contains more than one account ({0}). Export each account separately.", named)
-        )
+        raise ImportRefused(tr("This file contains more than one account ({0}). Export each account separately.", named))
     return ibans.pop()
 
 
@@ -65,17 +59,19 @@ def _account_for(conn: sqlite3.Connection, iban: str, provider: str) -> tuple[di
     return accounts.load_account(conn, account_id), True
 
 
-def _account_for_number(conn: sqlite3.Connection, number: str, provider: str,
-                          name: str) -> tuple[dict, bool]:
+def _account_for_number(conn: sqlite3.Connection, number: str, provider: str, name: str) -> tuple[dict, bool]:
     """Looks up the account by its number at this provider, or creates it."""
     existing = accounts.search_on_external_id(conn, provider, number)
     if existing:
         return existing, False
     account_id = accounts.make_bank_account(
-        conn, kind="bank", provider=provider,
+        conn,
+        kind="bank",
+        provider=provider,
         # At ING all savings accounts are called "Oranje Spaarrekening"; the last
         # digits keep them apart in the list.
-        name=f"{name} ···{number[-4:]}", external_id=number,
+        name=f"{name} ···{number[-4:]}",
+        external_id=number,
     )
     return accounts.load_account(conn, account_id), True
 
@@ -92,7 +88,7 @@ def _closing_balances(rows: list[dict]) -> list[tuple[str, float]]:
         return []
     newest_first = using[0]["date"] >= using[-1]["date"]
     per_day: dict[str, float] = {}
-    for row in (using if newest_first else reversed(using)):
+    for row in using if newest_first else reversed(using):
         per_day.setdefault(row["date"], row["balance_after"])
     return sorted(per_day.items())
 
@@ -132,13 +128,15 @@ def _import_transactions(conn, provider: str, rows: list[dict]) -> list[dict]:
     for (account, created), group in groups:
         saved, skipped = bank_transactions.save(conn, account["id"], group)
         balances = accounts.set_balances(conn, account["id"], _closing_balances(group), source="sync")
-        reports.append({
-            "account": accounts.load_account(conn, account["id"]),
-            "created": created,
-            "saved": saved,
-            "skipped": skipped,
-            "balances": balances,
-        })
+        reports.append(
+            {
+                "account": accounts.load_account(conn, account["id"]),
+                "created": created,
+                "saved": saved,
+                "skipped": skipped,
+                "balances": balances,
+            }
+        )
     return reports
 
 
@@ -148,13 +146,15 @@ def _import_balances(conn, provider: str, rows: list[dict]) -> list[dict]:
         account, created = _account_for_number(conn, number, provider, group[0]["account_name"])
         series = sorted({r["date"]: r["balance"] for r in group}.items())
         balances = accounts.set_balances(conn, account["id"], _only_changes(series), source="sync")
-        reports.append({
-            "account": accounts.load_account(conn, account["id"]),
-            "created": created,
-            "saved": 0,
-            "skipped": 0,
-            "balances": balances,
-        })
+        reports.append(
+            {
+                "account": accounts.load_account(conn, account["id"]),
+                "created": created,
+                "saved": 0,
+                "skipped": 0,
+                "balances": balances,
+            }
+        )
     return reports
 
 
@@ -176,9 +176,7 @@ def import_file(conn: sqlite3.Connection, path: str) -> dict:
 
     provider, kind, rows = export["provider"], export["kind"], export["rows"]
     if not rows:
-        raise ImportRefused(
-            tr("This file contains no readable rows, so I don't know which account it belongs to.")
-        )
+        raise ImportRefused(tr("This file contains no readable rows, so I don't know which account it belongs to."))
 
     if kind == "balances":
         reports = _import_balances(conn, provider, rows)

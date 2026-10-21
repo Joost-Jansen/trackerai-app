@@ -9,7 +9,7 @@ import hashlib
 import hmac
 import re
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import bcrypt
 from sqlalchemy import and_, delete, func, insert, select, update
@@ -36,7 +36,7 @@ DUMMY_HASH = bcrypt.hashpw(b"not-a-real-password", bcrypt.gensalt(rounds=12)).de
 
 
 def now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def hash_password(password: str) -> str:
@@ -172,9 +172,18 @@ class Accounts:
             value = c.execute(select(settings.c.value).where(settings.c.key == "registration")).scalar_one_or_none()
         return value if value in REGISTRATION_MODES else "closed"
 
-    def register(self, username: str, password: str, app: str, display_name: str | None = None, invite: str | None = None,
-                 locale: str | None = None, consent: bool = False, email: str | None = None,
-                 apps: list[str] | None = None) -> dict:
+    def register(
+        self,
+        username: str,
+        password: str,
+        app: str,
+        display_name: str | None = None,
+        invite: str | None = None,
+        locale: str | None = None,
+        consent: bool = False,
+        email: str | None = None,
+        apps: list[str] | None = None,
+    ) -> dict:
         """A new account. It needs an email address: a welcome mail brings a code that confirms it, and until then the
         account answers `email_verify_required` (Sessions.ready). Confirmed, it is the account's two-step login.
         `apps`: the trackers it starts with, chosen at sign-up on the front door (default: just `app`)."""
@@ -210,18 +219,38 @@ class Accounts:
         with self.engine.begin() as c:
             if invite_row:
                 # one use: the second of two sign-ups racing for one code loses it
-                used = c.execute(update(invites).where(and_(invites.c.code == code, invites.c.used_by.is_(None)))
-                                 .values(used_at=t, used_by=-1)).rowcount
+                used = c.execute(
+                    update(invites).where(and_(invites.c.code == code, invites.c.used_by.is_(None))).values(used_at=t, used_by=-1)
+                ).rowcount
                 if not used:
                     raise AccountError(403, "invalid_invite")
-            account_id = c.execute(insert(accounts).values(
-                username=name, display_name=display, password_hash=hash_password(password), password_changed_at=t,
-                session_version=0, is_admin=first, suspended=False, locale=locale, failed_logins=0, created_at=t,
-                last_login_at=t, email=email)).inserted_primary_key[0]
+            account_id = c.execute(
+                insert(accounts).values(
+                    username=name,
+                    display_name=display,
+                    password_hash=hash_password(password),
+                    password_changed_at=t,
+                    session_version=0,
+                    is_admin=first,
+                    suspended=False,
+                    locale=locale,
+                    failed_logins=0,
+                    created_at=t,
+                    last_login_at=t,
+                    email=email,
+                )
+            ).inserted_primary_key[0]
             for a in apps:
-                c.execute(insert(account_apps).values(
-                    account_id=account_id, app=a, is_admin=first, enabled_at=t,
-                    consent_at=t if a in CONSENT_APPS else None, privacy_version=PRIVACY_VERSION))
+                c.execute(
+                    insert(account_apps).values(
+                        account_id=account_id,
+                        app=a,
+                        is_admin=first,
+                        enabled_at=t,
+                        consent_at=t if a in CONSENT_APPS else None,
+                        privacy_version=PRIVACY_VERSION,
+                    )
+                )
             if invite_row:
                 c.execute(update(invites).where(invites.c.code == code).values(used_by=account_id))
         account = self.get(account_id)
@@ -239,9 +268,20 @@ class Accounts:
             return None
         return self.create_linked(username, password_hash, app, local_key, is_admin=True)
 
-    def create_linked(self, username: str, password_hash: str, app: str, local_key: str, is_admin: bool = False,
-                      display_name: str | None = None, locale: str | None = None, suspended: bool = False,
-                      totp_secret: str | None = None, totp_backup: list | None = None, app_admin: bool | None = None) -> dict:
+    def create_linked(
+        self,
+        username: str,
+        password_hash: str,
+        app: str,
+        local_key: str,
+        is_admin: bool = False,
+        display_name: str | None = None,
+        locale: str | None = None,
+        suspended: bool = False,
+        totp_secret: str | None = None,
+        totp_backup: list | None = None,
+        app_admin: bool | None = None,
+    ) -> dict:
         """An account for a user an app already has (a seeded demo user, the environment's first admin, someone from
         before the accounts logging in for the first time), with that user's password hash and, when they had it, their
         two-step login (`totp_secret` in plain, encrypted here). The app consented on the person's behalf when it made
@@ -253,16 +293,36 @@ class Accounts:
         t = now()
         totp_values = {}
         if totp_secret:
-            totp_values = dict(totp_secret=crypto.encrypt(totp_secret, self.config.encryption_key), totp_enabled_at=t,
-                               totp_backup=list(totp_backup or []))
+            totp_values = dict(
+                totp_secret=crypto.encrypt(totp_secret, self.config.encryption_key), totp_enabled_at=t, totp_backup=list(totp_backup or [])
+            )
         with self.engine.begin() as c:
-            account_id = c.execute(insert(accounts).values(
-                username=name, display_name=display_name, password_hash=password_hash, password_changed_at=t, session_version=0,
-                is_admin=is_admin, suspended=suspended, locale=locale if locale in LOCALES else None, failed_logins=0,
-                created_at=t, **totp_values)).inserted_primary_key[0]
-            c.execute(insert(account_apps).values(account_id=account_id, app=app, local_key=str(local_key),
-                                                  is_admin=is_admin if app_admin is None else app_admin,
-                                                  enabled_at=t, consent_at=t, privacy_version=PRIVACY_VERSION))
+            account_id = c.execute(
+                insert(accounts).values(
+                    username=name,
+                    display_name=display_name,
+                    password_hash=password_hash,
+                    password_changed_at=t,
+                    session_version=0,
+                    is_admin=is_admin,
+                    suspended=suspended,
+                    locale=locale if locale in LOCALES else None,
+                    failed_logins=0,
+                    created_at=t,
+                    **totp_values,
+                )
+            ).inserted_primary_key[0]
+            c.execute(
+                insert(account_apps).values(
+                    account_id=account_id,
+                    app=app,
+                    local_key=str(local_key),
+                    is_admin=is_admin if app_admin is None else app_admin,
+                    enabled_at=t,
+                    consent_at=t,
+                    privacy_version=PRIVACY_VERSION,
+                )
+            )
         return self.get(account_id)
 
     # --- login -----------------------------------------------------------------------------------------------------
@@ -284,8 +344,7 @@ class Accounts:
             else:
                 c.execute(update(accounts).where(accounts.c.id == account["id"]).values(failed_logins=1, failed_since=now()))
 
-    def login(self, username: str, password: str, code: str | None = None, trusted_device=None,
-              send_email: bool = False) -> dict:
+    def login(self, username: str, password: str, code: str | None = None, trusted_device=None, send_email: bool = False) -> dict:
         """The account for a right username, password and (with two-step login on) code. Raises AccountError.
         `trusted_device(account)`: this browser gave the code before and asked to be remembered (session.py), so the
         code is not asked again. With codes by email, a right password without a code mails one (`email_code_sent`);
@@ -312,7 +371,9 @@ class Accounts:
                 self._failed(account)
                 raise AccountError(401, "totp_invalid")
         with self.engine.begin() as c:
-            c.execute(update(accounts).where(accounts.c.id == account["id"]).values(last_login_at=now(), failed_logins=0, failed_since=None))
+            c.execute(
+                update(accounts).where(accounts.c.id == account["id"]).values(last_login_at=now(), failed_logins=0, failed_since=None)
+            )
         return self.get(account["id"])
 
     def reauthenticate(self, account_id: int, password: str, code: str | None = None) -> dict:
@@ -367,8 +428,11 @@ class Accounts:
             raise AccountError(403, "wrong_current_password")
         check_new_password(new, account["username"])
         with self.engine.begin() as c:
-            c.execute(update(accounts).where(accounts.c.id == account_id).values(
-                password_hash=hash_password(new), legacy_password_hashes=None, password_changed_at=now()))
+            c.execute(
+                update(accounts)
+                .where(accounts.c.id == account_id)
+                .values(password_hash=hash_password(new), legacy_password_hashes=None, password_changed_at=now())
+            )
             self._bump(c, account_id)
         return self.get(account_id)
 
@@ -396,8 +460,11 @@ class Accounts:
                 last = accounts.c.totp_last_step
                 with self.engine.begin() as c:
                     # only if no other request used this step or a later one meanwhile
-                    done = c.execute(update(accounts).where(and_(accounts.c.id == account["id"], (last.is_(None)) | (last < step)))
-                                     .values(totp_last_step=step)).rowcount
+                    done = c.execute(
+                        update(accounts)
+                        .where(and_(accounts.c.id == account["id"], (last.is_(None)) | (last < step)))
+                        .values(totp_last_step=step)
+                    ).rowcount
                 return bool(done)
         with self.engine.begin() as c:
             row = c.execute(select(accounts.c.totp_backup).where(accounts.c.id == account["id"]).with_for_update()).first()
@@ -429,17 +496,31 @@ class Accounts:
             raise AccountError(503, "email_unavailable")
         since = now() - LOGIN_WINDOW
         with self.engine.begin() as c:
-            sent = c.execute(select(func.count()).select_from(email_codes).where(and_(
-                email_codes.c.account_id == account["id"], email_codes.c.created_at >= since))).scalar_one()
+            sent = c.execute(
+                select(func.count())
+                .select_from(email_codes)
+                .where(and_(email_codes.c.account_id == account["id"], email_codes.c.created_at >= since))
+            ).scalar_one()
             if sent >= CODES_PER_WINDOW:
                 raise AccountError(429, "too_many_codes", headers={"Retry-After": str(int(LOGIN_WINDOW.total_seconds()))})
             c.execute(delete(email_codes).where(email_codes.c.created_at < now() - timedelta(days=1)))
-            c.execute(update(email_codes).where(and_(email_codes.c.account_id == account["id"], email_codes.c.purpose == purpose,
-                                                     email_codes.c.used_at.is_(None))).values(used_at=now()))
+            c.execute(
+                update(email_codes)
+                .where(and_(email_codes.c.account_id == account["id"], email_codes.c.purpose == purpose, email_codes.c.used_at.is_(None)))
+                .values(used_at=now())
+            )
             code = f"{secrets.randbelow(10**6):06d}"
-            c.execute(insert(email_codes).values(
-                account_id=account["id"], purpose=purpose, email=to, code_hash=self._code_hash(account["id"], purpose, code),
-                attempts=0, created_at=now(), expires_at=now() + timedelta(minutes=CODE_MINUTES)))
+            c.execute(
+                insert(email_codes).values(
+                    account_id=account["id"],
+                    purpose=purpose,
+                    email=to,
+                    code_hash=self._code_hash(account["id"], purpose, code),
+                    attempts=0,
+                    created_at=now(),
+                    expires_at=now() + timedelta(minutes=CODE_MINUTES),
+                )
+            )
         if welcome:
             subject, body = mail.welcome_mail(code, account["username"], account.get("locale"), CODE_MINUTES)
         else:
@@ -452,9 +533,17 @@ class Accounts:
     def _use_code(self, account_id: int, purpose: str, code: str) -> dict | None:
         """The code's row when `code` is the latest one for this purpose, still valid; it is spent now."""
         with self.engine.begin() as c:
-            row = c.execute(select(email_codes).where(and_(
-                email_codes.c.account_id == account_id, email_codes.c.purpose == purpose, email_codes.c.used_at.is_(None)))
-                .order_by(email_codes.c.id.desc()).limit(1).with_for_update()).mappings().first()
+            row = (
+                c.execute(
+                    select(email_codes)
+                    .where(and_(email_codes.c.account_id == account_id, email_codes.c.purpose == purpose, email_codes.c.used_at.is_(None)))
+                    .order_by(email_codes.c.id.desc())
+                    .limit(1)
+                    .with_for_update()
+                )
+                .mappings()
+                .first()
+            )
             if not row or row["expires_at"] < now() or row["attempts"] >= CODE_ATTEMPTS:
                 return None
             if not hmac.compare_digest(row["code_hash"], self._code_hash(account_id, purpose, code)):
@@ -505,8 +594,11 @@ class Accounts:
             taken = c.execute(select(accounts.c.id).where(and_(accounts.c.email == row["email"], accounts.c.id != account_id))).first()
             if taken:
                 raise AccountError(409, "email_taken")
-            c.execute(update(accounts).where(accounts.c.id == account_id).values(
-                email=row["email"], email_verified_at=now(), email_codes_at=now()))
+            c.execute(
+                update(accounts)
+                .where(accounts.c.id == account_id)
+                .values(email=row["email"], email_verified_at=now(), email_codes_at=now())
+            )
             self._bump(c, account_id)
         return self.get(account_id)
 
@@ -519,8 +611,7 @@ class Accounts:
             raise AccountError(401, "totp_required", email=bool(self.mailer))
         self.reauthenticate(account_id, password, code)
         with self.engine.begin() as c:
-            c.execute(update(accounts).where(accounts.c.id == account_id).values(
-                email=None, email_verified_at=None, email_codes_at=None))
+            c.execute(update(accounts).where(accounts.c.id == account_id).values(email=None, email_verified_at=None, email_codes_at=None))
             c.execute(delete(email_codes).where(email_codes.c.account_id == account_id))
             self._bump(c, account_id)
         return self.get(account_id)
@@ -534,8 +625,11 @@ class Accounts:
             raise AccountError(500, "accounts_key_missing")
         secret = totp.new_secret()
         with self.engine.begin() as c:
-            c.execute(update(accounts).where(accounts.c.id == account_id).values(
-                totp_secret=crypto.encrypt(secret, self.config.encryption_key), totp_last_step=None, totp_backup=None))
+            c.execute(
+                update(accounts)
+                .where(accounts.c.id == account_id)
+                .values(totp_secret=crypto.encrypt(secret, self.config.encryption_key), totp_last_step=None, totp_backup=None)
+            )
         return {"secret": secret, "otpauth_uri": totp.otpauth_uri(secret, account["username"], self.config.issuer)}
 
     def totp_enable(self, account_id: int, code: str) -> list[str]:
@@ -554,8 +648,9 @@ class Accounts:
             raise AccountError(422, "totp_invalid")
         codes, hashes = totp.new_backup_codes()
         with self.engine.begin() as c:
-            c.execute(update(accounts).where(accounts.c.id == account_id).values(
-                totp_enabled_at=now(), totp_last_step=step, totp_backup=hashes))
+            c.execute(
+                update(accounts).where(accounts.c.id == account_id).values(totp_enabled_at=now(), totp_last_step=step, totp_backup=hashes)
+            )
             self._bump(c, account_id)
         return codes
 
@@ -569,8 +664,11 @@ class Accounts:
             raise AccountError(401, "totp_required")
         self.reauthenticate(account_id, password, code)
         with self.engine.begin() as c:
-            c.execute(update(accounts).where(accounts.c.id == account_id).values(
-                totp_secret=None, totp_enabled_at=None, totp_last_step=None, totp_backup=None))
+            c.execute(
+                update(accounts)
+                .where(accounts.c.id == account_id)
+                .values(totp_secret=None, totp_enabled_at=None, totp_last_step=None, totp_backup=None)
+            )
             self._bump(c, account_id)
         return self.get(account_id)
 
@@ -610,15 +708,26 @@ class Accounts:
 
     def _add_app(self, account_id: int, app: str, is_admin: bool = False, consent_at: datetime | None = None) -> None:
         with self.engine.begin() as c:
-            c.execute(insert(account_apps).values(account_id=account_id, app=app, is_admin=is_admin, enabled_at=now(),
-                                                  consent_at=consent_at, privacy_version=PRIVACY_VERSION))
+            c.execute(
+                insert(account_apps).values(
+                    account_id=account_id,
+                    app=app,
+                    is_admin=is_admin,
+                    enabled_at=now(),
+                    consent_at=consent_at,
+                    privacy_version=PRIVACY_VERSION,
+                )
+            )
 
     def leave_app(self, account_id: int, app: str) -> None:
         """Stop using an app: the app deletes this account's data in it (`pending_purges`), then the row goes."""
         _check_app(app)
         with self.engine.begin() as c:
-            done = c.execute(update(account_apps).where(and_(account_apps.c.account_id == account_id, account_apps.c.app == app,
-                                                             account_apps.c.leaving_at.is_(None))).values(leaving_at=now())).rowcount
+            done = c.execute(
+                update(account_apps)
+                .where(and_(account_apps.c.account_id == account_id, account_apps.c.app == app, account_apps.c.leaving_at.is_(None)))
+                .values(leaving_at=now())
+            ).rowcount
         if not done:
             raise AccountError(404, "not_in_app")
 
@@ -629,20 +738,28 @@ class Accounts:
     def set_local_key(self, account_id: int, app: str, key: str) -> None:
         """The app's own key for this account (its user id or data folder), set when the app first meets it."""
         with self.engine.begin() as c:
-            c.execute(update(account_apps).where(and_(account_apps.c.account_id == account_id, account_apps.c.app == app))
-                      .values(local_key=str(key)))
+            c.execute(
+                update(account_apps)
+                .where(and_(account_apps.c.account_id == account_id, account_apps.c.app == app))
+                .values(local_key=str(key))
+            )
 
     def account_id_for_local_key(self, app: str, key: str) -> int | None:
         """Whatever the account's state (the admin pages map the app's users to accounts with it)."""
         with self.engine.connect() as c:
-            row = c.execute(select(account_apps.c.account_id).where(and_(account_apps.c.app == app, account_apps.c.local_key == str(key)))).first()
+            row = c.execute(
+                select(account_apps.c.account_id).where(and_(account_apps.c.app == app, account_apps.c.local_key == str(key)))
+            ).first()
         return row[0] if row else None
 
     def account_for_local_key(self, app: str, key: str) -> dict | None:
         """The account behind an app's own key (for an agent token, which the app resolves to its own user)."""
         with self.engine.connect() as c:
-            row = c.execute(select(account_apps.c.account_id).where(and_(
-                account_apps.c.app == app, account_apps.c.local_key == str(key), account_apps.c.leaving_at.is_(None)))).first()
+            row = c.execute(
+                select(account_apps.c.account_id).where(
+                    and_(account_apps.c.app == app, account_apps.c.local_key == str(key), account_apps.c.leaving_at.is_(None))
+                )
+            ).first()
         account = self.get(row[0]) if row else None
         if not account or account["suspended"] or account.get("deleted_at"):
             return None
@@ -651,8 +768,15 @@ class Accounts:
     def pending_purges(self, app: str) -> list[dict]:
         """Accounts whose data this app still has to delete: [{account_id, local_key}]."""
         with self.engine.connect() as c:
-            rows = c.execute(select(account_apps.c.account_id, account_apps.c.local_key).where(and_(
-                account_apps.c.app == app, account_apps.c.leaving_at.is_not(None)))).mappings().all()
+            rows = (
+                c.execute(
+                    select(account_apps.c.account_id, account_apps.c.local_key).where(
+                        and_(account_apps.c.app == app, account_apps.c.leaving_at.is_not(None))
+                    )
+                )
+                .mappings()
+                .all()
+            )
         return [dict(r) for r in rows]
 
     def purged(self, account_id: int, app: str) -> None:
@@ -673,16 +797,22 @@ class Accounts:
             c.execute(update(accounts).where(accounts.c.id == account_id).values(deleted_at=now()))
             c.execute(delete(daily_use).where(daily_use.c.account_id == account_id))
             self._bump(c, account_id)
-            c.execute(update(account_apps).where(and_(account_apps.c.account_id == account_id, account_apps.c.leaving_at.is_(None)))
-                      .values(leaving_at=now()))
+            c.execute(
+                update(account_apps)
+                .where(and_(account_apps.c.account_id == account_id, account_apps.c.leaving_at.is_(None)))
+                .values(leaving_at=now())
+            )
             left = c.execute(select(func.count()).select_from(account_apps).where(account_apps.c.account_id == account_id)).scalar_one()
             if not left:
                 c.execute(delete(accounts).where(accounts.c.id == account_id))
 
     def _other_admins(self, account_id: int) -> int:
         with self.engine.connect() as c:
-            return c.execute(select(func.count()).select_from(accounts).where(and_(
-                accounts.c.is_admin.is_(True), accounts.c.id != account_id, accounts.c.deleted_at.is_(None)))).scalar_one()
+            return c.execute(
+                select(func.count())
+                .select_from(accounts)
+                .where(and_(accounts.c.is_admin.is_(True), accounts.c.id != account_id, accounts.c.deleted_at.is_(None)))
+            ).scalar_one()
 
     # --- admin -----------------------------------------------------------------------------------------------------
 
@@ -743,7 +873,8 @@ class Accounts:
         return {
             "weeks": [m.isoformat() for m in mondays],
             "apps": {app: {"visits": visits[app], "users": [len(s) for s in people[app]]} for app in APPS},
-            "active_7": len(recent[7]), "active_30": len(recent[30]),
+            "active_7": len(recent[7]),
+            "active_30": len(recent[30]),
             "last_seen": {str(aid): day.isoformat() for aid, day in last if day is not None},
         }
 
@@ -757,8 +888,15 @@ class Accounts:
         out = []
         for r in rows:
             mine = {k: v for k, v in by_account.get(r["id"], {}).items() if v["leaving_at"] is None}
-            out.append({**self.view(dict(r), mine), "suspended": bool(r["suspended"]), "created_at": r["created_at"],
-                        "last_login_at": r["last_login_at"], "local_keys": {a: v["local_key"] for a, v in mine.items()}})
+            out.append(
+                {
+                    **self.view(dict(r), mine),
+                    "suspended": bool(r["suspended"]),
+                    "created_at": r["created_at"],
+                    "last_login_at": r["last_login_at"],
+                    "local_keys": {a: v["local_key"] for a, v in mine.items()},
+                }
+            )
         return out
 
     def _target(self, account_id: int) -> dict:
@@ -797,15 +935,21 @@ class Accounts:
             self._audit(actor, "take_app", target["username"], app)
         if is_admin is not None and app in self.apps(account_id):
             with self.engine.begin() as c:
-                c.execute(update(account_apps).where(and_(account_apps.c.account_id == account_id, account_apps.c.app == app))
-                          .values(is_admin=is_admin))
+                c.execute(
+                    update(account_apps)
+                    .where(and_(account_apps.c.account_id == account_id, account_apps.c.app == app))
+                    .values(is_admin=is_admin)
+                )
             self._audit(actor, "app_admin" if is_admin else "remove_app_admin", target["username"], app)
         return self.apps(account_id)
 
     def give_consent(self, account_id: int, app: str) -> None:
         with self.engine.begin() as c:
-            c.execute(update(account_apps).where(and_(account_apps.c.account_id == account_id, account_apps.c.app == app))
-                      .values(consent_at=now(), privacy_version=PRIVACY_VERSION))
+            c.execute(
+                update(account_apps)
+                .where(and_(account_apps.c.account_id == account_id, account_apps.c.app == app))
+                .values(consent_at=now(), privacy_version=PRIVACY_VERSION)
+            )
 
     def can_manage(self, actor: dict, actor_app_admin: str | None, account_id: int) -> bool:
         """Whether `actor` may block, reset or delete this account: an account admin always; an app's admin
@@ -826,9 +970,17 @@ class Accounts:
             check_new_password(new_password, target["username"])
         temporary = new_password or secrets.token_urlsafe(12)
         with self.engine.begin() as c:
-            c.execute(update(accounts).where(accounts.c.id == account_id).values(
-                password_hash=hash_password(temporary), legacy_password_hashes=None, password_changed_at=now(),
-                failed_logins=0, failed_since=None))
+            c.execute(
+                update(accounts)
+                .where(accounts.c.id == account_id)
+                .values(
+                    password_hash=hash_password(temporary),
+                    legacy_password_hashes=None,
+                    password_changed_at=now(),
+                    failed_logins=0,
+                    failed_since=None,
+                )
+            )
             self._bump(c, account_id)
         self._audit(actor, "reset_password", target["username"])
         return None if new_password else temporary
@@ -838,9 +990,19 @@ class Accounts:
         email both. Their sessions end; with two-step login required, they set it up again at their next login."""
         target = self._target(account_id)
         with self.engine.begin() as c:
-            c.execute(update(accounts).where(accounts.c.id == account_id).values(
-                totp_secret=None, totp_enabled_at=None, totp_last_step=None, totp_backup=None,
-                email=None, email_verified_at=None, email_codes_at=None))
+            c.execute(
+                update(accounts)
+                .where(accounts.c.id == account_id)
+                .values(
+                    totp_secret=None,
+                    totp_enabled_at=None,
+                    totp_last_step=None,
+                    totp_backup=None,
+                    email=None,
+                    email_verified_at=None,
+                    email_codes_at=None,
+                )
+            )
             self._bump(c, account_id)
         self._audit(actor, "reset_totp", target["username"])
         return self.get(account_id)

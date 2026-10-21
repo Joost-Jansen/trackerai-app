@@ -23,8 +23,7 @@ from app.services import dashboard_service as ds
 
 
 def _pos(isin="X1", shares=10.0, value=1100.0):
-    return {"isin": isin, "name": "Fund", "ticker": "X1.AS",
-            "shares_held": shares, "current_value": value}
+    return {"isin": isin, "name": "Fund", "ticker": "X1.AS", "shares_held": shares, "current_value": value}
 
 
 def _price(price=110.0, prev=100.0, currency="EUR", fetched_at=None):
@@ -32,7 +31,9 @@ def _price(price=110.0, prev=100.0, currency="EUR", fetched_at=None):
     what the refresher (app/core/price_refresh.py) keeps it at during market
     hours and what anchoring requires — see the staleness tests below."""
     return {
-        "price": price, "previous_close": prev, "currency": currency,
+        "price": price,
+        "previous_close": prev,
+        "currency": currency,
         "fetched_at": fetched_at or datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
 
@@ -103,9 +104,11 @@ def test_a_price_row_without_a_timestamp_blocks_anchoring():
 # Where they land: get_intraday replaces the last bar and the baseline
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def conn(tmp_path, monkeypatch):
     from domain import database
+
     monkeypatch.setattr(database, "_HERE", str(tmp_path))
     c = database.connect("alice")
     database.init_db(c)  # get_or_fetch writes to api_cache
@@ -113,21 +116,19 @@ def conn(tmp_path, monkeypatch):
 
 
 def _stub_bars(monkeypatch, points, prev_close):
-    monkeypatch.setattr(
-        ds, "_build_intraday", lambda tx, prices: {"points": list(points), "prev_close": prev_close}
-    )
+    monkeypatch.setattr(ds, "_build_intraday", lambda tx, prices: {"points": list(points), "prev_close": prev_close})
 
 
 def test_anchors_replace_both_endpoints_and_leave_the_shape(conn, monkeypatch):
     # points[0] is the previous close, prepended by _build_intraday.
-    bars = [{"d": "2026-07-29T15:25+00:00", "value": 985.0},
-            {"d": "2026-07-30T07:00+00:00", "value": 990.0},
-            {"d": "2026-07-30T15:25+00:00", "value": 1090.0}]
+    bars = [
+        {"d": "2026-07-29T15:25+00:00", "value": 985.0},
+        {"d": "2026-07-30T07:00+00:00", "value": 990.0},
+        {"d": "2026-07-30T15:25+00:00", "value": 1090.0},
+    ]
     _stub_bars(monkeypatch, bars, 985.0)
 
-    out = ds.get_intraday(
-        conn, [{"isin": "X1"}], {"X1": _price(price=110.0, prev=100.0)}, [_pos(shares=10.0)]
-    )
+    out = ds.get_intraday(conn, [{"isin": "X1"}], {"X1": _price(price=110.0, prev=100.0)}, [_pos(shares=10.0)])
     # The delayed final bar (1090) gives way to the live value (1100), and both
     # the baseline and the point drawn at it to the chip's previous close (1000)
     # — so the line's endpoints and the chip describe the same two prices.
@@ -147,9 +148,11 @@ def test_selecting_the_whole_line_gives_the_chips_own_number(conn, monkeypatch):
     +€79,19. Both were right about different things, which is the worst kind of
     disagreement to put on one card.
     """
-    bars = [{"d": "2026-07-29T15:25+00:00", "value": 985.0},   # prepended baseline
-            {"d": "2026-07-30T07:00+00:00", "value": 970.0},   # opened below it
-            {"d": "2026-07-30T15:25+00:00", "value": 1090.0}]
+    bars = [
+        {"d": "2026-07-29T15:25+00:00", "value": 985.0},  # prepended baseline
+        {"d": "2026-07-30T07:00+00:00", "value": 970.0},  # opened below it
+        {"d": "2026-07-30T15:25+00:00", "value": 1090.0},
+    ]
     _stub_bars(monkeypatch, bars, 985.0)
     positions, prices = [_pos(shares=10.0)], {"X1": _price(price=110.0, prev=100.0)}
 
@@ -163,22 +166,21 @@ def test_without_anchors_the_bars_are_left_alone_and_marked_unanchored(conn, mon
     """The bars stay — the visit strip reads their timestamps — but the card is
     told not to draw them: an unpinned day is a second answer to a question
     that has one, and it falls back to the daily series instead."""
-    bars = [{"d": "2026-07-30T07:00+00:00", "value": 990.0},
-            {"d": "2026-07-30T15:25+00:00", "value": 1090.0}]
+    bars = [{"d": "2026-07-30T07:00+00:00", "value": 990.0}, {"d": "2026-07-30T15:25+00:00", "value": 1090.0}]
     _stub_bars(monkeypatch, bars, 985.0)
 
-    out = ds.get_intraday(
-        conn, [{"isin": "X1"}], {"X1": _price(currency="USD")}, [_pos()]
-    )
+    out = ds.get_intraday(conn, [{"isin": "X1"}], {"X1": _price(currency="USD")}, [_pos()])
     assert out["anchored"] is False
     assert out["prev_close"] == 985.0
     assert out["points"][-1]["value"] == 1090.0
 
 
 def test_anchored_bars_say_so(conn, monkeypatch):
-    bars = [{"d": "2026-07-29T15:25+00:00", "value": 985.0},
-            {"d": "2026-07-30T07:00+00:00", "value": 990.0},
-            {"d": "2026-07-30T15:25+00:00", "value": 1090.0}]
+    bars = [
+        {"d": "2026-07-29T15:25+00:00", "value": 985.0},
+        {"d": "2026-07-30T07:00+00:00", "value": 990.0},
+        {"d": "2026-07-30T15:25+00:00", "value": 1090.0},
+    ]
     _stub_bars(monkeypatch, bars, 985.0)
 
     out = ds.get_intraday(conn, [{"isin": "X1"}], {"X1": _price()}, [_pos()])
@@ -189,8 +191,7 @@ def test_bars_without_a_previous_close_are_not_anchored(conn, monkeypatch):
     """Only the far end could be pinned, so the day would be measured from the
     open — the +€116,61-against-+€79,19 reading this whole anchoring exists to
     remove. Half-pinned is not pinned."""
-    bars = [{"d": "2026-07-30T07:00+00:00", "value": 990.0},
-            {"d": "2026-07-30T15:25+00:00", "value": 1090.0}]
+    bars = [{"d": "2026-07-30T07:00+00:00", "value": 990.0}, {"d": "2026-07-30T15:25+00:00", "value": 1090.0}]
     _stub_bars(monkeypatch, bars, None)
 
     out = ds.get_intraday(conn, [{"isin": "X1"}], {"X1": _price()}, [_pos()])
@@ -200,8 +201,7 @@ def test_bars_without_a_previous_close_are_not_anchored(conn, monkeypatch):
 
 def test_anchors_are_applied_outside_the_cache(conn, monkeypatch):
     """A cached payload must not pin a stale live price for the whole TTL."""
-    bars = [{"d": "2026-07-30T07:00+00:00", "value": 990.0},
-            {"d": "2026-07-30T15:25+00:00", "value": 1090.0}]
+    bars = [{"d": "2026-07-30T07:00+00:00", "value": 990.0}, {"d": "2026-07-30T15:25+00:00", "value": 1090.0}]
     _stub_bars(monkeypatch, bars, 985.0)
     tx = [{"isin": "X1"}]
 
@@ -221,5 +221,7 @@ def test_empty_bars_are_not_anchored(conn, monkeypatch):
 
 def test_a_portfolio_without_transactions_is_not_anchored(conn):
     assert ds.get_intraday(conn, [], {}, []) == {
-        "points": [], "prev_close": None, "anchored": False,
+        "points": [],
+        "prev_close": None,
+        "anchored": False,
     }

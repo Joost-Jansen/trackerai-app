@@ -9,20 +9,18 @@ or domain-module call runs.
 
 import re
 import sqlite3
+from collections.abc import Generator
 from dataclasses import dataclass
-from typing import Generator
 
 from fastapi import Depends, HTTPException, Request, Response, status
 
 from app.core import auth_store, throttle
 from app.core.accounts import APP, accounts, local_folder
 from app.core.errors import CodedError
-
-from trackerai_accounts.oauth import OAuth, PREFIX
-from trackerai_accounts.routes import Session
-
 from domain import database  # repo-root module, see app/__init__.py for the sys.path setup
 from domain.i18n import tr
+from trackerai_accounts.oauth import PREFIX, OAuth
+from trackerai_accounts.routes import Session
 
 
 @dataclass(frozen=True)
@@ -73,7 +71,8 @@ AGENT_WRITES = [
 # consent flow, also under its old Dutch path). Fetching through a connection that
 # already exists is the one exception (AGENT_WRITES).
 AGENT_BLOCKED = re.compile(
-    r"^/api/(admin|agent-tokens|connections(?!/enablebanking/fetch$)|koppelingen|account|auth/(change-password|delete))(/|$)")
+    r"^/api/(admin|agent-tokens|connections(?!/enablebanking/fetch$)|koppelingen|account|auth/(change-password|delete))(/|$)"
+)
 
 
 def resolve_agent_token(request: Request, token: str, cfg: dict) -> tuple[str, dict]:
@@ -85,12 +84,19 @@ def resolve_agent_token(request: Request, token: str, cfg: dict) -> tuple[str, d
     """
     ip = throttle.client_ip(request)
     if throttle.AGENT_FAILURES_PER_IP.blocked(ip):
-        raise CodedError(status.HTTP_429_TOO_MANY_REQUESTS, "too_many_attempts",
-                         tr("Too many failed attempts. Try again in a quarter of an hour."))
+        raise CodedError(
+            status.HTTP_429_TOO_MANY_REQUESTS, "too_many_attempts", tr("Too many failed attempts. Try again in a quarter of an hour.")
+        )
     if token.startswith(PREFIX):
         access = OAuth(accounts).resolve(token, APP)
-        found = None if not access else (local_folder(Session(access["account"], access["apps"], {})),
-            {"id": access["id"], "scope": access["scope"], "oauth": True})
+        found = (
+            None
+            if not access
+            else (
+                local_folder(Session(access["account"], access["apps"], {})),
+                {"id": access["id"], "scope": access["scope"], "oauth": True},
+            )
+        )
     else:
         found = auth_store.resolve_agent_token(token, cfg)
     if not found:
@@ -116,14 +122,11 @@ def _agent_user(request: Request) -> CurrentUser | None:
     if AGENT_BLOCKED.match(path):
         raise HTTPException(status.HTTP_403_FORBIDDEN, tr("Not available for an agent token."))
     if method not in ("GET", "HEAD"):
-        allowed = entry.get("scope") == "write" and any(
-            m == method and rx.match(path) for m, rx in AGENT_WRITES
-        )
+        allowed = entry.get("scope") == "write" and any(m == method and rx.match(path) for m, rx in AGENT_WRITES)
         if not allowed:
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
-                tr("This agent token may not change this.")
-                + ("" if entry.get("scope") == "write" else tr(" It only has read access.")),
+                tr("This agent token may not change this.") + ("" if entry.get("scope") == "write" else tr(" It only has read access.")),
             )
     if not entry.get("oauth"):
         auth_store.record_agent_use(username, entry.get("id", ""))
@@ -190,10 +193,25 @@ def require_money(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
 # nothing personal. Auth, admin, onboarding, preferences, tokens, the bank
 # connection, uploads, feedback and MCP always read the real user.
 EXAMPLE_PATHS = (
-    "/api/accounts", "/api/bank-transactions", "/api/benchmarks", "/api/budget", "/api/calendar",
-    "/api/categories", "/api/dashboard", "/api/details", "/api/dividend", "/api/etf-analysis",
-    "/api/holdings", "/api/labelling", "/api/month-periods", "/api/net-worth", "/api/news",
-    "/api/portfolio", "/api/rebalancing", "/api/returns", "/api/spending",
+    "/api/accounts",
+    "/api/bank-transactions",
+    "/api/benchmarks",
+    "/api/budget",
+    "/api/calendar",
+    "/api/categories",
+    "/api/dashboard",
+    "/api/details",
+    "/api/dividend",
+    "/api/etf-analysis",
+    "/api/holdings",
+    "/api/labelling",
+    "/api/month-periods",
+    "/api/net-worth",
+    "/api/news",
+    "/api/portfolio",
+    "/api/rebalancing",
+    "/api/returns",
+    "/api/spending",
 )
 
 
@@ -212,6 +230,7 @@ def get_db(request: Request, user: CurrentUser = Depends(get_current_user)) -> G
         if request.method not in ("GET", "HEAD"):
             raise HTTPException(status.HTTP_403_FORBIDDEN, tr("This is example data; it can't be changed."))
         from app.services import example_service
+
         example_service.ensure()
         username = example_service.USER
     # same_thread_only=False because FastAPI runs a sync dependency's setup and

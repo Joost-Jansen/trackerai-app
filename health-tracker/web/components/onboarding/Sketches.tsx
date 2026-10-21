@@ -26,7 +26,14 @@ function Tick({ x, y }: { x: number; y: number }) {
   return (
     <g>
       <circle cx={x} cy={y} r={5} fill={POS} />
-      <path d={`M${x - 2.4} ${y} l1.7 1.8 l3.2 -3.4`} fill="none" stroke={CARD} strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d={`M${x - 2.4} ${y} l1.7 1.8 l3.2 -3.4`}
+        fill="none"
+        stroke={CARD}
+        strokeWidth={1.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </g>
   );
 }
@@ -58,7 +65,14 @@ const PAGES: Record<SketchId, React.ReactNode> = {
   sync: (
     <g>
       <circle cx={52} cy={62} r={16} fill={CARD} stroke="var(--border)" />
-      <path d="M44 60 a8 8 0 0 1 14 -4 m0 -5 v5 h-5 M60 64 a8 8 0 0 1 -14 4 m0 5 v-5 h5" fill="none" stroke={BRAND} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M44 60 a8 8 0 0 1 14 -4 m0 -5 v5 h-5 M60 64 a8 8 0 0 1 -14 4 m0 5 v-5 h5"
+        fill="none"
+        stroke={BRAND}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
       <rect x={30} y={96} width={46} height={7} rx={3.5} fill={SOFT} />
       <rect x={30} y={96} width={30} height={7} rx={3.5} fill={BRAND} />
       {[0, 1, 2, 3].map((r) => (
@@ -111,7 +125,9 @@ const PAGES: Record<SketchId, React.ReactNode> = {
     <g>
       <Box x={24} y={36} w={100} h={88} />
       <Bar x={34} y={46} w={50} h={6} fill={BRAND} />
-      {[0, 1, 2, 3].map((r) => <Bar key={r} x={34} y={62 + r * 13} w={[76, 60, 70, 44][r]} />)}
+      {[0, 1, 2, 3].map((r) => (
+        <Bar key={r} x={34} y={62 + r * 13} w={[76, 60, 70, 44][r]} />
+      ))}
       <PlanGrid x={140} y={36} w={144} rows={3} />
     </g>
   ),
@@ -148,7 +164,9 @@ export function Sketch({ id }: { id: SketchId }) {
       <svg viewBox="0 0 320 140" className="block h-auto w-full" aria-hidden focusable="false">
         <rect x={4} y={4} width={312} height={132} rx={10} fill={CARD} stroke="var(--border)" />
         <path d="M4 22 h312" stroke="var(--border)" />
-        {[0, 1, 2].map((n) => <circle key={n} cx={16 + n * 10} cy={13} r={3} fill={LINE} />)}
+        {[0, 1, 2].map((n) => (
+          <circle key={n} cx={16 + n * 10} cy={13} r={3} fill={LINE} />
+        ))}
         <rect x={60} y={8.5} width={140} height={9} rx={4.5} fill={SOFT} />
         {PAGES[id]}
       </svg>

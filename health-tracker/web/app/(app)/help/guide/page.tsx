@@ -15,13 +15,21 @@ function Text({ children }: { children: React.ReactNode }) {
 }
 
 function Bullets({ items }: { items: React.ReactNode[] }) {
-  return <ul className="list-disc pl-5">{items.map((b, i) => <li key={i}>{b}</li>)}</ul>;
+  return (
+    <ul className="list-disc pl-5">
+      {items.map((b, i) => (
+        <li key={i}>{b}</li>
+      ))}
+    </ul>
+  );
 }
 
 function Part({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
     <section id={id} className="scroll-mt-20">
-      <Card title={title}><Text>{children}</Text></Card>
+      <Card title={title}>
+        <Text>{children}</Text>
+      </Card>
     </section>
   );
 }
@@ -32,7 +40,7 @@ export default function HelpGuide() {
   const T = t.texts;
   const o = useOnboarding().data ?? null;
   const ex = (id: StepId) => stepExplain(id, o, t);
-  const doneNote = (id: StepId, text: string) => o?.steps[id] ? <span className="text-ink-muted"> {text}</span> : null;
+  const doneNote = (id: StepId, text: string) => (o?.steps[id] ? <span className="text-ink-muted"> {text}</span> : null);
   const title = (id: string) => m.contents.find(([k]) => k === id)?.[1] ?? id;
   const link = (href: string) => (c: string) => <A href={href}>{c}</A>;
 
@@ -42,7 +50,11 @@ export default function HelpGuide() {
         <Text>
           <p>{m.intro}</p>
           <nav aria-label={m.contentsAria} className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-            {m.contents.map(([id, name]) => <a key={id} href={`#${id}`} className="underline underline-offset-4">{name}</a>)}
+            {m.contents.map(([id, name]) => (
+              <a key={id} href={`#${id}`} className="underline underline-offset-4">
+                {name}
+              </a>
+            ))}
           </nav>
         </Text>
       </Card>
@@ -50,14 +62,26 @@ export default function HelpGuide() {
       <Part id="getting-started" title={title("getting-started")}>
         <ol className="list-decimal pl-5">
           {o?.device === "apple" ? (
-            <li>{rich(m.stepApple, { b: bold, link: link("/settings/connections/#apple") })}{doneNote("garmin", m.doneNote)}</li>
+            <li>
+              {rich(m.stepApple, { b: bold, link: link("/settings/connections/#apple") })}
+              {doneNote("garmin", m.doneNote)}
+            </li>
           ) : (
             <>
-              <li>{rich(m.stepGarmin, { b: bold, link: link("/settings/connections/") })}{doneNote("garmin", m.doneNote)}</li>
-              <li>{rich(m.stepSync, { b: bold })}{doneNote("sync", m.syncDoneNote(o?.status.activities.count ?? 0))}</li>
+              <li>
+                {rich(m.stepGarmin, { b: bold, link: link("/settings/connections/") })}
+                {doneNote("garmin", m.doneNote)}
+              </li>
+              <li>
+                {rich(m.stepSync, { b: bold })}
+                {doneNote("sync", m.syncDoneNote(o?.status.activities.count ?? 0))}
+              </li>
             </>
           )}
-          <li>{rich(m.stepZones, { b: bold, link: link("/settings/zones/") })}{doneNote("zones", m.doneNote)}</li>
+          <li>
+            {rich(m.stepZones, { b: bold, link: link("/settings/zones/") })}
+            {doneNote("zones", m.doneNote)}
+          </li>
         </ol>
         <p className="text-xs text-ink-muted">{rich(m.progressAt, { link: link("/help/") })}</p>
       </Part>
@@ -68,7 +92,9 @@ export default function HelpGuide() {
         <Bullets items={t.onboarding.explain.garmin.bullets} />
         <p>{ex("sync").intro}</p>
         <Bullets items={ex("sync").bullets} />
-        <p><b>{m.appleTitle}</b></p>
+        <p>
+          <b>{m.appleTitle}</b>
+        </p>
         <p>{t.onboarding.explain.apple.intro}</p>
         <Bullets items={t.onboarding.explain.apple.bullets} />
       </Part>
@@ -81,19 +107,37 @@ export default function HelpGuide() {
       </Part>
 
       <Part id="numbers" title={title("numbers")}>
-        <p><b>{m.readiness}</b> {T.readinessBasis}</p>
-        <p><b>{m.form}</b> {T.formMethod}</p>
-        <p><b>{m.z2}</b> {T.z2Pace}</p>
-        <p><b>{m.records}</b> {T.records}</p>
+        <p>
+          <b>{m.readiness}</b> {T.readinessBasis}
+        </p>
+        <p>
+          <b>{m.form}</b> {T.formMethod}
+        </p>
+        <p>
+          <b>{m.z2}</b> {T.z2Pace}
+        </p>
+        <p>
+          <b>{m.records}</b> {T.records}
+        </p>
         <p className="text-xs text-ink-muted">{T.noMedicalAdvice}</p>
       </Part>
 
       <Part id="where" title={title("where")}>
         <ul className="list-disc pl-5">
-          {PAGES.map((p) => <li key={p.id}><A href={p.href}>{t.onboarding.pages[p.id].label}</A>: {t.onboarding.pages[p.id].text}.</li>)}
-          <li><A href="/plan/">{t.nav.items.plan}</A>: {m.plan}</li>
-          <li><A href="/log/">{t.nav.items.log}</A>: {m.log}</li>
-          <li><A href="/settings/">{t.nav.items.settings}</A>: {m.settings}</li>
+          {PAGES.map((p) => (
+            <li key={p.id}>
+              <A href={p.href}>{t.onboarding.pages[p.id].label}</A>: {t.onboarding.pages[p.id].text}.
+            </li>
+          ))}
+          <li>
+            <A href="/plan/">{t.nav.items.plan}</A>: {m.plan}
+          </li>
+          <li>
+            <A href="/log/">{t.nav.items.log}</A>: {m.log}
+          </li>
+          <li>
+            <A href="/settings/">{t.nav.items.settings}</A>: {m.settings}
+          </li>
         </ul>
         <p className="text-xs text-ink-muted">{m.smallPrint}</p>
       </Part>

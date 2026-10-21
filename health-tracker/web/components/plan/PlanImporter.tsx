@@ -40,7 +40,13 @@ export default function PlanImporter({ onDone, onCancel, onEditor }: { onDone: (
       // Without a title the API names the plan in Dutch; name it here in the user's language.
       const first = preview?.sessions[0]?.date;
       const name = title || (save && first ? m.defaultTitle(f.day(first)) : undefined);
-      const res = await api.post<ImportResponse>("/api/plans/import", { text, title: name, goal: goal || undefined, race: race || undefined, preview: !save });
+      const res = await api.post<ImportResponse>("/api/plans/import", {
+        text,
+        title: name,
+        goal: goal || undefined,
+        race: race || undefined,
+        preview: !save,
+      });
       setPreview(res);
       if (save && res.saved) onDone();
     } catch (e) {
@@ -54,36 +60,97 @@ export default function PlanImporter({ onDone, onCancel, onEditor }: { onDone: (
         <div>
           <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">{m.eyebrow}</span>
           <h1 className="mt-1 font-display text-[28px] font-light leading-tight">{m.title}</h1>
-          <p className="mt-1 max-w-prose text-[12.5px] text-ink-muted">
-            {m.intro}
-          </p>
+          <p className="mt-1 max-w-prose text-[12.5px] text-ink-muted">{m.intro}</p>
         </div>
         <div className="flex gap-2">
-          {onEditor && <Button size="sm" onClick={onEditor}>{m.manual}</Button>}
-          {onCancel && <Button size="sm" variant="ghost" onClick={onCancel}>{t.common.cancel}</Button>}
+          {onEditor && (
+            <Button size="sm" onClick={onEditor}>
+              {m.manual}
+            </Button>
+          )}
+          {onCancel && (
+            <Button size="sm" variant="ghost" onClick={onCancel}>
+              {t.common.cancel}
+            </Button>
+          )}
         </div>
       </div>
       <section className="rounded border border-border bg-surface p-4 sm:p-[18px]">
         <div className="grid gap-3 sm:grid-cols-3">
-          <input className="ds-input" placeholder={m.titlePh} aria-label={m.titleLabel} value={title} onChange={(e) => setTitle(e.target.value)} />
-          <input className="ds-input" placeholder={m.goalPh} aria-label={m.goalLabel} value={goal} onChange={(e) => setGoal(e.target.value)} />
-          <input className="ds-input" placeholder={m.racePh} aria-label={m.raceLabel} value={race} onChange={(e) => setRace(e.target.value)} />
+          <input
+            className="ds-input"
+            placeholder={m.titlePh}
+            aria-label={m.titleLabel}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <input
+            className="ds-input"
+            placeholder={m.goalPh}
+            aria-label={m.goalLabel}
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+          />
+          <input
+            className="ds-input"
+            placeholder={m.racePh}
+            aria-label={m.raceLabel}
+            value={race}
+            onChange={(e) => setRace(e.target.value)}
+          />
         </div>
-        <textarea className="ds-input mt-3 h-44 w-full py-2 font-mono text-[12px]" aria-label={m.table} placeholder={m.example} value={text} onChange={(e) => { setText(e.target.value); setPreview(null); }} />
+        <textarea
+          className="ds-input mt-3 h-44 w-full py-2 font-mono text-[12px]"
+          aria-label={m.table}
+          placeholder={m.example}
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setPreview(null);
+          }}
+        />
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <label className="ds-btn ds-btn--secondary ds-btn--sm cursor-pointer">
             {m.file}
-            <input type="file" accept=".csv,.md,.txt,.tsv" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { setText(await f.text()); setPreview(null); } }} />
+            <input
+              type="file"
+              accept=".csv,.md,.txt,.tsv"
+              className="hidden"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (f) {
+                  setText(await f.text());
+                  setPreview(null);
+                }
+              }}
+            />
           </label>
-          <Button size="sm" variant="ghost" onClick={() => { setText(m.example); setPreview(null); }}>{m.fillExample}</Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setText(m.example);
+              setPreview(null);
+            }}
+          >
+            {m.fillExample}
+          </Button>
           <span className="flex-1" />
-          <Button size="sm" onClick={() => run(false)} disabled={!text.trim()}>{m.check}</Button>
-          <Button size="sm" variant="primary" onClick={() => run(true)} disabled={!preview || preview.sessions.length === 0}>{m.saveActive}</Button>
+          <Button size="sm" onClick={() => run(false)} disabled={!text.trim()}>
+            {m.check}
+          </Button>
+          <Button size="sm" variant="primary" onClick={() => run(true)} disabled={!preview || preview.sessions.length === 0}>
+            {m.saveActive}
+          </Button>
         </div>
         {error && <p className="mt-3 text-[12.5px] text-loss">{error}</p>}
         {preview && (
           <div className="mt-4 border-t border-border pt-3">
-            {preview.warnings.map((w, i) => <p key={w} className="text-[12.5px] text-loss">{warningText(t, preview.warning_codes?.[i], w)}</p>)}
+            {preview.warnings.map((w, i) => (
+              <p key={w} className="text-[12.5px] text-loss">
+                {warningText(t, preview.warning_codes?.[i], w)}
+              </p>
+            ))}
             <p className="mb-2 text-[12.5px] text-ink-muted">{m.found(preview.sessions.length)}</p>
             <ul className="flex flex-col">
               {preview.sessions.map((s, i) => (
@@ -92,7 +159,11 @@ export default function PlanImporter({ onDone, onCancel, onEditor }: { onDone: (
                   <SportBadge sport={s.sport} size={24} />
                   <span className="min-w-0 flex-1">
                     <span className="font-medium">{s.kind ? capitalise(s.kind) : t.sport(s.sport)}</span>
-                    {s.distance_km ? <span className="tabular-nums"> · {f.trim(s.distance_km)} km</span> : s.duration_min ? <span className="tabular-nums"> · {s.duration_min} min</span> : null}
+                    {s.distance_km ? (
+                      <span className="tabular-nums"> · {f.trim(s.distance_km)} km</span>
+                    ) : s.duration_min ? (
+                      <span className="tabular-nums"> · {s.duration_min} min</span>
+                    ) : null}
                     {s.description && <span className="block truncate text-[12px] text-ink-muted">{s.description}</span>}
                   </span>
                   <ZoneChip zone={s.target_zone} />

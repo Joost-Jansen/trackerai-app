@@ -12,7 +12,6 @@ import datetime
 
 from app.services import dividend_service as dv
 
-
 TODAY = datetime.date(2026, 8, 4)
 
 
@@ -20,16 +19,25 @@ def _pay(date, isin="X1", name="Fund X", net=10.0, gross=None, tax=None):
     gross = net if gross is None else gross
     tax = 0.0 if tax is None else tax
     return {
-        "date": date, "isin": isin, "name": name,
-        "gross_eur": gross, "tax_eur": tax, "net_eur": net,
-        "currency_original": "EUR", "amount_original": gross,
+        "date": date,
+        "isin": isin,
+        "name": name,
+        "gross_eur": gross,
+        "tax_eur": tax,
+        "net_eur": net,
+        "currency_original": "EUR",
+        "amount_original": gross,
     }
 
 
 def _pos(isin="X1", name="Fund X", invested=1000.0, value=1200.0, shares=10.0):
     return {
-        "isin": isin, "name": name, "ticker": f"{isin}.AS", "shares_held": shares,
-        "total_invested": invested, "current_value": value,
+        "isin": isin,
+        "name": name,
+        "ticker": f"{isin}.AS",
+        "shares_held": shares,
+        "total_invested": invested,
+        "current_value": value,
     }
 
 
@@ -46,9 +54,7 @@ def _summary(positions, payments, realized=0.0):
     from the open positions, and the term this tab used to lose.
     """
     priced = [p for p in positions if p.get("current_value") is not None]
-    unrealized = sum(p["current_value"] for p in priced) - sum(
-        p["total_invested"] for p in priced
-    )
+    unrealized = sum(p["current_value"] for p in priced) - sum(p["total_invested"] for p in priced)
     return {
         "total_gain": unrealized + realized,
         "total_dividends": sum(p["net_eur"] for p in payments),
@@ -71,6 +77,7 @@ def _build(payments, positions=None, transactions=None, outlook=None, summary=No
 # ---------------------------------------------------------------------------
 # Normalisation
 # ---------------------------------------------------------------------------
+
 
 def test_a_payment_without_a_gross_or_tax_column_still_counts():
     """An older import can carry net only. Dropping the row would make the
@@ -98,6 +105,7 @@ def test_negative_payments_reduce_the_totals():
 # Windows
 # ---------------------------------------------------------------------------
 
+
 def test_the_twelve_month_window_excludes_its_own_left_edge():
     """Exactly 365 days back is *outside* the window, so a payment cannot be
     counted in both the trailing year and the one before it."""
@@ -111,11 +119,13 @@ def test_the_twelve_month_window_excludes_its_own_left_edge():
 def test_this_year_is_compared_with_the_same_stretch_of_last_year():
     """Not with last year's finished total: on 4 August that would report a
     collapse every single year."""
-    out = _build([
-        _pay("2025-03-01", net=30.0),
-        _pay("2025-11-01", net=70.0),   # after 4 August: not in the YTD compare
-        _pay("2026-03-01", net=40.0),
-    ])
+    out = _build(
+        [
+            _pay("2025-03-01", net=30.0),
+            _pay("2025-11-01", net=70.0),  # after 4 August: not in the YTD compare
+            _pay("2026-03-01", net=40.0),
+        ]
+    )
     t = out["totals"]
     assert t["this_year_net"] == 40.0
     assert t["last_year_ytd_net"] == 30.0
@@ -131,6 +141,7 @@ def test_growth_is_a_dash_when_there_is_no_base_to_grow_from():
 # ---------------------------------------------------------------------------
 # Yields
 # ---------------------------------------------------------------------------
+
 
 def test_yield_on_cost_uses_the_trailing_year_over_what_the_position_cost():
     out = _build([_pay("2026-03-01", net=25.0)], positions=[_pos(invested=1000.0, value=1200.0)])
@@ -148,7 +159,7 @@ def test_a_yield_on_nothing_is_none_not_zero():
 
 
 def test_share_of_profit_is_omitted_when_the_portfolio_is_down():
-    """"84% of your profit is dividend" is meaningless when the profit is
+    """ "84% of your profit is dividend" is meaningless when the profit is
     negative — the ratio flips sign and reads as a win."""
     out = _build(
         [_pay("2026-03-01", net=25.0)],
@@ -166,8 +177,7 @@ def test_share_of_profit_measures_against_the_dashboards_total():
     """
     payments = [_pay("2026-03-01", net=25.0)]
     positions = [_pos(invested=1000.0, value=1200.0)]
-    out = _build(payments, positions=positions,
-                 summary=_summary(positions, payments, realized=500.0))
+    out = _build(payments, positions=positions, summary=_summary(positions, payments, realized=500.0))
     # 25 / (200 unrealized + 500 realized + 25 dividend)
     assert out["totals"]["share_of_profit_pct"] == 3.45
 
@@ -183,6 +193,7 @@ def test_share_of_profit_needs_a_summary_to_measure_against():
 # ---------------------------------------------------------------------------
 # Per year
 # ---------------------------------------------------------------------------
+
 
 def test_only_the_running_year_carries_an_expected_remainder():
     out = _build(
@@ -202,8 +213,13 @@ def test_a_year_that_has_only_a_forecast_still_gets_a_row():
     out = _build([_pay("2025-03-01", net=50.0)], outlook=_outlook(rest=30.0))
     assert [r["year"] for r in out["by_year"]] == ["2025", "2026"]
     assert out["by_year"][-1] == {
-        "year": "2026", "gross": 0.0, "tax": 0.0, "net": 0.0,
-        "payments": 0, "expected": 30.0, "partial": True,
+        "year": "2026",
+        "gross": 0.0,
+        "tax": 0.0,
+        "net": 0.0,
+        "payments": 0,
+        "expected": 30.0,
+        "partial": True,
     }
 
 
@@ -217,6 +233,7 @@ def test_withholding_tax_is_kept_per_year_with_its_gross():
 # ---------------------------------------------------------------------------
 # Per month
 # ---------------------------------------------------------------------------
+
 
 def test_months_without_a_payment_are_zero_rows_not_gaps():
     """A quarterly payer drawn only on its paydays looks like it pays every
@@ -235,11 +252,19 @@ def test_the_series_runs_up_to_the_current_month_even_after_a_dry_spell():
 
 
 def test_months_ahead_are_flagged_as_future():
-    forecast = [{
-        "isin": "X1", "name": "Fund X", "date": "2026-09-15", "month": "2026-09",
-        "part": "mid", "expected_eur": 12.0, "cadence": "quarterly",
-        "confidence": "high", "source": "estimate",
-    }]
+    forecast = [
+        {
+            "isin": "X1",
+            "name": "Fund X",
+            "date": "2026-09-15",
+            "month": "2026-09",
+            "part": "mid",
+            "expected_eur": 12.0,
+            "cadence": "quarterly",
+            "confidence": "high",
+            "source": "estimate",
+        }
+    ]
     rows = dv.by_month([{"date": "2026-06-02", "net_eur": 10.0, "isin": "X1"}], forecast, TODAY)
     september = next(r for r in rows if r["month"] == "2026-09")
     assert september["expected"] == 12.0
@@ -250,6 +275,7 @@ def test_months_ahead_are_flagged_as_future():
 # ---------------------------------------------------------------------------
 # Seasonality
 # ---------------------------------------------------------------------------
+
 
 def test_seasonality_has_all_twelve_months_including_the_empty_ones():
     out = _build([_pay("2025-03-02", net=10.0), _pay("2026-03-02", net=14.0)])
@@ -264,6 +290,7 @@ def test_seasonality_has_all_twelve_months_including_the_empty_ones():
 # ---------------------------------------------------------------------------
 # Cumulative
 # ---------------------------------------------------------------------------
+
 
 def test_the_cumulative_line_sums_same_day_payments_into_one_point():
     """Two rows on one date are one payday. Two points on the same x would draw
@@ -284,13 +311,13 @@ def test_the_cumulative_line_is_carried_forward_to_today():
 # Per stock
 # ---------------------------------------------------------------------------
 
+
 def test_a_sold_holding_keeps_its_payments_but_gets_no_yield():
     """€300 from a position you no longer own is still €300 you received;
     dropping it would make the rows disagree with the total above them. There
     is no cost basis left to divide by, though."""
     out = _build(
-        [_pay("2026-03-01", isin="GONE", name="Sold Fund", net=30.0),
-         _pay("2026-03-01", isin="X1", net=10.0)],
+        [_pay("2026-03-01", isin="GONE", name="Sold Fund", net=30.0), _pay("2026-03-01", isin="X1", net=10.0)],
         positions=[_pos()],
     )
     rows = {r["isin"]: r for r in out["by_stock"]}
@@ -302,8 +329,7 @@ def test_a_sold_holding_keeps_its_payments_but_gets_no_yield():
 
 
 def test_a_recognisable_rhythm_is_labelled_and_an_irregular_one_is_not():
-    quarterly = [_pay(d, isin="Q1") for d in
-                 ("2025-03-01", "2025-06-01", "2025-09-01", "2025-12-01", "2026-03-01")]
+    quarterly = [_pay(d, isin="Q1") for d in ("2025-03-01", "2025-06-01", "2025-09-01", "2025-12-01", "2026-03-01")]
     once = [_pay("2026-01-15", isin="ONE", net=5.0)]
     out = _build(quarterly + once, positions=[_pos(isin="Q1"), _pos(isin="ONE")])
     rows = {r["isin"]: r for r in out["by_stock"]}
@@ -317,16 +343,22 @@ def test_an_interim_final_payer_borrows_its_rhythm_from_the_forecast():
     forecast's own alternating detector does recognise it, and a row reading
     "no rhythm" under an agenda that says "semi-annual" is a contradiction.
     """
-    upcoming = [{
-        "isin": "NN", "name": "NN Group", "date": "2026-08-20", "month": "2026-08",
-        "part": "mid", "expected_eur": 21.48, "cadence": "semiannual",
-        "confidence": "medium", "source": "estimate",
-    }]
+    upcoming = [
+        {
+            "isin": "NN",
+            "name": "NN Group",
+            "date": "2026-08-20",
+            "month": "2026-08",
+            "part": "mid",
+            "expected_eur": 21.48,
+            "cadence": "semiannual",
+            "confidence": "medium",
+            "source": "estimate",
+        }
+    ]
     # NN Group's real dates out of the portfolio this was built against: gaps of
     # 269 / 68 / 273 / 85 / 286 days, median 273 — nowhere near a cadence.
-    payments = [_pay(d, isin="NN") for d in
-                ("2023-09-26", "2024-06-21", "2024-08-28", "2025-05-28",
-                 "2025-08-21", "2026-06-03")]
+    payments = [_pay(d, isin="NN") for d in ("2023-09-26", "2024-06-21", "2024-08-28", "2025-05-28", "2025-08-21", "2026-06-03")]
     out = _build(payments, positions=[_pos(isin="NN")], outlook=_outlook(upcoming))
     row = out["by_stock"][0]
     assert dashboard_cadence_is_none(payments)
@@ -337,6 +369,7 @@ def dashboard_cadence_is_none(payments) -> bool:
     """Guards the premise of the test above: if detect_cadence ever learns this
     pattern, the fallback is dead code and the test is testing nothing."""
     from app.services import dashboard_service
+
     dates = sorted({datetime.date.fromisoformat(p["date"]) for p in payments})
     return dashboard_service.detect_cadence(dates) is None
 
@@ -344,15 +377,27 @@ def dashboard_cadence_is_none(payments) -> bool:
 def test_the_next_expected_payment_comes_from_the_shared_outlook():
     """Reused, not recomputed: the tab and the dashboard card must never name a
     different next payment for the same holding."""
-    upcoming = [{
-        "isin": "X1", "name": "Fund X", "date": "2026-09-15", "month": "2026-09",
-        "part": "mid", "expected_eur": 12.0, "cadence": "quarterly",
-        "confidence": "high", "source": "official",
-    }]
+    upcoming = [
+        {
+            "isin": "X1",
+            "name": "Fund X",
+            "date": "2026-09-15",
+            "month": "2026-09",
+            "part": "mid",
+            "expected_eur": 12.0,
+            "cadence": "quarterly",
+            "confidence": "high",
+            "source": "official",
+        }
+    ]
     out = _build([_pay("2026-03-01", net=10.0)], outlook=_outlook(upcoming))
     assert out["by_stock"][0]["next"] == {
-        "date": "2026-09-15", "month": "2026-09", "part": "mid",
-        "expected_eur": 12.0, "source": "official", "cadence": "quarterly",
+        "date": "2026-09-15",
+        "month": "2026-09",
+        "part": "mid",
+        "expected_eur": 12.0,
+        "source": "official",
+        "cadence": "quarterly",
     }
 
 
@@ -360,12 +405,12 @@ def test_the_next_expected_payment_comes_from_the_shared_outlook():
 # Forward run rate
 # ---------------------------------------------------------------------------
 
+
 def test_the_forward_run_rate_counts_a_full_year_of_scheduled_payments():
     """Four quarters ahead, not the dashboard's six-month horizon — otherwise
     "average per month" would change with the month you opened the tab in.
     """
-    payments = [_pay(d, isin="X1", net=10.0) for d in
-                ("2025-05-04", "2025-08-03", "2025-11-02", "2026-02-01", "2026-05-03")]
+    payments = [_pay(d, isin="X1", net=10.0) for d in ("2025-05-04", "2025-08-03", "2025-11-02", "2026-02-01", "2026-05-03")]
     out = _build(payments, positions=[_pos(isin="X1", invested=1000.0)])
     assert out["totals"]["forward_12m_net"] == 40.0
     assert out["totals"]["forward_monthly_avg"] == round(40.0 / 12, 2)
@@ -382,6 +427,7 @@ def test_an_accumulating_portfolio_forecasts_nothing_rather_than_guessing():
 # ---------------------------------------------------------------------------
 # Shape
 # ---------------------------------------------------------------------------
+
 
 def test_an_empty_portfolio_still_gets_a_well_formed_payload():
     """The tab must render its own empty state, not an error page."""
@@ -402,12 +448,20 @@ def test_the_payment_log_is_newest_first():
 # Yields measure one number of shares above the line and below it
 # ---------------------------------------------------------------------------
 
+
 def _tx(date, isin="X1", kind="BUY", qty=10.0, total=1000.0):
     return {
-        "isin": isin, "name": "Fund X", "date": date, "time": "09:00",
-        "exchange": "EAM", "transaction_type": kind, "quantity": qty,
-        "total_eur": total, "value_eur": total,
-        "transaction_fee": 0.0, "autofx_cost": 0.0,
+        "isin": isin,
+        "name": "Fund X",
+        "date": date,
+        "time": "09:00",
+        "exchange": "EAM",
+        "transaction_type": kind,
+        "quantity": qty,
+        "total_eur": total,
+        "value_eur": total,
+        "transaction_fee": 0.0,
+        "autofx_cost": 0.0,
     }
 
 
@@ -415,25 +469,22 @@ def test_a_yield_is_not_inflated_by_selling_most_of_the_position():
     """The bug this guards: 1.000 shares earned EUR 800 over the year, 900 were
     sold last month, and the remaining EUR 1.000 of cost basis was handed the
     whole EUR 800 — printing 80% where the position yielded 8%."""
-    payments = [_pay(d, net=200.0) for d in
-                ("2025-09-04", "2025-12-04", "2026-03-04", "2026-06-04")]
+    payments = [_pay(d, net=200.0) for d in ("2025-09-04", "2025-12-04", "2026-03-04", "2026-06-04")]
     transactions = [
         _tx("2020-01-01", qty=1000.0, total=10000.0),
         _tx("2026-07-05", kind="SELL", qty=900.0, total=13500.0),
     ]
-    out = _build(payments, positions=[_pos(invested=1000.0, shares=100.0)],
-                 transactions=transactions)
+    out = _build(payments, positions=[_pos(invested=1000.0, shares=100.0)], transactions=transactions)
     row = out["by_stock"][0]
-    assert row["ttm_net"] == 800.0            # what actually arrived, unchanged
-    assert row["yield_on_cost_pct"] == 8.0    # restated onto the 100 shares left
+    assert row["ttm_net"] == 800.0  # what actually arrived, unchanged
+    assert row["yield_on_cost_pct"] == 8.0  # restated onto the 100 shares left
     assert out["totals"]["yield_on_cost_pct"] == 8.0
 
 
 def test_a_position_that_was_never_resized_yields_exactly_what_it_did_before():
     payments = [_pay("2026-03-04", net=25.0)]
     transactions = [_tx("2020-01-01", qty=10.0, total=1000.0)]
-    out = _build(payments, positions=[_pos(invested=1000.0, shares=10.0)],
-                 transactions=transactions)
+    out = _build(payments, positions=[_pos(invested=1000.0, shares=10.0)], transactions=transactions)
     assert out["by_stock"][0]["yield_on_cost_pct"] == 2.5
 
 
@@ -441,18 +492,16 @@ def test_a_missing_price_takes_the_value_based_figures_out_rather_than_halving_t
     """A position with no price contributed nothing to the portfolio value and
     its whole cost to the inleg, so the yield on value came out roughly double
     and the portfolio read as being at a loss."""
-    positions = [_pos(isin="X1", invested=10000.0, value=12000.0),
-                 _pos(isin="X2", invested=10000.0, value=None)]
+    positions = [_pos(isin="X1", invested=10000.0, value=12000.0), _pos(isin="X2", invested=10000.0, value=None)]
     payments = [_pay(f"2026-0{m}-04", net=85.0) for m in range(1, 8)]
     out = _build(payments, positions=positions)
     t = out["totals"]
-    assert t["yield_on_cost_pct"] is not None   # cost basis is known for both
-    assert t["yield_on_value_pct"] is None      # value is not
+    assert t["yield_on_cost_pct"] is not None  # cost basis is known for both
+    assert t["yield_on_value_pct"] is None  # value is not
     assert t["share_of_profit_pct"] is None
 
 
 def test_the_value_based_figures_come_back_once_every_price_is_in():
-    positions = [_pos(isin="X1", invested=10000.0, value=12000.0),
-                 _pos(isin="X2", invested=10000.0, value=11000.0)]
+    positions = [_pos(isin="X1", invested=10000.0, value=12000.0), _pos(isin="X2", invested=10000.0, value=11000.0)]
     out = _build([_pay("2026-03-04", net=230.0)], positions=positions)
-    assert out["totals"]["yield_on_value_pct"] == 1.0    # 230 / 23000
+    assert out["totals"]["yield_on_value_pct"] == 1.0  # 230 / 23000

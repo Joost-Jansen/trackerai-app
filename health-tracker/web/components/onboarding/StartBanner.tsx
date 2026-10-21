@@ -43,10 +43,15 @@ export default function StartBanner({ enabled }: { enabled: boolean }) {
   const msg = text(o, t);
 
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-md px-4 py-3 text-sm" style={{ background: "var(--surface-inset)" }}>
+    <div
+      className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-md px-4 py-3 text-sm"
+      style={{ background: "var(--surface-inset)" }}
+    >
       <span>
         {msg.text}{" "}
-        <Link href={msg.href} className="font-semibold underline underline-offset-4">{msg.link}</Link>
+        <Link href={msg.href} className="font-semibold underline underline-offset-4">
+          {msg.link}
+        </Link>
       </span>
       <button type="button" className="text-xs text-ink-muted underline underline-offset-4" onClick={() => set.mutate({ hide: "data" })}>
         {t.common.hide}

@@ -28,10 +28,10 @@ import secrets
 import tempfile
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Callable
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.concurrency import run_in_threadpool
@@ -39,10 +39,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from api.errors import ApiError
-from trackerai_websec.uploads import ZipRejected, UploadTooLarge, check_zip, stream_to_file
 from tools import db
 from tools.apple_health import NotAnExport
 from tools.apple_import import import_file, remove
+from trackerai_websec.uploads import UploadTooLarge, ZipRejected, check_zip, stream_to_file
 
 KEY = "apple_import"  # settings: the last import's summary, or its error
 # Years of Watch data zip to a few hundred MB, rarely more than 1-2 GB; one user must not be able to fill the disk.
@@ -93,8 +93,15 @@ def check_export(path: str) -> None:
 class AppleImports:
     """The running imports, per user: progress in memory, the result in the user's settings."""
 
-    def __init__(self, stores=None, on_done: Callable[[], None] | None = None, upload_dir: str | os.PathLike | None = None,
-                 chunk_size: int = CHUNK_BYTES, max_bytes: int = MAX_BYTES, ttl_s: float = UPLOAD_TTL_S):
+    def __init__(
+        self,
+        stores=None,
+        on_done: Callable[[], None] | None = None,
+        upload_dir: str | os.PathLike | None = None,
+        chunk_size: int = CHUNK_BYTES,
+        max_bytes: int = MAX_BYTES,
+        ttl_s: float = UPLOAD_TTL_S,
+    ):
         self.stores = stores
         self.on_done = on_done  # e.g. clear the trends cache: its key does not see an import
         self.running: dict[int, dict | None] = {}
@@ -170,8 +177,17 @@ class AppleImports:
         """Record the failure for the page; the previous import's numbers stay (that data is still there)."""
         try:
             last = db.get_setting(scope, KEY) or {}
-            db.set_setting(scope, KEY, {**last, "status": "failed", "error": error, "detail": (detail or "")[:200],
-                                        "failed_at": datetime.now().isoformat(timespec="seconds")})
+            db.set_setting(
+                scope,
+                KEY,
+                {
+                    **last,
+                    "status": "failed",
+                    "error": error,
+                    "detail": (detail or "")[:200],
+                    "failed_at": datetime.now().isoformat(timespec="seconds"),
+                },
+            )
         except Exception as err:  # noqa: BLE001  the database itself is the problem: the log is all there is
             print(f"apple import: could not record the failure ({type(err).__name__}: {err})", flush=True)
 

@@ -51,7 +51,9 @@ def code_at(secret: str, t: float | None = None) -> str:
 
 def otpauth_uri(secret: str, account: str, issuer: str) -> str:
     label = quote(f"{issuer}:{account}", safe="")
-    return f"otpauth://totp/{label}?" + urlencode({"secret": secret, "issuer": issuer, "algorithm": "SHA1", "digits": DIGITS, "period": PERIOD})
+    return f"otpauth://totp/{label}?" + urlencode(
+        {"secret": secret, "issuer": issuer, "algorithm": "SHA1", "digits": DIGITS, "period": PERIOD}
+    )
 
 
 def verify(secret: str, code: str, last_used_step: int | None = None, t: float | None = None) -> int | None:

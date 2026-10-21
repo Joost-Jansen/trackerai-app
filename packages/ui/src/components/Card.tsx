@@ -53,9 +53,5 @@ export default function Card({
 
 /** The small small-caps label above a large number. */
 export function Eyebrow({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
-      {children}
-    </span>
-  );
+  return <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">{children}</span>;
 }

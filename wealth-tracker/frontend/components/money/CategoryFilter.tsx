@@ -11,15 +11,21 @@ import { tr } from "@/lib/i18n";
 
 export const UNKNOWN = "Onbekend";
 
-export default function CategoryFilter({ categories, value, onChange }: {
-  categories: Category[]; value: string[]; onChange: (value: string[]) => void;
+export default function CategoryFilter({
+  categories,
+  value,
+  onChange,
+}: {
+  categories: Category[];
+  value: string[];
+  onChange: (value: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const chosen = new Set(value);
   const put = (names: string[], on: boolean) => {
     const next = new Set(chosen);
-    for (const n of names) (on ? next.add(n) : next.delete(n));
+    for (const n of names) on ? next.add(n) : next.delete(n);
     onChange([...next]);
   };
 
@@ -33,9 +39,18 @@ export default function CategoryFilter({ categories, value, onChange }: {
     }, {});
 
   const pill = (key: string, label: string, active: boolean, onClick: () => void) => (
-    <button key={key} type="button" aria-pressed={active} onClick={onClick}
+    <button
+      key={key}
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
       className="rounded-full border px-3 py-1.5 text-xs transition-colors"
-      style={{ borderColor: active ? "var(--text-primary)" : "var(--rule)", background: active ? "var(--surface-inset)" : "transparent", fontWeight: active ? 600 : 400 }}>
+      style={{
+        borderColor: active ? "var(--text-primary)" : "var(--rule)",
+        background: active ? "var(--surface-inset)" : "transparent",
+        fontWeight: active ? 600 : 400,
+      }}
+    >
       {label}
     </button>
   );

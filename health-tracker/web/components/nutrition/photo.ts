@@ -28,7 +28,9 @@ export function photoTime(file: File): string | null {
 
 /** BarcodeDetector where the browser has it (Chrome on Android, not Safari): the EAN on a photo of a package. */
 export async function readBarcode(file: Blob): Promise<string | null> {
-  const Detector = (globalThis as { BarcodeDetector?: new (o: { formats: string[] }) => { detect: (b: ImageBitmap) => Promise<{ rawValue: string }[]> } }).BarcodeDetector;
+  const Detector = (
+    globalThis as { BarcodeDetector?: new (o: { formats: string[] }) => { detect: (b: ImageBitmap) => Promise<{ rawValue: string }[]> } }
+  ).BarcodeDetector;
   if (!Detector) return null;
   const bitmap = await createImageBitmap(file);
   try {

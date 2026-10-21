@@ -34,7 +34,8 @@ export function boundariesOf(m: MonthPeriods | undefined | null): string[] | nul
 
 /** How many boundaries lie on or before `date`. */
 function countUntil(boundaries: string[], date: string): number {
-  let lo = 0, hi = boundaries.length;
+  let lo = 0,
+    hi = boundaries.length;
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
     if (boundaries[mid] <= date) lo = mid + 1;

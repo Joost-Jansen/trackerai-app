@@ -8,10 +8,16 @@ from trackerai_websec.client_ip import trusted_networks
 
 
 def _request(peer: str, headers: dict) -> Request:
-    return Request({
-        "type": "http", "method": "GET", "path": "/", "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
-        "client": (peer, 1234), "query_string": b"",
-    })
+    return Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
+            "client": (peer, 1234),
+            "query_string": b"",
+        }
+    )
 
 
 def test_forged_cf_header_is_ignored_without_trusted_proxies(monkeypatch):
@@ -30,8 +36,9 @@ def test_rotating_a_forged_header_does_not_reset_the_ip_limit(client, monkeypatc
     fresh per-IP allowance every request."""
     monkeypatch.setattr(throttle, "TRUSTED", [])
     codes = [
-        client.post("/api/auth/login", json={"username": f"user{i}", "password": "x"},
-                    headers={"CF-Connecting-IP": f"10.0.{i}.1"}).status_code
+        client.post(
+            "/api/auth/login", json={"username": f"user{i}", "password": "x"}, headers={"CF-Connecting-IP": f"10.0.{i}.1"}
+        ).status_code
         for i in range(32)
     ]
     assert codes[:30] == [401] * 30

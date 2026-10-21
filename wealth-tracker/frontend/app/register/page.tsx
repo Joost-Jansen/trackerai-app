@@ -60,7 +60,9 @@ function RegisterForm() {
           <h1 className="font-display text-[34px] font-light leading-tight tracking-[-0.03em]">{tr("Registration closed")}</h1>
           <p className="text-sm leading-relaxed text-ink-muted">{tr("New sign-ups are switched off right now.")}</p>
           <p className="text-[13px]">
-            <a href="/login" className="ds-link">{tr("Back to log in")}</a>
+            <a href="/login" className="ds-link">
+              {tr("Back to log in")}
+            </a>
           </p>
         </div>
       </main>
@@ -135,7 +137,14 @@ function RegisterForm() {
           {loading ? tr("Working…") : tr("Create account")}
         </Button>
 
-        <p className="text-center text-[13px] text-ink-muted">{trx("Already have an account? {0}", <a href="/login" className="ds-link">{tr("Log in")}</a>)}</p>
+        <p className="text-center text-[13px] text-ink-muted">
+          {trx(
+            "Already have an account? {0}",
+            <a href="/login" className="ds-link">
+              {tr("Log in")}
+            </a>,
+          )}
+        </p>
       </form>
     </main>
   );

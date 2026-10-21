@@ -54,7 +54,10 @@ export default function SyncButton({ text = false }: { text?: boolean }) {
   }
 
   const last = q.data?.garmin.last_sync;
-  const lastText = last && /^\d{4}-\d{2}-\d{2}/.test(last) ? `${f.weekdayDay(last.slice(0, 10))}${last.length > 10 ? `, ${last.slice(11, 16)}` : ""}` : null;
+  const lastText =
+    last && /^\d{4}-\d{2}-\d{2}/.test(last)
+      ? `${f.weekdayDay(last.slice(0, 10))}${last.length > 10 ? `, ${last.slice(11, 16)}` : ""}`
+      : null;
   const icon = <SyncIcon className={`h-4 w-4 ${syncing ? "animate-spin motion-reduce:animate-none" : ""}`} />;
   if (text)
     return (

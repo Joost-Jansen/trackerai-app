@@ -4,13 +4,15 @@ Test helpers for every suite in this repository. Today: Postgres. A test gets da
 empty template and dropped when the test ends. Production runs on Postgres, so the tests do too.
 
 ```python
-def test_something(pg_url):              # fixture: a new, empty database
+def test_something(pg_url):  # fixture: a new, empty database
     engine = db.connect(pg_url)
 
-def fresh():                             # a plain helper can make one too; it goes when the running test ends
+
+def fresh():  # a plain helper can make one too; it goes when the running test ends
     return db.connect(new_database_url())
 
-@pytest.fixture(scope="module")          # wider than one test: create and drop it yourself
+
+@pytest.fixture(scope="module")  # wider than one test: create and drop it yourself
 def seeded():
     url = create_database()
     yield url

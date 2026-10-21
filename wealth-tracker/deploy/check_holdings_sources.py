@@ -33,8 +33,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend"))
 
-from domain import database          # noqa: E402
-from domain.portfolio import issuer_holdings   # noqa: E402
+from domain import database  # noqa: E402
+from domain.portfolio import issuer_holdings  # noqa: E402
 
 BASELINE_PATH = pathlib.Path(__file__).parent / "holdings_baseline.json"
 
@@ -65,22 +65,25 @@ def _sources() -> list[tuple[str, str, str, callable]]:
     out: list[tuple[str, str, str, callable]] = []
 
     for isin, path in issuer_holdings.ISHARES_PRODUCTS.items():
-        out.append((f"ishares:{isin}", f"iShares {isin}", f"ishares:{path}",
-                    lambda p=path: issuer_holdings._fetch_ishares_path(p)))
+        out.append((f"ishares:{isin}", f"iShares {isin}", f"ishares:{path}", lambda p=path: issuer_holdings._fetch_ishares_path(p)))
 
     for isin in issuer_holdings.SPDR_PRODUCTS:
-        out.append((f"spdr:{isin}", f"SPDR {isin}", f"spdr:{isin}",
-                    lambda i=isin: issuer_holdings._fetch_spdr(i)))
+        out.append((f"spdr:{isin}", f"SPDR {isin}", f"spdr:{isin}", lambda i=isin: issuer_holdings._fetch_spdr(i)))
 
     for isin in issuer_holdings.VANGUARD_PRODUCTS:
-        out.append((f"vanguard:{isin}", f"Vanguard {isin}",
-                    f"vanguard:{issuer_holdings.VANGUARD_PRODUCTS[isin]}",
-                    lambda i=isin: issuer_holdings._fetch_vanguard(i)))
+        out.append(
+            (
+                f"vanguard:{isin}",
+                f"Vanguard {isin}",
+                f"vanguard:{issuer_holdings.VANGUARD_PRODUCTS[isin]}",
+                lambda i=isin: issuer_holdings._fetch_vanguard(i),
+            )
+        )
 
     for isin, cfg in issuer_holdings.PROXY_FUNDS.items():
-        out.append((f"proxy:{isin}", f"Hand-registered proxy {isin}",
-                    f"ishares:{cfg['path']}",
-                    lambda i=isin: issuer_holdings._fetch_proxy(i)))
+        out.append(
+            (f"proxy:{isin}", f"Hand-registered proxy {isin}", f"ishares:{cfg['path']}", lambda i=isin: issuer_holdings._fetch_proxy(i))
+        )
 
     for key, src in issuer_holdings._INDEX_PROXY_SOURCES.items():
         # The format is part of the identity: the same path fetched as
@@ -93,8 +96,7 @@ def _sources() -> list[tuple[str, str, str, callable]]:
             fetch = lambda p=src["path"]: issuer_holdings._fetch_ishares_path(p)
         out.append((f"index:{key}", f"Index proxy {key}", remote, fetch))
 
-    out.append(("vanguard:catalog", "Vanguard product catalogue",
-                "vanguard:catalog", _check_vanguard_catalog))
+    out.append(("vanguard:catalog", "Vanguard product catalogue", "vanguard:catalog", _check_vanguard_catalog))
     return out
 
 
@@ -121,8 +123,7 @@ def _check_vanguard_catalog() -> list | None:
         catalog = issuer_holdings._vanguard_catalog(conn)
         if not catalog:
             return None
-        match = issuer_holdings._vanguard_match(
-            conn, "VANGUARD FTSE ALL-WORLD UCITS ETF USD DIS", allow_subseq=True)
+        match = issuer_holdings._vanguard_match(conn, "VANGUARD FTSE ALL-WORLD UCITS ETF USD DIS", allow_subseq=True)
         if not match:
             print("      (catalogue downloaded but FTSE All-World no longer matches)")
             return None
@@ -152,7 +153,7 @@ def _run() -> list[tuple[str, str, int, int]]:
         if remote not in fetched:
             try:
                 got = fetch()
-            except Exception as e:                  # a canary must never crash
+            except Exception as e:  # a canary must never crash
                 print(f"  !! {description}: {type(e).__name__}: {e}")
                 got = None
             fetched[remote] = len(got or [])
@@ -171,8 +172,7 @@ def _failures(results) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--update-baseline", action="store_true",
-                        help="record the current counts as the new baseline")
+    parser.add_argument("--update-baseline", action="store_true", help="record the current counts as the new baseline")
     args = parser.parse_args()
 
     results = _run()
@@ -183,12 +183,19 @@ def main() -> int:
         print(f"  {mark} {count:>5} (baseline {expected:>5})  {description}")
 
     if args.update_baseline:
-        BASELINE_PATH.write_text(json.dumps({
-            "_comment": "Holdings counts per source, recorded by "
-                        "check_holdings_sources.py --update-baseline. Refresh "
-                        "after registering a new fund.",
-            "counts": {key: count for key, _, count, _ in sorted(results)},
-        }, indent=2) + "\n", encoding="utf-8")
+        BASELINE_PATH.write_text(
+            json.dumps(
+                {
+                    "_comment": "Holdings counts per source, recorded by "
+                    "check_holdings_sources.py --update-baseline. Refresh "
+                    "after registering a new fund.",
+                    "counts": {key: count for key, _, count, _ in sorted(results)},
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
         print(f"\nBaseline written to {BASELINE_PATH}")
         return 0
 

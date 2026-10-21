@@ -11,7 +11,7 @@ The path follows database.data_root(), so a test that redirects that folder
 import json
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 from app.core.accounts import APP, linked_folders
 from domain import database  # repo-root module, zie app/__init__.py
@@ -38,7 +38,9 @@ CREATE TABLE IF NOT EXISTS feedback (
 CREATE INDEX IF NOT EXISTS feedback_username ON feedback(username);
 """
 
-_COLUMNS = "id, username, app, kind, message, page, context, status, reply, created_at, updated_at, screenshot IS NOT NULL AS has_screenshot"
+_COLUMNS = (
+    "id, username, app, kind, message, page, context, status, reply, created_at, updated_at, screenshot IS NOT NULL AS has_screenshot"
+)
 
 
 def _path() -> str:
@@ -54,7 +56,7 @@ def _connect() -> sqlite3.Connection:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
 def _iso(value: str | None) -> str | None:
@@ -65,7 +67,7 @@ def _iso(value: str | None) -> str | None:
         t = datetime.fromisoformat(value)
     except ValueError:
         return value
-    return t.replace(tzinfo=t.tzinfo or timezone.utc).isoformat()
+    return t.replace(tzinfo=t.tzinfo or UTC).isoformat()
 
 
 def _out(rows: list[sqlite3.Row]) -> list[dict]:
@@ -77,19 +79,36 @@ def _out(rows: list[sqlite3.Row]) -> list[dict]:
     for row in rows:
         folder = row["username"]
         sender = senders.get(folder) or {}
-        out.append({
-            "id": row["id"], "app": APP, "kind": row["kind"], "message": row["message"], "page": row["page"],
-            "context": json.loads(row["context"]) if row["context"] else None,
-            "status": row["status"], "reply": row["reply"],
-            "created_at": _iso(row["created_at"]), "updated_at": _iso(row["updated_at"]),
-            "account_id": sender.get("account_id"), "username": sender.get("username") or folder,
-            "has_screenshot": bool(row["has_screenshot"]),
-        })
+        out.append(
+            {
+                "id": row["id"],
+                "app": APP,
+                "kind": row["kind"],
+                "message": row["message"],
+                "page": row["page"],
+                "context": json.loads(row["context"]) if row["context"] else None,
+                "status": row["status"],
+                "reply": row["reply"],
+                "created_at": _iso(row["created_at"]),
+                "updated_at": _iso(row["updated_at"]),
+                "account_id": sender.get("account_id"),
+                "username": sender.get("username") or folder,
+                "has_screenshot": bool(row["has_screenshot"]),
+            }
+        )
     return out
 
 
-def add(username: str, app: str | None, kind: str, message: str, page: str | None, context: dict | None,
-        screenshot: bytes | None = None, screenshot_type: str | None = None) -> int:
+def add(
+    username: str,
+    app: str | None,
+    kind: str,
+    message: str,
+    page: str | None,
+    context: dict | None,
+    screenshot: bytes | None = None,
+    screenshot_type: str | None = None,
+) -> int:
     with _connect() as conn:
         cur = conn.execute(
             "INSERT INTO feedback (username, app, kind, message, page, context, screenshot, screenshot_type, status, created_at)"

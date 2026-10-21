@@ -112,7 +112,9 @@ def ask(body: dict, *, timeout: float = 60, retries: int = 1, fallbacks: bool = 
         message=message,
         model=message.get("model") or body.get("model", ""),
         request_ms=elapsed,
-        tokens_in=int(usage.get("input_tokens") or 0) + int(usage.get("cache_read_input_tokens") or 0) + int(usage.get("cache_creation_input_tokens") or 0),
+        tokens_in=int(usage.get("input_tokens") or 0)
+        + int(usage.get("cache_read_input_tokens") or 0)
+        + int(usage.get("cache_creation_input_tokens") or 0),
         tokens_out=int(usage.get("output_tokens") or 0),
         stop_reason=message.get("stop_reason"),
         fallback=any((it or {}).get("type") == "fallback_message" for it in iterations),

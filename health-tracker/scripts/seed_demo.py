@@ -24,7 +24,7 @@ import random
 import secrets
 import sys
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -66,7 +66,7 @@ class Loop:
 
     def __post_init__(self):
         rnd = random.Random(self.seed)
-        harmonics = [(k, rnd.uniform(0.04, 0.16) / k ** 0.6, rnd.uniform(0, 2 * math.pi)) for k in (2, 3, 5, 7)]
+        harmonics = [(k, rnd.uniform(0.04, 0.16) / k**0.6, rnd.uniform(0, 2 * math.pi)) for k in (2, 3, 5, 7)]
         pts = []
         n = 720
         for i in range(n + 1):
@@ -129,7 +129,9 @@ class Segment:
     hr: float  # target heart rate
 
 
-def simulate(sport: str, segments: list[Segment], loop: Loop | None, rnd: random.Random, step: int, origin: tuple[float, float] = HOME) -> dict:
+def simulate(
+    sport: str, segments: list[Segment], loop: Loop | None, rnd: random.Random, step: int, origin: tuple[float, float] = HOME
+) -> dict:
     """Streams sampled every `step` seconds: heart rate follows its target with a lag and drifts up slowly."""
     t, dist, hr = 0, 0.0, segments[0].hr - 35
     out = {k: [] for k in ("time", "heartrate", "velocity", "distance", "altitude", "cadence")}
@@ -190,8 +192,15 @@ def laps(streams: dict, every_m: float) -> list[dict]:
             secs = tm[i] - tm[start]
             gain = sum(max(0.0, alt[k + 1] - alt[k]) for k in range(start, i))
             per_km = round(secs / km) if km else 0
-            out.append({"distance_km": round(km, 2), "time_s": secs, "avg_hr": round(sum(h[start : i + 1]) / (i + 1 - start)),
-                        "pace": f"{per_km // 60}:{per_km % 60:02d}", "elevation_gain_m": round(gain, 1)})
+            out.append(
+                {
+                    "distance_km": round(km, 2),
+                    "time_s": secs,
+                    "avg_hr": round(sum(h[start : i + 1]) / (i + 1 - start)),
+                    "pace": f"{per_km // 60}:{per_km % 60:02d}",
+                    "elevation_gain_m": round(gain, 1),
+                }
+            )
             start, nxt = i, nxt + every_m
     return out
 
@@ -203,7 +212,7 @@ def record(sport: str, start: datetime, name: str, streams: dict, garmin_id: int
     alt = streams["altitude"]
     smooth = [sum(alt[max(0, i - 5) : i + 5]) / len(alt[max(0, i - 5) : i + 5]) for i in range(len(alt))]
     gain = round(sum(max(0.0, b - a) for a, b in zip(smooth, smooth[1:])), 1)
-    utc = start.astimezone(timezone.utc)
+    utc = start.astimezone(UTC)
     raw = {
         "activityId": garmin_id,
         "hasPolyline": "latlng" in streams,
@@ -212,7 +221,12 @@ def record(sport: str, start: datetime, name: str, streams: dict, garmin_id: int
     if sport == "run":
         if vo2max:
             raw["vO2MaxValue"] = round(vo2max)
-        for key, metres in (("fastestSplit_1000", 1000), ("fastestSplit_5000", 5000), ("fastestSplit_10000", 10000), ("fastestSplit_21098", 21097.5)):
+        for key, metres in (
+            ("fastestSplit_1000", 1000),
+            ("fastestSplit_5000", 5000),
+            ("fastestSplit_10000", 10000),
+            ("fastestSplit_21098", 21097.5),
+        ):
             secs = fastest(streams, metres)
             if secs:
                 raw[key] = float(secs)
@@ -258,8 +272,11 @@ def run_workout(kind: str, km: float, fitness: float, rnd: random.Random) -> lis
         rest = max(800, km * 1000 - sum(s.metres for s in segs))
         return segs + [Segment(rest, easy * 0.97, zone_hr("run", 2) - 2)]
     if kind == "tempo":
-        return [Segment(2000, easy, zone_hr("run", 2)), Segment(km * 1000 - 4000, pace(4.75 - 0.25 * fitness), zone_hr("run", 3) + 4),
-                Segment(2000, easy, zone_hr("run", 2))]
+        return [
+            Segment(2000, easy, zone_hr("run", 2)),
+            Segment(km * 1000 - 4000, pace(4.75 - 0.25 * fitness), zone_hr("run", 3) + 4),
+            Segment(2000, easy, zone_hr("run", 2)),
+        ]
     if kind == "race":
         return [Segment(km * 1000, pace(4.62 - 0.2 * fitness if km > 15 else 4.3 - 0.2 * fitness), zone_hr("run", 4) + 2)]
     if kind == "recovery":
@@ -310,16 +327,38 @@ def plan_sessions(plan_start: date, race: date) -> list[dict]:
             elif sport == "ride":
                 km = nearest(RIDE_LOOPS, km).km
             if sport == "swim":
-                out.append({"date": day.isoformat(), "sport": sport, "kind": kind, "distance_km": 2.0, "duration_min": 45, "target_zone": zone, "description": desc})
+                out.append(
+                    {
+                        "date": day.isoformat(),
+                        "sport": sport,
+                        "kind": kind,
+                        "distance_km": 2.0,
+                        "duration_min": 45,
+                        "target_zone": zone,
+                        "description": desc,
+                    }
+                )
             else:
                 km = round(km if sport == "ride" else min(km, 32), 0 if sport == "ride" else 1)
-                out.append({"date": day.isoformat(), "sport": sport, "kind": kind, "distance_km": km, "target_zone": zone, "description": desc})
+                out.append(
+                    {"date": day.isoformat(), "sport": sport, "kind": kind, "distance_km": km, "target_zone": zone, "description": desc}
+                )
         if w % 3 == 2 and taper > 2:  # every third week the Wednesday easy run becomes a tempo run
             for s in out:
                 if s["date"] == (monday + timedelta(days=2)).isoformat():
-                    s.update(kind="tempo", target_zone="Z3", description="Tempo run: 2 km warm-up, the rest at threshold pace, 2 km cool-down")
-    out.append({"date": race.isoformat(), "sport": "run", "kind": "race", "distance_km": 42.2, "target_zone": "Z3",
-                "description": "Marathon: first half at 5:00/km, then by feel"})
+                    s.update(
+                        kind="tempo", target_zone="Z3", description="Tempo run: 2 km warm-up, the rest at threshold pace, 2 km cool-down"
+                    )
+    out.append(
+        {
+            "date": race.isoformat(),
+            "sport": "run",
+            "kind": "race",
+            "distance_km": 42.2,
+            "target_zone": "Z3",
+            "description": "Marathon: first half at 5:00/km, then by feel",
+        }
+    )
     return out
 
 
@@ -433,7 +472,12 @@ def make_night(day: date, w: dict, rnd: random.Random, rise: bool, bb_from: int)
     while t < wake:
         frac = (t - start) / max(1, wake - start)
         # 90-minute cycles: deep sleep early in the night, REM growing towards the morning, now and then awake
-        parts = [(1, rnd.randint(12, 22)), (0, max(0, round(rnd.gauss(30 * (1 - frac), 6)))), (1, rnd.randint(10, 20)), (2, round(8 + 30 * frac))]
+        parts = [
+            (1, rnd.randint(12, 22)),
+            (0, max(0, round(rnd.gauss(30 * (1 - frac), 6)))),
+            (1, rnd.randint(10, 20)),
+            (2, round(8 + 30 * frac)),
+        ]
         if rnd.random() < 0.3:
             parts.append((3, rnd.randint(2, 6)))
         for level, minutes in parts:
@@ -445,7 +489,16 @@ def make_night(day: date, w: dict, rnd: random.Random, rise: bool, bb_from: int)
             else:
                 stages.append([t, b, level])
             t = b
-    return Night(start, wake, w.get("resting_hr", 50), w.get("sleep_resp", 14.2), bb_from, max(bb_from + 5, w.get("body_battery_high", 85)), stages, rise)
+    return Night(
+        start,
+        wake,
+        w.get("resting_hr", 50),
+        w.get("sleep_resp", 14.2),
+        bb_from,
+        max(bb_from + 5, w.get("body_battery_high", 85)),
+        stages,
+        rise,
+    )
 
 
 def seed_intraday(s: db.Scope, end: date, days: int = INTRADAY_DAYS) -> int:
@@ -458,7 +511,9 @@ def seed_intraday(s: db.Scope, end: date, days: int = INTRADAY_DAYS) -> int:
     workouts: dict[str, list[tuple[int, int, int]]] = {}
     for a in db.load_activities(s):
         t = datetime.fromisoformat(a["start_local"])
-        workouts.setdefault(a["start_local"][:10], []).append((t.hour * 60 + t.minute, round((a.get("moving_time_s") or 0) / 60), a.get("avg_hr") or 140))
+        workouts.setdefault(a["start_local"][:10], []).append(
+            (t.hour * 60 + t.minute, round((a.get("moving_time_s") or 0) / 60), a.get("avg_hr") or 140)
+        )
     first = end - timedelta(days=days - 1)
     nights: dict[date, Night] = {}
     bb = 30
@@ -509,31 +564,47 @@ def seed_intraday(s: db.Scope, end: date, days: int = INTRADAY_DAYS) -> int:
                     level = night.bb_to - (night.bb_to - tonight.bb_from) * frac
                 row["bb"].append([m, max(5, min(100, round(level)))])
         hr = row["hr"]
-        db.write_intraday(s, d.isoformat(), {
-            **row,
-            "resting": round(night.rhr),
-            "min": min(v for _, v in hr),
-            "max": max(v for _, v in hr),
-            "sleep": {"start": night.start, "end": night.end, "stages": night.stages},
-        })
+        db.write_intraday(
+            s,
+            d.isoformat(),
+            {
+                **row,
+                "resting": round(night.rhr),
+                "min": min(v for _, v in hr),
+                "max": max(v for _, v in hr),
+                "sleep": {"start": night.start, "end": night.end, "stages": night.stages},
+            },
+        )
         asleep_hr = [v for m, v in hr if night.start <= m <= night.end]
         w = dict(wellness.get(d.isoformat()) or {})
         if w:
             local = lambda minute: (datetime.combine(d, time()) + timedelta(minutes=minute)).strftime("%Y-%m-%dT%H:%M")  # noqa: E731
-            w.update({
-                "sleep_start": local(night.start),
-                "sleep_end": local(night.end),
-                "sleep_hr": round(sum(asleep_hr) / len(asleep_hr)) if asleep_hr else None,
-                "bb_charged_sleep": night.bb_to - night.bb_from,
-                "body_battery_high": night.bb_to,
-                "body_battery_low": tonight.bb_from,
-            })
+            w.update(
+                {
+                    "sleep_start": local(night.start),
+                    "sleep_end": local(night.end),
+                    "sleep_hr": round(sum(asleep_hr) / len(asleep_hr)) if asleep_hr else None,
+                    "bb_charged_sleep": night.bb_to - night.bb_from,
+                    "body_battery_high": night.bb_to,
+                    "body_battery_low": tonight.bb_from,
+                }
+            )
             db.write_wellness(s, d.isoformat(), {k: v for k, v in w.items() if v is not None})
     return days
 
 
-def seed(engine, end: date, days: int = 182, password: str | None = None, reset: bool = False, *, username: str = USERNAME,
-         display_name: str = "Demo", home: tuple[float, float] = HOME, login: bool = True) -> dict:
+def seed(
+    engine,
+    end: date,
+    days: int = 182,
+    password: str | None = None,
+    reset: bool = False,
+    *,
+    username: str = USERNAME,
+    display_name: str = "Demo",
+    home: tuple[float, float] = HOME,
+    login: bool = True,
+) -> dict:
     """`username`, `display_name` and `home` (the made-up start point of every loop) let api/example.py reuse this for its
     read-only example account; `login=False` gives that account no usable password and no admin rights."""
     db.create_schema(engine)
@@ -578,15 +649,28 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
             for (d, sport), x in planned.items():
                 if d == day.isoformat() and day < end + timedelta(days=1):
                     km = x.get("distance_km") or 2.0
-                    label = {"interval": "Interval training", "tempo": "Tempo run", "recovery": "Recovery run", "long run": "Long run",
-                             "easy run": "Easy run", "endurance ride": "Endurance ride", "technique": "Swim"}.get(x["kind"], x["kind"].capitalize())
+                    label = {
+                        "interval": "Interval training",
+                        "tempo": "Tempo run",
+                        "recovery": "Recovery run",
+                        "long run": "Long run",
+                        "easy run": "Easy run",
+                        "endurance ride": "Endurance ride",
+                        "technique": "Swim",
+                    }.get(x["kind"], x["kind"].capitalize())
                     todo.append((sport, x["kind"], km, label))
         else:
             for w, sport, kind, base, _build, _zone, _desc in WEEK:
                 if w == wd:
                     km = base * (0.9 + 0.2 * fitness)
-                    label = {"interval": "Interval training", "recovery": "Recovery run", "long run": "Long run", "easy run": "Easy run",
-                             "endurance ride": "Endurance ride", "technique": "Swim"}[kind]
+                    label = {
+                        "interval": "Interval training",
+                        "recovery": "Recovery run",
+                        "long run": "Long run",
+                        "easy run": "Easy run",
+                        "endurance ride": "Endurance ride",
+                        "technique": "Swim",
+                    }[kind]
                     todo.append((sport, kind, km, label))
         if day == end:
             todo = []  # today: nothing done yet, so the dashboard shows today's session as planned
@@ -617,7 +701,11 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
                 lap, step, loop = 100, 5, None
                 metres = 1800 + 400 * fitness + rnd.choice((0, 100, 200))
                 v = 100 / (118 - 10 * fitness)
-                segs = [Segment(400, v * 0.92, zone_hr("swim", 1) + 4), Segment(metres - 600, v, zone_hr("swim", 2)), Segment(200, v * 0.9, zone_hr("swim", 1) + 6)]
+                segs = [
+                    Segment(400, v * 0.92, zone_hr("swim", 1) + 4),
+                    Segment(metres - 600, v, zone_hr("swim", 2)),
+                    Segment(200, v * 0.9, zone_hr("swim", 1) + 6),
+                ]
                 name = "Pool swim"
             streams = simulate(sport, segs, loop, rnd, step, home)
             vo2 = 49 + 4 * fitness + rnd.uniform(-0.6, 0.6) if sport == "run" and kind != "recovery" else None
@@ -639,51 +727,104 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
         after_hard = (d - timedelta(days=1)) in hard_days
         rhr = round(52 - 4 * fitness + (2.5 if after_hard else 0) + rnd.gauss(0, 1.1))
         sleep = max(5.4, min(9.0, rnd.gauss(7.4 if d.weekday() >= 4 else 7.1, 0.55)))
-        db.write_wellness(s, d.isoformat(), {
-            "sleep_h": round(sleep, 2),
-            "deep_sleep_h": round(sleep * rnd.uniform(0.17, 0.23), 2),
-            "rem_sleep_h": round(sleep * rnd.uniform(0.2, 0.26), 2),
-            "sleep_score": max(45, min(97, round(60 + (sleep - 6) * 11 + rnd.gauss(0, 5) - (6 if after_hard else 0)))),
-            "resting_hr": rhr,
-            "hrv_last_night": round(rnd.gauss(58 + 8 * fitness - (6 if after_hard else 0), 5)),
-            "hrv_status": "BALANCED",
-            "body_battery_high": max(40, min(100, round(rnd.gauss(84 - (8 if after_hard else 0), 6)))),
-            "body_battery_low": max(5, min(45, round(rnd.gauss(24, 6)))),
-            "stress_avg": max(12, min(55, round(rnd.gauss(29, 5)))),
-            "steps": max(3000, round(rnd.gauss(10500, 2500))),
-            **daily_extras(sleep, after_hard, more),
-        })
+        db.write_wellness(
+            s,
+            d.isoformat(),
+            {
+                "sleep_h": round(sleep, 2),
+                "deep_sleep_h": round(sleep * rnd.uniform(0.17, 0.23), 2),
+                "rem_sleep_h": round(sleep * rnd.uniform(0.2, 0.26), 2),
+                "sleep_score": max(45, min(97, round(60 + (sleep - 6) * 11 + rnd.gauss(0, 5) - (6 if after_hard else 0)))),
+                "resting_hr": rhr,
+                "hrv_last_night": round(rnd.gauss(58 + 8 * fitness - (6 if after_hard else 0), 5)),
+                "hrv_status": "BALANCED",
+                "body_battery_high": max(40, min(100, round(rnd.gauss(84 - (8 if after_hard else 0), 6)))),
+                "body_battery_low": max(5, min(45, round(rnd.gauss(24, 6)))),
+                "stress_avg": max(12, min(55, round(rnd.gauss(29, 5)))),
+                "steps": max(3000, round(rnd.gauss(10500, 2500))),
+                **daily_extras(sleep, after_hard, more),
+            },
+        )
 
     intraday_days = seed_intraday(s, end, min(INTRADAY_DAYS, days + 1))
     db.set_setting(s, "sync_state", {"last_sync_local": f"{end.isoformat()} 06:02"})
-    db.set_setting(s, "onboarding", {"choice": "claude", "done": True, "step": 0, "hidden": ["checklist", "data"],
-                                     "visited": ["dashboard", "trends", "routes", "history"]})
+    db.set_setting(
+        s,
+        "onboarding",
+        {
+            "choice": "claude",
+            "done": True,
+            "step": 0,
+            "hidden": ["checklist", "data"],
+            "visited": ["dashboard", "trends", "routes", "history"],
+        },
+    )
 
     half_time = half_result["moving_time_s"] if half_result else 0
     half_pace = round(half_time / 21.1) if half_result else 0
     db.put_document(s, "profile", PROFILE, username)
     db.put_document(s, "goals", GOALS.format(race=race.isoformat(), half=half.isoformat()), username)
     pid = db.create_plan(
-        s, "Marathon in 16 weeks", username, goal="Marathon under 3:30", race=f"Marathon, {race.isoformat()}",
+        s,
+        "Marathon in 16 weeks",
+        username,
+        goal="Marathon under 3:30",
+        race=f"Marathon, {race.isoformat()}",
         notes="Built in four-week blocks: three weeks up, one week down. The long run grows to 32 km; "
-              "the last two weeks are the taper. Intervals on Tuesday, a tempo run every third Wednesday.",
+        "the last two weeks are the taper. Intervals on Tuesday, a tempo run every third Wednesday.",
     )
     db.add_sessions(s, pid, sessions)
     if half_result:
-        db.add_entry(s, "analysis", "Half marathon: review", ANALYSIS.format(
-            time=f"{half_time // 3600}:{half_time % 3600 // 60:02d}:{half_time % 60:02d}", pace=f"{half_pace // 60}:{half_pace % 60:02d}",
-            hr=half_result["avg_hr"]), "agent", day=(half + timedelta(days=1)).isoformat())
-    db.add_entry(s, "log", "Marathon plan started", "- Question: a plan for a marathon under 3:30\n- Data: running 4 times a week, long run 14 km\n"
-                 "- Decision: 16 weeks, built in blocks of 4, see Plan", "agent", day=plan_start.isoformat())
-    db.add_entry(s, "log", "Weekly review", "- Question: how did this week go?\n- Data: 82% in Z1-Z2, resting heart rate stable\n"
-                 "- Advice: keep going; make Saturday's ride a bit shorter before the long run", "agent", day=(end - timedelta(days=2)).isoformat())
-    db.add_entry(s, "log", "Heavy legs after intervals", "Calves stiff after the 1000s. Recovery run tomorrow instead of the easy run.", username,
-                 day=(end - timedelta(days=9)).isoformat())
+        db.add_entry(
+            s,
+            "analysis",
+            "Half marathon: review",
+            ANALYSIS.format(
+                time=f"{half_time // 3600}:{half_time % 3600 // 60:02d}:{half_time % 60:02d}",
+                pace=f"{half_pace // 60}:{half_pace % 60:02d}",
+                hr=half_result["avg_hr"],
+            ),
+            "agent",
+            day=(half + timedelta(days=1)).isoformat(),
+        )
+    db.add_entry(
+        s,
+        "log",
+        "Marathon plan started",
+        "- Question: a plan for a marathon under 3:30\n- Data: running 4 times a week, long run 14 km\n"
+        "- Decision: 16 weeks, built in blocks of 4, see Plan",
+        "agent",
+        day=plan_start.isoformat(),
+    )
+    db.add_entry(
+        s,
+        "log",
+        "Weekly review",
+        "- Question: how did this week go?\n- Data: 82% in Z1-Z2, resting heart rate stable\n"
+        "- Advice: keep going; make Saturday's ride a bit shorter before the long run",
+        "agent",
+        day=(end - timedelta(days=2)).isoformat(),
+    )
+    db.add_entry(
+        s,
+        "log",
+        "Heavy legs after intervals",
+        "Calves stiff after the 1000s. Recovery run tomorrow instead of the easy run.",
+        username,
+        day=(end - timedelta(days=9)).isoformat(),
+    )
 
     # Gear: the old shoes ran until the plan started and then retired, the new pair is the default for runs since then,
     # and a bike for rides. derive() below links the activities to the defaults (db.apply_gear_defaults).
-    old = db.create_gear(s, kind="shoes", name="Ghost 15", brand="Brooks", model="Ghost 15", start_km=520.0,
-                         retired_on=(plan_start - timedelta(days=1)).isoformat())
+    old = db.create_gear(
+        s,
+        kind="shoes",
+        name="Ghost 15",
+        brand="Brooks",
+        model="Ghost 15",
+        start_km=520.0,
+        retired_on=(plan_start - timedelta(days=1)).isoformat(),
+    )
     new = db.create_gear(s, kind="shoes", name="Pegasus 41", brand="Nike", model="Pegasus 41", start_km=60.0, since=plan_start.isoformat())
     bike = db.create_gear(s, kind="bike", name="Endurace", brand="Canyon", model="Endurace CF 7", start_km=3200.0)
     db.set_setting(s, db.GEAR_DEFAULTS_KEY, {"run": new["id"], "ride": bike["id"]})
@@ -701,7 +842,15 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
         if km is not None and abs(km - r["distance_km"]) < 1.5:
             r["name"] = by_km[km]
     db.save_routes(s, routes)
-    return {"user_id": uid, "admin": first, "password": password, "activities": count, "plan_id": pid, "intraday_days": intraday_days, **derived}
+    return {
+        "user_id": uid,
+        "admin": first,
+        "password": password,
+        "activities": count,
+        "plan_id": pid,
+        "intraday_days": intraday_days,
+        **derived,
+    }
 
 
 def link_account(accounts, engine, username: str = USERNAME) -> None:

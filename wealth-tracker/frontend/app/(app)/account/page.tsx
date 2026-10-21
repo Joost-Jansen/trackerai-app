@@ -39,9 +39,7 @@ export function SettingRow({
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="text-[14.5px] font-medium">{title}</span>
-        {body && (
-          <span className="max-w-[56ch] text-[13px] leading-relaxed text-ink-muted">{body}</span>
-        )}
+        {body && <span className="max-w-[56ch] text-[13px] leading-relaxed text-ink-muted">{body}</span>}
       </div>
       {control && <div className="flex-none pt-0.5">{control}</div>}
     </div>
@@ -49,7 +47,11 @@ export function SettingRow({
 }
 
 export default function AccountPage() {
-  const me = useQuery({ queryKey: ["me"], queryFn: () => api.get<{ is_admin: boolean; totp_enabled?: boolean; two_step?: boolean; email_codes?: boolean; apps?: string[] }>("/api/auth/me") });
+  const me = useQuery({
+    queryKey: ["me"],
+    queryFn: () =>
+      api.get<{ is_admin: boolean; totp_enabled?: boolean; two_step?: boolean; email_codes?: boolean; apps?: string[] }>("/api/auth/me"),
+  });
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -143,7 +145,9 @@ export default function AccountPage() {
             />
 
             {done && (
-              <p className="text-sm" style={{ color: "var(--text-gain)" }}>{tr("Password changed.")}</p>
+              <p className="text-sm" style={{ color: "var(--text-gain)" }}>
+                {tr("Password changed.")}
+              </p>
             )}
 
             <div>
@@ -163,7 +167,6 @@ export default function AccountPage() {
   );
 }
 
-
 /** Only for accounts with the money part: the API answers 403 otherwise, and then the section stays away. */
 function MoneySettings() {
   const ok = useQuery({
@@ -176,13 +179,17 @@ function MoneySettings() {
     <Section label={tr("Money")}>
       <SettingRow
         title={tr("Where a month starts")}
-        body={tr("On the 1st, or on the day your salary comes in. Applies everywhere: monthly totals, averages, budget, net worth per month and debts.")}
+        body={tr(
+          "On the 1st, or on the day your salary comes in. Applies everywhere: monthly totals, averages, budget, net worth per month and debts.",
+        )}
       />
       <MonthPeriodsChoice />
       <SettingRow
         last
         title={tr("Your share of shared costs")}
-        body={tr("Money that only passes through you for a group, such as a trip you organise, goes in “Niet meetellen”. What you paid out more than you got back is your own share: here you choose as which spending it counts. It then shows on Spending and in Saved on Net worth.")}
+        body={tr(
+          "Money that only passes through you for a group, such as a trip you organise, goes in “Niet meetellen”. What you paid out more than you got back is your own share: here you choose as which spending it counts. It then shows on Spending and in Saved on Net worth.",
+        )}
         control={<SharedCostsChoice />}
       />
     </Section>

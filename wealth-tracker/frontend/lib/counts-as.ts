@@ -35,8 +35,7 @@ const BY_ROLE: Record<CategoryRole, CountsAs> = {
 };
 
 /** Whether an account takes part in net worth: active, of a kind net worth knows, with a balance. */
-export const takesPart = (a: Account | undefined) =>
-  Boolean(a && a.active && a.stack && a.balance !== null);
+export const takesPart = (a: Account | undefined) => Boolean(a && a.active && a.stack && a.balance !== null);
 
 /** A classifier for transactions, from the category roles and the accounts. */
 export function countsAsOf(roleOf: Map<string, CategoryRole | undefined>, accounts: Account[]) {

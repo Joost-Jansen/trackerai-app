@@ -86,7 +86,11 @@ export default function TrendChart({
       {headline ? (
         <ChartHeadline big={headline.big} primary={headline.primary} primaryTone={headline.tone} secondary={headline.secondary} />
       ) : (
-        <ChartHeadline big="–" primary={tc.noMeasure} secondary={tc.lastOn(`${format(points[points.length - 1].v)}${unit}`, fmtDate(points[points.length - 1].d, true, locale))} />
+        <ChartHeadline
+          big="–"
+          primary={tc.noMeasure}
+          secondary={tc.lastOn(`${format(points[points.length - 1].v)}${unit}`, fmtDate(points[points.length - 1].d, true, locale))}
+        />
       )}
       <TimeChart
         ariaLabel={label}

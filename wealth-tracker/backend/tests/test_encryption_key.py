@@ -74,8 +74,10 @@ def test_session_ids_are_encrypted_and_old_plain_ones_migrated(data, monkeypatch
     monkeypatch.setenv("APP_ENCRYPTION_KEY", Fernet.generate_key().decode())
     conn = database.connect("alice")
     database.init_db(conn)
-    conn.execute("INSERT INTO bank_consents (bank, country, status, session_id, created_at) "
-                 "VALUES ('Bank', 'NL', 'active', 'plain-session-uuid', '2026-01-01T00:00:00+00:00')")
+    conn.execute(
+        "INSERT INTO bank_consents (bank, country, status, session_id, created_at) "
+        "VALUES ('Bank', 'NL', 'active', 'plain-session-uuid', '2026-01-01T00:00:00+00:00')"
+    )
     conn.commit()
     assert bank_link.upgrade_secrets(conn) == 1
     stored = conn.execute("SELECT session_id FROM bank_consents").fetchone()[0]

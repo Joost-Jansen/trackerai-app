@@ -18,8 +18,14 @@ def _texts():
             continue
         tree = ast.parse(path.read_text())
         for node in ast.walk(tree):
-            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "tr"
-                    and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str)):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "tr"
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)
+            ):
                 yield node.args[0].value, f"{path.relative_to(_BACKEND)}:{node.lineno}"
 
 

@@ -21,10 +21,7 @@ current month — the 1st, or your last salary (month_periods.py).
 import sqlite3
 from datetime import date, timedelta
 
-from domain.money import month_periods
-from domain.money import accounts
-from domain.money import debt_schedule
-from domain.money import net_worth
+from domain.money import accounts, debt_schedule, month_periods, net_worth
 
 
 def today() -> str:
@@ -66,10 +63,7 @@ def _period_start(conn: sqlite3.Connection) -> str:
 def overview(conn: sqlite3.Connection, *, only_active: bool = False) -> list[dict]:
     """All accounts, each with its last known balance."""
     begin = _period_start(conn)
-    return [
-        _with_balance(conn, r, begin)
-        for r in accounts.load_accounts(conn, only_active=only_active)
-    ]
+    return [_with_balance(conn, r, begin) for r in accounts.load_accounts(conn, only_active=only_active)]
 
 
 def one(conn: sqlite3.Connection, account_id: int) -> dict | None:

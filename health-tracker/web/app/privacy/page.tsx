@@ -35,13 +35,17 @@ export default function PrivacyPage() {
           {s.text && <p className="text-[14px] leading-relaxed">{s.text}</p>}
           {s.items.length > 0 && (
             <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[14px] leading-relaxed">
-              {s.items.map((i) => <li key={i}>{i}</li>)}
+              {s.items.map((i) => (
+                <li key={i}>{i}</li>
+              ))}
             </ul>
           )}
         </section>
       ))}
       <div className="flex flex-wrap items-center gap-4 text-[13px] text-ink-muted">
-        <Link href="/login/" className="underline underline-offset-4">{p.login}</Link>
+        <Link href="/login/" className="underline underline-offset-4">
+          {p.login}
+        </Link>
         <LanguageSwitch />
       </div>
     </main>

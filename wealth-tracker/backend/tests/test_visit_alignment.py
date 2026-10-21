@@ -1,4 +1,4 @@
-""""Since your last visit" against "today".
+""" "Since your last visit" against "today".
 
 Both figures sit on the same screen and both describe a portfolio's move, so
 when they disagree there is no way to tell which one is missing five euro. They
@@ -32,7 +32,6 @@ import pytest
 
 from app.services import dashboard_service as ds
 
-
 DAY = {"delta_eur": 79.19, "pct": 0.57, "complete": True}
 
 #: The session either side of the gap these tests reason about: Wednesday's
@@ -51,9 +50,7 @@ def _diff(last_seen: str, value_then=13878.12, value_now=13952.40):
 
 def _at(local_naive: str, offset_hours=0):
     """A bar's timestamp, tz-aware like the series returns it."""
-    return datetime.datetime.fromisoformat(local_naive).replace(
-        tzinfo=datetime.timezone(datetime.timedelta(hours=offset_hours))
-    )
+    return datetime.datetime.fromisoformat(local_naive).replace(tzinfo=datetime.timezone(datetime.timedelta(hours=offset_hours)))
 
 
 def _align(last_seen, closed=CLOSED, opened=OPENED, day=DAY, **kwargs):
@@ -68,6 +65,7 @@ def _align(last_seen, closed=CLOSED, opened=OPENED, day=DAY, **kwargs):
 # ---------------------------------------------------------------------------
 # When it aligns: the visit sits in the gap between two sessions
 # ---------------------------------------------------------------------------
+
 
 def test_a_visit_after_the_close_reports_todays_change():
     # 15:25 UTC is 17:25 in Amsterdam; the visit at 22:57 saw a shut market.
@@ -113,6 +111,7 @@ def test_exactly_at_the_open_is_still_before_it():
 # When it must not
 # ---------------------------------------------------------------------------
 
+
 def test_a_visit_during_the_session_keeps_its_own_snapshot():
     # Half a session ago is not "today", and the chip cannot describe it.
     assert _align("2026-07-30T11:00:00")["value_delta"] == 74.28
@@ -135,8 +134,8 @@ def test_a_weekend_visit_keeps_its_snapshot():
     """
     out = _align(
         "2026-08-01T10:00:00",
-        closed="2026-07-30T15:25",   # Thursday's close
-        opened="2026-07-31T07:00",   # Friday's open — the last session there is
+        closed="2026-07-30T15:25",  # Thursday's close
+        opened="2026-07-31T07:00",  # Friday's open — the last session there is
     )
     assert out["value_delta"] == 74.28
 
@@ -191,30 +190,38 @@ def test_previous_close_at_is_none_without_a_baseline_point():
 def test_session_start_at_is_none_when_the_previous_close_is():
     """Without a known close there is no gap to bound, so no start either —
     and points[1] would then be an ordinary bar of the running session."""
-    assert ds.session_start_at({"points": [{"d": "2026-07-30T07:00+00:00", "value": 1.0},
-                                           {"d": "2026-07-30T07:05+00:00", "value": 2.0}],
-                                "prev_close": None}) is None
+    assert (
+        ds.session_start_at(
+            {"points": [{"d": "2026-07-30T07:00+00:00", "value": 1.0}, {"d": "2026-07-30T07:05+00:00", "value": 2.0}], "prev_close": None}
+        )
+        is None
+    )
 
 
 def test_session_start_at_is_none_when_the_session_has_no_bar_yet():
     """Before the open the line is one point long: the previous close."""
-    assert ds.session_start_at({"points": [{"d": "2026-07-29T15:25+00:00", "value": 1.0}],
-                                "prev_close": 1.0}) is None
+    assert ds.session_start_at({"points": [{"d": "2026-07-29T15:25+00:00", "value": 1.0}], "prev_close": 1.0}) is None
 
 
-@pytest.mark.parametrize("bad", [
-    {"points": [{"d": "rubbish"}], "prev_close": 1.0},
-    {"points": [{}], "prev_close": 1.0},
-    {},
-])
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"points": [{"d": "rubbish"}], "prev_close": 1.0},
+        {"points": [{}], "prev_close": 1.0},
+        {},
+    ],
+)
 def test_previous_close_at_survives_a_malformed_payload(bad):
     assert ds.previous_close_at(bad) is None
 
 
-@pytest.mark.parametrize("bad", [
-    {"points": [{"d": "2026-07-29T15:25+00:00"}, {"d": "rubbish"}], "prev_close": 1.0},
-    {"points": [{"d": "2026-07-29T15:25+00:00"}, {}], "prev_close": 1.0},
-    {},
-])
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"points": [{"d": "2026-07-29T15:25+00:00"}, {"d": "rubbish"}], "prev_close": 1.0},
+        {"points": [{"d": "2026-07-29T15:25+00:00"}, {}], "prev_close": 1.0},
+        {},
+    ],
+)
 def test_session_start_at_survives_a_malformed_payload(bad):
     assert ds.session_start_at(bad) is None

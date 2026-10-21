@@ -22,9 +22,7 @@ function Countdown({ name, date, today }: { name: string; date: string; today: s
     <div className="flex min-w-[150px] flex-col justify-center rounded-md bg-[var(--surface-brand-soft)] px-4 py-3 sm:items-end sm:text-right">
       <span className="flex items-baseline gap-2 sm:flex-col sm:items-end sm:gap-0">
         <span className="font-display text-[40px] font-light leading-none tabular-nums text-brand">{days < 0 ? f.num(-days) : big}</span>
-        <span className="text-[12.5px] text-[var(--text-secondary)]">
-          {days < 0 ? t.plan.header.daysAgo(name) : line}
-        </span>
+        <span className="text-[12.5px] text-[var(--text-secondary)]">{days < 0 ? t.plan.header.daysAgo(name) : line}</span>
       </span>
       <span className="mt-1 text-[12px] text-ink-muted">{f.long(date)}</span>
     </div>
@@ -44,10 +42,17 @@ function Notes({ text }: { text: string }) {
     <div className="mt-4 border-t border-border pt-3">
       <div ref={ref} className={`relative max-w-[72ch] ${!open && long ? "max-h-[120px] overflow-hidden" : ""}`}>
         <Markdown text={text} className="text-[13px] [&_h2]:mt-3 [&_h2]:text-[13.5px]" />
-        {!open && long && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[var(--surface-card)] to-transparent" />}
+        {!open && long && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[var(--surface-card)] to-transparent" />
+        )}
       </div>
       {long && (
-        <button type="button" className="mt-1 text-[12.5px] font-semibold text-brand hover:underline" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <button
+          type="button"
+          className="mt-1 text-[12.5px] font-semibold text-brand hover:underline"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+        >
           {open ? t.plan.header.less : t.plan.header.more}
         </button>
       )}
@@ -106,25 +111,43 @@ export default function PlanHeader({
                     <span className="inline-block h-1.5 w-20 overflow-hidden rounded-full bg-[var(--surface-inset)]">
                       <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: "var(--data-gain)" }} />
                     </span>
-                    <span className="tabular-nums"><span className="font-semibold text-[var(--text-primary)]">{h.doneOf(done, due)}</span>{h.sessionsDone}</span>
+                    <span className="tabular-nums">
+                      <span className="font-semibold text-[var(--text-primary)]">{h.doneOf(done, due)}</span>
+                      {h.sessionsDone}
+                    </span>
                   </span>
                 ) : (
                   h.nothingYet
                 )}
               </dd>
             </div>
-            <div><dt className="sr-only">{h.leftLabel}</dt><dd className="tabular-nums"><span className="font-semibold text-[var(--text-primary)]">{left}</span>{h.left}</dd></div>
-            <div><dt className="sr-only">{h.byLabel}</dt><dd>{h.by(plan.author)}</dd></div>
+            <div>
+              <dt className="sr-only">{h.leftLabel}</dt>
+              <dd className="tabular-nums">
+                <span className="font-semibold text-[var(--text-primary)]">{left}</span>
+                {h.left}
+              </dd>
+            </div>
+            <div>
+              <dt className="sr-only">{h.byLabel}</dt>
+              <dd>{h.by(plan.author)}</dd>
+            </div>
           </dl>
         </div>
         {race.date && <Countdown name={race.name} date={race.date} today={today} />}
       </div>
       {plan.notes && <Notes text={plan.notes} />}
       <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-3">
-        <Button size="sm" onClick={onEdit}>{t.common.edit}</Button>
-        <Button size="sm" variant="ghost" onClick={onNew}>{h.newPlan}</Button>
+        <Button size="sm" onClick={onEdit}>
+          {t.common.edit}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onNew}>
+          {h.newPlan}
+        </Button>
         <span className="flex-1" />
-        <Button size="sm" variant="ghost" onClick={onFinish}>{h.finish}</Button>
+        <Button size="sm" variant="ghost" onClick={onFinish}>
+          {h.finish}
+        </Button>
       </div>
     </section>
   );

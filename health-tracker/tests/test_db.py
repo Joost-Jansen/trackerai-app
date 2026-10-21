@@ -82,10 +82,14 @@ def test_entries_newest_first_and_filtered_by_kind():
 def test_plan_with_sessions():
     e = fresh()
     pid = db.create_plan(e, title="Marathon 3:45", goal="marathon onder 3:45", race="Rotterdam 2027-04-11", author="agent")
-    db.add_sessions(e, pid, [
-        {"date": "2026-10-06", "sport": "run", "kind": "duurloop", "distance_km": 16, "target_zone": "Z2"},
-        {"date": "2026-10-04", "sport": "run", "kind": "recover", "duration_min": 40, "target_zone": "Z1"},
-    ])
+    db.add_sessions(
+        e,
+        pid,
+        [
+            {"date": "2026-10-06", "sport": "run", "kind": "duurloop", "distance_km": 16, "target_zone": "Z2"},
+            {"date": "2026-10-04", "sport": "run", "kind": "recover", "duration_min": 40, "target_zone": "Z1"},
+        ],
+    )
     plan = db.get_plan(e, pid)
     assert plan["status"] == "active"
     assert [s["date"] for s in plan["sessions"]] == ["2026-10-04", "2026-10-06"]
@@ -110,13 +114,26 @@ def test_routes_replace_all():
 # --- removing one source (ending a connection) ---------------------------------------------------------------------
 
 GARMIN_RIDE = {
-    "start_utc": "2026-09-20T08:00:40Z", "start_local": "2026-09-20T10:00:40", "sport": "ride", "name": "Utrecht Cycling",
-    "distance_km": 4.79, "moving_time_s": 598, "laps": [{"distance_km": 4.79}], "sources": {"garmin": {"id": 1}},
+    "start_utc": "2026-09-20T08:00:40Z",
+    "start_local": "2026-09-20T10:00:40",
+    "sport": "ride",
+    "name": "Utrecht Cycling",
+    "distance_km": 4.79,
+    "moving_time_s": 598,
+    "laps": [{"distance_km": 4.79}],
+    "sources": {"garmin": {"id": 1}},
 }
 WAHOO_RIDE = {
-    "start_utc": "2026-09-20T08:00:00Z", "start_local": "2026-09-20T10:00:00", "sport": "ride", "name": "Wahoo Cycling",
-    "distance_km": 4.8, "moving_time_s": 600, "avg_power_w": 180, "laps": [{"distance_km": 2.4}, {"distance_km": 2.4}],
-    "streams": {"time": [0, 1], "watts": [170, 190]}, "sources": {"wahoo": {"id": 77}},
+    "start_utc": "2026-09-20T08:00:00Z",
+    "start_local": "2026-09-20T10:00:00",
+    "sport": "ride",
+    "name": "Wahoo Cycling",
+    "distance_km": 4.8,
+    "moving_time_s": 600,
+    "avg_power_w": 180,
+    "laps": [{"distance_km": 2.4}, {"distance_km": 2.4}],
+    "streams": {"time": [0, 1], "watts": [170, 190]},
+    "sources": {"wahoo": {"id": 77}},
 }
 WAHOO_ONLY = dict(WAHOO_RIDE, start_utc="2026-09-22T08:00:00Z", start_local="2026-09-22T10:00:00", sources={"wahoo": {"id": 78}})
 
@@ -165,8 +182,14 @@ def test_streams_stored_before_owners_were_kept_stay_with_the_better_source(tmp_
     e = db.connect(new_database_url())
     db.create_schema(e)
     s = db.Scope(e, 1)
-    garmin = {"start_utc": "2026-10-02T13:59:00Z", "start_local": "2026-10-02T15:59:00", "sport": "ride", "distance_km": 52.2,
-              "streams": {"time": [0, 1], "heartrate": [120, 121]}, "sources": {"garmin": {"id": 1}}}
+    garmin = {
+        "start_utc": "2026-10-02T13:59:00Z",
+        "start_local": "2026-10-02T15:59:00",
+        "sport": "ride",
+        "distance_km": 52.2,
+        "streams": {"time": [0, 1], "heartrate": [120, 121]},
+        "sources": {"garmin": {"id": 1}},
+    }
     aid = db.upsert_activity(s, garmin)
     with e.begin() as c:  # what an activity stored before owners were kept looks like
         data = dict(c.execute(db.select(db.activities.c.data).where(db.activities.c.id == aid)).scalar_one())

@@ -32,10 +32,9 @@ import datetime
 import sqlite3
 
 import pandas as pd
+
 from domain.imports.degiro_export import read_export
-
 from domain.money import accounts
-
 
 NAME = "DeGiro cash"
 PROVIDER = "degiro"
@@ -121,10 +120,7 @@ def read(path: str) -> list[dict]:
         if day not in per_day or key > per_day[day][0]:
             per_day[day] = (key, balance)
 
-    return [
-        {"date": day.isoformat(), "balance": round(balance, 2)}
-        for day, (_key, balance) in sorted(per_day.items())
-    ]
+    return [{"date": day.isoformat(), "balance": round(balance, 2)} for day, (_key, balance) in sorted(per_day.items())]
 
 
 def read_entries(path: str) -> list[dict]:
@@ -151,8 +147,7 @@ def read_entries(path: str) -> list[dict]:
     amount_k = columns[position + 1]
 
     balance_k = _column(columns, _BALANCE)
-    balance_amount_k = (columns[columns.index(balance_k) + 1]
-                      if balance_k and columns.index(balance_k) + 1 < len(columns) else None)
+    balance_amount_k = columns[columns.index(balance_k) + 1] if balance_k and columns.index(balance_k) + 1 < len(columns) else None
 
     def balance_of(row) -> float | None:
         if not balance_amount_k or str(row[balance_k]).strip().upper() != "EUR":
@@ -197,12 +192,14 @@ def read_entries(path: str) -> list[dict]:
         time = _time(row[time_k]) if time_k else ""
         core = (day.isoformat(), time, round(amount, 2), description)
         seen[core] = seen.get(core, 0) + 1
-        off.append({
-            "date": day.isoformat(),
-            "amount": round(amount, 2),
-            "description": description,
-            "key": "|".join(str(x) for x in core) + f"|{seen[core]}",
-        })
+        off.append(
+            {
+                "date": day.isoformat(),
+                "amount": round(amount, 2),
+                "description": description,
+                "key": "|".join(str(x) for x in core) + f"|{seen[core]}",
+            }
+        )
     return off
 
 
@@ -219,8 +216,7 @@ def import_file(conn: sqlite3.Connection, path: str) -> dict:
         return {"account": None, "days": 0}
 
     account = next(
-        (r for r in accounts.load_accounts(conn)
-         if r["provider"] == PROVIDER and r["kind"] == "broker"),
+        (r for r in accounts.load_accounts(conn) if r["provider"] == PROVIDER and r["kind"] == "broker"),
         None,
     )
     if account is None:

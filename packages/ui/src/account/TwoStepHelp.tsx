@@ -19,7 +19,8 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
           title: "Waarom het soms verplicht is",
           body: (
             <p>
-              Gebruik je meer dan één tracker, dan opent één wachtwoord zowel je gezondheids- als je geldgegevens. Daarom is inloggen in twee stappen dan verplicht, en ook voor beheerders. Gebruik je één tracker, dan kies je het zelf; het wordt sterk aangeraden.
+              Gebruik je meer dan één tracker, dan opent één wachtwoord zowel je gezondheids- als je geldgegevens. Daarom is inloggen in
+              twee stappen dan verplicht, en ook voor beheerders. Gebruik je één tracker, dan kies je het zelf; het wordt sterk aangeraden.
             </p>
           ),
         },
@@ -29,7 +30,11 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
           body: (
             <>
               <p>Elke app die codes maakt volgens de standaard (TOTP) werkt, bijvoorbeeld:</p>
-              <ul className="ml-5 list-disc">{APPS.map((a) => <li key={a}>{a}</li>)}</ul>
+              <ul className="ml-5 list-disc">
+                {APPS.map((a) => (
+                  <li key={a}>{a}</li>
+                ))}
+              </ul>
               <p>Een wachtwoordmanager die ook codes bewaart is handig: die gaat mee naar een nieuwe telefoon.</p>
             </>
           ),
@@ -42,7 +47,10 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
               <li>Ga naar Instellingen › Account › Inloggen in twee stappen en kies Aanzetten (of volg het scherm dat erom vraagt).</li>
               <li>Scan de QR-code met je app. Lukt scannen niet, typ dan de sleutel eronder over.</li>
               <li>Vul de code van zes cijfers in die de app nu toont en bevestig.</li>
-              <li>Je krijgt tien reservecodes. Bewaar ze apart van je telefoon: in een wachtwoordmanager of op papier. Ze worden maar één keer getoond.</li>
+              <li>
+                Je krijgt tien reservecodes. Bewaar ze apart van je telefoon: in een wachtwoordmanager of op papier. Ze worden maar één keer
+                getoond.
+              </li>
             </ol>
           ),
         },
@@ -51,9 +59,14 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
           title: "3. Inloggen",
           body: (
             <>
-              <p>Na je wachtwoord vraagt de site om de code die de app op dat moment toont. Elke code is 30 seconden geldig en werkt maar één keer.</p>
               <p>
-                Staat <b>Ingelogd blijven</b> aan, dan blijf je {days} dagen ingelogd op dat apparaat, en vraagt het daar ook {days} dagen niet om de code: alleen om je wachtwoord als je uitlogt. Op een gedeelde of andere computer zet je het uit; dan eindigt de sessie als je de browser sluit.
+                Na je wachtwoord vraagt de site om de code die de app op dat moment toont. Elke code is 30 seconden geldig en werkt maar één
+                keer.
+              </p>
+              <p>
+                Staat <b>Ingelogd blijven</b> aan, dan blijf je {days} dagen ingelogd op dat apparaat, en vraagt het daar ook {days} dagen
+                niet om de code: alleen om je wachtwoord als je uitlogt. Op een gedeelde of andere computer zet je het uit; dan eindigt de
+                sessie als je de browser sluit.
               </p>
             </>
           ),
@@ -63,7 +76,9 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
           title: "Reservecodes",
           body: (
             <p>
-              Heb je je telefoon niet bij de hand, vul dan een reservecode in waar om de code wordt gevraagd. Elke reservecode werkt één keer. Bij Instellingen › Account zie je hoeveel je er nog hebt; daar maak je ook een nieuwe set (de oude werken dan niet meer).
+              Heb je je telefoon niet bij de hand, vul dan een reservecode in waar om de code wordt gevraagd. Elke reservecode werkt één
+              keer. Bij Instellingen › Account zie je hoeveel je er nog hebt; daar maak je ook een nieuwe set (de oude werken dan niet
+              meer).
             </p>
           ),
         },
@@ -72,7 +87,11 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
           title: "Codes per e-mail",
           body: (
             <p>
-              Heb je je aangemeld met je e-mailadres en het bevestigd met de code uit de welkomstmail, dan staat dit al aan. Anders zet je bij Instellingen › Account <b>codes per e-mail</b> aan: je vult je adres in en bevestigt het met de code die we sturen. Daarna mailt het inloggen je een code van zes cijfers; die werkt één keer, 10 minuten lang. Dat is eenvoudiger, en iets minder sterk: wie je mail kan lezen en je wachtwoord kent, komt binnen. Geef je mailbox dus een eigen sterk wachtwoord en inloggen in twee stappen. Je kunt ook allebei gebruiken: kies bij het inloggen dan &quot;Stuur me liever een code per e-mail&quot;.
+              Heb je je aangemeld met je e-mailadres en het bevestigd met de code uit de welkomstmail, dan staat dit al aan. Anders zet je
+              bij Instellingen › Account <b>codes per e-mail</b> aan: je vult je adres in en bevestigt het met de code die we sturen. Daarna
+              mailt het inloggen je een code van zes cijfers; die werkt één keer, 10 minuten lang. Dat is eenvoudiger, en iets minder sterk:
+              wie je mail kan lezen en je wachtwoord kent, komt binnen. Geef je mailbox dus een eigen sterk wachtwoord en inloggen in twee
+              stappen. Je kunt ook allebei gebruiken: kies bij het inloggen dan &quot;Stuur me liever een code per e-mail&quot;.
             </p>
           ),
         },
@@ -81,7 +100,9 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
           title: "Een nieuwe telefoon",
           body: (
             <p>
-              Zet de codes over met de app zelf (de meeste kunnen dat, of bewaren ze in je account bij die app). Lukt dat niet: log in met een reservecode, zet inloggen in twee stappen uit en meteen weer aan, en scan de nieuwe QR-code met je nieuwe telefoon. Is het verplicht voor je account, dan vraagt het scherm je na het uitzetten meteen om het opnieuw in te stellen.
+              Zet de codes over met de app zelf (de meeste kunnen dat, of bewaren ze in je account bij die app). Lukt dat niet: log in met
+              een reservecode, zet inloggen in twee stappen uit en meteen weer aan, en scan de nieuwe QR-code met je nieuwe telefoon. Is het
+              verplicht voor je account, dan vraagt het scherm je na het uitzetten meteen om het opnieuw in te stellen.
             </p>
           ),
         },
@@ -91,8 +112,14 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
           body: (
             <ul className="ml-5 list-disc">
               <li>Neem de nieuwste code: een code verloopt na 30 seconden, en een code die al gebruikt is werkt niet nog eens.</li>
-              <li>Controleer de tijd op je telefoon: die moet automatisch worden ingesteld. Een paar minuten verschil is genoeg om elke code fout te maken.</li>
-              <li>Heb je meer dan één trackerai-regel in je app (bijvoorbeeld een oude van health-tracker of stock-tracker), gebruik dan die met &quot;trackerai&quot; erin; de oude kun je verwijderen.</li>
+              <li>
+                Controleer de tijd op je telefoon: die moet automatisch worden ingesteld. Een paar minuten verschil is genoeg om elke code
+                fout te maken.
+              </li>
+              <li>
+                Heb je meer dan één trackerai-regel in je app (bijvoorbeeld een oude van health-tracker of stock-tracker), gebruik dan die
+                met &quot;trackerai&quot; erin; de oude kun je verwijderen.
+              </li>
             </ul>
           ),
         },
@@ -101,7 +128,8 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
           title: "Telefoon én reservecodes kwijt",
           body: (
             <p>
-              Neem contact op met de beheerder (zie Privacy voor het adres). Die kan inloggen in twee stappen voor je account uitzetten, waarna je het opnieuw instelt. De beheerder kan je wachtwoord of je gegevens niet zien.
+              Neem contact op met de beheerder (zie Privacy voor het adres). Die kan inloggen in twee stappen voor je account uitzetten,
+              waarna je het opnieuw instelt. De beheerder kan je wachtwoord of je gegevens niet zien.
             </p>
           ),
         },
@@ -117,7 +145,8 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
         title: "Why it is sometimes required",
         body: (
           <p>
-            When you use more than one tracker, one password opens both your health data and your money. So two-step login is required then, and for admins too. With one tracker it is your choice; it is strongly recommended.
+            When you use more than one tracker, one password opens both your health data and your money. So two-step login is required then,
+            and for admins too. With one tracker it is your choice; it is strongly recommended.
           </p>
         ),
       },
@@ -127,7 +156,11 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
         body: (
           <>
             <p>Any app that makes codes by the standard (TOTP) works, for example:</p>
-            <ul className="ml-5 list-disc">{APPS.map((a) => <li key={a}>{a}</li>)}</ul>
+            <ul className="ml-5 list-disc">
+              {APPS.map((a) => (
+                <li key={a}>{a}</li>
+              ))}
+            </ul>
             <p>A password manager that keeps codes too is handy: they move with you to a new phone.</p>
           </>
         ),
@@ -151,7 +184,9 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
           <>
             <p>After your password, the site asks for the code the app shows at that moment. Each code lasts 30 seconds and works once.</p>
             <p>
-              With <b>Stay logged in</b> on, you stay logged in on that device for {days} days, and it doesn&apos;t ask that device for the code for {days} days either: only for your password when you log out. On a shared or someone else&apos;s computer, turn it off; the session then ends when the browser closes.
+              With <b>Stay logged in</b> on, you stay logged in on that device for {days} days, and it doesn&apos;t ask that device for the
+              code for {days} days either: only for your password when you log out. On a shared or someone else&apos;s computer, turn it
+              off; the session then ends when the browser closes.
             </p>
           </>
         ),
@@ -161,7 +196,8 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
         title: "Backup codes",
         body: (
           <p>
-            Without your phone at hand, enter a backup code where the code is asked. Each backup code works once. Settings › Account shows how many you have left; you can make a new set there too (the old ones stop working).
+            Without your phone at hand, enter a backup code where the code is asked. Each backup code works once. Settings › Account shows
+            how many you have left; you can make a new set there too (the old ones stop working).
           </p>
         ),
       },
@@ -170,7 +206,11 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
         title: "Codes by email",
         body: (
           <p>
-            If you signed up with your email address and confirmed it with the code from the welcome mail, this is on already. Otherwise turn on <b>codes by email</b> at Settings › Account: enter your address and confirm it with the code we send. From then on, logging in mails you a six-digit code; it works once, for 10 minutes. It is simpler, and a little less strong: whoever can read your mail and knows your password gets in. So give your mailbox its own strong password and two-step login. You can use both: at login, choose &quot;Email me a code instead&quot;.
+            If you signed up with your email address and confirmed it with the code from the welcome mail, this is on already. Otherwise
+            turn on <b>codes by email</b> at Settings › Account: enter your address and confirm it with the code we send. From then on,
+            logging in mails you a six-digit code; it works once, for 10 minutes. It is simpler, and a little less strong: whoever can read
+            your mail and knows your password gets in. So give your mailbox its own strong password and two-step login. You can use both: at
+            login, choose &quot;Email me a code instead&quot;.
           </p>
         ),
       },
@@ -179,7 +219,9 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
         title: "A new phone",
         body: (
           <p>
-            Move the codes over with the app itself (most can, or keep them in your account with that app). If that doesn&apos;t work: log in with a backup code, turn two-step login off and straight on again, and scan the new QR code with your new phone. When it is required for your account, the screen asks you to set it up again right after you turn it off.
+            Move the codes over with the app itself (most can, or keep them in your account with that app). If that doesn&apos;t work: log
+            in with a backup code, turn two-step login off and straight on again, and scan the new QR code with your new phone. When it is
+            required for your account, the screen asks you to set it up again right after you turn it off.
           </p>
         ),
       },
@@ -190,7 +232,10 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
           <ul className="ml-5 list-disc">
             <li>Use the newest code: a code expires after 30 seconds, and one that was used already doesn&apos;t work again.</li>
             <li>Check the time on your phone: it must be set automatically. A few minutes off is enough to make every code wrong.</li>
-            <li>With more than one entry for the trackers in your app (an old one from health-tracker or stock-tracker, say), use the one that says &quot;trackerai&quot;; the old ones can go.</li>
+            <li>
+              With more than one entry for the trackers in your app (an old one from health-tracker or stock-tracker, say), use the one that
+              says &quot;trackerai&quot;; the old ones can go.
+            </li>
           </ul>
         ),
       },
@@ -199,7 +244,8 @@ function sections(locale: Locale, days: number): { title: string; lead: string; 
         title: "Lost both the phone and the backup codes",
         body: (
           <p>
-            Contact the admin (Privacy has the address). They can turn two-step login off for your account, and you set it up again. The admin can't see your password or your data.
+            Contact the admin (Privacy has the address). They can turn two-step login off for your account, and you set it up again. The
+            admin can't see your password or your data.
           </p>
         ),
       },

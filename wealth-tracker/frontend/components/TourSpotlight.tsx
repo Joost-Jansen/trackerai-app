@@ -26,7 +26,19 @@ function anchorOf(id: string): Rect | null {
   return null;
 }
 
-export default function TourSpotlight({ id, href, eyebrow, title, text, index, total, onBack, onNext, onPause, last }: {
+export default function TourSpotlight({
+  id,
+  href,
+  eyebrow,
+  title,
+  text,
+  index,
+  total,
+  onBack,
+  onNext,
+  onPause,
+  last,
+}: {
   id: string;
   href: string;
   eyebrow: string;
@@ -91,8 +103,12 @@ export default function TourSpotlight({ id, href, eyebrow, title, text, index, t
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11.5px] text-ink-muted">{trx("Step {0} of {1}", index + 1, total)}</span>
         <span className="flex gap-1">
-          <Button size="sm" variant="ghost" onClick={onBack} icon={<ChevronLeftIcon className="h-3.5 w-3.5" />}>{tr("Previous")}</Button>
-          <Button size="sm" variant="primary" onClick={onNext} iconAfter={last ? undefined : <ChevronRightIcon className="h-3.5 w-3.5" />}>{tr("Next")}</Button>
+          <Button size="sm" variant="ghost" onClick={onBack} icon={<ChevronLeftIcon className="h-3.5 w-3.5" />}>
+            {tr("Previous")}
+          </Button>
+          <Button size="sm" variant="primary" onClick={onNext} iconAfter={last ? undefined : <ChevronRightIcon className="h-3.5 w-3.5" />}>
+            {tr("Next")}
+          </Button>
         </span>
       </div>
     </>
@@ -102,7 +118,12 @@ export default function TourSpotlight({ id, href, eyebrow, title, text, index, t
 
   if (!rect) {
     return (
-      <div className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-[440px] rounded-xl p-4" style={surface} role="dialog" aria-label={tr("Tour")}>
+      <div
+        className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-[440px] rounded-xl p-4"
+        style={surface}
+        role="dialog"
+        aria-label={tr("Tour")}
+      >
         {card}
       </div>
     );
@@ -114,12 +135,28 @@ export default function TourSpotlight({ id, href, eyebrow, title, text, index, t
   return (
     <>
       {/* The ring around the item in the sidebar. */}
-      <div aria-hidden className="pointer-events-none fixed z-50 rounded-lg transition-all duration-200"
-        style={{ top: rect.top - 3, left: rect.left - 3, width: rect.width + 6, height: rect.height + 6, boxShadow: "0 0 0 2px var(--chart-1), 0 0 0 6px color-mix(in srgb, var(--chart-1) 22%, transparent)" }} />
-      <div className="fixed z-50 rounded-xl p-4 transition-all duration-200" role="dialog" aria-label={tr("Tour")}
-        style={{ ...surface, top, left: rect.right + 16, width }}>
-        <span aria-hidden className="absolute -left-1.5 h-3 w-3 rotate-45"
-          style={{ top: Math.min(Math.max(arrowTop - 6, 14), 180), background: "var(--surface-card)" }} />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed z-50 rounded-lg transition-all duration-200"
+        style={{
+          top: rect.top - 3,
+          left: rect.left - 3,
+          width: rect.width + 6,
+          height: rect.height + 6,
+          boxShadow: "0 0 0 2px var(--chart-1), 0 0 0 6px color-mix(in srgb, var(--chart-1) 22%, transparent)",
+        }}
+      />
+      <div
+        className="fixed z-50 rounded-xl p-4 transition-all duration-200"
+        role="dialog"
+        aria-label={tr("Tour")}
+        style={{ ...surface, top, left: rect.right + 16, width }}
+      >
+        <span
+          aria-hidden
+          className="absolute -left-1.5 h-3 w-3 rotate-45"
+          style={{ top: Math.min(Math.max(arrowTop - 6, 14), 180), background: "var(--surface-card)" }}
+        />
         {card}
       </div>
     </>

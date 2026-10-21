@@ -15,11 +15,10 @@ import hashlib
 import json
 import sqlite3
 
-from domain.portfolio import series as charts
-from domain import database
-
 from app.core import price_refresh
 from app.services import benchmark_service, etf_service, news_service
+from domain import database
+from domain.portfolio import series as charts
 
 # The dashboard news card mixes in the ETF look-through feed, so it needs the
 # same exposure ranking the News tab's etf-top endpoint uses: the top N stocks
@@ -47,6 +46,7 @@ def _fingerprint(*objs) -> str:
 # rather than placed beside one. The endpoint, its helpers and the frontend's
 # PerfChart outlived it as dead code aimed straight back at this screen; see
 # git history if a benchmark ever returns to the dashboard.
+
 
 def sparkline_points(segments: list, days: int = 31, today: datetime.date | None = None) -> list[dict]:
     """The hero's month-of-value line: the tail of the *last* segment only —
@@ -89,13 +89,10 @@ _VALUE_HISTORY_TTL_SECONDS = 3600
 
 def _build_value_history(transactions, prices, dividends) -> dict:
     estimated: list[dict] = []
-    dates, invested, value, value_divs = charts.portfolio_history_series(
-        transactions, prices, dividends, estimated=estimated
-    )
+    dates, invested, value, value_divs = charts.portfolio_history_series(transactions, prices, dividends, estimated=estimated)
     return {
         "points": [
-            {"d": d.isoformat(), "invested": iv, "value": v, "value_divs": vd}
-            for d, iv, v, vd in zip(dates, invested, value, value_divs)
+            {"d": d.isoformat(), "invested": iv, "value": v, "value_divs": vd} for d, iv, v, vd in zip(dates, invested, value, value_divs)
         ],
         # Holdings whose line is a stand-in rather than a measurement. Usually
         # empty, and usually harmless when it is not (a fund listed last month
@@ -247,10 +244,7 @@ def get_intraday(conn: sqlite3.Connection, transactions, prices, positions=None)
     if not transactions:
         return {"points": [], "prev_close": None, "anchored": False}
     tickers = sorted(p.get("ticker") for p in prices.values() if p.get("ticker"))
-    key = (
-        f"dashboard:intraday:{datetime.date.today().isoformat()}:"
-        f"{_fingerprint(transactions, tickers)}"
-    )
+    key = f"dashboard:intraday:{datetime.date.today().isoformat()}:{_fingerprint(transactions, tickers)}"
     data = database.get_or_fetch(
         conn,
         key,
@@ -281,6 +275,7 @@ def get_intraday(conn: sqlite3.Connection, transactions, prices, positions=None)
 # Day change (Tier 2 — previous_close)
 # ---------------------------------------------------------------------------
 
+
 def position_day_changes(positions: list[dict], prices: dict[str, dict]) -> list[dict]:
     """Per open position: today's move, where previous_close is known.
 
@@ -297,13 +292,15 @@ def position_day_changes(positions: list[dict], prices: dict[str, dict]) -> list
         cur = info.get("price")
         if not prev or prev <= 0 or not cur:
             continue
-        rows.append({
-            "isin": p["isin"],
-            "name": p["name"],
-            "ticker": p.get("ticker"),
-            "day_delta_eur": round((cur - prev) * p["shares_held"], 2),
-            "day_pct": round((cur / prev - 1.0) * 100.0, 2),
-        })
+        rows.append(
+            {
+                "isin": p["isin"],
+                "name": p["name"],
+                "ticker": p.get("ticker"),
+                "day_delta_eur": round((cur - prev) * p["shares_held"], 2),
+                "day_pct": round((cur / prev - 1.0) * 100.0, 2),
+            }
+        )
     return rows
 
 
@@ -354,9 +351,7 @@ def portfolio_day_change(positions: list[dict], prices: dict[str, dict]) -> dict
         if info and info.get("currency") == "EUR" and info.get("previous_close"):
             base += info["previous_close"] * p["shares_held"]
     priced = [p for p in positions if p.get("current_value") is not None]
-    fetched = [
-        (prices.get(r["isin"]) or {}).get("fetched_at") for r in per_position
-    ]
+    fetched = [(prices.get(r["isin"]) or {}).get("fetched_at") for r in per_position]
     as_of = min((f for f in fetched if f), default=None)
     return {
         "delta_eur": round(delta, 2),
@@ -393,19 +388,14 @@ def day_movers(positions: list[dict], prices: dict[str, dict]) -> dict:
 # Dividend aggregation (Tier 1)
 # ---------------------------------------------------------------------------
 
+
 def dividend_stats(dividends: list[dict], today: datetime.date | None = None) -> dict:
     """'This month' and 'this year' as the calendar reads them, net EUR."""
     today = today or datetime.date.today()
     month_prefix = today.isoformat()[:7]
     year_prefix = today.isoformat()[:4]
-    this_month = sum(
-        d["net_eur"] for d in dividends
-        if d.get("date", "").startswith(month_prefix) and d.get("net_eur") is not None
-    )
-    this_year = sum(
-        d["net_eur"] for d in dividends
-        if d.get("date", "").startswith(year_prefix) and d.get("net_eur") is not None
-    )
+    this_month = sum(d["net_eur"] for d in dividends if d.get("date", "").startswith(month_prefix) and d.get("net_eur") is not None)
+    this_year = sum(d["net_eur"] for d in dividends if d.get("date", "").startswith(year_prefix) and d.get("net_eur") is not None)
     return {"this_month": round(this_month, 2), "this_year": round(this_year, 2)}
 
 
@@ -414,16 +404,14 @@ def dividends_since(dividends: list[dict], since_iso: str) -> dict:
     '1 dividend paid'.
     """
     since_date = since_iso[:10]
-    paid = [
-        d for d in dividends
-        if d.get("date") and d["date"][:10] > since_date and d.get("net_eur") is not None
-    ]
+    paid = [d for d in dividends if d.get("date") and d["date"][:10] > since_date and d.get("net_eur") is not None]
     return {"count": len(paid), "total_eur": round(sum(d["net_eur"] for d in paid), 2)}
 
 
 # ---------------------------------------------------------------------------
 # Visit snapshots (Tier 2)
 # ---------------------------------------------------------------------------
+
 
 def record_visit(
     conn: sqlite3.Connection,
@@ -456,7 +444,9 @@ def record_visit(
         # Never overwrite a known value with None: a temporarily price-less
         # load must not erase what the user actually last saw.
         database.touch_visit(
-            conn, current["id"], now_iso,
+            conn,
+            current["id"],
+            now_iso,
             total_value if total_value is not None else current["last_value"],
         )
     else:
@@ -573,6 +563,7 @@ def get_news(conn: sqlite3.Connection, positions: list[dict]) -> list[dict]:
 # Ex-dividend calendar (Tier 3)
 # ---------------------------------------------------------------------------
 
+
 def latest_dividend_by_isin(dividends: list[dict]) -> dict[str, float]:
     """{isin: net EUR of the most recent payment date} — the 'verwacht'
     estimate for the next one. Multiple rows on that date sum (one gross/tax
@@ -650,14 +641,16 @@ def _fetch_calendar(
         if not ex and not earnings:
             continue
         pay = cal.get("Dividend Date")
-        entries.append({
-            "isin": isin,
-            "ticker": ticker,
-            "name": name,
-            "ex_date": _iso(ex),
-            "pay_date": _iso(pay),
-            "earnings_dates": earnings,
-        })
+        entries.append(
+            {
+                "isin": isin,
+                "ticker": ticker,
+                "name": name,
+                "ex_date": _iso(ex),
+                "pay_date": _iso(pay),
+                "earnings_dates": earnings,
+            }
+        )
     # Measured against what was *attempted*, not against the whole dict. With
     # the budget above, a stalled network gets through only the first ticker or
     # two before the sweep is cut off, so `errors == len(tickers_to_meta)` would
@@ -675,13 +668,10 @@ def _fetch_calendar(
     return entries
 
 
-def upcoming_ex_dividends(entries: list[dict], estimates: dict[str, float],
-                          today: datetime.date | None = None) -> list[dict]:
+def upcoming_ex_dividends(entries: list[dict], estimates: dict[str, float], today: datetime.date | None = None) -> list[dict]:
     today = today or datetime.date.today()
     upcoming = [
-        {**e, "estimate_eur": estimates.get(e["isin"])}
-        for e in entries
-        if e.get("ex_date") and e["ex_date"][:10] >= today.isoformat()
+        {**e, "estimate_eur": estimates.get(e["isin"])} for e in entries if e.get("ex_date") and e["ex_date"][:10] >= today.isoformat()
     ]
     upcoming.sort(key=lambda e: e["ex_date"])
     return upcoming
@@ -713,13 +703,16 @@ def get_calendar_entries(conn: sqlite3.Connection, positions: list[dict]) -> lis
     except Exception:
         return []
     try:
-        database.record_earnings_dates(conn, [
-            {"isin": e["isin"], "date": d, "confirmed": len(e.get("earnings_dates") or []) == 1}
-            for e in entries
-            for d in (e.get("earnings_dates") or [])
-        ])
+        database.record_earnings_dates(
+            conn,
+            [
+                {"isin": e["isin"], "date": d, "confirmed": len(e.get("earnings_dates") or []) == 1}
+                for e in entries
+                for d in (e.get("earnings_dates") or [])
+            ],
+        )
     except Exception:
-        pass   # remembering is a nicety; failing to must not take the tab down
+        pass  # remembering is a nicety; failing to must not take the tab down
     return entries
 
 
@@ -761,10 +754,10 @@ _CADENCES = [
     ("semiannual", 182, "semiannual", 6),
     ("annual", 365, "annual", 12),
 ]
-_CADENCE_TOLERANCE = 0.25   # |median gap - cadence| / cadence
+_CADENCE_TOLERANCE = 0.25  # |median gap - cadence| / cadence
 
-_FORECAST_HORIZON_DAYS = 190   # "coming months": ~6 months of expected payments
-_AMOUNT_WINDOW = 4             # typical amount = median of this many recent payments
+_FORECAST_HORIZON_DAYS = 190  # "coming months": ~6 months of expected payments
+_AMOUNT_WINDOW = 4  # typical amount = median of this many recent payments
 
 
 def _median(values: list[float]) -> float:
@@ -788,10 +781,7 @@ def payment_events(dividends: list[dict]) -> dict[str, list[tuple[datetime.date,
             continue
         by_isin.setdefault(isin, {})
         by_isin[isin][day] = by_isin[isin].get(day, 0.0) + d["net_eur"]
-    return {
-        isin: sorted(days.items())
-        for isin, days in by_isin.items()
-    }
+    return {isin: sorted(days.items()) for isin, days in by_isin.items()}
 
 
 def _add_months(day: datetime.date, months: int) -> datetime.date:
@@ -807,8 +797,7 @@ def _add_months(day: datetime.date, months: int) -> datetime.date:
     if month == 12:
         last = 31
     else:
-        last = (datetime.date(year + month // 12, month % 12 + 1, 1)
-                - datetime.timedelta(days=1)).day
+        last = (datetime.date(year + month // 12, month % 12 + 1, 1) - datetime.timedelta(days=1)).day
     return datetime.date(year, month, min(day.day, last))
 
 
@@ -853,11 +842,11 @@ def _detect_alternating(events: list[tuple[datetime.date, float]]) -> dict | Non
     med0 = _median([float(g) for g in by_parity[0]])
     med1 = _median([float(g) for g in by_parity[1]])
     if abs(med0 - med1) <= 45:
-        return None   # that is one rhythm with jitter — detect_cadence territory
+        return None  # that is one rhythm with jitter — detect_cadence territory
     if any(abs(g - med0) > 45 for g in by_parity[0]) or any(abs(g - med1) > 45 for g in by_parity[1]):
         return None
     if any(not (273 <= a + b <= 456) for a, b in zip(gaps, gaps[1:])):
-        return None   # interim + final must add up to about a year
+        return None  # interim + final must add up to about a year
     return {"gap_by_parity": {0: int(round(med0)), 1: int(round(med1))}}
 
 
@@ -932,28 +921,29 @@ def forecast_dividends(
     upcoming: list[dict] = []
     rest_of_year = 0.0
 
-    def emit(isin: str, position: dict, occurrence: datetime.date, amount: float,
-             label: str, confidence: str) -> None:
+    def emit(isin: str, position: dict, occurrence: datetime.date, amount: float, label: str, confidence: str) -> None:
         nonlocal rest_of_year
         if occurrence <= year_end:
             rest_of_year += amount
         if occurrence <= horizon_end:
-            upcoming.append({
-                "isin": isin,
-                "name": position.get("name"),
-                "date": occurrence.isoformat(),
-                "month": occurrence.isoformat()[:7],
-                "part": _month_part(occurrence.day),
-                "expected_eur": amount,
-                "cadence": label,
-                "confidence": confidence,
-                "source": "estimate",
-            })
+            upcoming.append(
+                {
+                    "isin": isin,
+                    "name": position.get("name"),
+                    "date": occurrence.isoformat(),
+                    "month": occurrence.isoformat()[:7],
+                    "part": _month_part(occurrence.day),
+                    "expected_eur": amount,
+                    "cadence": label,
+                    "confidence": confidence,
+                    "source": "estimate",
+                }
+            )
 
     for isin, events in payment_events(dividends).items():
         position = held.get(isin)
         if position is None:
-            continue   # sold out: their schedule ended with the position
+            continue  # sold out: their schedule ended with the position
         shares = position.get("shares_held")
         end = max(horizon_end, year_end)
         cadence = detect_cadence([d for d, _ in events])
@@ -990,7 +980,7 @@ def forecast_dividends(
 
         alternating = _detect_alternating(events)
         if alternating is None:
-            continue   # 1 payment or no recognisable rhythm: omitted, not guessed
+            continue  # 1 payment or no recognisable rhythm: omitted, not guessed
 
         # Interim/final payer: the amount belongs to the phase — a final can
         # be twice the interim, so each occurrence takes the typical payment
@@ -1001,11 +991,10 @@ def forecast_dividends(
         for i in range(n):
             phase_events[(n - i) % 2].append(events[i + 1])
         amount_by_parity = {
-            p: round(_expected_amount(evs, isin, shares, transactions), 2) if evs else 0.0
-            for p, evs in phase_events.items()
+            p: round(_expected_amount(evs, isin, shares, transactions), 2) if evs else 0.0 for p, evs in phase_events.items()
         }
 
-        parity = 0   # the gap after the last real payment has parity 0
+        parity = 0  # the gap after the last real payment has parity 0
         nxt = events[-1][0] + datetime.timedelta(days=gap_by_parity[0])
         while nxt < today:
             parity ^= 1

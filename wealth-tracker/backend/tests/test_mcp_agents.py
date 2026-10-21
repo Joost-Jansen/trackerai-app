@@ -35,8 +35,14 @@ def _seed_bank(client):
     rid = r.json()["account"]["id"]
     today = date.today().isoformat()
     ids = []
-    for name, amount, direction in [("ALBERT HEIJN 1427", 42.5, "expense"), ("WINKEL XYZ", 19.99, "expense"), ("WERKGEVER BV", 2500, "income")]:
-        r = client.post("/api/bank-transactions", json={"account_id": rid, "date": today, "amount": amount, "direction": direction, "name": name})
+    for name, amount, direction in [
+        ("ALBERT HEIJN 1427", 42.5, "expense"),
+        ("WINKEL XYZ", 19.99, "expense"),
+        ("WERKGEVER BV", 2500, "income"),
+    ]:
+        r = client.post(
+            "/api/bank-transactions", json={"account_id": rid, "date": today, "amount": amount, "direction": direction, "name": name}
+        )
         assert r.status_code == 201, r.text
         ids.append(r.json()["transaction"]["id"])
     return ids
@@ -64,6 +70,7 @@ def test_token_is_shown_once_and_stored_as_hash(client):
     assert [t["name"] for t in items] == ["Claude"] and "hash" not in items[0] and "token" not in items[0]
 
     from app.core import auth_store, config
+
     assert token not in open(config.AUTH_CONFIG_PATH).read()
     assert auth_store.resolve_agent_token(token)[0] == "alice"
 
@@ -178,11 +185,23 @@ def test_mcp_initialize_and_tool_list_follow_the_scope(client):
     assert init["serverInfo"]["name"] == "stock-tracker" and "may only read" in init["instructions"]
     names = {t["name"] for t in _mcp(read, "tools/list")["result"]["tools"]}
     assert {"get_overview", "get_spending", "list_transactions"} <= names
-    assert {"get_net_worth_split", "get_settings", "get_fixed_costs", "list_categories",
-            "get_bank_corrections", "list_balances"} <= names
-    writes = {"label_transactions", "set_budget", "add_category_rule", "delete_rule", "set_category_type",
-              "rename_category", "move_category", "set_month_layout", "set_shared_costs_category",
-              "set_fixed_cost", "set_balance", "add_transaction", "delete_balance", "refresh_data"}
+    assert {"get_net_worth_split", "get_settings", "get_fixed_costs", "list_categories", "get_bank_corrections", "list_balances"} <= names
+    writes = {
+        "label_transactions",
+        "set_budget",
+        "add_category_rule",
+        "delete_rule",
+        "set_category_type",
+        "rename_category",
+        "move_category",
+        "set_month_layout",
+        "set_shared_costs_category",
+        "set_fixed_cost",
+        "set_balance",
+        "add_transaction",
+        "delete_balance",
+        "refresh_data",
+    }
     assert not names & writes
 
     write = _agent(client, _token(client, "write"))
@@ -223,6 +242,7 @@ def test_mcp_read_tools_on_real_data(client):
     _seed_bank(client)
     token = _token(client, "read")
     from app.main import app
+
     agent = TestClient(app)  # token in the path, like the claude.ai connector
 
     path = f"/api/mcp/{token}"
@@ -232,7 +252,9 @@ def test_mcp_read_tools_on_real_data(client):
     assert data["this_month"]["spending"] == pytest.approx(62.49)
     assert data["this_month"]["income"] == pytest.approx(2500)
 
-    tx = json.loads(_mcp(agent, "tools/call", {"name": "list_transactions", "arguments": {"search": "heijn"}}, path)["result"]["content"][0]["text"])
+    tx = json.loads(
+        _mcp(agent, "tools/call", {"name": "list_transactions", "arguments": {"search": "heijn"}}, path)["result"]["content"][0]["text"]
+    )
     assert tx["found"] == 1 and tx["transactions"][0]["name"] == "ALBERT HEIJN 1427"
 
     acc = json.loads(_mcp(agent, "tools/call", {"name": "list_accounts"}, path)["result"]["content"][0]["text"])
@@ -314,7 +336,7 @@ def test_mcp_net_worth_split_settings_and_fixed_costs(client):
     month = split["months"][-1]
     assert month["month"] == date.today().isoformat()[:7]
     assert month["change"] == pytest.approx(2437.51)
-    assert month["saved"] == pytest.approx(2437.51)   # 2500 in, 62.49 out
+    assert month["saved"] == pytest.approx(2437.51)  # 2500 in, 62.49 out
     assert month["saved"] + month["market"] + month["bank"] + month["debt"] == pytest.approx(month["change"])
     assert set(month["detail"]) == {"friends", "unlabelled", "corrections", "transfers", "listed", "other_half"}
     assert month["detail"]["listed"] + month["detail"]["corrections"] + month["detail"]["other_half"] == pytest.approx(month["bank"])
@@ -335,7 +357,7 @@ def test_mcp_net_worth_split_settings_and_fixed_costs(client):
     assert _json(_call(agent, "set_shared_costs_category", {"category": "Supermarkt"}))["shared_costs_category"] == "Supermarkt"
     assert client.get("/api/spending/shared-costs").json()["category"] == "Supermarkt"
     assert _json(_call(agent, "set_shared_costs_category", {"category": None}))["shared_costs_category"] is None
-    assert _call(agent, "set_shared_costs_category", {"category": "Salaris"})["isError"]   # not spending
+    assert _call(agent, "set_shared_costs_category", {"category": "Salaris"})["isError"]  # not spending
 
     fixed = _json(_call(agent, "get_fixed_costs"))
     assert set(fixed) == {"per_month", "is_fixed", "candidates", "excluded"}
@@ -376,7 +398,9 @@ def test_mcp_add_transaction_follows_the_sign_convention(client):
     _seed_bank(client)
     agent = _agent(client, _token(client, "write"))
 
-    spent = _json(_call(agent, "add_transaction", {"account": "Betaal", "amount": 12.5, "name": "MARKT KRAAM", "category": "Supermarkt"}))["transaction"]
+    spent = _json(_call(agent, "add_transaction", {"account": "Betaal", "amount": 12.5, "name": "MARKT KRAAM", "category": "Supermarkt"}))[
+        "transaction"
+    ]
     assert spent["amount"] == pytest.approx(12.5) and spent["category"] == "Supermarkt"
     got = _json(_call(agent, "add_transaction", {"account": "betaal", "amount": -40, "name": "OMA"}))["transaction"]
     assert got["amount"] == pytest.approx(-40)
@@ -401,8 +425,9 @@ def test_mcp_finds_and_removes_a_wrong_balance(client):
 
     out = _json(_call(read, "get_bank_corrections", {"from": "2026-01-10", "to": "2026-01-20"}))
     assert out["total"] == 8000
-    assert out["accounts"][0]["events"] == [{"date": "2026-01-15", "kind": "measurement", "source": "sync",
-                                             "balance": 9000.0, "amount": 8000.0}]
+    assert out["accounts"][0]["events"] == [
+        {"date": "2026-01-15", "kind": "measurement", "source": "sync", "balance": 9000.0, "amount": 8000.0}
+    ]
     balances = _json(_call(read, "list_balances", {"account": "Spaar"}))
     assert [b["date"] for b in balances["balances"]] == ["2026-01-01", "2026-01-15", "2026-02-01"]
     assert _call(read, "get_bank_corrections", {"from": "2026-01-20", "to": "2026-01-10"})["isError"]

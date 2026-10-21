@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import insert
@@ -54,7 +54,7 @@ def test_users_invites_and_delete_with_all_data():
     assert db.get_user(e, admin, with_hash=True)["password_hash"] == "hash"
 
     db.create_invite(e, "abc", admin)
-    db.create_invite(e, "old", admin, expires_at=datetime.now(timezone.utc) - timedelta(days=1))
+    db.create_invite(e, "old", admin, expires_at=datetime.now(UTC) - timedelta(days=1))
     assert db.invite_usable(e, "abc") and not db.invite_usable(e, "old") and not db.invite_usable(e, "nope")
     assert db.use_invite(e, "abc", anna) and not db.use_invite(e, "abc", anna)
 
@@ -78,14 +78,26 @@ def _v1_database(url):
     e = db.connect(url)
     v1_meta, t = db._v1_meta()
     v1_meta.create_all(e)
-    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 30, tzinfo=UTC)
     with e.begin() as c:
-        c.execute(insert(t["activities"]).values(id="2026-09-27_1130_run", start_local="2026-09-27T11:30:00", start_utc="2026-09-27T09:30:00Z", sport="run", data={"name": "HM", "start_local": "2026-09-27T11:30:00"}))
+        c.execute(
+            insert(t["activities"]).values(
+                id="2026-09-27_1130_run",
+                start_local="2026-09-27T11:30:00",
+                start_utc="2026-09-27T09:30:00Z",
+                sport="run",
+                data={"name": "HM", "start_local": "2026-09-27T11:30:00"},
+            )
+        )
         c.execute(insert(t["activity_streams"]).values(activity_id="2026-09-27_1130_run", data={"latlng": [[52.0, 5.0]]}))
         c.execute(insert(t["fit_files"]).values(activity_id="garmin-1", data=b"PK"))
         c.execute(insert(t["wellness"]).values(day="2026-09-30", data={"resting_hr": 48}))
         c.execute(insert(t["settings"]).values(key="zones", value={"run": {"bounds": [132, 147, 162, 176]}}))
-        c.execute(insert(t["settings"]).values(key="agent_tokens", value=[{"id": "ab12", "name": "Claude", "hash": "e" * 64, "created_at": "2026-10-01T08:00:00+00:00"}]))
+        c.execute(
+            insert(t["settings"]).values(
+                key="agent_tokens", value=[{"id": "ab12", "name": "Claude", "hash": "e" * 64, "created_at": "2026-10-01T08:00:00+00:00"}]
+            )
+        )
         c.execute(insert(t["documents"]).values(key="goals", body="Marathon", updated_at=now, updated_by="alice"))
         c.execute(insert(t["entries"]).values(id=7, kind="log", day="2026-09-30", title="Log", body="b", author="agent", created_at=now))
         c.execute(insert(t["plans"]).values(id=3, title="Blok", status="actief", author="agent", created_at=now))
@@ -124,7 +136,14 @@ def test_schema_3_turns_stored_dutch_values_into_english(tmp_path):
     s = db.Scope(e, 1)
     old = db.create_plan(s, "Oud", "alice")
     new = db.create_plan(s, "Nieuw", "alice")
-    db.save_routes(s, [{"id": "r1", "sport": "run", "name": "6.0 km rondje (r1)"}, {"id": "f1", "sport": "ride", "name": "40.0 km fietsroute (f1)"}, {"id": "r2", "sport": "run", "name": "Park"}])
+    db.save_routes(
+        s,
+        [
+            {"id": "r1", "sport": "run", "name": "6.0 km rondje (r1)"},
+            {"id": "f1", "sport": "ride", "name": "40.0 km fietsroute (f1)"},
+            {"id": "r2", "sport": "run", "name": "Park"},
+        ],
+    )
     db.set_setting(s, "onboarding", {"done": False, "visited": ["trends", "rondjes", "historie", "routes"]})
     with e.begin() as c:  # what a schema 2 database holds
         c.execute(db.plans.update().where(db.plans.c.id == old).values(status="afgerond"))

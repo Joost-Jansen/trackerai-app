@@ -32,8 +32,8 @@ and, for login codes by email (without these, two-step login is the authenticato
 
 from __future__ import annotations
 
-import os
 import json
+import os
 from dataclasses import dataclass, field
 
 from trackerai_accounts import crypto
@@ -136,7 +136,7 @@ class Config:
         return bool((self.resend_api_key and self.mail_sender) or (self.smtp_host and self.smtp_from))
 
     @classmethod
-    def from_env(cls) -> "Config":
+    def from_env(cls) -> Config:
         policy = os.environ.get("REQUIRE_TOTP", "").strip().lower() or "shared"
         return cls(
             database_url=os.environ.get("ACCOUNTS_DATABASE_URL", "").strip(),

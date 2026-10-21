@@ -4,9 +4,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.main import create_app
-from trackerai_accounts import totp
 from tests.test_api import PASSWORD, engine, login, make_settings  # noqa: F401  (engine is a fixture)
 from tools import db
+from trackerai_accounts import totp
 
 
 @pytest.fixture

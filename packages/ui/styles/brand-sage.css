@@ -7,32 +7,32 @@
 :root {
   /* menu items on the ink panel */
   --text-on-ink-nav: #b7c8be;
-  --n-0:  #ffffff;
+  --n-0: #ffffff;
   --n-25: #f7f9f7; /* paper: the page colour */
   --n-50: #f0f4f1;
-  --n-100:#e8eee9;
-  --n-150:#dfe6e1;
-  --n-200:#dbe3dd; /* hairline */
-  --n-300:#bccac1;
-  --n-400:#718078; /* 4.1:1: axis labels, placeholders */
-  --n-500:#5f6d66; /* 5.5:1: muted text */
-  --n-600:#505d56; /* 6.8:1: secondary text */
-  --n-700:#35403b;
-  --n-800:#1f2a26; /* deep green-black: the contrast anchor */
-  --n-900:#121a17; /* 17.6:1: primary text */
+  --n-100: #e8eee9;
+  --n-150: #dfe6e1;
+  --n-200: #dbe3dd; /* hairline */
+  --n-300: #bccac1;
+  --n-400: #718078; /* 4.1:1: axis labels, placeholders */
+  --n-500: #5f6d66; /* 5.5:1: muted text */
+  --n-600: #505d56; /* 6.8:1: secondary text */
+  --n-700: #35403b;
+  --n-800: #1f2a26; /* deep green-black: the contrast anchor */
+  --n-900: #121a17; /* 17.6:1: primary text */
   --brand-50: #e9f2ec;
-  --brand-100:#d3e5da;
-  --brand-300:#8cb9a0;
-  --brand-500:#4d8a6b;
-  --brand-600:#3e7258;
-  --brand-700:#305a45;
-  --surface-ink:       #26362f;
+  --brand-100: #d3e5da;
+  --brand-300: #8cb9a0;
+  --brand-500: #4d8a6b;
+  --brand-600: #3e7258;
+  --brand-700: #305a45;
+  --surface-ink: #26362f;
   --surface-ink-hover: #2f4139;
-  --surface-ink-active:#384c43;
-  --border-ink:        #33463d;
-  --text-on-ink:       #eaf1ec;
+  --surface-ink-active: #384c43;
+  --border-ink: #33463d;
+  --text-on-ink: #eaf1ec;
   --text-on-ink-muted: #92a69b;
-  --ring-focus:      0 0 0 3px rgba(77, 138, 107, 0.22);
+  --ring-focus: 0 0 0 3px rgba(77, 138, 107, 0.22);
   --chart-1: #4d8a6b; /* sage: always your own line */
   --chart-2: #1f2a26; /* deep green-black: comparison line, dashed */
   --chart-3: #6f90b5; /* olive */
@@ -44,28 +44,28 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --n-0:  #101613;
+    --n-0: #101613;
     --n-25: #0f1412;
     --n-50: #161d1a;
-    --n-100:#1d2622;
-    --n-150:#242f2a;
-    --n-200:#2c3833;
-    --n-300:#3e4c45;
-    --n-400:#72827a;
-    --n-500:#8e9d95;
-    --n-600:#adbab3;
-    --n-700:#cdd8d1;
-    --n-800:#e7eee9;
-    --n-900:#f3f7f4;
+    --n-100: #1d2622;
+    --n-150: #242f2a;
+    --n-200: #2c3833;
+    --n-300: #3e4c45;
+    --n-400: #72827a;
+    --n-500: #8e9d95;
+    --n-600: #adbab3;
+    --n-700: #cdd8d1;
+    --n-800: #e7eee9;
+    --n-900: #f3f7f4;
     --brand-50: #13211a;
-    --brand-100:#1b2e24;
-    --brand-300:#8cb9a0;
-    --brand-500:#78b394;
-    --brand-600:#92c6aa;
-    --surface-ink:       #18221e;
+    --brand-100: #1b2e24;
+    --brand-300: #8cb9a0;
+    --brand-500: #78b394;
+    --brand-600: #92c6aa;
+    --surface-ink: #18221e;
     --surface-ink-hover: #212e29;
-    --surface-ink-active:#293832;
-    --border-ink:        #26332d;
+    --surface-ink-active: #293832;
+    --border-ink: #26332d;
     --ring-focus: 0 0 0 3px rgba(120, 179, 148, 0.28);
     --chart-1: #78b394;
     --chart-2: #cdd8d1;
@@ -78,28 +78,28 @@
 }
 
 :root[data-theme="dark"] {
-  --n-0:  #101613;
+  --n-0: #101613;
   --n-25: #0f1412;
   --n-50: #161d1a;
-  --n-100:#1d2622;
-  --n-150:#242f2a;
-  --n-200:#2c3833;
-  --n-300:#3e4c45;
-  --n-400:#72827a;
-  --n-500:#8e9d95;
-  --n-600:#adbab3;
-  --n-700:#cdd8d1;
-  --n-800:#e7eee9;
-  --n-900:#f3f7f4;
+  --n-100: #1d2622;
+  --n-150: #242f2a;
+  --n-200: #2c3833;
+  --n-300: #3e4c45;
+  --n-400: #72827a;
+  --n-500: #8e9d95;
+  --n-600: #adbab3;
+  --n-700: #cdd8d1;
+  --n-800: #e7eee9;
+  --n-900: #f3f7f4;
   --brand-50: #13211a;
-  --brand-100:#1b2e24;
-  --brand-300:#8cb9a0;
-  --brand-500:#78b394;
-  --brand-600:#92c6aa;
-  --surface-ink:       #18221e;
+  --brand-100: #1b2e24;
+  --brand-300: #8cb9a0;
+  --brand-500: #78b394;
+  --brand-600: #92c6aa;
+  --surface-ink: #18221e;
   --surface-ink-hover: #212e29;
-  --surface-ink-active:#293832;
-  --border-ink:        #26332d;
+  --surface-ink-active: #293832;
+  --border-ink: #26332d;
   --ring-focus: 0 0 0 3px rgba(120, 179, 148, 0.28);
   --chart-1: #78b394;
   --chart-2: #cdd8d1;

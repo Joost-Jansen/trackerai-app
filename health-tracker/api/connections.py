@@ -12,24 +12,23 @@ public API for individuals, so this uses the same unofficial login as tools/setu
 
 from __future__ import annotations
 
-import threading
-import time
-from datetime import date
-from typing import Callable
-
 import os
 import secrets
+import threading
+import time
+from collections.abc import Callable
+from datetime import date
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from api.errors import MESSAGES, ApiError
-from trackerai_websec.throttle import Limiter
 from tools import db, wahoo
 from tools.derive import derive
 from tools.secretbox import WrongKey, decrypt, encrypt
 from tools.sync import end_wahoo
+from trackerai_websec.throttle import Limiter
 
 MFA_TTL_S = 10 * 60
 WAHOO_STATE_TTL_S = 15 * 60
@@ -141,7 +140,9 @@ def revoke_wahoo(scope: db.Scope, key: str) -> None:
             print(f"wahoo: intrekken bij Wahoo mislukt ({type(err).__name__})", flush=True)
 
 
-def make_router(current_user: Callable, runner, key: str, auth: GarminAuth | None = None, today: Callable[[], date] = date.today) -> APIRouter:
+def make_router(
+    current_user: Callable, runner, key: str, auth: GarminAuth | None = None, today: Callable[[], date] = date.today
+) -> APIRouter:
     r = APIRouter(prefix="/api/connections")
     auth = auth or GarminAuth()
     pending: dict[int, tuple[float, object]] = {}  # user id -> (time, MFA handle)

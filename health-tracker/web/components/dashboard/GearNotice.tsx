@@ -14,14 +14,19 @@ export default function GearNotice() {
   if (!worn.length) return null;
   return (
     <p role="status" className="flex items-start gap-2 rounded border border-border bg-surface px-3 py-2 text-[12.5px] leading-relaxed">
-      <span aria-hidden="true" className={`mt-[6px] inline-block h-2 w-2 flex-none rounded-full ${worn[0].state === "replace" ? "bg-[var(--data-loss)]" : "bg-warn"}`} />
+      <span
+        aria-hidden="true"
+        className={`mt-[6px] inline-block h-2 w-2 flex-none rounded-full ${worn[0].state === "replace" ? "bg-[var(--data-loss)]" : "bg-warn"}`}
+      />
       <span>
         {worn.map((g) => (
           <span key={g.id}>
             {g.state === "replace" ? m.replace(g.name, f.km(g.total_km, 0)) : m.soon(g.name, f.km(g.left_km ?? 0, 0))}{" "}
           </span>
         ))}
-        <Link href="/history/#gear" className="font-medium underline underline-offset-4">{m.open}</Link>
+        <Link href="/history/#gear" className="font-medium underline underline-offset-4">
+          {m.open}
+        </Link>
       </span>
     </p>
   );

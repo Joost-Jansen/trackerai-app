@@ -10,7 +10,6 @@ import time
 from tools import db
 from tools.distance import counted
 
-
 TTL = 60
 
 

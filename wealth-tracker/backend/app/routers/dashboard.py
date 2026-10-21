@@ -33,11 +33,7 @@ def summary(conn: sqlite3.Connection = Depends(get_db)):
         # Open positions with no price at all. They sit out every total, so the
         # hero shows "—" — and without naming them here nothing on the owner's
         # screen said why. The dashboard puts them in a warning above the total.
-        "unpriced": [
-            {"isin": p["isin"], "name": p["name"]}
-            for p in bundle.positions
-            if p["current_value"] is None
-        ],
+        "unpriced": [{"isin": p["isin"], "name": p["name"]} for p in bundle.positions if p["current_value"] is None],
         # None until a price refresh has stored previous_close values —
         # the hero's day chip hides itself rather than show a made-up 0,00%.
         "day": dashboard_service.portfolio_day_change(bundle.positions, bundle.prices),
@@ -49,11 +45,7 @@ def sparkline(conn: sqlite3.Connection = Depends(get_db)):
     """The hero's last-month value line. Served from the same cached segments
     the benchmark charts use, so after the first hit it costs one SELECT."""
     bundle = load_portfolio(conn)
-    return {
-        "points": dashboard_service.get_sparkline(
-            conn, bundle.transactions, bundle.prices, bundle.dividends
-        )
-    }
+    return {"points": dashboard_service.get_sparkline(conn, bundle.transactions, bundle.prices, bundle.dividends)}
 
 
 @router.get("/value-history")
@@ -67,12 +59,8 @@ def value_history(conn: sqlite3.Connection = Depends(get_db)):
     card's "All" and Total return are one number.
     """
     bundle = load_portfolio(conn)
-    history = dashboard_service.get_value_history(
-        conn, bundle.transactions, bundle.prices, bundle.dividends
-    )
-    return dashboard_service.pin_to_total(
-        history, bundle.positions, bundle.summary["total_value"]
-    )
+    history = dashboard_service.get_value_history(conn, bundle.transactions, bundle.prices, bundle.dividends)
+    return dashboard_service.pin_to_total(history, bundle.positions, bundle.summary["total_value"])
 
 
 @router.get("/intraday")
@@ -88,9 +76,7 @@ def intraday(conn: sqlite3.Connection = Depends(get_db)):
     uses, so the two cannot report different day returns.
     """
     bundle = load_portfolio(conn)
-    return dashboard_service.get_intraday(
-        conn, bundle.transactions, bundle.prices, bundle.positions
-    )
+    return dashboard_service.get_intraday(conn, bundle.transactions, bundle.prices, bundle.positions)
 
 
 @router.get("/allocation")
@@ -120,9 +106,7 @@ def dividends(conn: sqlite3.Connection = Depends(get_db)):
     bundle = load_portfolio(conn)
     return {
         **dashboard_service.dividend_stats(bundle.dividends),
-        "outlook": dashboard_service.dividend_outlook(
-            conn, bundle.positions, bundle.dividends, bundle.transactions
-        ),
+        "outlook": dashboard_service.dividend_outlook(conn, bundle.positions, bundle.dividends, bundle.transactions),
     }
 
 
@@ -141,9 +125,7 @@ def visit(conn: sqlite3.Connection = Depends(get_db)):
     per load.
     """
     bundle = load_portfolio(conn)
-    total_value = (
-        bundle.summary["total_value"] if bundle.summary["prices_available"] else None
-    )
+    total_value = bundle.summary["total_value"] if bundle.summary["prices_available"] else None
     diff = dashboard_service.record_visit(conn, total_value)
     if diff is None:
         return {"since": None}
@@ -157,9 +139,7 @@ def visit(conn: sqlite3.Connection = Depends(get_db)):
     # to close. The intraday series carries both bounds of that gap, and it is
     # cached for five minutes (and fetched by the 1D card anyway), so asking
     # for it on every visit costs a SELECT.
-    intraday = dashboard_service.get_intraday(
-        conn, bundle.transactions, bundle.prices, bundle.positions
-    )
+    intraday = dashboard_service.get_intraday(conn, bundle.transactions, bundle.prices, bundle.positions)
     diff = dashboard_service.align_visit_with_the_day(
         diff,
         dashboard_service.previous_close_at(intraday),
@@ -170,9 +150,7 @@ def visit(conn: sqlite3.Connection = Depends(get_db)):
     return {
         "since": {
             **diff,
-            "dividends": dashboard_service.dividends_since(
-                bundle.dividends, diff["last_seen_at"]
-            ),
+            "dividends": dashboard_service.dividends_since(bundle.dividends, diff["last_seen_at"]),
         }
     }
 

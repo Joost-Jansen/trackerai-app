@@ -45,9 +45,7 @@ export default function ValueChange({
   const tone = Math.abs(value) <= flatThreshold ? "flat" : value > 0 ? "gain" : "loss";
   const arrow = tone === "gain" ? "↑" : tone === "loss" ? "↓" : "–";
   const d = decimals ?? (percent ? 2 : 2);
-  const body = percent
-    ? fmtPercent(Math.abs(value), { decimals: d })
-    : fmtEuro(Math.abs(value), { decimals: d });
+  const body = percent ? fmtPercent(Math.abs(value), { decimals: d }) : fmtEuro(Math.abs(value), { decimals: d });
 
   return (
     <span className={`ds-change ds-change--${tone} ds-change--${size} ${className}`}>
@@ -88,10 +86,7 @@ export function SignedValue({
   }
   const text = fmtEu(value, { decimals, prefix, suffix, plus: true });
   return (
-    <span
-      className={`num ${className}`}
-      style={{ color: value >= 0 ? "var(--text-gain)" : "var(--text-loss)" }}
-    >
+    <span className={`num ${className}`} style={{ color: value >= 0 ? "var(--text-gain)" : "var(--text-loss)" }}>
       {trueMinus(text)}
     </span>
   );

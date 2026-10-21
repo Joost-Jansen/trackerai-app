@@ -108,9 +108,8 @@ const SHORT_MONTHS = MONTHS[locale];
 export const monthAbbr = (month: number): string => SHORT_MONTHS[month - 1] ?? String(month);
 
 /** "ma" … "zo" / "Mon" … "Sun": the short weekday names, Monday first. */
-export const WEEKDAY_ABBR: string[] = locale === "nl"
-  ? ["ma", "di", "wo", "do", "vr", "za", "zo"]
-  : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+export const WEEKDAY_ABBR: string[] =
+  locale === "nl" ? ["ma", "di", "wo", "do", "vr", "za", "zo"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 /** "januari" / "January" — the full name of month 1–12. */
 export const monthName = (month: number): string =>
@@ -212,5 +211,4 @@ export function fmtShares(value: number | null | undefined): string {
 }
 
 /** A plain number in the reader's language, e.g. 1.234 / 1,234 or 12,5 / 12.5. */
-export const fmtInt = (value: number, maximumFractionDigits = 0): string =>
-  value.toLocaleString(intlLocale, { maximumFractionDigits });
+export const fmtInt = (value: number, maximumFractionDigits = 0): string => value.toLocaleString(intlLocale, { maximumFractionDigits });

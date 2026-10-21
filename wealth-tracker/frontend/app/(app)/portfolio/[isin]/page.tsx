@@ -28,24 +28,8 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 import { type Range, availableRanges, sliceByRange } from "@/lib/dashboard";
-import {
-  type PositionDetail,
-  type PriceHistory,
-  type PriceIntraday,
-  type PricePoint,
-  type PriceProbe,
-  priceChange,
-} from "@/lib/holdings";
-import {
-  fmtDayMonth,
-  fmtDayMonthYear,
-  fmtEu,
-  fmtEuro,
-  fmtIntradayLabel,
-  fmtPercent,
-  fmtRelative,
-  fmtShares,
-} from "@/lib/format";
+import { type PositionDetail, type PriceHistory, type PriceIntraday, type PricePoint, type PriceProbe, priceChange } from "@/lib/holdings";
+import { fmtDayMonth, fmtDayMonthYear, fmtEu, fmtEuro, fmtIntradayLabel, fmtPercent, fmtRelative, fmtShares } from "@/lib/format";
 import BreakdownList from "@/components/BreakdownList";
 import ChartHeadline from "@trackerai/ui/charts/ChartHeadline";
 import FundBreakdown from "@/components/etf/FundBreakdown";
@@ -71,7 +55,9 @@ function Skeleton() {
 
 function BackLink() {
   return (
-    <Link href="/portfolio" className="ds-btn ds-btn--ghost ds-btn--sm -ml-3">{tr("← Portfolio")}</Link>
+    <Link href="/portfolio" className="ds-btn ds-btn--ghost ds-btn--sm -ml-3">
+      {tr("← Portfolio")}
+    </Link>
   );
 }
 
@@ -135,7 +121,7 @@ function Position() {
   const useIntraday = Boolean(intraday && intraday.points.length >= 2);
   const points: PricePoint[] = useMemo(
     () => (useIntraday ? intraday!.points : daily.length < 2 ? [] : zoom ? sliceByZoom(daily, zoom) : sliceByRange(daily, activeRange)),
-    [useIntraday, intraday, daily, activeRange, zoom]
+    [useIntraday, intraday, daily, activeRange, zoom],
   );
 
   if (detailQ.isLoading) return <Skeleton />;
@@ -147,11 +133,7 @@ function Position() {
         <BackLink />
         <EmptyState
           title={gone ? tr("You don't have this position (any more)") : tr("This position could not be loaded")}
-          body={
-            gone
-              ? tr("Maybe it was sold, or the link is outdated. Portfolio shows what you have now.")
-              : tr("Try again in a moment.")
-          }
+          body={gone ? tr("Maybe it was sold, or the link is outdated. Portfolio shows what you have now.") : tr("Try again in a moment.")}
         />
       </div>
     );
@@ -188,9 +170,7 @@ function Position() {
     : zoom || ["1Y", "3Y", "5Y", "All"].includes(activeRange)
       ? fmtDayMonthYear
       : fmtDayMonth;
-  const probeLabel = useIntraday
-    ? (iso: string) => fmtIntradayLabel(iso, points[points.length - 1].d)
-    : fmtDayMonthYear;
+  const probeLabel = useIntraday ? (iso: string) => fmtIntradayLabel(iso, points[points.length - 1].d) : fmtDayMonthYear;
 
   const headline =
     probe?.kind === "span"
@@ -257,20 +237,16 @@ function Position() {
             <span aria-hidden>·</span>
             <span>{quoteCcy}</span>
           </span>
-          <h1 className="font-display text-[34px] font-light leading-tight tracking-[-0.03em]">
-            {p.name}
-          </h1>
+          <h1 className="font-display text-[34px] font-light leading-tight tracking-[-0.03em]">{p.name}</h1>
         </div>
 
         <div className="flex flex-col items-start gap-1.5 sm:items-end">
-          <span className="num font-display text-[34px] font-light leading-none tracking-[-0.03em]">
-            {quote(quotePrice)}
-          </span>
+          <span className="num font-display text-[34px] font-light leading-none tracking-[-0.03em]">{quote(quotePrice)}</span>
           <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
             {p.day_pct !== null && <ValueChange value={p.day_pct} percent size="sm" />}
             <span className="text-xs text-ink-muted">
               {p.day_eur !== null && (d.market_closed ? <>{tr("today · market closed")}</> : <>{tr("today")}</>)}
-              {d.price_fetched_at && <>{" "}{trx("· updated {0}", fmtRelative(d.price_fetched_at))}</>}
+              {d.price_fetched_at && <> {trx("· updated {0}", fmtRelative(d.price_fetched_at))}</>}
             </span>
           </span>
           {/* Where this price comes from. A price from another exchange than the position's —
@@ -284,7 +260,7 @@ function Position() {
                 <>
                   {d.price_source.provider}
                   {d.price_source.listing_venue && <> · {d.price_source.listing_venue}</>}
-                  {d.price_source.venue_fallback && p.exchange && <>{" "}{trx("(not the price on exchange {0})", p.exchange)}</>}
+                  {d.price_source.venue_fallback && p.exchange && <> {trx("(not the price on exchange {0})", p.exchange)}</>}
                 </>
               )}
             </span>
@@ -303,25 +279,43 @@ function Position() {
             variant="quiet"
             items={periodTabs(ranges)}
             value={zoom ? "" : activeRange}
-            onChange={(r) => { setZoom(null); setRange(r as Range); }}
+            onChange={(r) => {
+              setZoom(null);
+              setRange(r as Range);
+            }}
             ariaLabel={tr("Period")}
           />
           {zoom && <ZoomChip zoom={zoom} onClear={() => setZoom(null)} />}
         </span>
-        <span className="text-xs text-ink-muted">{trx("{0} · {1} transactions", d.first_buy && <>{trx("held since {0}", fmtDayMonthYear(d.first_buy))}</>, <span className="num">{d.num_transactions}</span>)}</span>
+        <span className="text-xs text-ink-muted">
+          {trx(
+            "{0} · {1} transactions",
+            d.first_buy && <>{trx("held since {0}", fmtDayMonthYear(d.first_buy))}</>,
+            <span className="num">{d.num_transactions}</span>,
+          )}
+        </span>
       </div>
 
       {/* The same ISIN on a second exchange is a second position, with its own average cost. Only
           visible when there is one — otherwise it explains a case you don't have. */}
       {d.other_venues.length > 0 && (
-        <p className="mt-5 max-w-measure text-[12.5px] leading-relaxed text-ink-muted">{trx("You also hold this product on {0}.", d.other_venues.map((v, i) => (
-            <span key={v.exchange ?? i}>{trx("{0}{1} ({2} units)", i > 0 && ", ", <Link
-                href={`/portfolio/${p.isin}${v.exchange ? `?exchange=${encodeURIComponent(v.exchange)}` : ""}`}
-                className="ds-link"
-              >
-                {v.exchange ?? tr("another exchange")}
-              </Link>, <span className="num">{fmtShares(v.shares_held)}</span>)}</span>
-          )))}</p>
+        <p className="mt-5 max-w-measure text-[12.5px] leading-relaxed text-ink-muted">
+          {trx(
+            "You also hold this product on {0}.",
+            d.other_venues.map((v, i) => (
+              <span key={v.exchange ?? i}>
+                {trx(
+                  "{0}{1} ({2} units)",
+                  i > 0 && ", ",
+                  <Link href={`/portfolio/${p.isin}${v.exchange ? `?exchange=${encodeURIComponent(v.exchange)}` : ""}`} className="ds-link">
+                    {v.exchange ?? tr("another exchange")}
+                  </Link>,
+                  <span className="num">{fmtShares(v.shares_held)}</span>,
+                )}
+              </span>
+            )),
+          )}
+        </p>
       )}
 
       {/* ═══ WHAT DOES IT DO ═══ The chart across the full width. ════════════ */}
@@ -351,7 +345,9 @@ function Position() {
                 differ a fraction from the price at the top. That should be stated, not come as a
                 surprise. */}
             {d.price_source?.provider === "Tradegate" && d.ticker && (
-              <p className="mt-2 text-xs text-ink-muted">{trx("Price history via Yahoo Finance ({0}); Tradegate provides no price history.", d.ticker)}</p>
+              <p className="mt-2 text-xs text-ink-muted">
+                {trx("Price history via Yahoo Finance ({0}); Tradegate provides no price history.", d.ticker)}
+              </p>
             )}
           </>
         )}
@@ -361,11 +357,7 @@ function Position() {
           own — see TradegateQuote. */}
       {d.tradegate_quote && (
         <div className="mt-14">
-          <TradegateQuote
-            isin={p.isin}
-            exchange={p.exchange}
-            usedForValue={d.price_source?.provider === "Tradegate"}
-          />
+          <TradegateQuote isin={p.isin} exchange={p.exchange} usedForValue={d.price_source?.provider === "Tradegate"} />
         </div>
       )}
 
@@ -384,7 +376,12 @@ function Position() {
               value={price(p.avg_cost_ex_costs)}
               note={tr("avg. purchase price")}
               info={
-                <>{trx("Your average purchase price per unit, {0} transaction costs, so it can be put directly next to the price above.", <i>{tr("excluding")}</i>)}</>
+                <>
+                  {trx(
+                    "Your average purchase price per unit, {0} transaction costs, so it can be put directly next to the price above.",
+                    <i>{tr("excluding")}</i>,
+                  )}
+                </>
               }
             />
             <Figure
@@ -392,7 +389,12 @@ function Position() {
               value={fmtEuro(p.invested_gross)}
               note={tr("including costs")}
               info={
-                <>{trx("What this position cost you, {0} transaction costs. That's what really left your account, and so a different amount than your average cost times your quantity.", <i>{tr("including")}</i>)}</>
+                <>
+                  {trx(
+                    "What this position cost you, {0} transaction costs. That's what really left your account, and so a different amount than your average cost times your quantity.",
+                    <i>{tr("including")}</i>,
+                  )}
+                </>
               }
             />
             <Figure
@@ -400,7 +402,11 @@ function Position() {
               value={trueMinus(fmtEuro(p.unrealized_eur, { plus: true }))}
               tone={(p.unrealized_eur ?? 0) >= 0 ? "gain" : "loss"}
               info={
-                <>{tr("Gain on paper: the current price measured against your average cost, over the units you own now. If you sell nothing, this number only changes with the price.")}</>
+                <>
+                  {tr(
+                    "Gain on paper: the current price measured against your average cost, over the units you own now. If you sell nothing, this number only changes with the price.",
+                  )}
+                </>
               }
               note={
                 p.unrealized_pct !== null
@@ -413,7 +419,13 @@ function Position() {
               value={trueMinus(fmtEuro(p.total_eur, { plus: true }))}
               tone={(p.total_eur ?? 0) >= 0 ? "gain" : "loss"}
               info={
-                <>{trx("Everything this position ever yielded you: the unrealised result, plus earlier realised gain and received dividend, minus all transaction costs.{0}{1}The breakdown next to it shows which parts this amount consists of.", <br />, <br />)}</>
+                <>
+                  {trx(
+                    "Everything this position ever yielded you: the unrealised result, plus earlier realised gain and received dividend, minus all transaction costs.{0}{1}The breakdown next to it shows which parts this amount consists of.",
+                    <br />,
+                    <br />,
+                  )}
+                </>
               }
               note={
                 p.total_pct !== null
@@ -424,17 +436,12 @@ function Position() {
           </div>
           {/* With the year: the last trade may be years ago, and "last 26 Sep" then leaves open
               which 26 September that was. */}
-          {d.last_trade && (
-            <p className="text-xs text-ink-muted">{trx("Last trade {0}.", fmtDayMonthYear(d.last_trade))}</p>
-          )}
+          {d.last_trade && <p className="text-xs text-ink-muted">{trx("Last trade {0}.", fmtDayMonthYear(d.last_trade))}</p>}
         </Section>
 
         {/* The sum that connects the two result numbers. The same shape as the breakdown on Today,
             here for one position. */}
-        <aside
-          className="lg:border-l lg:pl-10"
-          style={{ borderColor: "var(--border-hairline)" }}
-        >
+        <aside className="lg:border-l lg:pl-10" style={{ borderColor: "var(--border-hairline)" }}>
           <Section tone="quiet" label={tr("How that result is built up")}>
             <BreakdownList
               rows={[
@@ -443,7 +450,11 @@ function Position() {
                   label: tr("Realised"),
                   value: p.realized_eur,
                   info: (
-                    <InfoPopover label={tr("Explanation realised result")}>{tr("What earlier (partial) sales of this position yielded, measured against the average purchase price at that moment. Zero as long as you haven't sold anything.")}</InfoPopover>
+                    <InfoPopover label={tr("Explanation realised result")}>
+                      {tr(
+                        "What earlier (partial) sales of this position yielded, measured against the average purchase price at that moment. Zero as long as you haven't sold anything.",
+                      )}
+                    </InfoPopover>
                   ),
                 },
                 { label: "Dividend", value: p.dividends_eur },

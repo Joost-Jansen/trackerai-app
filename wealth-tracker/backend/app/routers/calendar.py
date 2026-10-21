@@ -49,9 +49,11 @@ def calendar(
     """
     bundle = load_portfolio(conn)
     entries = dashboard_service.get_calendar_entries(conn, bundle.positions)
-    outlook = dashboard_service.dividend_outlook(
-        conn, bundle.positions, bundle.dividends, bundle.transactions
-    )
+    outlook = dashboard_service.dividend_outlook(conn, bundle.positions, bundle.dividends, bundle.transactions)
     return calendar_service.build(
-        conn, bundle.positions, bundle.dividends, outlook, entries,
+        conn,
+        bundle.positions,
+        bundle.dividends,
+        outlook,
+        entries,
     )

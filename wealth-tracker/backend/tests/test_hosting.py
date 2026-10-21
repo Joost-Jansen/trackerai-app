@@ -14,8 +14,8 @@ import stat
 import pytest
 import yaml
 
-from domain import database
 from app.core import auth_store, bootstrap, config
+from domain import database
 
 # About SQLite itself (its files, WAL, locks, threads): not run when the suite runs on Postgres (WEALTH_DATABASE_URL).
 sqlite_only = pytest.mark.skipif(bool(os.environ.get("WEALTH_DATABASE_URL")), reason="about SQLite itself")
@@ -24,6 +24,7 @@ sqlite_only = pytest.mark.skipif(bool(os.environ.get("WEALTH_DATABASE_URL")), re
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
+
 
 def test_without_data_dir_the_data_stays_next_to_the_code(tmp_path, monkeypatch):
     monkeypatch.delenv("DATA_DIR", raising=False)
@@ -84,6 +85,7 @@ def test_a_writer_outwaits_a_lock_longer_than_five_seconds(tmp_path, monkeypatch
 # ---------------------------------------------------------------------------
 # First account
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def empty_config(tmp_path, monkeypatch):

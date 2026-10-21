@@ -9,10 +9,9 @@ nothing happened, and also for an account whose transactions you never
 uploaded.
 """
 
+from domain.i18n import tr
 from domain.money.bank_providers import base
 from domain.money.bank_providers.ing_savings import account_number
-from domain.i18n import tr
-
 
 PROVIDER = "ing"
 KIND = "balances"

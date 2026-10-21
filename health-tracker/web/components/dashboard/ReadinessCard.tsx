@@ -21,15 +21,27 @@ export default function ReadinessCard({ r, className = "" }: { r: Readiness; cla
   // without night data there is little to say: compact, so the card does not look bigger than what it knows
   const compact = !r.date;
   return (
-    <Card title={t.title} className={className} more={r.date ? m.dayDetail : undefined} moreHref={r.date ? `/dashboard/body/?day=${r.date}` : undefined}>
+    <Card
+      title={t.title}
+      className={className}
+      more={r.date ? m.dayDetail : undefined}
+      moreHref={r.date ? `/dashboard/body/?day=${r.date}` : undefined}
+    >
       <div className="flex items-center gap-2.5">
-        <span className={`inline-block rounded-full ${compact ? "h-2 w-2" : "h-3 w-3"}`} style={{ background: VERDICT_COLOUR[r.verdict] }} />
+        <span
+          className={`inline-block rounded-full ${compact ? "h-2 w-2" : "h-3 w-3"}`}
+          style={{ background: VERDICT_COLOUR[r.verdict] }}
+        />
         <span className={compact ? "text-[15px] font-medium" : "font-display text-[23px] font-light"}>{t.verdict[r.verdict]}</span>
       </div>
       <p className={`mt-1 leading-relaxed text-ink-muted ${compact ? "text-[12px]" : "text-[12.5px]"}`}>{text}</p>
       {r.illness_hint && (
         <p className="mt-2 flex items-start gap-2 text-[12.5px] leading-relaxed">
-          <span aria-hidden="true" className="mt-[6px] inline-block h-2 w-2 flex-none rounded-full" style={{ background: LEVEL_COLOUR.attention }} />
+          <span
+            aria-hidden="true"
+            className="mt-[6px] inline-block h-2 w-2 flex-none rounded-full"
+            style={{ background: LEVEL_COLOUR.attention }}
+          />
           {t.illness}
         </p>
       )}
@@ -49,14 +61,22 @@ export default function ReadinessCard({ r, className = "" }: { r: Readiness; cla
             const note = t.note(s.note.code, s.note.params);
             return (
               <div key={s.key}>
-                <dt className="flex items-center gap-1.5 text-ink-muted"><span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: LEVEL_COLOUR[s.level] }} />{t.label[s.key]}</dt>
-                <dd><span className="text-[15px]">{t.value(s.key, s.value)}</span> {note && <span className="text-[11px] text-ink-muted">{note}</span>}</dd>
+                <dt className="flex items-center gap-1.5 text-ink-muted">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: LEVEL_COLOUR[s.level] }} />
+                  {t.label[s.key]}
+                </dt>
+                <dd>
+                  <span className="text-[15px]">{t.value(s.key, s.value)}</span>{" "}
+                  {note && <span className="text-[11px] text-ink-muted">{note}</span>}
+                </dd>
               </div>
             );
           })}
         </dl>
       )}
-      <p className={`text-[11px] text-ink-muted ${compact ? "mt-2.5" : "mt-3"}`}>{T.readinessBasis} {T.noMedicalAdvice}</p>
+      <p className={`text-[11px] text-ink-muted ${compact ? "mt-2.5" : "mt-3"}`}>
+        {T.readinessBasis} {T.noMedicalAdvice}
+      </p>
     </Card>
   );
 }

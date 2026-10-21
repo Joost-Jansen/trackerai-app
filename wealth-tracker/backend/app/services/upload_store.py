@@ -15,18 +15,18 @@ Where an uploaded file waits while it is imported (S1, S2, S3).
 """
 
 import os
-import zipfile
 import sqlite3
 import time
+import zipfile
 from datetime import datetime
 
 from fastapi import UploadFile, status
 
 from app.core import config
 from app.core.errors import CodedError
-from trackerai_websec import uploads as guard
 from domain import database
 from domain.i18n import tr
+from trackerai_websec import uploads as guard
 
 LAST_IMPORT_KEY = "last_import"
 # An .xlsx export of a few thousand rows has a few dozen parts and unpacks to a
@@ -54,7 +54,8 @@ def receive(username: str, upload: UploadFile, default_name: str) -> str:
         guard.save_upload(upload, dest, limit)
     except guard.UploadTooLarge as e:
         raise CodedError(
-            status.HTTP_413_CONTENT_TOO_LARGE, "upload_too_large",
+            status.HTTP_413_CONTENT_TOO_LARGE,
+            "upload_too_large",
             tr("'{0}' is larger than {1} MB.", name, config.MAX_UPLOAD_MB),
             {"max_mb": config.MAX_UPLOAD_MB},
         ) from e
@@ -68,7 +69,8 @@ def check_spreadsheet(path: str) -> None:
             guard.check_zip(path, XLSX_MAX_MEMBERS, XLSX_MAX_UNPACKED, XLSX_MAX_RATIO, verify=True)
     except guard.ZipRejected as e:
         raise CodedError(
-            422, "upload_rejected",
+            422,
+            "upload_rejected",
             tr("'{0}' can't be opened safely: it doesn't look like a normal export.", os.path.basename(path)),
         ) from e
 
@@ -107,8 +109,7 @@ def last_import(conn: sqlite3.Connection, username: str) -> str | None:
     for imports from before the moment was recorded."""
     stored = database.load_setting(conn, LAST_IMPORT_KEY)
     folder = database.user_upload_dir(username)
-    mtimes = [os.path.getmtime(os.path.join(folder, f)) for f in os.listdir(folder)
-              if os.path.isfile(os.path.join(folder, f))]
+    mtimes = [os.path.getmtime(os.path.join(folder, f)) for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
     from_files = datetime.fromtimestamp(max(mtimes)).strftime("%Y-%m-%d %H:%M:%S") if mtimes else None
     candidates = [v for v in (stored, from_files) if v]
     return max(candidates) if candidates else None

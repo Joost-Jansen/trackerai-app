@@ -4,7 +4,7 @@ usable once, with an end date, revocable, and they work on this site's own
 sign-up too.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 
@@ -26,7 +26,16 @@ def _admin(client):
 def _register(code, username="carol"):
     from app.main import app
 
-    return TestClient(app).post("/api/auth/register", json={"username": username, "email": f"{username}@example.org", "name": username.title(), "password": f"{username}pw-123", "invite_code": code})
+    return TestClient(app).post(
+        "/api/auth/register",
+        json={
+            "username": username,
+            "email": f"{username}@example.org",
+            "name": username.title(),
+            "password": f"{username}pw-123",
+            "invite_code": code,
+        },
+    )
 
 
 def test_an_invite_link_works_once(client, _accounts):
@@ -47,7 +56,7 @@ def test_an_expired_or_revoked_invite_does_not_work(client, _accounts):
     client.patch(f"{ADMIN}/registration", json={"registration": "invite"})
     old = client.post(f"{ADMIN}/invites", json={"days": 1, "apps": ["wealth"]}).json()
     with _accounts.engine.begin() as c:
-        c.execute(invites.update().values(expires_at=datetime.now(timezone.utc) - timedelta(hours=1)))
+        c.execute(invites.update().values(expires_at=datetime.now(UTC) - timedelta(hours=1)))
     assert _register(old["code"]).status_code == 403
 
     gone = client.post(f"{ADMIN}/invites", json={"days": 7, "apps": ["wealth"]}).json()
@@ -63,6 +72,7 @@ def test_invites_are_for_admins_only(client):
 def _account_admin(client, _accounts):
     """alice logged in as the administrator of every tracker (the one who makes invitations on trackerai.nl/admin)."""
     from sqlalchemy import update
+
     from trackerai_accounts.store import accounts as accounts_table
 
     _admin(client)
@@ -92,7 +102,16 @@ def test_an_invite_for_health_too_asks_consent_here(client, _accounts):
     assert r.status_code == 422 and r.json()["code"] == "consent_required"
     from app.main import app
 
-    r = TestClient(app).post("/api/auth/register", json={"username": "carol", "email": "carol@example.org", "name": "Carol",
-                                                         "password": "carol" + "pw-123", "invite_code": code, "consent": True})
+    r = TestClient(app).post(
+        "/api/auth/register",
+        json={
+            "username": "carol",
+            "email": "carol@example.org",
+            "name": "Carol",
+            "password": "carol" + "pw-123",
+            "invite_code": code,
+            "consent": True,
+        },
+    )
     assert r.status_code in (200, 201), r.text
     assert sorted(_accounts.apps(_accounts.by_username("carol")["id"])) == ["health", "wealth"]

@@ -68,7 +68,11 @@ def ride(day, seed, gps=True):
         "distance_km": 40.0,
         "moving_time_s": 4800,
         "avg_hr": 132,
-        "streams": {"time": [0, 10, 20], "heartrate": [130, 132, 134], **({"latlng": square_loop(side_m=10_000, step_m=50, noise_m=5, seed=seed)} if gps else {})},
+        "streams": {
+            "time": [0, 10, 20],
+            "heartrate": [130, 132, 134],
+            **({"latlng": square_loop(side_m=10_000, step_m=50, noise_m=5, seed=seed)} if gps else {}),
+        },
         "sources": {"garmin": {"id": 100 + seed, "raw": {}}},
     }
 

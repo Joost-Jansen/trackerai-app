@@ -9,8 +9,9 @@ import yaml
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "scripts"))
 
-from domain import database  # noqa: E402
 import seed_demo  # noqa: E402
+
+from domain import database  # noqa: E402
 
 END = date(2026, 10, 2)
 

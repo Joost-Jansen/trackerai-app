@@ -16,11 +16,11 @@ import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from domain.money import net_worth as net_worth_domain
-from domain.money import shared_costs
 from app.deps import CurrentUser, get_current_user, get_db, require_money
 from app.services import dashboard_service
 from app.services.portfolio_service import load_portfolio
+from domain.money import net_worth as net_worth_domain
+from domain.money import shared_costs
 
 router = APIRouter(prefix="/api/net-worth", tags=["net_worth"], dependencies=[Depends(require_money)])
 
@@ -32,9 +32,7 @@ def overview(
 ):
     """The net worth series plus the month figures below it."""
     bundle = load_portfolio(conn)
-    history = dashboard_service.get_value_history(
-        conn, bundle.transactions, bundle.prices, bundle.dividends
-    )
+    history = dashboard_service.get_value_history(conn, bundle.transactions, bundle.prices, bundle.dividends)
 
     series = net_worth_domain.series(conn, history.get("points") or [])
     return {

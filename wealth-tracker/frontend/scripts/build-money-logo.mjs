@@ -23,7 +23,10 @@ const SIZES = [
 // The same paths as in MoneyMark.tsx; one source to check.
 const src = readFileSync(join(HERE, "..", "components", "ds", "MoneyMark.tsx"), "utf8");
 const PATH = src.match(/MONEY_PATH = "([^"]+)"/)[1];
-const COIN = src.match(/MONEY_COIN = \{ cx: ([\d.]+), cy: ([\d.]+), r: ([\d.]+) \}/).slice(1).map(Number);
+const COIN = src
+  .match(/MONEY_COIN = \{ cx: ([\d.]+), cy: ([\d.]+), r: ([\d.]+) \}/)
+  .slice(1)
+  .map(Number);
 
 // The site's colours: a walnut tile, a paper wallet and a terracotta coin.
 const TILE = "#211e18";

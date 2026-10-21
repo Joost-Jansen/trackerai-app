@@ -49,10 +49,11 @@ def dividend(
     rather than an error.
     """
     bundle = load_portfolio(conn)
-    outlook = dashboard_service.dividend_outlook(
-        conn, bundle.positions, bundle.dividends, bundle.transactions
-    )
+    outlook = dashboard_service.dividend_outlook(conn, bundle.positions, bundle.dividends, bundle.transactions)
     return dividend_service.build(
-        bundle.positions, bundle.transactions, bundle.dividends, outlook,
+        bundle.positions,
+        bundle.transactions,
+        bundle.dividends,
+        outlook,
         summary=bundle.summary,
     )

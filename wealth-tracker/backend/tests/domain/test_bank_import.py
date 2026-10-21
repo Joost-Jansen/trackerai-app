@@ -25,9 +25,7 @@ import pytest
 from domain.money import bank_providers as bank
 from domain.money.bank_providers import bunq, ing
 
-
-ING_HEADER = ('"Date","Name / Description","Account","Counterparty","Code",'
-           '"Debit/credit","Amount (EUR)","Transaction type","Notifications"')
+ING_HEADER = '"Date","Name / Description","Account","Counterparty","Code","Debit/credit","Amount (EUR)","Transaction type","Notifications"'
 
 BUNQ_HEADER = '"Date","Interest Date","Amount","Account","Counterparty","Name","Description"'
 
@@ -48,22 +46,25 @@ def _bunq(tmp_path, *rows: str) -> str:
 
 # A salary credit and a card payment: together they cover both directions, a
 # filled and an empty counterparty, and both of ING's notations.
-ING_SALARY = ('"20260220","WERKGEVER B.V.","NL00INGB0000000001","NL02ABNA0123456789",'
-               '"OV","Credit","2500,00","Transfer",'
-               '"Name: WERKGEVER B.V. Description: Salaris IBAN: NL02ABNA0123456789"')
-ING_PIN = ('"20260219","SUPERMARKT AMSTERDAM","NL00INGB0000000001","",'
-           '"BA","Debit","42,50","Payment terminal",'
-           '"Card sequence no.: 001 19/02/2026 17:42 Transaction: W12345"')
+ING_SALARY = (
+    '"20260220","WERKGEVER B.V.","NL00INGB0000000001","NL02ABNA0123456789",'
+    '"OV","Credit","2500,00","Transfer",'
+    '"Name: WERKGEVER B.V. Description: Salaris IBAN: NL02ABNA0123456789"'
+)
+ING_PIN = (
+    '"20260219","SUPERMARKT AMSTERDAM","NL00INGB0000000001","",'
+    '"BA","Debit","42,50","Payment terminal",'
+    '"Card sequence no.: 001 19/02/2026 17:42 Transaction: W12345"'
+)
 
-BUNQ_RENT = ('"2026-01-02","2026-01-02","-1.250,00","NL00BUNQ0000000002",'
-             '"NL11RABO0123456789","VERHUURDER","Huur januari"')
-BUNQ_INTEREST = ('"2026-01-03","2026-01-03","1,50","NL00BUNQ0000000002","","bunq",'
-              '"bunq Payday 2026-01-02 EUR"')
+BUNQ_RENT = '"2026-01-02","2026-01-02","-1.250,00","NL00BUNQ0000000002","NL11RABO0123456789","VERHUURDER","Huur januari"'
+BUNQ_INTEREST = '"2026-01-03","2026-01-03","1,50","NL00BUNQ0000000002","","bunq","bunq Payday 2026-01-02 EUR"'
 
 
 # ---------------------------------------------------------------------------
 # Recognition
 # ---------------------------------------------------------------------------
+
 
 def test_ing_is_recognised_by_its_columns(tmp_path):
     provider, _ = bank.read(_ing(tmp_path, ING_PIN))
@@ -98,6 +99,7 @@ def test_an_export_without_rows_is_not_an_error(tmp_path):
 # ---------------------------------------------------------------------------
 # ING
 # ---------------------------------------------------------------------------
+
 
 def test_ing_debit_is_a_positive_expense(tmp_path):
     """Spending positive, income negative — the convention of the books."""
@@ -144,6 +146,7 @@ def test_ing_description_comes_from_notifications(tmp_path):
 # bunq
 # ---------------------------------------------------------------------------
 
+
 def test_bunq_negative_amount_becomes_a_positive_expense(tmp_path):
     """bunq puts the sign in the amount; that is exactly the opposite of our convention."""
     _, rules = bank.read(_bunq(tmp_path, BUNQ_RENT))
@@ -156,7 +159,7 @@ def test_bunq_positive_amount_becomes_a_negative_income(tmp_path):
 
 
 def test_bunq_thousands_separator_is_not_read_as_decimal(tmp_path):
-    """"-1.250,00" is twelve hundred and fifty, not one euro twenty-five."""
+    """ "-1.250,00" is twelve hundred and fifty, not one euro twenty-five."""
     _, rules = bank.read(_bunq(tmp_path, BUNQ_RENT))
     assert rules[0]["amount"] == pytest.approx(1250.00)
     assert rules[0]["amount"] != pytest.approx(1.25)
@@ -189,6 +192,7 @@ def test_bunq_empty_description_is_empty_text(tmp_path):
 # Dedup
 # ---------------------------------------------------------------------------
 
+
 def test_the_same_row_gets_the_same_hash(tmp_path):
     """Overlapping exports are the normal course of things, not an exception."""
     _, first = bank.read(_ing(tmp_path, ING_SALARY, ING_PIN))
@@ -207,8 +211,7 @@ def test_two_identical_payments_on_one_day_stay_two_rows(tmp_path):
     That is why the hash counts which occurrence within the file it is. Without
     that the second coffee silently disappears from every total.
     """
-    coffee = ('"20260219","KOFFIEZAAK","NL00INGB0000000001","","BA","Debit","3,00",'
-              '"Payment terminal","Card sequence no.: 001"')
+    coffee = '"20260219","KOFFIEZAAK","NL00INGB0000000001","","BA","Debit","3,00","Payment terminal","Card sequence no.: 001"'
     _, rules = bank.read(_ing(tmp_path, coffee, coffee))
     assert len(rules) == 2
     assert rules[0]["dedup_hash"] != rules[1]["dedup_hash"]
@@ -220,10 +223,8 @@ def test_hash_does_not_change_when_another_field_changes(tmp_path):
     That is on purpose: if the bank ever adds a column or fills one differently, a
     row that was already imported must not suddenly look new.
     """
-    a = ('"20260219","WINKEL","NL00INGB0000000001","","BA","Debit","5,00",'
-         '"Payment terminal","Bon 1"')
-    b = ('"20260219","WINKEL","NL00INGB0000000001","","GT","Debit","5,00",'
-         '"Online Banking","Bon 1"')
+    a = '"20260219","WINKEL","NL00INGB0000000001","","BA","Debit","5,00","Payment terminal","Bon 1"'
+    b = '"20260219","WINKEL","NL00INGB0000000001","","GT","Debit","5,00","Online Banking","Bon 1"'
     _, ra = bank.read(_ing(tmp_path, a))
     _, rb = bank.read(_ing(tmp_path, b))
     assert ra[0]["dedup_hash"] == rb[0]["dedup_hash"]
@@ -233,21 +234,19 @@ def test_hash_does_not_change_when_another_field_changes(tmp_path):
 # Bad rows
 # ---------------------------------------------------------------------------
 
+
 def test_an_unreadable_row_does_not_cost_the_whole_file(tmp_path):
     """The same lesson as with the DeGiro upload: one odd row threw away 124 good ones."""
-    broken = ('"nogeenszo","WINKEL","NL00INGB0000000001","","BA","Debit","5,00",'
-             '"Payment terminal","x"')
+    broken = '"nogeenszo","WINKEL","NL00INGB0000000001","","BA","Debit","5,00","Payment terminal","x"'
     skipped: list[dict] = []
-    _, rules = bank.read(_ing(tmp_path, ING_SALARY, broken, ING_PIN),
-                          skipped=skipped)
+    _, rules = bank.read(_ing(tmp_path, ING_SALARY, broken, ING_PIN), skipped=skipped)
     assert len(rules) == 2
     assert len(skipped) == 1
     assert skipped[0]["line_number"] == 3
 
 
 def test_skipped_rows_say_why(tmp_path):
-    broken = ('"20260219","WINKEL","NL00INGB0000000001","","BA","Debit","geen bedrag",'
-             '"Payment terminal","x"')
+    broken = '"20260219","WINKEL","NL00INGB0000000001","","BA","Debit","geen bedrag","Payment terminal","x"'
     skipped: list[dict] = []
     bank.read(_ing(tmp_path, broken), skipped=skipped)
     assert "bedrag" in skipped[0]["reason"].lower()
@@ -257,10 +256,14 @@ def test_skipped_rows_say_why(tmp_path):
 # The real exports — only if they are there
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("variable_part,provider,expected", [
-    ("BANKEXPORT_ING", "ing", 153),
-    ("BANKEXPORT_BUNQ", "bunq", 73),
-])
+
+@pytest.mark.parametrize(
+    "variable_part,provider,expected",
+    [
+        ("BANKEXPORT_ING", "ing", 153),
+        ("BANKEXPORT_BUNQ", "bunq", 73),
+    ],
+)
 def test_the_real_export_is_read_completely(variable_part, provider, expected):
     """Every row counts: a parser that silently drops a few is worse than one that
     falls over, because the total then still looks plausible.

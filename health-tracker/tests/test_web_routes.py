@@ -64,7 +64,7 @@ def test_old_paths_redirect_to_their_english_page():
 
 def test_onboarding_page_ids_match_the_web_app():
     src = (WEB / "lib" / "onboarding.ts").read_text()
-    block = src[src.index("export const PAGES"):]
+    block = src[src.index("export const PAGES") :]
     web = re.findall(r'\{ id: "([a-z]+)", href: "(/[a-z/]*)" \}', block)
     assert tuple(i for i, _ in web) == onboarding.PAGES
     assert all(href in pages() for _, href in web)

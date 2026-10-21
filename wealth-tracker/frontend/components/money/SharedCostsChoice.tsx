@@ -49,7 +49,11 @@ export default function SharedCostsChoice() {
         onChange={(e) => put.mutate(e.target.value || null)}
       >
         <option value={NOWHERE}>{tr("Don't count it")}</option>
-        {spending.map((c) => <option key={c.id} value={c.name}>{c.group_name} · {c.name}</option>)}
+        {spending.map((c) => (
+          <option key={c.id} value={c.name}>
+            {c.group_name} · {c.name}
+          </option>
+        ))}
       </Select>
       {put.isError && (
         <span className="text-xs" style={{ color: "var(--text-loss)" }}>

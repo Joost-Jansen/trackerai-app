@@ -57,11 +57,13 @@ def _quote(symbol, price, currency, previous_close=None):
 def test_us_holding_is_priced_from_its_own_listing_in_eur(conn, monkeypatch):
     """NYSE position: OpenFIGI's ticker, converted at the spot rate."""
     monkeypatch.setattr(
-        portfolio, "_openfigi_ticker",
+        portfolio,
+        "_openfigi_ticker",
         lambda c, isin, mics: "TSM" if "XNYS" in mics else None,
     )
     monkeypatch.setattr(
-        portfolio, "_fetch_by_ticker",
+        portfolio,
+        "_fetch_by_ticker",
         lambda symbol: _quote("TSM", 400.0, "USD", 380.0) if symbol == "TSM" else None,
     )
     monkeypatch.setattr(portfolio, "_fx_to_eur_rate", lambda ccy: 0.5 if ccy == "USD" else None)
@@ -94,7 +96,10 @@ def test_share_class_ticker_is_rewritten_for_yahoo(conn, monkeypatch):
     monkeypatch.setattr(portfolio, "_fx_to_eur_rate", lambda ccy: 1.0)
 
     result = portfolio.fetch_price_for_isin(
-        conn, "US0846707026", "BERKSHIRE HATHAWAY INC-CL B", degiro_exchange="NSY",
+        conn,
+        "US0846707026",
+        "BERKSHIRE HATHAWAY INC-CL B",
+        degiro_exchange="NSY",
     )
 
     assert fetched == ["BRK-B"]
@@ -109,7 +114,8 @@ def test_eur_venue_keeps_hunting_for_a_eur_listing(conn, monkeypatch):
     quote to hold out for.
     """
     monkeypatch.setattr(
-        portfolio, "_openfigi_ticker",
+        portfolio,
+        "_openfigi_ticker",
         lambda c, isin, mics: "IQQH" if "XETR" in mics else None,
     )
     quotes = {
@@ -117,13 +123,15 @@ def test_eur_venue_keeps_hunting_for_a_eur_listing(conn, monkeypatch):
         "INRG.AS": _quote("INRG.AS", 18.0, "EUR"),
     }
     monkeypatch.setattr(portfolio, "_fetch_by_ticker", lambda symbol: quotes.get(symbol))
-    monkeypatch.setattr(portfolio, "_search_candidates",
-                        lambda query, **k: [("INRG.AS", "AMS")])
+    monkeypatch.setattr(portfolio, "_search_candidates", lambda query, **k: [("INRG.AS", "AMS")])
     monkeypatch.setattr(portfolio, "_fx_to_eur_rate", lambda ccy: 0.5)
 
     result = portfolio.fetch_price_for_isin(
-        conn, "IE00B1XNHC34x", "Some Clean Energy ETF",
-        preferred_suffix=".AS", degiro_exchange="XET",
+        conn,
+        "IE00B1XNHC34x",
+        "Some Clean Energy ETF",
+        preferred_suffix=".AS",
+        degiro_exchange="XET",
     )
 
     assert result["ticker"] == "INRG.AS"
@@ -132,13 +140,14 @@ def test_eur_venue_keeps_hunting_for_a_eur_listing(conn, monkeypatch):
 
 def test_unknown_venue_still_falls_back_to_search(conn, monkeypatch):
     """A venue in neither MIC table (e.g. Tokyo) loses nothing it had before."""
-    monkeypatch.setattr(portfolio, "_search_candidates",
-                        lambda query, **k: [("SONY.AS", "AMS")])
-    monkeypatch.setattr(portfolio, "_fetch_by_ticker",
-                        lambda symbol: _quote("SONY.AS", 25.0, "EUR") if symbol == "SONY.AS" else None)
+    monkeypatch.setattr(portfolio, "_search_candidates", lambda query, **k: [("SONY.AS", "AMS")])
+    monkeypatch.setattr(portfolio, "_fetch_by_ticker", lambda symbol: _quote("SONY.AS", 25.0, "EUR") if symbol == "SONY.AS" else None)
 
     result = portfolio.fetch_price_for_isin(
-        conn, "JP3435000009", "SONY GROUP CORP", degiro_exchange="TSE",
+        conn,
+        "JP3435000009",
+        "SONY GROUP CORP",
+        degiro_exchange="TSE",
     )
 
     assert result["ticker"] == "SONY.AS"
@@ -155,10 +164,13 @@ def test_a_london_ticker_loses_its_bloomberg_slash(conn, monkeypatch):
     monkeypatch.setattr(portfolio, "_openfigi_ticker", _REAL_OPENFIGI_TICKER)
     monkeypatch.setattr(portfolio, "requests", _StubRequests("BP/ LN Equity"))
     monkeypatch.setattr(portfolio, "_fetch_by_ticker", _fetch)
-    monkeypatch.setattr(portfolio, "_fx_to_eur_rate", lambda ccy: 0.0116)   # pence → EUR
+    monkeypatch.setattr(portfolio, "_fx_to_eur_rate", lambda ccy: 0.0116)  # pence → EUR
 
     result = portfolio.fetch_price_for_isin(
-        conn, "GB0007980591", "BP PLC", degiro_exchange="LSE",
+        conn,
+        "GB0007980591",
+        "BP PLC",
+        degiro_exchange="LSE",
     )
 
     assert fetched == ["BP.L"]
@@ -170,13 +182,17 @@ def test_a_nordic_share_class_is_retried_with_a_dash(conn, monkeypatch):
     """Bloomberg writes NOVOB, Yahoo writes NOVO-B — only the second prices."""
     monkeypatch.setattr(portfolio, "_openfigi_ticker", lambda c, isin, mics: "NOVOB")
     monkeypatch.setattr(
-        portfolio, "_fetch_by_ticker",
+        portfolio,
+        "_fetch_by_ticker",
         lambda symbol: _quote("NOVO-B.CO", 300.0, "DKK") if symbol == "NOVO-B.CO" else None,
     )
     monkeypatch.setattr(portfolio, "_fx_to_eur_rate", lambda ccy: 0.134)
 
     result = portfolio.fetch_price_for_isin(
-        conn, "DK0062498333", "NOVO NORDISK B", degiro_exchange="CPH",
+        conn,
+        "DK0062498333",
+        "NOVO NORDISK B",
+        degiro_exchange="CPH",
     )
 
     assert result["ticker"] == "NOVO-B.CO"
@@ -194,9 +210,7 @@ def test_every_venue_row_is_shaped_like_a_venue():
         assert isinstance(quotes_eur, bool), code
     # The euro map the name search is pinned to is derived from it, never
     # maintained beside it.
-    assert set(portfolio._DEGIRO_EXCHANGE_SUFFIX) == {
-        code for code, (_m, _s, eur) in portfolio._DEGIRO_VENUES.items() if eur
-    }
+    assert set(portfolio._DEGIRO_EXCHANGE_SUFFIX) == {code for code, (_m, _s, eur) in portfolio._DEGIRO_VENUES.items() if eur}
     # Venues seen in real uploads. Losing one of these is losing prices.
     assert {"EAM", "XET", "TDG", "NSY", "NDQ"} <= set(portfolio._DEGIRO_VENUES)
     # The operating MICs that name a whole exchange match nothing at OpenFIGI;
@@ -292,7 +306,7 @@ def test_openfigi_caches_a_genuine_miss(conn, monkeypatch):
 
     stub.asked.clear()
     assert portfolio._openfigi_ticker(conn, "LU2314763264", ("XNGS",)) is None
-    assert stub.asked == []   # answered from cache, not asked again
+    assert stub.asked == []  # answered from cache, not asked again
 
 
 def test_us_position_prefers_its_own_listing_over_a_cached_cross_listing(conn, monkeypatch):
@@ -303,10 +317,10 @@ def test_us_position_prefers_its_own_listing_over_a_cached_cross_listing(conn, m
     the refresh then wrote it back, so the position could never return to its
     own listing.
     """
-    database.save_price(conn, isin="US88160R1014", name="TESLA INC", ticker="TL0.DE",
-                        price=304.15, currency="EUR", previous_close=300.0)
+    database.save_price(conn, isin="US88160R1014", name="TESLA INC", ticker="TL0.DE", price=304.15, currency="EUR", previous_close=300.0)
     monkeypatch.setattr(
-        portfolio, "_openfigi_ticker",
+        portfolio,
+        "_openfigi_ticker",
         lambda c, isin, mics: "TSLA" if "XNGS" in mics else None,
     )
     quotes = {
@@ -316,34 +330,30 @@ def test_us_position_prefers_its_own_listing_over_a_cached_cross_listing(conn, m
     monkeypatch.setattr(portfolio, "_fetch_by_ticker", lambda symbol: quotes.get(symbol))
     monkeypatch.setattr(portfolio, "_fx_to_eur_rate", lambda ccy: 0.8 if ccy == "USD" else None)
 
-    result = portfolio.fetch_price_for_isin(
-        conn, "US88160R1014", "TESLA INC", preferred_suffix=None, degiro_exchange="NDQ")
+    result = portfolio.fetch_price_for_isin(conn, "US88160R1014", "TESLA INC", preferred_suffix=None, degiro_exchange="NDQ")
 
     assert result["ticker"] == "TSLA"
-    assert result["price"] == 320.0     # 400 USD converted, not the Frankfurt line
+    assert result["price"] == 320.0  # 400 USD converted, not the Frankfurt line
     assert result["currency"] == "EUR"
 
 
 def test_cached_ticker_still_wins_on_a_euro_venue(conn, monkeypatch):
     """The demotion above must not cost euro venues their cheap cache hit."""
-    database.save_price(conn, isin="NL0010273215", name="ASML HOLDING N.V.",
-                        ticker="ASML.AS", price=1467.4, currency="EUR", previous_close=1450.0)
-    monkeypatch.setattr(portfolio, "_fetch_by_ticker",
-                        lambda symbol: _quote("ASML.AS", 1467.4, "EUR") if symbol == "ASML.AS" else None)
+    database.save_price(
+        conn, isin="NL0010273215", name="ASML HOLDING N.V.", ticker="ASML.AS", price=1467.4, currency="EUR", previous_close=1450.0
+    )
+    monkeypatch.setattr(portfolio, "_fetch_by_ticker", lambda symbol: _quote("ASML.AS", 1467.4, "EUR") if symbol == "ASML.AS" else None)
 
-    result = portfolio.fetch_price_for_isin(
-        conn, "NL0010273215", "ASML HOLDING N.V.",
-        preferred_suffix=".AS", degiro_exchange="EAM")
+    result = portfolio.fetch_price_for_isin(conn, "NL0010273215", "ASML HOLDING N.V.", preferred_suffix=".AS", degiro_exchange="EAM")
 
-    assert result["ticker"] == "ASML.AS"   # answered from cache, OpenFIGI never consulted
-
+    assert result["ticker"] == "ASML.AS"  # answered from cache, OpenFIGI never consulted
 
 
 # ---------------------------------------------------------------------------
 # A searched ticker has to agree with what the user paid
 # ---------------------------------------------------------------------------
 
-_ISIN = "XX0000000001"   # not a real instrument: the check is generic
+_ISIN = "XX0000000001"  # not a real instrument: the check is generic
 
 
 def _trade(conn, day, qty, eur):
@@ -357,14 +367,15 @@ def _trade(conn, day, qty, eur):
 
 def _two_candidates(monkeypatch, closes):
     """Search returns the wrong fund first, the right one second."""
-    monkeypatch.setattr(portfolio, "_search_candidates",
-                        lambda *a, **k: [("WRONG.DE", "GER"), ("RIGHT.DE", "GER")])
+    monkeypatch.setattr(portfolio, "_search_candidates", lambda *a, **k: [("WRONG.DE", "GER"), ("RIGHT.DE", "GER")])
     quotes = {"WRONG.DE": _quote("WRONG.DE", 1458.6, "EUR"), "RIGHT.DE": _quote("RIGHT.DE", 246.75, "EUR")}
     monkeypatch.setattr(portfolio, "_fetch_by_ticker", lambda s: quotes.get(s))
     calls = []
+
     def close_on(symbol, day):
         calls.append(symbol)
         return closes.get(symbol)
+
     monkeypatch.setattr(portfolio, "_close_on", close_on)
     return calls
 
@@ -383,8 +394,7 @@ def test_a_candidate_priced_far_from_the_users_trade_is_rejected(conn, monkeypat
 def test_a_cached_ticker_that_fails_the_check_is_resolved_again(conn, monkeypatch):
     """The cache is where a wrong guess used to live forever."""
     _trade(conn, "2025-12-17", 30, 30 * 209.35)
-    database.save_price(conn, isin=_ISIN, name="SOME NASDAQ-100 ETF", ticker="WRONG.DE",
-                        price=1458.6, currency="EUR", previous_close=None)
+    database.save_price(conn, isin=_ISIN, name="SOME NASDAQ-100 ETF", ticker="WRONG.DE", price=1458.6, currency="EUR", previous_close=None)
     _two_candidates(monkeypatch, {"WRONG.DE": 1450.0, "RIGHT.DE": 210.0})
 
     result = portfolio.fetch_price_for_isin(conn, _ISIN, "SOME NASDAQ-100 ETF", preferred_suffix=".DE")

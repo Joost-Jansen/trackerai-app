@@ -8,10 +8,9 @@ After a change, the time per zone of every activity is recomputed (tools/derive.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
-
 import threading
-from typing import Callable
+from collections.abc import Callable
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel

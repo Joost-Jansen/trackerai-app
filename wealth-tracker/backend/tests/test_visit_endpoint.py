@@ -14,8 +14,7 @@ import io
 import pandas as pd
 import pytest
 
-from app.services import dashboard_service   # also puts the repo root on sys.path
-
+from app.services import dashboard_service  # also puts the repo root on sys.path
 
 ISIN = "IE00B4L5Y983"
 
@@ -32,18 +31,29 @@ def _login(client, user="alice", pw="alicepw"):
 def _upload_a_position(client):
     """One buy, so the portfolio has a position to price."""
     value = -(SHARES * 80.0)
-    rows = [{
-        "Datum": "05-01-2026", "Tijd": "09:30", "Product": "iShares Core MSCI World",
-        "ISIN": ISIN, "Beurs": "EAM", "Uitvoeringsplaats": "EAM", "Aantal": SHARES,
-        "Koers": 80.0, "Lokale waarde": value, "Waarde": value, "Wisselkoers": 1.0,
-        "Transactiekosten": -1.0, "Totaal": value - 1.0, "Order Id": "order-1",
-    }]
+    rows = [
+        {
+            "Datum": "05-01-2026",
+            "Tijd": "09:30",
+            "Product": "iShares Core MSCI World",
+            "ISIN": ISIN,
+            "Beurs": "EAM",
+            "Uitvoeringsplaats": "EAM",
+            "Aantal": SHARES,
+            "Koers": 80.0,
+            "Lokale waarde": value,
+            "Waarde": value,
+            "Wisselkoers": 1.0,
+            "Transactiekosten": -1.0,
+            "Totaal": value - 1.0,
+            "Order Id": "order-1",
+        }
+    ]
     buf = io.BytesIO()
     pd.DataFrame(rows).to_excel(buf, index=False)
     resp = client.post(
         "/api/uploads/transactions",
-        files={"files": ("tx.xlsx", buf.getvalue(),
-                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={"files": ("tx.xlsx", buf.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
     )
     assert resp.status_code == 200, resp.text
 
@@ -59,8 +69,7 @@ def _seed(previous_visit_at: str, value_then: float):
 
     conn = database.connect("alice")
     database.init_db(conn)
-    database.save_price(conn, ISIN, "iShares Core MSCI World", "IWDA.AS",
-                        PRICE, "EUR", previous_close=PREV_CLOSE)
+    database.save_price(conn, ISIN, "iShares Core MSCI World", "IWDA.AS", PRICE, "EUR", previous_close=PREV_CLOSE)
     conn.execute("DELETE FROM visit_snapshots")
     conn.commit()
     database.insert_visit(conn, previous_visit_at, value_then)
@@ -108,9 +117,7 @@ def bars(monkeypatch):
     monkeypatch.setattr(
         dashboard_service,
         "record_visit",
-        lambda conn, total_value, **kw: record_visit(
-            conn, total_value, now=datetime.datetime.combine(today, NOW), **kw
-        ),
+        lambda conn, total_value, **kw: record_visit(conn, total_value, now=datetime.datetime.combine(today, NOW), **kw),
     )
     monkeypatch.setattr(dashboard_service, "get_intraday", _fake_intraday)
     return today, yesterday

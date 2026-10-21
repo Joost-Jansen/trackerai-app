@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,11 +9,13 @@ from tools import db
 from tools.fit import read_fit_activity
 from tools.store import from_fit
 
-START = datetime(2026, 9, 20, 8, 0, tzinfo=timezone.utc)
+START = datetime(2026, 9, 20, 8, 0, tzinfo=UTC)
 
 
 def upload(c, data, name="ride.fit", **params):
-    return c.post("/api/activities/upload", params={"name": name, **params}, content=data, headers={"content-type": "application/octet-stream"})
+    return c.post(
+        "/api/activities/upload", params={"name": name, **params}, content=data, headers={"content-type": "application/octet-stream"}
+    )
 
 
 def test_a_wahoo_file_becomes_a_ride_with_local_time_streams_and_source():
@@ -47,10 +49,18 @@ def test_upload_adds_the_ride_with_zones_and_track(client, engine):  # noqa: F81
 def test_the_same_ride_from_garmin_is_merged_not_doubled(client, engine):  # noqa: F811
     login(client)
     s = db.Scope(engine, 1)
-    db.upsert_activity(s, {
-        "start_utc": "2026-09-20T08:00:40Z", "start_local": "2026-09-20T10:00:40", "sport": "ride", "name": "Utrecht Cycling",
-        "distance_km": 4.79, "moving_time_s": 598, "sources": {"garmin": {"id": 1}},
-    })
+    db.upsert_activity(
+        s,
+        {
+            "start_utc": "2026-09-20T08:00:40Z",
+            "start_local": "2026-09-20T10:00:40",
+            "sport": "ride",
+            "name": "Utrecht Cycling",
+            "distance_km": 4.79,
+            "moving_time_s": 598,
+            "sources": {"garmin": {"id": 1}},
+        },
+    )
     before = len(client.get("/api/activities").json())
     r = upload(client, bike_ride(START)).json()
     assert r["status"] == "merged" and r["merged_with"] == ["garmin"]

@@ -132,42 +132,69 @@ daily_use = Table(
 )
 
 
-oauth_clients = Table("oauth_clients", meta,
-    Column("id", String(80), primary_key=True), Column("name", String(100), nullable=False),
-    Column("redirects", JSON, nullable=False), Column("created_at", DateTime(timezone=True), nullable=False))
+oauth_clients = Table(
+    "oauth_clients",
+    meta,
+    Column("id", String(80), primary_key=True),
+    Column("name", String(100), nullable=False),
+    Column("redirects", JSON, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
 
-oauth_requests = Table("oauth_requests", meta,
-    Column("digest", String(64), primary_key=True), Column("query", Text, nullable=False),
+oauth_requests = Table(
+    "oauth_requests",
+    meta,
+    Column("digest", String(64), primary_key=True),
+    Column("query", Text, nullable=False),
     Column("account_id", Integer, ForeignKey("accounts.id", ondelete="CASCADE")),
-    Column("expires_at", DateTime(timezone=True), nullable=False), Column("used_at", DateTime(timezone=True)))
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("used_at", DateTime(timezone=True)),
+)
 
-oauth_grants = Table("oauth_grants", meta,
+oauth_grants = Table(
+    "oauth_grants",
+    meta,
     Column("id", String(80), primary_key=True),
     Column("account_id", Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True),
     Column("client_id", String(80), ForeignKey("oauth_clients.id"), nullable=False),
-    Column("app", String(20), nullable=False), Column("resource", Text, nullable=False),
-    Column("scope", String(80), nullable=False), Column("session_version", Integer, nullable=False),
-    Column("created_at", DateTime(timezone=True), nullable=False), Column("last_used_at", DateTime(timezone=True)),
-    Column("expires_at", DateTime(timezone=True), nullable=False), Column("revoked_at", DateTime(timezone=True)))
+    Column("app", String(20), nullable=False),
+    Column("resource", Text, nullable=False),
+    Column("scope", String(80), nullable=False),
+    Column("session_version", Integer, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("last_used_at", DateTime(timezone=True)),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("revoked_at", DateTime(timezone=True)),
+)
 
-oauth_codes = Table("oauth_codes", meta,
+oauth_codes = Table(
+    "oauth_codes",
+    meta,
     Column("digest", String(64), primary_key=True),
     Column("grant_id", String(80), ForeignKey("oauth_grants.id", ondelete="CASCADE"), nullable=False),
-    Column("redirect_uri", Text, nullable=False), Column("challenge", String(128), nullable=False),
-    Column("expires_at", DateTime(timezone=True), nullable=False), Column("used_at", DateTime(timezone=True)))
+    Column("redirect_uri", Text, nullable=False),
+    Column("challenge", String(128), nullable=False),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("used_at", DateTime(timezone=True)),
+)
 
-oauth_tokens = Table("oauth_tokens", meta,
-    Column("digest", String(64), primary_key=True), Column("refresh_digest", String(64), unique=True, nullable=False),
+oauth_tokens = Table(
+    "oauth_tokens",
+    meta,
+    Column("digest", String(64), primary_key=True),
+    Column("refresh_digest", String(64), unique=True, nullable=False),
     Column("grant_id", String(80), ForeignKey("oauth_grants.id", ondelete="CASCADE"), nullable=False, index=True),
-    Column("scope", String(80), nullable=False), Column("expires_at", DateTime(timezone=True), nullable=False),
-    Column("used_at", DateTime(timezone=True)))
+    Column("scope", String(80), nullable=False),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("used_at", DateTime(timezone=True)),
+)
 
 
 def sqlalchemy_url(url: str) -> str:
     """A postgres:// or postgresql:// URL (as Railway gives it) for SQLAlchemy with psycopg 3."""
     for scheme in ("postgres://", "postgresql://"):
         if url.startswith(scheme):
-            return "postgresql+psycopg://" + url[len(scheme):]
+            return "postgresql+psycopg://" + url[len(scheme) :]
     if url.startswith("postgresql+psycopg://"):
         return url
     scheme = url.split(":", 1)[0] if ":" in url else "no scheme"

@@ -19,18 +19,17 @@ and account numbers appear only as their last four characters.
 from __future__ import annotations
 
 import json
-from urllib.parse import quote, unquote
 from collections import defaultdict
 from datetime import date, timedelta
+from urllib.parse import quote, unquote, urlencode
 
-from urllib.parse import urlencode
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
 from app.core import auth_store, feedback_store
-from trackerai_accounts.oauth import OAuth, PREFIX
 from domain.money import month_periods
 from domain.money import net_worth as net_worth_domain
+from trackerai_accounts.oauth import PREFIX, OAuth
 
 router = APIRouter(tags=["mcp"])
 
@@ -50,99 +49,280 @@ PERIOD = {
 }
 
 READ_TOOLS = [
-    {"name": "get_overview", "description": "Everything at once: net worth (investments, bank, debt), the portfolio (value, result, today), spending and income this month, budget this month and how much is still to be labelled.", "inputSchema": _obj()},
-    {"name": "get_portfolio", "description": "The portfolio: totals and per position name, ticker, quantity, value, weight, unrealised and total result, and the day's price.", "inputSchema": _obj()},
-    {"name": "get_returns", "description": "Return per period (1M, 3M, YTD, 1Y, 3Y, All): TWR, IRR, simple return, gain and deposits. Plus the comparison with the benchmarks this year.", "inputSchema": _obj()},
-    {"name": "get_dividends", "description": "Dividend: totals, per year, per fund and what is expected in the coming period.", "inputSchema": _obj()},
-    {"name": "get_net_worth", "description": "Net worth now, the change, and per month investments, bank, debt and net.", "inputSchema": _obj()},
-    {"name": "get_spending", "description": "Spending and income in a period, per group and category, compared with the equally long period before. Internal transfers (saving, investing, own accounts) don't count.", "inputSchema": _obj(PERIOD)},
-    {"name": "get_budget", "description": "Budget per group against actual, per month, with the median and what is still expected this month.", "inputSchema": _obj({"months": {"type": "integer", "default": 3, "description": "Number of months (1-24)"}})},
-    {"name": "list_transactions", "description": "Search bank transactions. A positive amount is an expense, a negative one income. Each transaction has an id, for label_transactions.", "inputSchema": _obj({
-        **PERIOD,
-        "search": {"type": "string", "description": "Text in name or description (case-insensitive)"},
-        "category": {"type": "string", "description": "Only this category (or 'Onbekend', the name for no category)"},
-        "limit": {"type": "integer", "default": 50, "description": "Maximum (1-500), newest first"},
-    })},
-    {"name": "get_unlabelled", "description": "What is still to be labelled: per counterparty the transactions, the total, the current category and a suggestion if there is one.", "inputSchema": _obj()},
-    {"name": "get_net_worth_split", "description": "Where the change in net worth came from, per month (calendar or salary month, as set in Settings) and optionally for a period from start to end (from the balance at the end of the day before start): change = saved + market + bank + debt. saved: income minus spending (including your own share of shared costs when a shared-costs category is set; that part is also in `shared`). market: what the holdings did (price change and dividend; money moved to or from the broker is not a gain). debt: the change in your own debts (a repayment is positive, interest negative; money held for friends is left out). bank: the rest, in `detail`: friends (money for or of friends not settled), unlabelled, corrections (balances that don't follow the transactions; per account in get_bank_corrections) and transfers (e.g. a repayment leaving the bank, money to accounts outside net worth). The same bank figure also reads as listed (the transactions in categories that land in Bank & cash, those without a category, and friends' money unless it counts as spending) + corrections + other_half (money whose other half isn't a bank transaction, e.g. to a savings account with only balances). All null when the bank data does not cover the period. Positive means more net worth.", "inputSchema": _obj({
-        "start": {"type": "string", "description": "ISO date: only months that end on or after it, and the start of the period split"},
-        "end": {"type": "string", "description": "ISO date: months up to it, and the end of the period split"},
-        "months": {"type": "integer", "default": 12, "description": "Without start: the last this many months (1-120)"},
-    })},
-    {"name": "get_settings", "description": "The settings behind Spending, Budget and Net worth: the month layout (calendar months, or salary months that start on the day your salary comes in, with the salary day and salary category) and the category where your own share of shared costs counts as spending (null: it counts nowhere and stays with friends' money).", "inputSchema": _obj()},
-    {"name": "list_categories", "description": "All categories with their group, type (EXPENSE, INCOME, INTERNAL), role on Net worth (spending, income, investments, debt, own, others, bank) whether the type is locked (type_locked: the app relies on it) and whether the name is fixed (is_fixed: it can't be renamed), and the rules that fill them, each with an id.", "inputSchema": _obj()},
-    {"name": "get_fixed_costs", "description": "Fixed costs: counterparties that come back every month (is_fixed, with the median amount per month), candidates that might be one, and what the user marked as not a fixed cost (excluded). `manual`: chosen by hand instead of detected.", "inputSchema": _obj()},
-    {"name": "list_accounts", "description": "Accounts with kind, balance and balance date (account number only the last four characters).", "inputSchema": _obj()},
-    {"name": "get_bank_corrections", "description": "Where the balance corrections in Bank & cash (detail.corrections in get_net_worth_split) come from, per account: from the balance at the end of `from` to the end of `to` (use the from and to of a month in get_net_worth_split), the change of each account minus its own transactions. Per account the events that make it up: start (the account's first data, before it it counts as zero), transfer (a savings account running on with transfers your other accounts made to or from it), measurement (a balance, entered by hand or synced, that the transactions don't reach), line (the straight line between two balances entered by hand) and derived (a step the transactions of that day don't explain). A correction is right when it reflects money that really moved without a transaction here; it is wrong when a balance was entered on the wrong date or with the wrong amount, or an export is missing. Check with list_balances and list_transactions before changing anything.", "inputSchema": _obj({
-        "from": {"type": "string", "description": "ISO date: from the balance at the end of this day"},
-        "to": {"type": "string", "description": "ISO date: to the balance at the end of this day (default: today)"},
-    }, ["from"])},
-    {"name": "list_balances", "description": "Every balance recorded for one account (date, balance, source: manual = entered by hand, sync = from the bank connection or an export), plus the balances that don't match its transactions, each with the calculated balance, the difference and the most likely explanation. For an account with its own transactions only the last balance sets the level; the earlier ones only show here when they don't match. For a debt with a schedule also the months the schedule calculated.", "inputSchema": _obj({
-        "account": {"type": ["string", "integer"], "description": "Account id or name (see list_accounts)"},
-    }, ["account"])},
+    {
+        "name": "get_overview",
+        "description": "Everything at once: net worth (investments, bank, debt), the portfolio (value, result, today), spending and income this month, budget this month and how much is still to be labelled.",
+        "inputSchema": _obj(),
+    },
+    {
+        "name": "get_portfolio",
+        "description": "The portfolio: totals and per position name, ticker, quantity, value, weight, unrealised and total result, and the day's price.",
+        "inputSchema": _obj(),
+    },
+    {
+        "name": "get_returns",
+        "description": "Return per period (1M, 3M, YTD, 1Y, 3Y, All): TWR, IRR, simple return, gain and deposits. Plus the comparison with the benchmarks this year.",
+        "inputSchema": _obj(),
+    },
+    {
+        "name": "get_dividends",
+        "description": "Dividend: totals, per year, per fund and what is expected in the coming period.",
+        "inputSchema": _obj(),
+    },
+    {
+        "name": "get_net_worth",
+        "description": "Net worth now, the change, and per month investments, bank, debt and net.",
+        "inputSchema": _obj(),
+    },
+    {
+        "name": "get_spending",
+        "description": "Spending and income in a period, per group and category, compared with the equally long period before. Internal transfers (saving, investing, own accounts) don't count.",
+        "inputSchema": _obj(PERIOD),
+    },
+    {
+        "name": "get_budget",
+        "description": "Budget per group against actual, per month, with the median and what is still expected this month.",
+        "inputSchema": _obj({"months": {"type": "integer", "default": 3, "description": "Number of months (1-24)"}}),
+    },
+    {
+        "name": "list_transactions",
+        "description": "Search bank transactions. A positive amount is an expense, a negative one income. Each transaction has an id, for label_transactions.",
+        "inputSchema": _obj(
+            {
+                **PERIOD,
+                "search": {"type": "string", "description": "Text in name or description (case-insensitive)"},
+                "category": {"type": "string", "description": "Only this category (or 'Onbekend', the name for no category)"},
+                "limit": {"type": "integer", "default": 50, "description": "Maximum (1-500), newest first"},
+            }
+        ),
+    },
+    {
+        "name": "get_unlabelled",
+        "description": "What is still to be labelled: per counterparty the transactions, the total, the current category and a suggestion if there is one.",
+        "inputSchema": _obj(),
+    },
+    {
+        "name": "get_net_worth_split",
+        "description": "Where the change in net worth came from, per month (calendar or salary month, as set in Settings) and optionally for a period from start to end (from the balance at the end of the day before start): change = saved + market + bank + debt. saved: income minus spending (including your own share of shared costs when a shared-costs category is set; that part is also in `shared`). market: what the holdings did (price change and dividend; money moved to or from the broker is not a gain). debt: the change in your own debts (a repayment is positive, interest negative; money held for friends is left out). bank: the rest, in `detail`: friends (money for or of friends not settled), unlabelled, corrections (balances that don't follow the transactions; per account in get_bank_corrections) and transfers (e.g. a repayment leaving the bank, money to accounts outside net worth). The same bank figure also reads as listed (the transactions in categories that land in Bank & cash, those without a category, and friends' money unless it counts as spending) + corrections + other_half (money whose other half isn't a bank transaction, e.g. to a savings account with only balances). All null when the bank data does not cover the period. Positive means more net worth.",
+        "inputSchema": _obj(
+            {
+                "start": {
+                    "type": "string",
+                    "description": "ISO date: only months that end on or after it, and the start of the period split",
+                },
+                "end": {"type": "string", "description": "ISO date: months up to it, and the end of the period split"},
+                "months": {"type": "integer", "default": 12, "description": "Without start: the last this many months (1-120)"},
+            }
+        ),
+    },
+    {
+        "name": "get_settings",
+        "description": "The settings behind Spending, Budget and Net worth: the month layout (calendar months, or salary months that start on the day your salary comes in, with the salary day and salary category) and the category where your own share of shared costs counts as spending (null: it counts nowhere and stays with friends' money).",
+        "inputSchema": _obj(),
+    },
+    {
+        "name": "list_categories",
+        "description": "All categories with their group, type (EXPENSE, INCOME, INTERNAL), role on Net worth (spending, income, investments, debt, own, others, bank) whether the type is locked (type_locked: the app relies on it) and whether the name is fixed (is_fixed: it can't be renamed), and the rules that fill them, each with an id.",
+        "inputSchema": _obj(),
+    },
+    {
+        "name": "get_fixed_costs",
+        "description": "Fixed costs: counterparties that come back every month (is_fixed, with the median amount per month), candidates that might be one, and what the user marked as not a fixed cost (excluded). `manual`: chosen by hand instead of detected.",
+        "inputSchema": _obj(),
+    },
+    {
+        "name": "list_accounts",
+        "description": "Accounts with kind, balance and balance date (account number only the last four characters).",
+        "inputSchema": _obj(),
+    },
+    {
+        "name": "get_bank_corrections",
+        "description": "Where the balance corrections in Bank & cash (detail.corrections in get_net_worth_split) come from, per account: from the balance at the end of `from` to the end of `to` (use the from and to of a month in get_net_worth_split), the change of each account minus its own transactions. Per account the events that make it up: start (the account's first data, before it it counts as zero), transfer (a savings account running on with transfers your other accounts made to or from it), measurement (a balance, entered by hand or synced, that the transactions don't reach), line (the straight line between two balances entered by hand) and derived (a step the transactions of that day don't explain). A correction is right when it reflects money that really moved without a transaction here; it is wrong when a balance was entered on the wrong date or with the wrong amount, or an export is missing. Check with list_balances and list_transactions before changing anything.",
+        "inputSchema": _obj(
+            {
+                "from": {"type": "string", "description": "ISO date: from the balance at the end of this day"},
+                "to": {"type": "string", "description": "ISO date: to the balance at the end of this day (default: today)"},
+            },
+            ["from"],
+        ),
+    },
+    {
+        "name": "list_balances",
+        "description": "Every balance recorded for one account (date, balance, source: manual = entered by hand, sync = from the bank connection or an export), plus the balances that don't match its transactions, each with the calculated balance, the difference and the most likely explanation. For an account with its own transactions only the last balance sets the level; the earlier ones only show here when they don't match. For a debt with a schedule also the months the schedule calculated.",
+        "inputSchema": _obj(
+            {
+                "account": {"type": ["string", "integer"], "description": "Account id or name (see list_accounts)"},
+            },
+            ["account"],
+        ),
+    },
 ]
 
 WRITE_TOOLS = [
-    {"name": "refresh_data", "description": "Fetch today's figures, as the Update button in the app does: refresh every price, and fetch new transactions and balances through the bank connection when the user has one. Takes up to a minute. Use it before an answer that depends on today's numbers when prices or bank data look old (get_overview shows prices_of).", "inputSchema": _obj()},
-    {"name": "label_transactions", "description": "Give transactions a category, by hand: it wins over the rules. Leaving it empty (category null) puts them back to what the rules find. Use list_categories for the valid names.", "inputSchema": _obj({
-        "ids": {"type": "array", "items": {"type": "integer"}, "description": "Transaction ids"},
-        "category": {"type": ["string", "null"], "description": "Existing category, or null"},
-    }, ["ids"])},
-    {"name": "set_budget", "description": "Set the monthly budget of a group (e.g. Boodschappen). 0 or null removes it.", "inputSchema": _obj({
-        "group_name": {"type": "string"},
-        "amount": {"type": ["number", "null"], "description": "Euro per month"},
-    }, ["group_name", "amount"])},
-    {"name": "add_category_rule", "description": "A rule that labels by itself from now on: transactions whose field matches the pattern get this category. Relabels everything afterwards.", "inputSchema": _obj({
-        "pattern": {"type": "string", "description": "Regular expression, case-insensitive, e.g. 'ALBERT HEIJN|JUMBO'"},
-        "category": {"type": "string"},
-        "field": {"type": "string", "enum": ["N", "T", "A", "P"], "default": "N", "description": "N counterparty name, T description, A counter account, P everything"},
-        "direction": {"type": "string", "enum": ["", "D", "C"], "default": "", "description": "Empty: both; D: only out; C: only in"},
-        "priority": {"type": "integer", "default": 50, "description": "Lower wins. Own rules: 30-60"},
-    }, ["pattern", "category"])},
-    {"name": "delete_rule", "description": "Delete a labelling rule by its id (see list_categories). Relabels everything afterwards; labels set by hand stay.", "inputSchema": _obj({
-        "id": {"type": "integer", "description": "Rule id"},
-    }, ["id"])},
-    {"name": "set_category_type", "description": "Whether a category counts as spending (EXPENSE), income (INCOME) or nowhere (INTERNAL: transfers, saving, investing). That also decides where it lands on Net worth: EXPENSE and INCOME in Saved, INTERNAL in Bank & cash. Categories with type_locked cannot be changed.", "inputSchema": _obj({
-        "category": {"type": "string", "description": "Existing category name"},
-        "type": {"type": "string", "enum": ["EXPENSE", "INCOME", "INTERNAL"]},
-    }, ["category", "type"])},
-    {"name": "rename_category", "description": "Rename a category; its transactions, rules and budgets move along.", "inputSchema": _obj({
-        "category": {"type": "string", "description": "Current name"},
-        "new_name": {"type": "string"},
-    }, ["category", "new_name"])},
-    {"name": "move_category", "description": "Move a category to another group (main category); a group that does not exist yet is created.", "inputSchema": _obj({
-        "category": {"type": "string"},
-        "group_name": {"type": "string"},
-    }, ["category", "group_name"])},
-    {"name": "set_month_layout", "description": "Where a month starts, for Spending, Budget and Net worth: 'calendar' (the 1st) or 'salary' (the day the salary comes in). Only the fields given change. day: the usual salary day (1-31), null to recognise it from the transactions. category: the category the salary is in.", "inputSchema": _obj({
-        "mode": {"type": "string", "enum": ["calendar", "salary"]},
-        "day": {"type": ["integer", "null"], "description": "Salary day 1-31, or null: recognise"},
-        "category": {"type": "string", "description": "Salary category (default Salaris)"},
-    })},
-    {"name": "set_shared_costs_category", "description": "The spending category where your own share of shared costs (money advanced for friends that does not come back) counts as spending. null: it counts nowhere and stays on Net worth as money for friends under Bank & cash.", "inputSchema": _obj({
-        "category": {"type": ["string", "null"], "description": "An EXPENSE category, or null"},
-    }, ["category"])},
-    {"name": "set_fixed_cost", "description": "Whether a counterparty is a fixed cost: true, false (never), or null to leave it to the detection again. By counterparty name, as get_fixed_costs shows it.", "inputSchema": _obj({
-        "name": {"type": "string", "description": "Counterparty name"},
-        "is_fixed": {"type": ["boolean", "null"]},
-    }, ["name", "is_fixed"])},
-    {"name": "set_balance", "description": "Enter the balance of an account on a date; the same date again replaces it. A debt is always stored as negative, whatever sign is given.", "inputSchema": _obj({
-        "account": {"type": ["string", "integer"], "description": "Account id or name (see list_accounts)"},
-        "balance": {"type": "number", "description": "Euro"},
-        "date": {"type": "string", "description": "ISO date (default: today)"},
-    }, ["account", "balance"])},
-    {"name": "delete_balance", "description": "Delete one recorded balance of an account (see list_balances), for a balance that should never have been there: a wrong date, a wrong amount or a double. A wrong amount on the right date is better fixed with set_balance on that date. Cannot be undone; only when the user asked for it.", "inputSchema": _obj({
-        "account": {"type": ["string", "integer"], "description": "Account id or name (see list_accounts)"},
-        "date": {"type": "string", "description": "ISO date of the balance"},
-    }, ["account", "date"])},
-    {"name": "add_transaction", "description": "Add a bank transaction by hand, for something that is in no export (cash, a forgotten payment). A positive amount is an expense, a negative amount income. Without a category the rules decide.", "inputSchema": _obj({
-        "account": {"type": ["string", "integer"], "description": "Account id or name (see list_accounts)"},
-        "amount": {"type": "number", "description": "Euro; positive = expense, negative = income"},
-        "name": {"type": "string", "description": "Counterparty"},
-        "date": {"type": "string", "description": "ISO date (default: today)"},
-        "description": {"type": "string"},
-        "category": {"type": ["string", "null"], "description": "Existing category, or null: the rules decide"},
-    }, ["account", "amount", "name"])},
+    {
+        "name": "refresh_data",
+        "description": "Fetch today's figures, as the Update button in the app does: refresh every price, and fetch new transactions and balances through the bank connection when the user has one. Takes up to a minute. Use it before an answer that depends on today's numbers when prices or bank data look old (get_overview shows prices_of).",
+        "inputSchema": _obj(),
+    },
+    {
+        "name": "label_transactions",
+        "description": "Give transactions a category, by hand: it wins over the rules. Leaving it empty (category null) puts them back to what the rules find. Use list_categories for the valid names.",
+        "inputSchema": _obj(
+            {
+                "ids": {"type": "array", "items": {"type": "integer"}, "description": "Transaction ids"},
+                "category": {"type": ["string", "null"], "description": "Existing category, or null"},
+            },
+            ["ids"],
+        ),
+    },
+    {
+        "name": "set_budget",
+        "description": "Set the monthly budget of a group (e.g. Boodschappen). 0 or null removes it.",
+        "inputSchema": _obj(
+            {
+                "group_name": {"type": "string"},
+                "amount": {"type": ["number", "null"], "description": "Euro per month"},
+            },
+            ["group_name", "amount"],
+        ),
+    },
+    {
+        "name": "add_category_rule",
+        "description": "A rule that labels by itself from now on: transactions whose field matches the pattern get this category. Relabels everything afterwards.",
+        "inputSchema": _obj(
+            {
+                "pattern": {"type": "string", "description": "Regular expression, case-insensitive, e.g. 'ALBERT HEIJN|JUMBO'"},
+                "category": {"type": "string"},
+                "field": {
+                    "type": "string",
+                    "enum": ["N", "T", "A", "P"],
+                    "default": "N",
+                    "description": "N counterparty name, T description, A counter account, P everything",
+                },
+                "direction": {
+                    "type": "string",
+                    "enum": ["", "D", "C"],
+                    "default": "",
+                    "description": "Empty: both; D: only out; C: only in",
+                },
+                "priority": {"type": "integer", "default": 50, "description": "Lower wins. Own rules: 30-60"},
+            },
+            ["pattern", "category"],
+        ),
+    },
+    {
+        "name": "delete_rule",
+        "description": "Delete a labelling rule by its id (see list_categories). Relabels everything afterwards; labels set by hand stay.",
+        "inputSchema": _obj(
+            {
+                "id": {"type": "integer", "description": "Rule id"},
+            },
+            ["id"],
+        ),
+    },
+    {
+        "name": "set_category_type",
+        "description": "Whether a category counts as spending (EXPENSE), income (INCOME) or nowhere (INTERNAL: transfers, saving, investing). That also decides where it lands on Net worth: EXPENSE and INCOME in Saved, INTERNAL in Bank & cash. Categories with type_locked cannot be changed.",
+        "inputSchema": _obj(
+            {
+                "category": {"type": "string", "description": "Existing category name"},
+                "type": {"type": "string", "enum": ["EXPENSE", "INCOME", "INTERNAL"]},
+            },
+            ["category", "type"],
+        ),
+    },
+    {
+        "name": "rename_category",
+        "description": "Rename a category; its transactions, rules and budgets move along.",
+        "inputSchema": _obj(
+            {
+                "category": {"type": "string", "description": "Current name"},
+                "new_name": {"type": "string"},
+            },
+            ["category", "new_name"],
+        ),
+    },
+    {
+        "name": "move_category",
+        "description": "Move a category to another group (main category); a group that does not exist yet is created.",
+        "inputSchema": _obj(
+            {
+                "category": {"type": "string"},
+                "group_name": {"type": "string"},
+            },
+            ["category", "group_name"],
+        ),
+    },
+    {
+        "name": "set_month_layout",
+        "description": "Where a month starts, for Spending, Budget and Net worth: 'calendar' (the 1st) or 'salary' (the day the salary comes in). Only the fields given change. day: the usual salary day (1-31), null to recognise it from the transactions. category: the category the salary is in.",
+        "inputSchema": _obj(
+            {
+                "mode": {"type": "string", "enum": ["calendar", "salary"]},
+                "day": {"type": ["integer", "null"], "description": "Salary day 1-31, or null: recognise"},
+                "category": {"type": "string", "description": "Salary category (default Salaris)"},
+            }
+        ),
+    },
+    {
+        "name": "set_shared_costs_category",
+        "description": "The spending category where your own share of shared costs (money advanced for friends that does not come back) counts as spending. null: it counts nowhere and stays on Net worth as money for friends under Bank & cash.",
+        "inputSchema": _obj(
+            {
+                "category": {"type": ["string", "null"], "description": "An EXPENSE category, or null"},
+            },
+            ["category"],
+        ),
+    },
+    {
+        "name": "set_fixed_cost",
+        "description": "Whether a counterparty is a fixed cost: true, false (never), or null to leave it to the detection again. By counterparty name, as get_fixed_costs shows it.",
+        "inputSchema": _obj(
+            {
+                "name": {"type": "string", "description": "Counterparty name"},
+                "is_fixed": {"type": ["boolean", "null"]},
+            },
+            ["name", "is_fixed"],
+        ),
+    },
+    {
+        "name": "set_balance",
+        "description": "Enter the balance of an account on a date; the same date again replaces it. A debt is always stored as negative, whatever sign is given.",
+        "inputSchema": _obj(
+            {
+                "account": {"type": ["string", "integer"], "description": "Account id or name (see list_accounts)"},
+                "balance": {"type": "number", "description": "Euro"},
+                "date": {"type": "string", "description": "ISO date (default: today)"},
+            },
+            ["account", "balance"],
+        ),
+    },
+    {
+        "name": "delete_balance",
+        "description": "Delete one recorded balance of an account (see list_balances), for a balance that should never have been there: a wrong date, a wrong amount or a double. A wrong amount on the right date is better fixed with set_balance on that date. Cannot be undone; only when the user asked for it.",
+        "inputSchema": _obj(
+            {
+                "account": {"type": ["string", "integer"], "description": "Account id or name (see list_accounts)"},
+                "date": {"type": "string", "description": "ISO date of the balance"},
+            },
+            ["account", "date"],
+        ),
+    },
+    {
+        "name": "add_transaction",
+        "description": "Add a bank transaction by hand, for something that is in no export (cash, a forgotten payment). A positive amount is an expense, a negative amount income. Without a category the rules decide.",
+        "inputSchema": _obj(
+            {
+                "account": {"type": ["string", "integer"], "description": "Account id or name (see list_accounts)"},
+                "amount": {"type": "number", "description": "Euro; positive = expense, negative = income"},
+                "name": {"type": "string", "description": "Counterparty"},
+                "date": {"type": "string", "description": "ISO date (default: today)"},
+                "description": {"type": "string"},
+                "category": {"type": ["string", "null"], "description": "Existing category, or null: the rules decide"},
+            },
+            ["account", "amount", "name"],
+        ),
+    },
 ]
 
 WRITE_NAMES = {t["name"] for t in WRITE_TOOLS}
@@ -153,15 +333,28 @@ WRITE_NAMES = {t["name"] for t in WRITE_TOOLS}
 # feedback_store directly, not through /api/admin (that stays closed to
 # tokens, deps.AGENT_BLOCKED).
 FEEDBACK_TOOLS = [
-    {"name": "list_feedback", "description": "Feedback from users of stock-tracker and wealth-tracker: something broken (bug) or an idea, with app, page, browser, version and recent errors. Newest first. By default only open reports (new and planned).", "inputSchema": _obj({
-        "status": {"type": "string", "enum": ["open", "all", "new", "planned", "fixed", "wontfix"], "default": "open"},
-        "limit": {"type": "integer", "default": 30},
-    })},
-    {"name": "update_feedback", "description": "Set the status (new, planned, fixed, wontfix) and/or a reply on a report. The user sees both in the app. Only with a token that may write.", "inputSchema": _obj({
-        "id": {"type": "integer"},
-        "status": {"type": "string", "enum": list(feedback_store.STATUSES)},
-        "reply": {"type": "string", "description": "Short reply for the user, in their language"},
-    }, ["id"])},
+    {
+        "name": "list_feedback",
+        "description": "Feedback from users of stock-tracker and wealth-tracker: something broken (bug) or an idea, with app, page, browser, version and recent errors. Newest first. By default only open reports (new and planned).",
+        "inputSchema": _obj(
+            {
+                "status": {"type": "string", "enum": ["open", "all", "new", "planned", "fixed", "wontfix"], "default": "open"},
+                "limit": {"type": "integer", "default": 30},
+            }
+        ),
+    },
+    {
+        "name": "update_feedback",
+        "description": "Set the status (new, planned, fixed, wontfix) and/or a reply on a report. The user sees both in the app. Only with a token that may write.",
+        "inputSchema": _obj(
+            {
+                "id": {"type": "integer"},
+                "status": {"type": "string", "enum": list(feedback_store.STATUSES)},
+                "reply": {"type": "string", "description": "Short reply for the user, in their language"},
+            },
+            ["id"],
+        ),
+    },
 ]
 FEEDBACK_NAMES = {t["name"] for t in FEEDBACK_TOOLS}
 
@@ -170,8 +363,16 @@ def feedback_md(items: list[dict]) -> str:
     out = []
     for f in items:
         ctx = f.get("context") or {}
-        lines = [f"## #{f['id']} {f['kind']} · {f['status']} · {f.get('app') or 'stock'}-tracker · {f['created_at'][:16].replace('T', ' ')} · {f['username']}", f["message"].strip()]
-        meta = [f"pagina {f['page']}" if f.get("page") else None, f"versie {ctx['version']}" if ctx.get("version") else None, ctx.get("browser"), ctx.get("screen")]
+        lines = [
+            f"## #{f['id']} {f['kind']} · {f['status']} · {f.get('app') or 'stock'}-tracker · {f['created_at'][:16].replace('T', ' ')} · {f['username']}",
+            f["message"].strip(),
+        ]
+        meta = [
+            f"pagina {f['page']}" if f.get("page") else None,
+            f"versie {ctx['version']}" if ctx.get("version") else None,
+            ctx.get("browser"),
+            ctx.get("screen"),
+        ]
         lines.append("_" + " · ".join(m for m in meta if m) + "_")
         for e in ctx.get("errors") or []:
             lines.append(f"- error: {e.get('message')}" + (f" ({e['where']})" if e.get("where") else ""))
@@ -186,8 +387,8 @@ def feedback_md(items: list[dict]) -> str:
 def instructions(scope: str) -> str:
     rights = (
         "You may read and write: refresh prices and bank data (refresh_data), label transactions, set budgets, add and delete labelling rules, change categories (name, group, type), the month layout, the shared-costs category and fixed costs, enter and delete balances and add transactions. Only do that when the user asks for it, and say what you changed."
-        if scope == "write" else
-        "You may only read; this token cannot change anything."
+        if scope == "write"
+        else "You may only read; this token cannot change anything."
     )
     return (
         "The user's portfolio and money (stock-tracker / wealth-tracker). Start with get_overview. Answer in the user's language, calculate with the data instead of estimating, and separate what the figures say from your interpretation. Amounts in euros. For bank transactions a positive amount is an expense and a negative amount income. "
@@ -252,8 +453,12 @@ class Server:
     def tools(self) -> list[dict]:
         tools = READ_TOOLS + (WRITE_TOOLS if self.scope == "write" else []) + (FEEDBACK_TOOLS if self.is_admin() else [])
         from app.core.accounts import accounts
+
         if OAuth(accounts).enabled:
-            return [{**t, "securitySchemes": [{"type": "oauth2", "scopes": ["wealth:write" if t["name"] in WRITE_NAMES else "wealth:read"]}]} for t in tools]
+            return [
+                {**t, "securitySchemes": [{"type": "oauth2", "scopes": ["wealth:write" if t["name"] in WRITE_NAMES else "wealth:read"]}]}
+                for t in tools
+            ]
         return tools
 
     def _feedback(self, name: str, args: dict) -> str:
@@ -284,10 +489,18 @@ class Server:
         if body is not None:
             headers.append((b"content-type", b"application/json"))
         scope = {
-            "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1", "method": method,
-            "scheme": "http", "path": unquote(path), "raw_path": path.encode(), "root_path": "",
-            "query_string": query.encode(), "headers": headers,
-            "client": ("127.0.0.1", 0), "server": ("mcp.local", 80),
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": method,
+            "scheme": "http",
+            "path": unquote(path),
+            "raw_path": path.encode(),
+            "root_path": "",
+            "query_string": query.encode(),
+            "headers": headers,
+            "client": ("127.0.0.1", 0),
+            "server": ("mcp.local", 80),
         }
         sent = False
 
@@ -334,11 +547,14 @@ class Server:
                 inn[t.get("category") or "?"] -= t["amount"]
         r2 = lambda d: {k: round(v, 2) for k, v in sorted(d.items(), key=lambda kv: -abs(kv[1]))}
         return {
-            "start": start, "end": end,
+            "start": start,
+            "end": end,
             "spending": round(sum(off.values()), 2),
             "income": round(sum(inn.values()), 2),
             "per_group": r2(off),
-            "per_category": [{"group_name": g, "category": c, "amount": round(v, 2)} for (g, c), v in sorted(per_cat.items(), key=lambda kv: -kv[1])],
+            "per_category": [
+                {"group_name": g, "category": c, "amount": round(v, 2)} for (g, c), v in sorted(per_cat.items(), key=lambda kv: -kv[1])
+            ],
             "income_per_category": r2(inn),
             "transactions": data["count"],
         }
@@ -388,7 +604,22 @@ class Server:
             out: dict = {}
             s = await self._api("GET", "/api/dashboard/summary", optional=True)
             if s:
-                out["portfolio"] = {**{k: s["summary"].get(k) for k in ("total_value", "total_gain", "total_return_pct", "unrealized_gain", "net_investment", "total_dividends", "num_positions")}, "today": s.get("day"), "prices_of": s.get("latest_price_fetch")}
+                out["portfolio"] = {
+                    **{
+                        k: s["summary"].get(k)
+                        for k in (
+                            "total_value",
+                            "total_gain",
+                            "total_return_pct",
+                            "unrealized_gain",
+                            "net_investment",
+                            "total_dividends",
+                            "num_positions",
+                        )
+                    },
+                    "today": s.get("day"),
+                    "prices_of": s.get("latest_price_fetch"),
+                }
             v = await self._api("GET", "/api/net-worth", optional=True)
             if v:
                 out["net_worth"] = {"now": v.get("now"), "change": v.get("change")}
@@ -398,7 +629,16 @@ class Server:
                 b = await self._api("GET", "/api/budget", params={"months": 1}, optional=True)
                 if b:
                     m = b["months"][-1]
-                    out["budget_this_month"] = [{"group_name": g["group_name"], "budget": g["budget"], "actual": g["actual"].get(m), "expected_remaining": g.get("expected")} for g in b["groups"] if g.get("budget")]
+                    out["budget_this_month"] = [
+                        {
+                            "group_name": g["group_name"],
+                            "budget": g["budget"],
+                            "actual": g["actual"].get(m),
+                            "expected_remaining": g.get("expected"),
+                        }
+                        for g in b["groups"]
+                        if g.get("budget")
+                    ]
                 w = await self._api("GET", "/api/labelling/queue", optional=True)
                 if w:
                     out["unlabelled"] = w.get("waiting")
@@ -409,8 +649,25 @@ class Server:
         if name == "get_portfolio":
             h = await self._api("GET", "/api/holdings/overview")
             total = sum(p.get("current_value") or 0 for p in h["positions"])
-            keys = ("name", "ticker", "isin", "asset_type", "shares_held", "current_price", "current_value", "unrealized_eur", "unrealized_pct", "total_eur", "total_pct", "dividends_eur", "day_pct")
-            pos = [{**{k: p.get(k) for k in keys}, "weight_pct": round(100 * (p.get("current_value") or 0) / total, 2) if total else None} for p in h["positions"]]
+            keys = (
+                "name",
+                "ticker",
+                "isin",
+                "asset_type",
+                "shares_held",
+                "current_price",
+                "current_value",
+                "unrealized_eur",
+                "unrealized_pct",
+                "total_eur",
+                "total_pct",
+                "dividends_eur",
+                "day_pct",
+            )
+            pos = [
+                {**{k: p.get(k) for k in keys}, "weight_pct": round(100 * (p.get("current_value") or 0) / total, 2) if total else None}
+                for p in h["positions"]
+            ]
             s = await self._api("GET", "/api/dashboard/summary", optional=True)
             return _dump({"totals": s["summary"] if s else None, "positions": pos})
 
@@ -426,11 +683,20 @@ class Server:
 
         if name == "get_dividends":
             d = await self._api("GET", "/api/dividend")
-            return _dump({"totals": d.get("totals"), "per_year": d.get("by_year"), "per_fund": d.get("by_stock"), "expected": (d.get("upcoming") or [])[:12]})
+            return _dump(
+                {
+                    "totals": d.get("totals"),
+                    "per_year": d.get("by_year"),
+                    "per_fund": d.get("by_stock"),
+                    "expected": (d.get("upcoming") or [])[:12],
+                }
+            )
 
         if name == "get_net_worth":
             v = await self._api("GET", "/api/net-worth")
-            return _dump({"now": v.get("now"), "change": v.get("change"), "per_month": v.get("months"), "prices_unknown": v.get("prices_unknown")})
+            return _dump(
+                {"now": v.get("now"), "change": v.get("change"), "per_month": v.get("months"), "prices_unknown": v.get("prices_unknown")}
+            )
 
         if name == "get_spending":
             start = args.get("start") or today.replace(day=1).isoformat()
@@ -455,29 +721,49 @@ class Server:
             search = (args.get("search") or "").lower()
             cat = args.get("category")
             rows = [
-                t for t in data["transactions"]
+                t
+                for t in data["transactions"]
                 if (not search or search in f"{t.get('name') or ''} {t.get('description') or ''}".lower())
                 and (not cat or (t.get("category") or "Onbekend") == cat)
             ]
             rows.sort(key=lambda t: (t["date"], t["id"]), reverse=True)
             limit = max(1, min(500, int(args.get("limit") or 50)))
             keys = ("id", "date", "amount", "name", "description", "category", "group_name", "type", "category_source", "account_id")
-            return _dump({
-                "start": start, "end": end, "found": len(rows), "shown": min(limit, len(rows)),
-                "transactions": [{**{k: t.get(k) for k in keys}, "counter_account": _mask(t.get("counterparty_iban"))} for t in rows[:limit]],
-            })
+            return _dump(
+                {
+                    "start": start,
+                    "end": end,
+                    "found": len(rows),
+                    "shown": min(limit, len(rows)),
+                    "transactions": [
+                        {**{k: t.get(k) for k in keys}, "counter_account": _mask(t.get("counterparty_iban"))} for t in rows[:limit]
+                    ],
+                }
+            )
 
         if name == "get_unlabelled":
             w = await self._api("GET", "/api/labelling/queue")
             keys = ("kind", "title", "ids", "count", "total", "last", "description", "now", "suggestion", "confidence", "reason")
-            return _dump({"waiting": w.get("waiting"), "coverage_pct": w.get("coverage"), "items": [{k: i.get(k) for k in keys} for i in w.get("items", [])]})
+            return _dump(
+                {
+                    "waiting": w.get("waiting"),
+                    "coverage_pct": w.get("coverage"),
+                    "items": [{k: i.get(k) for k in keys} for i in w.get("items", [])],
+                }
+            )
 
         if name == "list_categories":
             c = await self._api("GET", "/api/categories")
-            return _dump({
-                "categories": [{k: x.get(k) for k in ("name", "group_name", "type", "role", "type_locked", "is_fixed")} for x in c["categories"]],
-                "rules": [{k: x.get(k) for k in ("id", "priority", "field", "pattern", "direction", "category", "active")} for x in c["rules"]],
-            })
+            return _dump(
+                {
+                    "categories": [
+                        {k: x.get(k) for k in ("name", "group_name", "type", "role", "type_locked", "is_fixed")} for x in c["categories"]
+                    ],
+                    "rules": [
+                        {k: x.get(k) for k in ("id", "priority", "field", "pattern", "direction", "category", "active")} for x in c["rules"]
+                    ],
+                }
+            )
 
         if name == "get_net_worth_split":
             v = await self._api("GET", "/api/net-worth")
@@ -495,11 +781,14 @@ class Server:
             if start:
                 rows = [r for r in rows if r["to"] >= start]
             else:
-                rows = rows[-max(1, min(120, int(args.get("months") or 12))):]
+                rows = rows[-max(1, min(120, int(args.get("months") or 12))) :]
             out = {
                 "month_layout": layout.mode,
                 "shared_costs_category": v.get("shared_costs_category"),
-                "months": [{"month": r["month"], "from": r["from"], "to": r["to"], "partial": r["partial"], **(r["split"] or {"change": None})} for r in rows],
+                "months": [
+                    {"month": r["month"], "from": r["from"], "to": r["to"], "partial": r["partial"], **(r["split"] or {"change": None})}
+                    for r in rows
+                ],
             }
             if start or end:
                 # From the balance at the end of the day before start, so the start day itself counts.
@@ -507,8 +796,11 @@ class Server:
                 before = [p for p in upto if start and p["d"] < start]
                 inside = [p for p in upto if not start or p["d"] >= start]
                 base = before[-1] if before else (inside[0] if inside else None)
-                out["period"] = ({"from": base["d"], "to": inside[-1]["d"], **net_worth_domain.split(base, inside[-1], flows, shared)}
-                                 if base and inside and inside[-1]["d"] > base["d"] else None)
+                out["period"] = (
+                    {"from": base["d"], "to": inside[-1]["d"], **net_worth_domain.split(base, inside[-1], flows, shared)}
+                    if base and inside and inside[-1]["d"] > base["d"]
+                    else None
+                )
             return _dump(_r2(out))
 
         if name == "get_settings":
@@ -537,14 +829,19 @@ class Server:
             b = await self._api("GET", f"/api/accounts/{account['id']}/balances")
             v = await self._api("GET", "/api/net-worth")
             keys = ("date", "balance", "source")
-            return _dump({
-                "account": {k: account.get(k) for k in ("id", "name", "kind")},
-                "balances": [{k: m.get(k) for k in keys} for m in b["balances"]],
-                "not_matching": [{k: x.get(k) for k in ("date", "measured", "calculated", "source", "anchor", "explanation")}
-                                 for x in v.get("deviating_balances") or [] if x.get("account_id") == account["id"]],
-                "pending_in_last": [x for x in v.get("pending_in_last") or [] if x.get("account_id") == account["id"]],
-                "calculated": [{k: m.get(k) for k in ("date", "balance", "interest", "repayment")} for m in b.get("calculated") or []],
-            })
+            return _dump(
+                {
+                    "account": {k: account.get(k) for k in ("id", "name", "kind")},
+                    "balances": [{k: m.get(k) for k in keys} for m in b["balances"]],
+                    "not_matching": [
+                        {k: x.get(k) for k in ("date", "measured", "calculated", "source", "anchor", "explanation")}
+                        for x in v.get("deviating_balances") or []
+                        if x.get("account_id") == account["id"]
+                    ],
+                    "pending_in_last": [x for x in v.get("pending_in_last") or [] if x.get("account_id") == account["id"]],
+                    "calculated": [{k: m.get(k) for k in ("date", "balance", "interest", "repayment")} for m in b.get("calculated") or []],
+                }
+            )
 
         # --- write (scope bijhouden) ----------------------------------------
 
@@ -573,8 +870,10 @@ class Server:
 
         if name == "add_category_rule":
             body = {
-                "pattern": args["pattern"], "category": args["category"],
-                "field": args.get("field") or "N", "direction": args.get("direction") or "",
+                "pattern": args["pattern"],
+                "category": args["category"],
+                "field": args.get("field") or "N",
+                "direction": args.get("direction") or "",
                 "priority": int(args.get("priority") or 50),
             }
             r = await self._api("POST", "/api/categories/rules", body=body)
@@ -642,9 +941,19 @@ class Server:
         if name == "set_balance":
             account = await self._account(args.get("account"))
             when = args.get("date") or today.isoformat()
-            r = await self._api("PUT", f"/api/accounts/{account['id']}/balance", body={"date": when, "balance": float(args["balance"]), "source": "manual"})
+            r = await self._api(
+                "PUT", f"/api/accounts/{account['id']}/balance", body={"date": when, "balance": float(args["balance"]), "source": "manual"}
+            )
             a = r["account"]
-            return _dump({"account": {**{k: a.get(k) for k in ("id", "name", "kind", "balance", "balance_date")}, "account_number": _mask(a.get("iban"))}, "date": when})
+            return _dump(
+                {
+                    "account": {
+                        **{k: a.get(k) for k in ("id", "name", "kind", "balance", "balance_date")},
+                        "account_number": _mask(a.get("iban")),
+                    },
+                    "date": when,
+                }
+            )
 
         if name == "delete_balance":
             account = await self._account(args.get("account"))
@@ -652,8 +961,15 @@ class Server:
             date.fromisoformat(when)
             r = await self._api("DELETE", f"/api/accounts/{account['id']}/balance/{when}")
             a = r["account"]
-            return _dump({"deleted": {"account": a.get("name"), "date": when},
-                          "account": {**{k: a.get(k) for k in ("id", "name", "kind", "balance", "balance_date")}, "account_number": _mask(a.get("iban"))}})
+            return _dump(
+                {
+                    "deleted": {"account": a.get("name"), "date": when},
+                    "account": {
+                        **{k: a.get(k) for k in ("id", "name", "kind", "balance", "balance_date")},
+                        "account_number": _mask(a.get("iban")),
+                    },
+                }
+            )
 
         if name == "add_transaction":
             account = await self._account(args.get("account"))
@@ -667,9 +983,13 @@ class Server:
             if category is not None:
                 category = (await self._category(category))["name"]
             body = {
-                "account_id": account["id"], "date": args.get("date") or today.isoformat(),
-                "amount": abs(amount), "direction": "expense" if amount > 0 else "income",
-                "name": tx_name, "description": args.get("description") or "", "category": category,
+                "account_id": account["id"],
+                "date": args.get("date") or today.isoformat(),
+                "amount": abs(amount),
+                "direction": "expense" if amount > 0 else "income",
+                "name": tx_name,
+                "description": args.get("description") or "",
+                "category": category,
             }
             t = (await self._api("POST", "/api/bank-transactions", body=body))["transaction"]
             keys = ("id", "date", "amount", "name", "description", "category", "group_name", "type", "category_source", "account_id")
@@ -687,12 +1007,14 @@ class Server:
 
         if method == "initialize":
             asked = params.get("protocolVersion")
-            return ok({
-                "protocolVersion": asked if asked in PROTOCOLS else PROTOCOLS[0],
-                "capabilities": {"tools": {"listChanged": False}},
-                "serverInfo": {"name": "stock-tracker", "title": "stock-tracker and wealth-tracker", "version": "1.0"},
-                "instructions": instructions(self.scope),
-            })
+            return ok(
+                {
+                    "protocolVersion": asked if asked in PROTOCOLS else PROTOCOLS[0],
+                    "capabilities": {"tools": {"listChanged": False}},
+                    "serverInfo": {"name": "stock-tracker", "title": "stock-tracker and wealth-tracker", "version": "1.0"},
+                    "instructions": instructions(self.scope),
+                }
+            )
         if method == "ping":
             return ok({})
         if method == "tools/list":
@@ -735,6 +1057,7 @@ async def _serve(request: Request, server: Server) -> Response:
 @router.post("/api/mcp")
 async def mcp(request: Request):
     from app.core.accounts import accounts
+
     header = request.headers.get("authorization") or ""
     if not header.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Bearer agent token required", headers=OAuth(accounts).challenge("wealth"))

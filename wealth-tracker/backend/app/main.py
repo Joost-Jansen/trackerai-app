@@ -4,21 +4,46 @@ import threading
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from trackerai_accounts import install as install_accounts
-from trackerai_accounts.session import COOKIE as SESSION_COOKIE
 
 from app.core import accounts as shared_accounts
 from app.core import bootstrap, config, errors, price_refresh, startup
 from app.core.body_limit import BodyLimitMiddleware
+from app.routers import (
+    account,
+    accounts,
+    admin,
+    agent_tokens,
+    auth,
+    bank_transactions,
+    benchmarks,
+    budget,
+    calendar,
+    categories,
+    connections,
+    dashboard,
+    details,
+    dividend,
+    etf_analysis,
+    feedback,
+    holdings,
+    labelling,
+    mcp,
+    month_periods,
+    net_worth,
+    news,
+    onboarding,
+    preferences,
+    rebalancing,
+    returns,
+    spending,
+    uploads,
+)
+from domain import db, i18n
+from trackerai_accounts import install as install_accounts
+from trackerai_accounts.session import COOKIE as SESSION_COOKIE
 from trackerai_websec import log_redact
 from trackerai_websec.csrf import OriginCheckMiddleware
 from trackerai_websec.headers import SecurityHeadersMiddleware
-from domain import db, i18n
-from app.routers import (
-    account, admin, agent_tokens, mcp, auth, bank_transactions, benchmarks, budget, calendar, categories, dashboard, details,
-    dividend, etf_analysis, feedback, holdings, connections, labelling, month_periods, news, onboarding, rebalancing, accounts, returns,
-    spending, uploads, net_worth, preferences,
-)
 
 
 @contextlib.asynccontextmanager
@@ -43,6 +68,7 @@ async def lifespan(_: FastAPI):
     # The dry run of that move (WEALTH_MIGRATION_CHECK_URL): in the background, the API keeps serving from SQLite.
     check_url = os.environ.get("WEALTH_MIGRATION_CHECK_URL", "").strip()
     if check_url and not db.on_postgres():
+
         def check():
             from domain import migrate_pg
 
@@ -72,8 +98,10 @@ async def lifespan(_: FastAPI):
     if os.environ.get("ACCOUNTS_SWEEP", "on") != "off":
         threading.Thread(target=sweep, name="accounts-purge", daemon=True).start()
     if price_refresh.start():
-        print(f"[price-refresh] every {price_refresh.INTERVAL_SECONDS}s "
-              f"between {price_refresh.OPEN_HOUR:%H:%M} and {price_refresh.CLOSE_HOUR:%H:%M}")
+        print(
+            f"[price-refresh] every {price_refresh.INTERVAL_SECONDS}s "
+            f"between {price_refresh.OPEN_HOUR:%H:%M} and {price_refresh.CLOSE_HOUR:%H:%M}"
+        )
     try:
         yield
     finally:

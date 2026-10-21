@@ -12,7 +12,10 @@ export default function LanguageChoice({ save = false }: { save?: boolean }) {
     <Tabs
       variant="segmented"
       ariaLabel={tr("Language")}
-      items={[{ id: "nl", label: "Nederlands" }, { id: "en", label: "English" }]}
+      items={[
+        { id: "nl", label: "Nederlands" },
+        { id: "en", label: "English" },
+      ]}
       value={locale}
       onChange={(l) => setLocale(l === "en" ? "en" : "nl", { save })}
     />

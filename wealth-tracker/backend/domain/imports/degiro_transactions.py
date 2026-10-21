@@ -18,8 +18,8 @@ import math
 import os
 
 import pandas as pd
-from domain.imports.degiro_export import read_export, number
 
+from domain.imports.degiro_export import number, read_export
 
 # Logical field → list of candidate header prefixes (Dutch first, then English).
 # Matching is case-insensitive and prefix-based, so "Waarde EUR" / "Value EUR"
@@ -27,20 +27,20 @@ from domain.imports.degiro_export import read_export, number
 # must come before generic ones to avoid collisions (e.g. "Exchange rate"
 # must never be matched by the "Exchange" venue field).
 _COLUMN_CANDIDATES: dict[str, list[str]] = {
-    "isin":          ["ISIN"],
-    "product":       ["Product"],
-    "date":          ["Datum", "Date"],
-    "time":          ["Tijd", "Time"],
-    "exchange":      ["Beurs", "Reference Exchange"],
-    "venue":         ["Uitvoeringsplaats", "Execution Venue", "Venue"],
-    "quantity":      ["Aantal", "Quantity", "Number"],
-    "price":         ["Koers", "Price"],
-    "local_value":   ["Lokale waarde", "Local value"],
-    "value_eur":     ["Waarde", "Value"],
+    "isin": ["ISIN"],
+    "product": ["Product"],
+    "date": ["Datum", "Date"],
+    "time": ["Tijd", "Time"],
+    "exchange": ["Beurs", "Reference Exchange"],
+    "venue": ["Uitvoeringsplaats", "Execution Venue", "Venue"],
+    "quantity": ["Aantal", "Quantity", "Number"],
+    "price": ["Koers", "Price"],
+    "local_value": ["Lokale waarde", "Local value"],
+    "value_eur": ["Waarde", "Value"],
     "exchange_rate": ["Wisselkoers", "Exchange rate"],
-    "autofx":        ["AutoFX"],
+    "autofx": ["AutoFX"],
     "transaction_fee": ["Transactiekosten", "Transaction and/or", "Transaction"],
-    "total_eur":     ["Totaal", "Total"],
+    "total_eur": ["Totaal", "Total"],
 }
 
 
@@ -126,7 +126,7 @@ def parse_transactions(file_path: str, warnings: list[dict] | None = None) -> li
             # venue literally called "None" then looks like a real exchange.
             return s if s and s not in ("nan", "None") else None
 
-        price       = _float(COL["price"])
+        price = _float(COL["price"])
         local_value = _float(COL["local_value"])
 
         # Quantity: positive = BUY, negative = SELL.
@@ -146,12 +146,14 @@ def parse_transactions(file_path: str, warnings: list[dict] | None = None) -> li
             # Dropping the row keeps the rest of the file importable; the
             # caller reports it so a real trade cannot go missing in silence.
             if warnings is not None:
-                warnings.append({
-                    "date": _str(COL["date"]),
-                    "name": _str(COL["product"]),
-                    "isin": isin,
-                    "reason": "aantal ontbreekt",
-                })
+                warnings.append(
+                    {
+                        "date": _str(COL["date"]),
+                        "name": _str(COL["product"]),
+                        "isin": isin,
+                        "reason": "aantal ontbreekt",
+                    }
+                )
             continue
 
         transaction_type = "BUY" if qty_signed >= 0 else "SELL"
@@ -176,23 +178,25 @@ def parse_transactions(file_path: str, warnings: list[dict] | None = None) -> li
             # Keep only HH:MM
             time_fmt = str(time_raw)[:5]
 
-        transactions.append({
-            "order_ref":        order_ref,
-            "date":             date_iso,
-            "time":             time_fmt,
-            "name":             _str(COL["product"]),
-            "isin":             isin,
-            "exchange":         _str(COL["exchange"]),
-            "execution_venue":  _str(COL["venue"]),
-            "transaction_type": transaction_type,
-            "quantity":         quantity,
-            "price":            price,
-            "local_value":      local_value,
-            "value_eur":        _float(COL["value_eur"]),
-            "exchange_rate":    _float(COL["exchange_rate"]),
-            "autofx_cost":      _float(COL["autofx"]),
-            "transaction_fee":  _float(COL["transaction_fee"]),
-            "total_eur":        _float(COL["total_eur"]),
-        })
+        transactions.append(
+            {
+                "order_ref": order_ref,
+                "date": date_iso,
+                "time": time_fmt,
+                "name": _str(COL["product"]),
+                "isin": isin,
+                "exchange": _str(COL["exchange"]),
+                "execution_venue": _str(COL["venue"]),
+                "transaction_type": transaction_type,
+                "quantity": quantity,
+                "price": price,
+                "local_value": local_value,
+                "value_eur": _float(COL["value_eur"]),
+                "exchange_rate": _float(COL["exchange_rate"]),
+                "autofx_cost": _float(COL["autofx"]),
+                "transaction_fee": _float(COL["transaction_fee"]),
+                "total_eur": _float(COL["total_eur"]),
+            }
+        )
 
     return transactions

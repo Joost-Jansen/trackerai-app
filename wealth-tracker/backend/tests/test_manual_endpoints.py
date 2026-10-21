@@ -11,9 +11,15 @@ def _login(client, user="alice", pw="alicepw"):
 
 
 def _account(client, name="Contant", kind="cash"):
-    return client.post("/api/accounts", json={
-        "kind": kind, "provider": "manual", "name": name, "iban": None,
-    }).json()["account"]["id"]
+    return client.post(
+        "/api/accounts",
+        json={
+            "kind": kind,
+            "provider": "manual",
+            "name": name,
+            "iban": None,
+        },
+    ).json()["account"]["id"]
 
 
 def _add(client, **fields):
@@ -46,8 +52,7 @@ def test_without_a_category_the_rules_decide_it(client):
 
 def test_with_a_category_your_choice_wins(client):
     _login(client)
-    row = _add(client, account_id=_account(client), name="ALBERT HEIJN",
-                    category="Cadeaus & goede doelen").json()["transaction"]
+    row = _add(client, account_id=_account(client), name="ALBERT HEIJN", category="Cadeaus & goede doelen").json()["transaction"]
     assert row["category"] == "Cadeaus & goede doelen"
     assert row["category_auto"] == "Supermarkt", "wat de regels vonden staat erbij"
 
@@ -85,11 +90,9 @@ def test_delete(client):
 
 def test_an_imported_transaction_cannot_be_deleted(client):
     _login(client)
-    header = ('"Date","Name / Description","Account","Counterparty","Code",'
-           '"Debit/credit","Amount (EUR)","Transaction type","Notifications"')
+    header = '"Date","Name / Description","Account","Counterparty","Code","Debit/credit","Amount (EUR)","Transaction type","Notifications"'
     row = '"20260219","WINKEL","NL00INGB0000000001","","BA","Debit","5,00","Payment terminal","x"'
-    client.post("/api/accounts/import",
-                files={"file": ("e.csv", f"{header}\n{row}\n".encode(), "text/csv")})
+    client.post("/api/accounts/import", files={"file": ("e.csv", f"{header}\n{row}\n".encode(), "text/csv")})
     tid = client.get("/api/bank-transactions").json()["transactions"][0]["id"]
     resp = client.delete(f"/api/bank-transactions/{tid}")
     assert resp.status_code == 400

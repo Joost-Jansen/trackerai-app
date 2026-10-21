@@ -14,7 +14,7 @@ ADMIN_PASSWORD after the first start; only the hash is kept.
 
 import os
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import yaml
 
@@ -49,7 +49,7 @@ def first_account() -> str | None:
                     "name": name,
                     "email": f"{name}@local",
                     "password": security.hash_password(password),
-                    "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                    "created_at": datetime.now(UTC).replace(microsecond=0).isoformat(),
                 },
             },
         },

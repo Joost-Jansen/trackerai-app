@@ -15,8 +15,14 @@ export default function EnergySplit({ split }: { split: NutritionDay["energy_spl
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-[12px] text-ink-muted">{t.day.split}</span>
-      <div role="img" aria-label={t.day.splitAria(f.list(parts.map(label)))} className="flex h-2 overflow-hidden rounded-full bg-[var(--surface-inset)]">
-        {parts.map((k) => <span key={k} style={{ width: `${split[k] * 100}%`, background: MACRO_COLOUR[k] }} />)}
+      <div
+        role="img"
+        aria-label={t.day.splitAria(f.list(parts.map(label)))}
+        className="flex h-2 overflow-hidden rounded-full bg-[var(--surface-inset)]"
+      >
+        {parts.map((k) => (
+          <span key={k} style={{ width: `${split[k] * 100}%`, background: MACRO_COLOUR[k] }} />
+        ))}
       </div>
       <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11.5px] tabular-nums text-ink-muted">
         {parts.map((k) => (

@@ -19,7 +19,6 @@ day the money actually left your account.
 
 from domain.money.bank_providers import base
 
-
 PROVIDER = "bunq"
 
 COLUMNS = ("Date", "Interest Date", "Amount", "Account", "Counterparty", "Name", "Description")

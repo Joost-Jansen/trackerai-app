@@ -1,4 +1,5 @@
 """Shared DeGiro Excel/CSV input; format detection uses content, not filename."""
+
 import csv
 import io
 import math

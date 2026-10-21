@@ -52,7 +52,14 @@ export default function ActivityMap({ track, cursor, height = 360 }: { track: Tr
       const end = track.latlng[track.latlng.length - 1];
       Lf.circleMarker(end, { radius: 5, color: casing, weight: 2, fillColor: ink, fillOpacity: 1 }).bindTooltip(t.common.finish).addTo(m);
       Lf.circleMarker(start, { radius: 5, color: ink, weight: 2, fillColor: casing, fillOpacity: 1 }).bindTooltip(t.common.start).addTo(m);
-      marker.current = Lf.circleMarker(start, { radius: 6, color: casing, weight: 2, fillColor: cssVar("--brand-600", "#3e7258"), fillOpacity: 0, opacity: 0 }).addTo(m);
+      marker.current = Lf.circleMarker(start, {
+        radius: 6,
+        color: casing,
+        weight: 2,
+        fillColor: cssVar("--brand-600", "#3e7258"),
+        fillOpacity: 0,
+        opacity: 0,
+      }).addTo(m);
       m.fitBounds(Lf.latLngBounds(track.latlng), { padding: [16, 16] });
     })();
     return () => {

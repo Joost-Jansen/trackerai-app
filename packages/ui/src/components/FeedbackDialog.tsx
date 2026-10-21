@@ -42,7 +42,8 @@ function context(language: string) {
     site: location.host,
     browser: navigator.userAgent.slice(0, 300),
     screen: `${window.innerWidth}x${window.innerHeight}`,
-    theme: document.documentElement.dataset.theme ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark (system)" : "light (system)"),
+    theme:
+      document.documentElement.dataset.theme ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark (system)" : "light (system)"),
     errors: recentErrors(),
   };
 }
@@ -121,11 +122,17 @@ export default function FeedbackDialog({
       description={done ? undefined : tr("Something broken, or an idea? The admin reads everything.")}
       actions={
         done ? (
-          <Button variant="primary" onClick={close}>{tr("Close")}</Button>
+          <Button variant="primary" onClick={close}>
+            {tr("Close")}
+          </Button>
         ) : (
           <>
-            <Button variant="ghost" disabled={busy} onClick={close}>{tr("Cancel")}</Button>
-            <Button variant="primary" disabled={busy || !message.trim()} onClick={send}>{busy ? tr("Sending…") : tr("Send")}</Button>
+            <Button variant="ghost" disabled={busy} onClick={close}>
+              {tr("Cancel")}
+            </Button>
+            <Button variant="primary" disabled={busy || !message.trim()} onClick={send}>
+              {busy ? tr("Sending…") : tr("Send")}
+            </Button>
           </>
         )
       }
@@ -136,7 +143,14 @@ export default function FeedbackDialog({
         <div className="flex flex-col gap-3">
           <div className="flex gap-1.5" role="radiogroup" aria-label={tr("Kind of feedback")}>
             {(["bug", "idea"] as Kind[]).map((k) => (
-              <Button key={k} size="sm" variant={kind === k ? "primary" : "ghost"} role="radio" aria-checked={kind === k} onClick={() => setKind(k)}>
+              <Button
+                key={k}
+                size="sm"
+                variant={kind === k ? "primary" : "ghost"}
+                role="radio"
+                aria-checked={kind === k}
+                onClick={() => setKind(k)}
+              >
                 {KIND[k]}
               </Button>
             ))}
@@ -145,7 +159,11 @@ export default function FeedbackDialog({
             {tr("Your message")}
             <textarea
               className="ds-input h-32 py-2 text-[13px] font-normal text-ink"
-              placeholder={kind === "bug" ? tr("What did you do, what did you expect, and what happened instead?") : tr("What would you like to be able to do, and why?")}
+              placeholder={
+                kind === "bug"
+                  ? tr("What did you do, what did you expect, and what happened instead?")
+                  : tr("What would you like to be able to do, and why?")
+              }
               value={message}
               maxLength={5000}
               onChange={(e) => setMessage(e.target.value)}
@@ -169,17 +187,29 @@ export default function FeedbackDialog({
             <div className="flex items-start gap-3">
               <img src={shot} alt={tr("Screenshot")} className="h-24 max-w-[45%] rounded border border-border object-cover object-top" />
               <div className="flex flex-col items-start gap-1.5">
-                <p className="text-[12px] text-ink-muted">{tr("A screenshot of this page is included. Remove it if there's something on it you'd rather not share.")}</p>
-                <Button size="sm" variant="ghost" onClick={() => setShot(null)}>{tr("Remove screenshot")}</Button>
+                <p className="text-[12px] text-ink-muted">
+                  {tr("A screenshot of this page is included. Remove it if there's something on it you'd rather not share.")}
+                </p>
+                <Button size="sm" variant="ghost" onClick={() => setShot(null)}>
+                  {tr("Remove screenshot")}
+                </Button>
               </div>
             </div>
           ) : (
             <div>
-              <Button size="sm" variant="ghost" onClick={() => file.current?.click()}>{tr("Add screenshot")}</Button>
+              <Button size="sm" variant="ghost" onClick={() => file.current?.click()}>
+                {tr("Add screenshot")}
+              </Button>
             </div>
           )}
-          <p className="text-[12px] text-ink-muted">{tr("The page, your browser, screen size and recent error messages are included. That makes it easier to fix.")}</p>
-          {error && <p className="text-[12.5px]" style={{ color: "var(--text-loss)" }}>{error}</p>}
+          <p className="text-[12px] text-ink-muted">
+            {tr("The page, your browser, screen size and recent error messages are included. That makes it easier to fix.")}
+          </p>
+          {error && (
+            <p className="text-[12.5px]" style={{ color: "var(--text-loss)" }}>
+              {error}
+            </p>
+          )}
         </div>
       )}
     </Dialog>

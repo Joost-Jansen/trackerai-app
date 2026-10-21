@@ -7,8 +7,7 @@ loop the user makes: create a category, add a rule to it, and see the history
 get labelled after all — without a manual judgement getting lost.
 """
 
-ING_HEADER = ('"Date","Name / Description","Account","Counterparty","Code",'
-           '"Debit/credit","Amount (EUR)","Transaction type","Notifications"')
+ING_HEADER = '"Date","Name / Description","Account","Counterparty","Code","Debit/credit","Amount (EUR)","Transaction type","Notifications"'
 
 
 def _login(client, user="alice", pw="alicepw"):
@@ -18,13 +17,10 @@ def _login(client, user="alice", pw="alicepw"):
 def _import(client, *names: str):
     """Puts a few bank rows in place through the normal import route."""
     rows = [
-        f'"2026021{i}","{name}","NL00INGB0000000001","","BA","Debit","10,00",'
-        f'"Payment terminal","Bon {i}"'
-        for i, name in enumerate(names)
+        f'"2026021{i}","{name}","NL00INGB0000000001","","BA","Debit","10,00","Payment terminal","Bon {i}"' for i, name in enumerate(names)
     ]
     content = ("\n".join([ING_HEADER, *rows]) + "\n").encode("utf-8")
-    resp = client.post("/api/accounts/import",
-                       files={"file": ("export.csv", content, "text/csv")})
+    resp = client.post("/api/accounts/import", files={"file": ("export.csv", content, "text/csv")})
     assert resp.status_code == 200, resp.text
 
 
@@ -36,6 +32,7 @@ def _transactions(client):
 # Auth
 # ---------------------------------------------------------------------------
 
+
 def test_categories_require_a_session(client):
     assert client.get("/api/categories").status_code == 401
 
@@ -43,6 +40,7 @@ def test_categories_require_a_session(client):
 # ---------------------------------------------------------------------------
 # The taxonomy
 # ---------------------------------------------------------------------------
+
 
 def test_the_default_taxonomy_is_ready_at_once(client):
     """A new user does not have to type 39 categories first."""
@@ -55,23 +53,20 @@ def test_the_default_taxonomy_is_ready_at_once(client):
 
 def test_create_a_category(client):
     _login(client)
-    resp = client.post("/api/categories",
-                       json={"group_name": "Wonen", "name": "Oppas", "type": "EXPENSE"})
+    resp = client.post("/api/categories", json={"group_name": "Wonen", "name": "Oppas", "type": "EXPENSE"})
     assert resp.status_code == 201, resp.text
     assert "Oppas" in {c["name"] for c in client.get("/api/categories").json()["categories"]}
 
 
 def test_a_category_with_an_unknown_type_gives_400(client):
     _login(client)
-    resp = client.post("/api/categories",
-                       json={"group_name": "Wonen", "name": "Oppas", "type": "ONZIN"})
+    resp = client.post("/api/categories", json={"group_name": "Wonen", "name": "Oppas", "type": "ONZIN"})
     assert resp.status_code == 400
 
 
 def test_a_duplicate_category_name_gives_409(client):
     _login(client)
-    resp = client.post("/api/categories",
-                       json={"group_name": "Boodschappen", "name": "Supermarkt", "type": "EXPENSE"})
+    resp = client.post("/api/categories", json={"group_name": "Boodschappen", "name": "Supermarkt", "type": "EXPENSE"})
     assert resp.status_code == 409
 
 
@@ -79,12 +74,19 @@ def test_a_duplicate_category_name_gives_409(client):
 # Rules
 # ---------------------------------------------------------------------------
 
+
 def test_create_a_rule_and_see_it_back(client):
     _login(client)
-    resp = client.post("/api/categories/rules", json={
-        "priority": 25, "field": "N", "pattern": "OPPASDIENST",
-        "direction": "", "category": "Huis & onderhoud",
-    })
+    resp = client.post(
+        "/api/categories/rules",
+        json={
+            "priority": 25,
+            "field": "N",
+            "pattern": "OPPASDIENST",
+            "direction": "",
+            "category": "Huis & onderhoud",
+        },
+    )
     assert resp.status_code == 201, resp.text
     patterns = {r["pattern"] for r in client.get("/api/categories").json()["rules"]}
     assert "OPPASDIENST" in patterns
@@ -93,27 +95,47 @@ def test_create_a_rule_and_see_it_back(client):
 def test_a_broken_pattern_gives_400_and_not_only_when_relabelling(client):
     """Otherwise it falls over when relabelling, and then you do not know which of the 59 it was."""
     _login(client)
-    resp = client.post("/api/categories/rules", json={
-        "priority": 25, "field": "N", "pattern": "OPPAS(", "direction": "", "category": "Huur",
-    })
+    resp = client.post(
+        "/api/categories/rules",
+        json={
+            "priority": 25,
+            "field": "N",
+            "pattern": "OPPAS(",
+            "direction": "",
+            "category": "Huur",
+        },
+    )
     assert resp.status_code == 400
     assert "pattern" in resp.json()["detail"].lower()
 
 
 def test_an_unknown_field_gives_400(client):
     _login(client)
-    resp = client.post("/api/categories/rules", json={
-        "priority": 25, "field": "X", "pattern": "OPPAS", "direction": "", "category": "Huur",
-    })
+    resp = client.post(
+        "/api/categories/rules",
+        json={
+            "priority": 25,
+            "field": "X",
+            "pattern": "OPPAS",
+            "direction": "",
+            "category": "Huur",
+        },
+    )
     assert resp.status_code == 400
 
 
 def test_delete_a_rule(client):
     _login(client)
-    rule_id = client.post("/api/categories/rules", json={
-        "priority": 25, "field": "N", "pattern": "OPPASDIENST",
-        "direction": "", "category": "Huur",
-    }).json()["rule"]["id"]
+    rule_id = client.post(
+        "/api/categories/rules",
+        json={
+            "priority": 25,
+            "field": "N",
+            "pattern": "OPPASDIENST",
+            "direction": "",
+            "category": "Huur",
+        },
+    ).json()["rule"]["id"]
 
     assert client.delete(f"/api/categories/rules/{rule_id}").status_code == 200
     assert client.delete(f"/api/categories/rules/{rule_id}").status_code == 404
@@ -122,6 +144,7 @@ def test_delete_a_rule(client):
 # ---------------------------------------------------------------------------
 # The loop: import, relabel, correct, make a rule
 # ---------------------------------------------------------------------------
+
 
 def test_relabelling_labels_the_imported_rows(client):
     """An import already labels by itself (see test_bankimport_endpoint), so "Label
@@ -153,8 +176,7 @@ def test_a_manual_correction_wins_and_keeps_winning(client):
     client.post("/api/categories/relabel")
 
     transaction_id = _transactions(client)[0]["id"]
-    resp = client.put(f"/api/bank-transactions/{transaction_id}/category",
-                      json={"category": "Cadeaus & goede doelen"})
+    resp = client.put(f"/api/bank-transactions/{transaction_id}/category", json={"category": "Cadeaus & goede doelen"})
     assert resp.status_code == 200, resp.text
 
     client.post("/api/categories/relabel?everything=true")
@@ -170,8 +192,7 @@ def test_undoing_a_correction_restores_the_automatic_category(client):
     client.post("/api/categories/relabel")
     transaction_id = _transactions(client)[0]["id"]
 
-    client.put(f"/api/bank-transactions/{transaction_id}/category",
-               json={"category": "Cadeaus & goede doelen"})
+    client.put(f"/api/bank-transactions/{transaction_id}/category", json={"category": "Cadeaus & goede doelen"})
     client.put(f"/api/bank-transactions/{transaction_id}/category", json={"category": None})
 
     assert _transactions(client)[0]["category"] == "Supermarkt"
@@ -185,9 +206,16 @@ def test_a_new_category_plus_rule_labels_the_history_too(client):
     assert _transactions(client)[0]["category"] == "Onbekend"
 
     client.post("/api/categories", json={"group_name": "Wonen", "name": "Oppas", "type": "EXPENSE"})
-    client.post("/api/categories/rules", json={
-        "priority": 25, "field": "N", "pattern": "OPPASDIENST", "direction": "", "category": "Oppas",
-    })
+    client.post(
+        "/api/categories/rules",
+        json={
+            "priority": 25,
+            "field": "N",
+            "pattern": "OPPASDIENST",
+            "direction": "",
+            "category": "Oppas",
+        },
+    )
     assert client.post("/api/categories/relabel?everything=true").json()["labelled"] == 1
 
     row = _transactions(client)[0]
@@ -201,20 +229,19 @@ def test_setting_an_unknown_category_gives_400(client):
     _import(client, "ALBERT HEIJN 1234")
     transaction_id = _transactions(client)[0]["id"]
 
-    resp = client.put(f"/api/bank-transactions/{transaction_id}/category",
-                      json={"category": "Bestaat Niet"})
+    resp = client.put(f"/api/bank-transactions/{transaction_id}/category", json={"category": "Bestaat Niet"})
     assert resp.status_code == 400
 
 
 def test_setting_a_category_on_an_unknown_transaction_gives_404(client):
     _login(client)
-    assert client.put("/api/bank-transactions/999/category",
-                      json={"category": "Supermarkt"}).status_code == 404
+    assert client.put("/api/bank-transactions/999/category", json={"category": "Supermarkt"}).status_code == 404
 
 
 # ---------------------------------------------------------------------------
 # Separation between users
 # ---------------------------------------------------------------------------
+
 
 def test_alices_rules_do_not_apply_to_bob(client):
     _login(client, "alice", "alicepw")
@@ -256,6 +283,7 @@ def test_a_credit_card_repayment_can_count_as_spending(client):
 
 def test_categories_carry_their_role_on_net_worth():
     from domain.money import categorization as c
+
     assert c.role_of("Supermarkt", "EXPENSE") == "spending"
     assert c.role_of("Salaris", "INCOME") == "income"
     assert c.role_of(c.INVESTMENT_CATEGORY, "INTERNAL") == "investments"

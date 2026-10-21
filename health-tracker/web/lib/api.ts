@@ -7,8 +7,20 @@ export { ApiError };
 // Example data (api/example.py): what is personal never carries it: who you are, account, connections, tokens,
 // feedback, admin, and the onboarding state that drives the walk itself. Switch it with `setExampleData`
 // (lib/exampleData.ts); writes during it get 403 `example_read_only`.
-const example = createExampleData(["/api/onboarding", "/api/me", "/api/account", "/api/auth", "/api/login", "/api/logout",
-  "/api/register", "/api/connections", "/api/agent-tokens", "/api/feedback", "/api/admin", "/api/mcp"]);
+const example = createExampleData([
+  "/api/onboarding",
+  "/api/me",
+  "/api/account",
+  "/api/auth",
+  "/api/login",
+  "/api/logout",
+  "/api/register",
+  "/api/connections",
+  "/api/agent-tokens",
+  "/api/feedback",
+  "/api/admin",
+  "/api/mcp",
+]);
 
 export const setExampleData = example.set;
 export const exampleDataOn = example.isOn;

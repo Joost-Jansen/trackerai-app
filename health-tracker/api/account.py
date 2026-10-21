@@ -14,8 +14,8 @@ import os
 import re
 import tempfile
 import zipfile
-from datetime import datetime, timezone
-from typing import Callable
+from collections.abc import Callable
+from datetime import UTC, datetime, timezone
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import FileResponse
@@ -42,7 +42,7 @@ feedback/           screenshots sent with feedback
 def write_export(s: db.Scope, username: str, path: str) -> None:
     """The zip at `path`, written table by table and file by file (a large account does not sit in memory)."""
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("README.txt", README.format(username=username, when=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")))
+        z.writestr("README.txt", README.format(username=username, when=datetime.now(UTC).strftime("%Y-%m-%d %H:%M")))
         for name, rows in db.export_tables(s):
             with z.open(f"{name}.json", "w") as f:
                 f.write(b"[")
@@ -95,8 +95,13 @@ def make_router(current_user: Callable) -> APIRouter:
             os.unlink(path)
             raise
         safe = re.sub(r"[^a-z0-9._-]", "_", u.username)
-        name = f"health-tracker-{safe}-{datetime.now(timezone.utc).date().isoformat()}.zip"
-        return FileResponse(path, media_type="application/zip", filename=name, background=BackgroundTask(os.unlink, path),
-                            headers={"Cache-Control": "no-store"})
+        name = f"health-tracker-{safe}-{datetime.now(UTC).date().isoformat()}.zip"
+        return FileResponse(
+            path,
+            media_type="application/zip",
+            filename=name,
+            background=BackgroundTask(os.unlink, path),
+            headers={"Cache-Control": "no-store"},
+        )
 
     return r

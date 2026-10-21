@@ -54,6 +54,7 @@ def test_personal_routes_ignore_the_header(client):
 
 def test_agents_never_get_example_data():
     from starlette.requests import Request
+
     from app.deps import CurrentUser, example_mode
 
     def req(path):

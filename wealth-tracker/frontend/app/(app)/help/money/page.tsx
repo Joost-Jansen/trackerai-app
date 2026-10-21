@@ -36,7 +36,11 @@ const TYPE_EXPLANATION: Record<CategoryType, string> = {
 };
 
 function A({ href, children }: { href: string; children: React.ReactNode }) {
-  return <Link href={href} className="underline underline-offset-4">{children}</Link>;
+  return (
+    <Link href={href} className="underline underline-offset-4">
+      {children}
+    </Link>
+  );
 }
 
 function TextBlock({ children }: { children: React.ReactNode }) {
@@ -50,14 +54,16 @@ function H({ children }: { children: React.ReactNode }) {
 function Step({ done, title, children }: { done: boolean | null; title: string; children: React.ReactNode }) {
   return (
     <li className="flex gap-3 py-3" style={{ borderTop: "1px solid var(--rule)" }}>
-      <span aria-hidden className="num flex h-6 w-6 flex-none items-center justify-center rounded-full text-xs font-semibold"
-        style={{ background: done ? "var(--text-gain)" : "var(--surface-inset)", color: done ? "var(--surface-page)" : undefined }}>
+      <span
+        aria-hidden
+        className="num flex h-6 w-6 flex-none items-center justify-center rounded-full text-xs font-semibold"
+        style={{ background: done ? "var(--text-gain)" : "var(--surface-inset)", color: done ? "var(--surface-page)" : undefined }}
+      >
         {done ? "✓" : "·"}
       </span>
       <div className="flex min-w-0 flex-col gap-1 text-[13px] leading-relaxed">
         <p className="font-semibold">
-          {title}{" "}
-          {done !== null && <Tag tone={done ? "gain" : "neutral"}>{done ? "completed" : tr("to do")}</Tag>}
+          {title} {done !== null && <Tag tone={done ? "gain" : "neutral"}>{done ? "completed" : tr("to do")}</Tag>}
         </p>
         {children}
       </div>
@@ -84,17 +90,52 @@ function GettingStarted() {
   return (
     <ol className="flex flex-col">
       <Step done={hasTransactions === null ? null : hasTransactions || !!linked} title={tr("1. Bring in your transactions")}>
-        <p>{trx("Connect your bank at {0}, or upload an export via {1}, top right. The app creates the accounts itself.{2}", <A href="/accounts/connect">{tr("Accounts → Bank connection")}</A>, <b>{tr("Update")}</b>, hasTransactions && <>{" "}{trx("There {0} already {1} transactions.", date_range.data!.total === 1 ? tr("is") : tr("are"), <span className="num">{date_range.data!.total}</span>)}</>)}</p>
+        <p>
+          {trx(
+            "Connect your bank at {0}, or upload an export via {1}, top right. The app creates the accounts itself.{2}",
+            <A href="/accounts/connect">{tr("Accounts → Bank connection")}</A>,
+            <b>{tr("Update")}</b>,
+            hasTransactions && (
+              <>
+                {" "}
+                {trx(
+                  "There {0} already {1} transactions.",
+                  date_range.data!.total === 1 ? tr("is") : tr("are"),
+                  <span className="num">{date_range.data!.total}</span>,
+                )}
+              </>
+            ),
+          )}
+        </p>
       </Step>
-      <Step done={hasAccount === null ? null : hasAccount && withoutBalance.length === 0}
-        title={tr("2. Give each account one balance")}>
-        <p>{trx("One balance per account is enough: today's, at {0} → Update balance. The app calculates the rest back from your transactions. A connected bank and an ING export with semicolons provide the balance themselves.{1}", <A href="/accounts">{tr("Accounts")}</A>, withoutBalance.length > 0 && <>{" "}{trx("Still without a balance: {0}.", withoutBalance.map((r) => r.name).join(", "))}</>)}</p>
+      <Step done={hasAccount === null ? null : hasAccount && withoutBalance.length === 0} title={tr("2. Give each account one balance")}>
+        <p>
+          {trx(
+            "One balance per account is enough: today's, at {0} → Update balance. The app calculates the rest back from your transactions. A connected bank and an ING export with semicolons provide the balance themselves.{1}",
+            <A href="/accounts">{tr("Accounts")}</A>,
+            withoutBalance.length > 0 && <> {trx("Still without a balance: {0}.", withoutBalance.map((r) => r.name).join(", "))}</>,
+          )}
+        </p>
       </Step>
       <Step done={null} title={tr("3. Label what the app doesn't recognise")}>
-        <p>{trx("Most transactions get a category by themselves. What remains is at {0}: choose a category, and it applies to that counterparty from then on. See {1}.", <A href="/spending/labelling">{tr("Spending → To label")}</A>, <a href="#labelen" className="underline underline-offset-4">{tr("how labelling works")}</a>)}</p>
+        <p>
+          {trx(
+            "Most transactions get a category by themselves. What remains is at {0}: choose a category, and it applies to that counterparty from then on. See {1}.",
+            <A href="/spending/labelling">{tr("Spending → To label")}</A>,
+            <a href="#labelen" className="underline underline-offset-4">
+              {tr("how labelling works")}
+            </a>,
+          )}
+        </p>
       </Step>
       <Step done={null} title={tr("4. Look at your figures")}>
-        <p>{trx("{0} shows what you have and how it grows, {1} where your money goes. There you also choose whether a month runs from the 1st, or from salary to salary.", <A href="/net-worth">{tr("Net worth")}</A>, <A href="/spending">{tr("Spending")}</A>)}</p>
+        <p>
+          {trx(
+            "{0} shows what you have and how it grows, {1} where your money goes. There you also choose whether a month runs from the 1st, or from salary to salary.",
+            <A href="/net-worth">{tr("Net worth")}</A>,
+            <A href="/spending">{tr("Spending")}</A>,
+          )}
+        </p>
       </Step>
     </ol>
   );
@@ -119,8 +160,11 @@ function AllCategories() {
           <h4 className="pb-1 text-xs uppercase tracking-wide text-ink-muted">{group_name}</h4>
           <ul className="flex flex-col">
             {items.map((c) => (
-              <li key={c.id} className="flex items-center justify-between gap-2 py-1 text-[12.5px]"
-                style={{ borderTop: "1px solid var(--rule)" }}>
+              <li
+                key={c.id}
+                className="flex items-center justify-between gap-2 py-1 text-[12.5px]"
+                style={{ borderTop: "1px solid var(--rule)" }}
+              >
                 <span>{c.name}</span>
                 <span className="flex items-center gap-2">
                   <span className="num text-xs text-ink-muted">{trx("{0} rules", perRule[c.name] ?? 0)}</span>
@@ -150,21 +194,33 @@ const SPECIAL: { name: string; when: React.ReactNode; totals: string; net_worth:
   },
   {
     name: "Naar beleggen",
-    when: tr("Deposits to and withdrawals from your broker, such as DeGiro. With the DeGiro account statement also recognised by amount and date."),
+    when: tr(
+      "Deposits to and withdrawals from your broker, such as DeGiro. With the DeGiro account statement also recognised by amount and date.",
+    ),
     totals: tr("Doesn't count."),
     net_worth: tr("Moves from bank to investments."),
   },
   {
     name: "Creditcard aflossing en Contant opnemen",
     when: tr("The repayment of your own credit card, money from the cash machine."),
-    totals: tr("Doesn't count. Your card's purchases aren't in the app: move Creditcard aflossing to “Saved, as spending” under Categories, and the monthly bill counts as spending."),
+    totals: tr(
+      "Doesn't count. Your card's purchases aren't in the app: move Creditcard aflossing to “Saved, as spending” under Categories, and the monthly bill counts as spending.",
+    ),
     net_worth: tr("Cash counts if you have a Cash account with a balance."),
   },
   {
     name: "Niet meetellen",
-    when: <>{tr("Other people's money that passes through your hands: friends pay you their share of a holiday you book, or you hold money for someone.")}</>,
+    when: (
+      <>
+        {tr(
+          "Other people's money that passes through your hands: friends pay you their share of a holiday you book, or you hold money for someone.",
+        )}
+      </>
+    ),
     totals: tr("Doesn't count."),
-    net_worth: tr("What you received and haven't paid on yet doesn't count as your net worth. If you paid more than you received, that difference is your own share: an ordinary expense."),
+    net_worth: tr(
+      "What you received and haven't paid on yet doesn't count as your net worth. If you paid more than you received, that difference is your own share: an ordinary expense.",
+    ),
   },
   {
     name: "Giften & schenkingen",
@@ -191,10 +247,18 @@ export default function ExplanationPage() {
     <div className="flex flex-col gap-8">
       <Section label={tr("How Money works")}>
         <TextBlock>
-          <p>{trx("Money is all your money that isn't shares: your bank and savings accounts, cash, debts and brokers outside this app. Together with your portfolio that becomes your {0}; your transactions tell at {1} where it went.", <A href="/net-worth">{tr("net worth")}</A>, <A href="/spending">{tr("Spending")}</A>)}</p>
+          <p>
+            {trx(
+              "Money is all your money that isn't shares: your bank and savings accounts, cash, debts and brokers outside this app. Together with your portfolio that becomes your {0}; your transactions tell at {1} where it went.",
+              <A href="/net-worth">{tr("net worth")}</A>,
+              <A href="/spending">{tr("Spending")}</A>,
+            )}
+          </p>
           <nav aria-label={tr("Contents")} className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
             {CONTENT.map(([id, title]) => (
-              <a key={id} href={`#${id}`} className="underline underline-offset-4">{title}</a>
+              <a key={id} href={`#${id}`} className="underline underline-offset-4">
+                {title}
+              </a>
             ))}
           </nav>
         </TextBlock>
@@ -210,17 +274,48 @@ export default function ExplanationPage() {
         <Section label={tr("Getting your data in")}>
           <TextBlock>
             <H>{tr("Connect your bank")}</H>
-            <p>{trx("Via Enable Banking, a licensed party under the European payment services directive (PSD2); the connection can only read. After that new transactions and your balance come in by themselves when you open the app. The step-by-step plan below, with the addresses to copy, is also at {0}.", <A href="/accounts/connect">{tr("Accounts → Bank connection")}</A>)}</p>
-            <div className="max-w-[440px]"><StepPlan routes={[{ id: "connect", label: tr("Connect"), steps: CONNECT_BANK }]} /></div>
+            <p>
+              {trx(
+                "Via Enable Banking, a licensed party under the European payment services directive (PSD2); the connection can only read. After that new transactions and your balance come in by themselves when you open the app. The step-by-step plan below, with the addresses to copy, is also at {0}.",
+                <A href="/accounts/connect">{tr("Accounts → Bank connection")}</A>,
+              )}
+            </p>
+            <div className="max-w-[440px]">
+              <StepPlan routes={[{ id: "connect", label: tr("Connect"), steps: CONNECT_BANK }]} />
+            </div>
 
             <H>{tr("Upload an export")}</H>
-            <p>{tr("For a savings account you can't connect, for a bank without a connection, or to go further back in time. The same step-by-step plan is behind “How do I export this?” in Update.")}</p>
-            <div className="max-w-[440px]"><StepPlan routes={EXPORT_ROUTES} chooseLabel="Mijn bank:" /></div>
-            <p>{trx("{0} is in {1}. {2}: add an account at {3} and enter the balance now and then.", <b>DeGiro</b>, <A href="/help/portfolio#importing">{tr("Help → Portfolio")}</A>, <b>{tr("Another bank")}</b>, <A href="/accounts">{tr("Accounts")}</A>)}</p>
-            <p>{trx("{0} Uploading again is safe, also next to a connection: a booking that's already there (even with a different description) is recognised by account, date and amount and skipped. Two identical coffees on one day stay two.", <b>{tr("Nothing twice.")}</b>)}</p>
+            <p>
+              {tr(
+                "For a savings account you can't connect, for a bank without a connection, or to go further back in time. The same step-by-step plan is behind “How do I export this?” in Update.",
+              )}
+            </p>
+            <div className="max-w-[440px]">
+              <StepPlan routes={EXPORT_ROUTES} chooseLabel="Mijn bank:" />
+            </div>
+            <p>
+              {trx(
+                "{0} is in {1}. {2}: add an account at {3} and enter the balance now and then.",
+                <b>DeGiro</b>,
+                <A href="/help/portfolio#importing">{tr("Help → Portfolio")}</A>,
+                <b>{tr("Another bank")}</b>,
+                <A href="/accounts">{tr("Accounts")}</A>,
+              )}
+            </p>
+            <p>
+              {trx(
+                "{0} Uploading again is safe, also next to a connection: a booking that's already there (even with a different description) is recognised by account, date and amount and skipped. Two identical coffees on one day stay two.",
+                <b>{tr("Nothing twice.")}</b>,
+              )}
+            </p>
 
             <H>{tr("Accounts by hand")}</H>
-            <p>{trx("Cash, a broker outside this app (Coinbase), a loan or student debt: add them at {0} with the matching kind, and enter a balance. A debt is always shown as minus, even if you type it as positive.", <A href="/accounts">{tr("Accounts")}</A>)}</p>
+            <p>
+              {trx(
+                "Cash, a broker outside this app (Coinbase), a loan or student debt: add them at {0} with the matching kind, and enter a balance. A debt is always shown as minus, even if you type it as positive.",
+                <A href="/accounts">{tr("Accounts")}</A>,
+              )}
+            </p>
           </TextBlock>
         </Section>
       </section>
@@ -228,11 +323,33 @@ export default function ExplanationPage() {
       <section id="balances" className="scroll-mt-20">
         <Section label={tr("Balances and net worth")}>
           <TextBlock>
-            <p>{trx("{0} With transactions the app calculates back and forward from your latest balance, day by day. Without transactions it draws a straight line between your measurements. An account without a single balance doesn't count in your net worth (unknown is not zero) and Net worth says which ones those are.", <b>{tr("One balance is enough.")}</b>)}</p>
-            <p>{trx("{0} After your last upload the balance of a savings account follows the transfers on your current account that mention it, via its IBAN or account number. Interest the bank credits doesn't show that way; a new upload or an entered balance puts it exactly right again.", <b>{tr("Savings accounts follow along.")}</b>)}</p>
-            <p>{trx("{0} An earlier balance should come out exactly on what the app calculates back from your latest balance. If it doesn't, it's shown at the top of Accounts, with the likely cause and a button that fixes it. Usually it's a card payment still on its way: your bank takes it off your balance immediately, but it only shows in your transactions once it's booked. The app corrects a balance from the bank connection itself; a balance you entered yourself it leaves to you.", <b>{tr("A balance that doesn't match.")}</b>)}</p>
-            <p>{trx("{0} is investments plus bank and cash, minus your debts. Investments is your portfolio from this app plus the cash balance at DeGiro and other brokers.", <b>{tr("Net worth")}</b>)}</p>
-          <div className="max-w-[440px]"><StepContent step={ENTER_BALANCE} /></div>
+            <p>
+              {trx(
+                "{0} With transactions the app calculates back and forward from your latest balance, day by day. Without transactions it draws a straight line between your measurements. An account without a single balance doesn't count in your net worth (unknown is not zero) and Net worth says which ones those are.",
+                <b>{tr("One balance is enough.")}</b>,
+              )}
+            </p>
+            <p>
+              {trx(
+                "{0} After your last upload the balance of a savings account follows the transfers on your current account that mention it, via its IBAN or account number. Interest the bank credits doesn't show that way; a new upload or an entered balance puts it exactly right again.",
+                <b>{tr("Savings accounts follow along.")}</b>,
+              )}
+            </p>
+            <p>
+              {trx(
+                "{0} An earlier balance should come out exactly on what the app calculates back from your latest balance. If it doesn't, it's shown at the top of Accounts, with the likely cause and a button that fixes it. Usually it's a card payment still on its way: your bank takes it off your balance immediately, but it only shows in your transactions once it's booked. The app corrects a balance from the bank connection itself; a balance you entered yourself it leaves to you.",
+                <b>{tr("A balance that doesn't match.")}</b>,
+              )}
+            </p>
+            <p>
+              {trx(
+                "{0} is investments plus bank and cash, minus your debts. Investments is your portfolio from this app plus the cash balance at DeGiro and other brokers.",
+                <b>{tr("Net worth")}</b>,
+              )}
+            </p>
+            <div className="max-w-[440px]">
+              <StepContent step={ENTER_BALANCE} />
+            </div>
           </TextBlock>
         </Section>
       </section>
@@ -243,30 +360,70 @@ export default function ExplanationPage() {
             <p>{tr("Each transaction gets a category, in this order; the first that matches wins:")}</p>
             <ol className="list-decimal pl-5">
               <li>{trx("{0} A category you set by hand always wins and is never overwritten.", <b>{tr("Your own choice.")}</b>)}</li>
-              <li>{trx("{0} If the counter account is one of your accounts, it's Eigen rekeningen.", <b>{tr("Your own accounts.")}</b>)}</li>
+              <li>
+                {trx("{0} If the counter account is one of your accounts, it's Eigen rekeningen.", <b>{tr("Your own accounts.")}</b>)}
+              </li>
               <li>{trx("{0} A deposit that shows up in your DeGiro account statement is Naar beleggen.", <b>{tr("Your broker.")}</b>)}</li>
-              <li>{trx("{0}, by priority (lower wins). A rule looks for a pattern in the counterparty's name, in the description, or in both, optionally only for money coming in or going out. The app has about sixty by default (supermarkets, transport companies, insurers) and you add your own.", <b>{tr("The rules")}</b>)}</li>
+              <li>
+                {trx(
+                  "{0}, by priority (lower wins). A rule looks for a pattern in the counterparty's name, in the description, or in both, optionally only for money coming in or going out. The app has about sixty by default (supermarkets, transport companies, insurers) and you add your own.",
+                  <b>{tr("The rules")}</b>,
+                )}
+              </li>
               <li>{trx("{0} If the name looks like a person's, it's received from or paid to friends.", <b>{tr("A person.")}</b>)}</li>
               <li>{trx("{0}, if nothing matches.", <b>Onbekend</b>)}</li>
             </ol>
 
-            <div className="max-w-[440px]"><StepContent step={LABELLING} /></div>
+            <div className="max-w-[440px]">
+              <StepContent step={LABELLING} />
+            </div>
 
             <H>{tr("Labelling yourself")}</H>
             <ul className="list-disc pl-5">
-              <li>{trx("{0}: at {1} under “No category yet”: choose a category and a rule is made for that name, for your whole history. Click the name to see the individual transactions.", <b>{tr("Per counterparty")}</b>, <A href="/spending/labelling">{tr("To label")}</A>)}</li>
-              <li>{trx("{0}: at {1}: filter by period, account, category, direction or name, tick and label in one go. For one-off things, such as a holiday with friends. Don't make a rule of it: a rule on a name also labels everything that name does later.", <b>{tr("A selection")}</b>, <A href="/spending/transactions">{tr("Transactions")}</A>)}</li>
-              <li>{trx("{0}: at {1}, with the menu per row.", <b>{tr("One transaction")}</b>, <A href="/spending/transactions">{tr("Transactions")}</A>)}</li>
-              <li>{trx("{0}: at {1} under “Is this right?”: transactions the rules gave a category while the money probably went between your own accounts.", <b>{tr("What looks wrong")}</b>, <A href="/spending/labelling">{tr("To label")}</A>)}</li>
+              <li>
+                {trx(
+                  "{0}: at {1} under “No category yet”: choose a category and a rule is made for that name, for your whole history. Click the name to see the individual transactions.",
+                  <b>{tr("Per counterparty")}</b>,
+                  <A href="/spending/labelling">{tr("To label")}</A>,
+                )}
+              </li>
+              <li>
+                {trx(
+                  "{0}: at {1}: filter by period, account, category, direction or name, tick and label in one go. For one-off things, such as a holiday with friends. Don't make a rule of it: a rule on a name also labels everything that name does later.",
+                  <b>{tr("A selection")}</b>,
+                  <A href="/spending/transactions">{tr("Transactions")}</A>,
+                )}
+              </li>
+              <li>
+                {trx(
+                  "{0}: at {1}, with the menu per row.",
+                  <b>{tr("One transaction")}</b>,
+                  <A href="/spending/transactions">{tr("Transactions")}</A>,
+                )}
+              </li>
+              <li>
+                {trx(
+                  "{0}: at {1} under “Is this right?”: transactions the rules gave a category while the money probably went between your own accounts.",
+                  <b>{tr("What looks wrong")}</b>,
+                  <A href="/spending/labelling">{tr("To label")}</A>,
+                )}
+              </li>
             </ul>
-            <p>{trx("{0} Behind Mollie, Adyen or Stripe are different shops; the real one is in the description, and that's where the rules look for such names too. A rule on the name “Mollie” itself labels all those shops the same: the app warns about that.", <b>{tr("Payment processors.")}</b>)}</p>
+            <p>
+              {trx(
+                "{0} Behind Mollie, Adyen or Stripe are different shops; the real one is in the description, and that's where the rules look for such names too. A rule on the name “Mollie” itself labels all those shops the same: the app warns about that.",
+                <b>{tr("Payment processors.")}</b>,
+              )}
+            </p>
           </TextBlock>
         </Section>
       </section>
 
       <section id="special-cases" className="scroll-mt-20">
-        <Section label={tr("Categories that count differently")}
-          info={tr("A category's type decides whether it counts as an expense, as income, or nowhere. These deserve an explanation.")}>
+        <Section
+          label={tr("Categories that count differently")}
+          info={tr("A category's type decides whether it counts as an expense, as income, or nowhere. These deserve an explanation.")}
+        >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-[12.5px]">
               <thead>
@@ -293,20 +450,42 @@ export default function ExplanationPage() {
       </section>
 
       <section id="categories" className="scroll-mt-20">
-        <Section label={tr("All your categories")}
-          info={tr("From your own taxonomy. You add or delete a category at Categories.")}>
+        <Section label={tr("All your categories")} info={tr("From your own taxonomy. You add or delete a category at Categories.")}>
           <AllCategories />
-          <p className="pt-3 text-xs text-ink-muted">{trx("You make your own category at {0}: choose a group, a name and the type. Choose {1} for money you don't want to count as income or expense.", <A href="/categories">{tr("Categories")}</A>, <b>{tr("internal")}</b>)}</p>
+          <p className="pt-3 text-xs text-ink-muted">
+            {trx(
+              "You make your own category at {0}: choose a group, a name and the type. Choose {1} for money you don't want to count as income or expense.",
+              <A href="/categories">{tr("Categories")}</A>,
+              <b>{tr("internal")}</b>,
+            )}
+          </p>
         </Section>
       </section>
 
       <section id="months" className="scroll-mt-20">
         <Section label={tr("Months, budget and debts")}>
           <TextBlock>
-            <p>{trx("{0} On Spending, Net worth and Accounts you choose whether a month runs from the 1st, or from the day your salary comes in. The app recognises your salary day from the Salaris category, even if your employer pays earlier because of a weekend or public holiday. Monthly totals, averages, your budget and net worth per month follow that choice.", <b>{tr("From salary to salary.")}</b>)}</p>
-            <p>{trx("{0} you set per group at Spending → Budget. As a suggestion it shows what you spent in a normal month.", <b>Budget</b>)}</p>
-            <p>{trx("{0} the app recognises itself: what comes back in at least three months, roughly monthly and roughly the same size. At Transactions every expense shows whether it's a fixed cost and you turn it on or off; the overview is at Categories. That's how you say where it's wrong: the pub every month isn't a fixed cost, an energy bill with a varying amount is. In Budget this month fixed costs count on the day they usually go out: paid rent is then not “faster than planned”.", <b>{tr("Fixed costs")}</b>)}</p>
-            <p>{trx("{0} For a debt account you enter the yearly interest and the required monthly repayment under “Interest & repayment”. At the start of each month the app calculates it on. If you repay extra once, enter the new balance: it calculates on from there.", <b>{tr("Debts.")}</b>)}</p>
+            <p>
+              {trx(
+                "{0} On Spending, Net worth and Accounts you choose whether a month runs from the 1st, or from the day your salary comes in. The app recognises your salary day from the Salaris category, even if your employer pays earlier because of a weekend or public holiday. Monthly totals, averages, your budget and net worth per month follow that choice.",
+                <b>{tr("From salary to salary.")}</b>,
+              )}
+            </p>
+            <p>
+              {trx("{0} you set per group at Spending → Budget. As a suggestion it shows what you spent in a normal month.", <b>Budget</b>)}
+            </p>
+            <p>
+              {trx(
+                "{0} the app recognises itself: what comes back in at least three months, roughly monthly and roughly the same size. At Transactions every expense shows whether it's a fixed cost and you turn it on or off; the overview is at Categories. That's how you say where it's wrong: the pub every month isn't a fixed cost, an energy bill with a varying amount is. In Budget this month fixed costs count on the day they usually go out: paid rent is then not “faster than planned”.",
+                <b>{tr("Fixed costs")}</b>,
+              )}
+            </p>
+            <p>
+              {trx(
+                "{0} For a debt account you enter the yearly interest and the required monthly repayment under “Interest & repayment”. At the start of each month the app calculates it on. If you repay extra once, enter the new balance: it calculates on from there.",
+                <b>{tr("Debts.")}</b>,
+              )}
+            </p>
           </TextBlock>
         </Section>
       </section>
@@ -314,7 +493,12 @@ export default function ExplanationPage() {
       <section id="privacy" className="scroll-mt-20">
         <Section label={tr("Privacy and security")}>
           <TextBlock>
-            <p>{trx("Everyone has their own database; no one else sees your accounts. Your bank connection's key is stored encrypted and never returned by any screen, and the connection can only read. More in the {0}.", <A href="/privacy">{tr("privacy statement")}</A>)}</p>
+            <p>
+              {trx(
+                "Everyone has their own database; no one else sees your accounts. Your bank connection's key is stored encrypted and never returned by any screen, and the connection can only read. More in the {0}.",
+                <A href="/privacy">{tr("privacy statement")}</A>,
+              )}
+            </p>
           </TextBlock>
         </Section>
       </section>

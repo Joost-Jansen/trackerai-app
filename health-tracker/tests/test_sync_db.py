@@ -39,8 +39,13 @@ def test_fit_already_stored_is_not_downloaded_again():
     client = FakeGarmin()
     client.fit = lambda _id: (_ for _ in ()).throw(AssertionError("downloaded again"))
     seen = []
-    sync_garmin(DbSink(e), client, {"garmin": {"last_activity_day": "2026-09-30", "last_wellness_day": "2026-09-30"}},
-                today=date(2026, 9, 30), read_streams=lambda d: seen.append(d) or {})
+    sync_garmin(
+        DbSink(e),
+        client,
+        {"garmin": {"last_activity_day": "2026-09-30", "last_wellness_day": "2026-09-30"}},
+        today=date(2026, 9, 30),
+        read_streams=lambda d: seen.append(d) or {},
+    )
     assert seen == [b"stored"]
 
 
@@ -110,11 +115,21 @@ def test_stale_database_tokens_fall_back_to_fresh_env_tokens():
 
 def _detail(aid, key, parent, start, seconds, km, hr, children=()):
     return {
-        "activityId": aid, "activityName": f"Triathlon - {key}", "parentId": 500 if aid != 500 else None,
+        "activityId": aid,
+        "activityName": f"Triathlon - {key}",
+        "parentId": 500 if aid != 500 else None,
         "activityTypeDTO": {"typeKey": key, "parentTypeId": parent},
         "metadataDTO": {"childIds": list(children)},
-        "summaryDTO": {"startTimeLocal": f"2026-09-27T{start}.0", "startTimeGMT": f"2026-09-27T{int(start[:2]) - 2:02d}{start[2:]}.0",
-                       "distance": km * 1000, "duration": seconds, "movingDuration": seconds, "elapsedDuration": seconds, "averageHR": hr, "maxHR": hr + 15},
+        "summaryDTO": {
+            "startTimeLocal": f"2026-09-27T{start}.0",
+            "startTimeGMT": f"2026-09-27T{int(start[:2]) - 2:02d}{start[2:]}.0",
+            "distance": km * 1000,
+            "duration": seconds,
+            "movingDuration": seconds,
+            "elapsedDuration": seconds,
+            "averageHR": hr,
+            "maxHR": hr + 15,
+        },
     }
 
 
@@ -131,11 +146,20 @@ class FakeMultisport(FakeGarmin):
     }
 
     def activities(self, start, end):
-        return [{
-            "activityId": 500, "activityName": "Triathlon", "activityType": {"typeKey": "multi_sport", "parentTypeId": 17},
-            "startTimeLocal": "2026-09-27 09:00:00", "startTimeGMT": "2026-09-27 07:00:00",
-            "distance": 51800.0, "duration": 9000.0, "elapsedDuration": 9000000.0, "averageHR": 150.0, "parent": True,
-        }]
+        return [
+            {
+                "activityId": 500,
+                "activityName": "Triathlon",
+                "activityType": {"typeKey": "multi_sport", "parentTypeId": 17},
+                "startTimeLocal": "2026-09-27 09:00:00",
+                "startTimeGMT": "2026-09-27 07:00:00",
+                "distance": 51800.0,
+                "duration": 9000.0,
+                "elapsedDuration": 9000000.0,
+                "averageHR": 150.0,
+                "parent": True,
+            }
+        ]
 
     def activity(self, activity_id):
         return self.DETAILS[int(activity_id)]
@@ -153,10 +177,16 @@ def test_a_multisport_activity_is_stored_as_its_legs_without_transitions():
     sync_garmin(DbSink(e), FakeMultisport(), state, today=date(2026, 9, 30), read_streams=lambda data, *w: windows.append(w) or {})
     acts = db.load_activities(e)
     assert [(a["sport"], a["distance_km"], a["start_utc"]) for a in acts] == [
-        ("swim", 1.5, "2026-09-27T07:00:00Z"), ("ride", 40.0, "2026-09-27T07:32:00Z"), ("run", 10.0, "2026-09-27T08:48:00Z")]
+        ("swim", 1.5, "2026-09-27T07:00:00Z"),
+        ("ride", 40.0, "2026-09-27T07:32:00Z"),
+        ("run", 10.0, "2026-09-27T08:48:00Z"),
+    ]
     assert all(a["fit_file"] == "garmin-500" for a in acts)  # the legs share the parent's FIT file
     assert [(w[0].isoformat(), (w[1] - w[0]).seconds) for w in windows] == [
-        ("2026-09-27T07:00:00+00:00", 1800), ("2026-09-27T07:32:00+00:00", 4500), ("2026-09-27T08:48:00+00:00", 2520)]
+        ("2026-09-27T07:00:00+00:00", 1800),
+        ("2026-09-27T07:32:00+00:00", 4500),
+        ("2026-09-27T08:48:00+00:00", 2520),
+    ]
 
 
 def test_a_multisport_whose_legs_fail_to_load_is_kept_whole():

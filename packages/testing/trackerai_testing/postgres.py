@@ -45,8 +45,11 @@ def _connection() -> psycopg.Connection:
         try:
             _admin = psycopg.connect(server_url(), autocommit=True, connect_timeout=5)
         except psycopg.OperationalError as e:
-            pytest.fail(f"no Postgres for the tests ({URL_VAR}, else {DEV_URL.split('@')[1]}): {e}\n"
-                        "Start one at the repository root: docker compose -f compose.dev.yml up -d", pytrace=False)
+            pytest.fail(
+                f"no Postgres for the tests ({URL_VAR}, else {DEV_URL.split('@')[1]}): {e}\n"
+                "Start one at the repository root: docker compose -f compose.dev.yml up -d",
+                pytrace=False,
+            )
     return _admin
 
 

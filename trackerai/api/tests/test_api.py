@@ -3,11 +3,11 @@
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from trackerai_accounts import Accounts, Config, connect, crypto
 
 from app import hub
 from app.config import Settings
 from app.main import create_app
+from trackerai_accounts import Accounts, Config, connect, crypto
 
 PASSWORD = "correct horse battery staple 42"
 DOOR = "https://www.trackerai.example"
@@ -15,9 +15,14 @@ DOOR = "https://www.trackerai.example"
 
 @pytest.fixture
 def accounts(pg_url):
-    cfg = Config(database_url=pg_url, session_secret="s" * 40,
-                 encryption_key=crypto.new_key(), cookie_domain="trackerai.example", cookie_secure=False,
-                 require_totp="off")
+    cfg = Config(
+        database_url=pg_url,
+        session_secret="s" * 40,
+        encryption_key=crypto.new_key(),
+        cookie_domain="trackerai.example",
+        cookie_secure=False,
+        require_totp="off",
+    )
     return Accounts(connect(cfg.database_url), cfg, mailer=False)
 
 
@@ -43,8 +48,11 @@ def trackers():
 
 @pytest.fixture
 def client(accounts, trackers):
-    settings = Settings(public_origins=[DOOR], trackers={"health": "http://health.internal:8000",
-                                                         "wealth": "http://wealth.internal:8000"}, cookie_secure=False)
+    settings = Settings(
+        public_origins=[DOOR],
+        trackers={"health": "http://health.internal:8000", "wealth": "http://wealth.internal:8000"},
+        cookie_secure=False,
+    )
     app = create_app(accounts, settings, hub_transport=httpx.MockTransport(trackers))
     return TestClient(app, base_url=DOOR, headers={"origin": DOOR})
 
@@ -87,8 +95,9 @@ def test_no_oauth_issuer_on_the_front_door(client):
 
 def test_hub_forwards_allowed_paths_with_only_the_listed_headers(client, trackers):
     sign_up(client)
-    r = client.post("/api/hub/health/admin/feedback/7?x=1", json={"status": "done"},
-                    headers={"x-locale": "nl", "x-forwarded-for": "1.2.3.4"})
+    r = client.post(
+        "/api/hub/health/admin/feedback/7?x=1", json={"status": "done"}, headers={"x-locale": "nl", "x-forwarded-for": "1.2.3.4"}
+    )
     assert r.status_code == 200 and r.json() == {"ok": True}
     assert r.headers["cache-control"] == "no-store" and "x-secret" not in r.headers
     sent = trackers.seen[-1]
@@ -109,8 +118,11 @@ def test_hub_unknown_tracker(client):
 
 
 def test_hub_tracker_without_address(accounts, trackers):
-    app = create_app(accounts, Settings(trackers={"wealth": "http://wealth.internal:8000"}, cookie_secure=False),
-                     hub_transport=httpx.MockTransport(trackers))
+    app = create_app(
+        accounts,
+        Settings(trackers={"wealth": "http://wealth.internal:8000"}, cookie_secure=False),
+        hub_transport=httpx.MockTransport(trackers),
+    )
     r = TestClient(app, base_url=DOOR).get("/api/hub/health/admin/tracker")
     assert r.status_code == 503 and r.json()["detail"] == "not_configured"
 
@@ -129,8 +141,14 @@ def test_hub_path_rules():
 
 
 def test_settings_from_env():
-    s = Settings.from_env({"PUBLIC_ORIGINS": "https://www.t.nl/, https://t.nl", "HEALTH_API_URL": "http://h:8000/",
-                           "LANDING_WEALTH_URL": "https://wealth.t.nl", "COOKIE_SECURE": "false"})
+    s = Settings.from_env(
+        {
+            "PUBLIC_ORIGINS": "https://www.t.nl/, https://t.nl",
+            "HEALTH_API_URL": "http://h:8000/",
+            "LANDING_WEALTH_URL": "https://wealth.t.nl",
+            "COOKIE_SECURE": "false",
+        }
+    )
     assert s.public_origins == ["https://www.t.nl", "https://t.nl"]
     assert s.trackers == {"health": "http://h:8000", "wealth": "https://wealth.t.nl"}
     assert s.cookie_secure is False

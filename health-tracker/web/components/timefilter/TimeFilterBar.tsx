@@ -16,7 +16,6 @@ import type { TimeRange } from "@/components/timefilter/useTimeRange";
 import { PERIODS, fmtWindow, moveWindow, windowDays, type DayPoint } from "@/lib/timeline";
 import { useLocale, useT } from "@/lib/i18n";
 
-
 /** Height of the fixed top bar (`.ds-topbar` in app/ds.css: height 60px). The time bar sticks below it. */
 export const TOPBAR_HEIGHT = 60;
 
@@ -100,7 +99,9 @@ export default function TimeFilterBar({
       className="inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs transition-colors hover:bg-surface"
     >
       <span className="truncate tabular-nums">{fmtWindow(w, locale)}</span>
-      <span aria-hidden className="shrink-0 text-ink-muted">×</span>
+      <span aria-hidden className="shrink-0 text-ink-muted">
+        ×
+      </span>
     </button>
   ) : (
     <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-ink-muted">{fmtWindow(w, locale)}</span>
@@ -123,23 +124,30 @@ export default function TimeFilterBar({
       <div className="relative">
         <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="no-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto py-2.5">
-            <Tabs items={PERIOD_TABS} value={period} onChange={choose} variant="quiet" ariaLabel={label} className="shrink-0 whitespace-nowrap" />
+            <Tabs
+              items={PERIOD_TABS}
+              value={period}
+              onChange={choose}
+              variant="quiet"
+              ariaLabel={label}
+              className="shrink-0 whitespace-nowrap"
+            />
             <span className="mx-1 hidden h-5 shrink-0 border-l border-border sm:block" aria-hidden />
             <span className="hidden sm:contents">{current}</span>
           </div>
           <span className="flex shrink-0 items-center gap-1">
-          {extra && <span className="hidden sm:contents">{extra}</span>}
-          <button
-            ref={button}
-            type="button"
-            aria-controls={panelId}
-            aria-expanded={open}
-            data-open={open}
-            onClick={() => setOpen((v) => !v)}
-            className="shrink-0 rounded-md px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 data-[open=true]:bg-surface-2 data-[open=true]:text-ink"
-          >
-            {TF.adjust} <span aria-hidden>{open ? "▴" : "▾"}</span>
-          </button>
+            {extra && <span className="hidden sm:contents">{extra}</span>}
+            <button
+              ref={button}
+              type="button"
+              aria-controls={panelId}
+              aria-expanded={open}
+              data-open={open}
+              onClick={() => setOpen((v) => !v)}
+              className="shrink-0 rounded-md px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 data-[open=true]:bg-surface-2 data-[open=true]:text-ink"
+            >
+              {TF.adjust} <span aria-hidden>{open ? "▴" : "▾"}</span>
+            </button>
           </span>
         </div>
 
@@ -171,7 +179,13 @@ export default function TimeFilterBar({
             <span className="text-xs font-semibold uppercase tracking-wide">{TF.period}</span>
             <span className="flex items-center gap-3">
               <span className="text-xs tabular-nums text-ink-muted">{TF.days(days)}</span>
-              <button type="button" onClick={() => setOpen(false)} aria-label={TF.close} title={TF.close} className="rounded px-1.5 text-sm leading-none text-ink-muted hover:bg-surface-2 hover:text-ink">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label={TF.close}
+                title={TF.close}
+                className="rounded px-1.5 text-sm leading-none text-ink-muted hover:bg-surface-2 hover:text-ink"
+              >
                 ×
               </button>
             </span>
@@ -198,16 +212,44 @@ export default function TimeFilterBar({
               }}
             />
             <div className="flex gap-1 pb-0.5" role="group" aria-label={TF.moveGroup}>
-              <Button size="sm" variant="ghost" aria-label={TF.previous} title={TF.previous} disabled={!valid || w.from <= first} onClick={() => change(moveWindow(w, first, last, 1, -1))}>
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label={TF.previous}
+                title={TF.previous}
+                disabled={!valid || w.from <= first}
+                onClick={() => change(moveWindow(w, first, last, 1, -1))}
+              >
                 ←
               </Button>
-              <Button size="sm" variant="ghost" aria-label={TF.zoomIn} title={TF.zoomIn} disabled={!valid || days <= 7} onClick={() => change(moveWindow(w, first, last, 0.5))}>
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label={TF.zoomIn}
+                title={TF.zoomIn}
+                disabled={!valid || days <= 7}
+                onClick={() => change(moveWindow(w, first, last, 0.5))}
+              >
                 +
               </Button>
-              <Button size="sm" variant="ghost" aria-label={TF.zoomOut} title={TF.zoomOut} disabled={!valid || (w.from === first && w.to === last)} onClick={() => change(moveWindow(w, first, last, 2))}>
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label={TF.zoomOut}
+                title={TF.zoomOut}
+                disabled={!valid || (w.from === first && w.to === last)}
+                onClick={() => change(moveWindow(w, first, last, 2))}
+              >
                 −
               </Button>
-              <Button size="sm" variant="ghost" aria-label={TF.next} title={TF.next} disabled={!valid || w.to >= last} onClick={() => change(moveWindow(w, first, last, 1, 1))}>
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label={TF.next}
+                title={TF.next}
+                disabled={!valid || w.to >= last}
+                onClick={() => change(moveWindow(w, first, last, 1, 1))}
+              >
                 →
               </Button>
             </div>
@@ -215,9 +257,7 @@ export default function TimeFilterBar({
           <div className="mt-4">
             <RangeBrush first={first} last={last} window={w} onChange={change} points={overview} />
           </div>
-          <p className="mt-3 text-[11.5px] leading-relaxed text-ink-muted">
-            {TF.help}
-          </p>
+          <p className="mt-3 text-[11.5px] leading-relaxed text-ink-muted">{TF.help}</p>
         </div>
       </div>
     </div>

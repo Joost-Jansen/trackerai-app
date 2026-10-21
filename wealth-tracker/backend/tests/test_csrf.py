@@ -18,16 +18,14 @@ def test_cross_site_write_with_the_cookie_is_refused(client):
 
 def test_multipart_upload_from_another_site_is_refused(client):
     _logged_in(client)
-    r = client.post("/api/uploads/bank", files={"files": ("x.csv", b"a,b\n", "text/csv")},
-                    headers={"Origin": "https://health.example.org"})
+    r = client.post("/api/uploads/bank", files={"files": ("x.csv", b"a,b\n", "text/csv")}, headers={"Origin": "https://health.example.org"})
     assert r.status_code == 403
 
 
 def test_same_origin_and_referer_pass(client):
     _logged_in(client)
     assert client.put("/api/auth/me/locale", json={"locale": "en"}).status_code == 200
-    r = client.put("/api/auth/me/locale", json={"locale": "nl"},
-                   headers={"Origin": "", "Referer": "http://testserver/account"})
+    r = client.put("/api/auth/me/locale", json={"locale": "nl"}, headers={"Origin": "", "Referer": "http://testserver/account"})
     assert r.status_code == 200
 
 

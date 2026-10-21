@@ -9,7 +9,7 @@ Layout:
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 
 from tools.sports import garmin_sport, strava_sport
@@ -17,7 +17,10 @@ from tools.sports import garmin_sport, strava_sport
 MATCH_WINDOW_S = 120
 # Which source wins for a scalar field when both have it; default is garmin first.
 # `manual`: what the user corrected on the site (tools/distance.py), always first.
-FIELD_PRIORITY = {"name": ("strava", "garmin", "wahoo_api", "wahoo", "fit", "apple"), "distance_km": ("manual", "garmin", "strava", "wahoo_api", "wahoo", "fit", "apple")}
+FIELD_PRIORITY = {
+    "name": ("strava", "garmin", "wahoo_api", "wahoo", "fit", "apple"),
+    "distance_km": ("manual", "garmin", "strava", "wahoo_api", "wahoo", "fit", "apple"),
+}
 # Uploaded FIT files (Wahoo, or any other device) come after the synced sources. A Wahoo cloud connection needs a
 # source name of its own, so that remove_source() on disconnect leaves the files someone uploaded themselves.
 # apple: an Apple Health import (tools/apple_import.py), last: a Garmin or FIT recording of the same session is the
@@ -38,8 +41,14 @@ SCALAR_FIELDS = (
 IDENTITY_FIELDS = ("start_utc", "start_local", "sport")
 
 STRAVA_STREAM_KEYS = {
-    "time": "time", "latlng": "latlng", "heartrate": "heartrate", "velocity_smooth": "velocity",
-    "altitude": "altitude", "cadence": "cadence", "distance": "distance", "watts": "watts",
+    "time": "time",
+    "latlng": "latlng",
+    "heartrate": "heartrate",
+    "velocity_smooth": "velocity",
+    "altitude": "altitude",
+    "cadence": "cadence",
+    "distance": "distance",
+    "watts": "watts",
 }
 
 
@@ -80,9 +89,7 @@ def from_strava(activity: dict, streams: dict | None) -> dict:
         "sources": {"strava": {"id": activity["id"], "raw": activity}},
     }
     if streams:
-        record["streams"] = {
-            ours: streams[theirs]["data"] for theirs, ours in STRAVA_STREAM_KEYS.items() if theirs in streams
-        }
+        record["streams"] = {ours: streams[theirs]["data"] for theirs, ours in STRAVA_STREAM_KEYS.items() if theirs in streams}
     return _drop_none(record)
 
 
@@ -157,18 +164,31 @@ def from_garmin(activity: dict, splits: dict | None, fit_file: str | None = None
     return _drop_none(record)
 
 
-def from_fit(activity: dict, fit_file: str | None = None, filename: str | None = None, source: str | None = None,
-             name: str | None = None, meta: dict | None = None) -> dict:
+def from_fit(
+    activity: dict,
+    fit_file: str | None = None,
+    filename: str | None = None,
+    source: str | None = None,
+    name: str | None = None,
+    meta: dict | None = None,
+) -> dict:
     """A record from tools.fit.read_fit_activity. Source `wahoo` for an uploaded Wahoo file, else `fit`; the Wahoo
     connection passes its own (`wahoo_api`), with the workout's name and id."""
     source = source or ("wahoo" if "wahoo" in activity.get("manufacturer", "") else "fit")
     laps = []
     for lap in activity.get("laps") or []:
         km = (lap.get("distance_m") or 0) / 1000
-        laps.append(_drop_none({
-            "distance_km": _round(km, 2), "time_s": _round(lap.get("time_s")), "avg_hr": _round(lap.get("avg_hr")),
-            "pace": _pace(lap.get("time_s") or 0, km), "elevation_gain_m": lap.get("ascent_m"),
-        }))
+        laps.append(
+            _drop_none(
+                {
+                    "distance_km": _round(km, 2),
+                    "time_s": _round(lap.get("time_s")),
+                    "avg_hr": _round(lap.get("avg_hr")),
+                    "pace": _pace(lap.get("time_s") or 0, km),
+                    "elevation_gain_m": lap.get("ascent_m"),
+                }
+            )
+        )
     sport = activity["sport"]
     label = {"ride": "Cycling", "run": "Running", "swim": "Swimming"}.get(sport, sport.capitalize())
     cadence = activity.get("avg_cadence")
@@ -330,7 +350,7 @@ def load_activities(root: Path) -> list[dict]:
 
 def _local_clock(ms) -> str | None:
     """Garmin's "...TimestampLocal" (local wall time as epoch ms) as "2026-10-04T23:10"."""
-    return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%Y-%m-%dT%H:%M") if ms else None
+    return datetime.fromtimestamp(ms / 1000, UTC).strftime("%Y-%m-%dT%H:%M") if ms else None
 
 
 def wellness_from_garmin(sleep: dict | None, hrv: dict | None, summary: dict | None, readiness: list | None) -> dict:

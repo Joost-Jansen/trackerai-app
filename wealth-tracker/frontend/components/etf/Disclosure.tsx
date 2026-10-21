@@ -29,8 +29,7 @@ export default function Disclosure({
   const panelId = useId();
 
   return (
-    <div className="mt-3 pt-2.5"
-      style={{ borderTop: "1px solid var(--border-hairline)" }}>
+    <div className="mt-3 pt-2.5" style={{ borderTop: "1px solid var(--border-hairline)" }}>
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -39,9 +38,7 @@ export default function Disclosure({
         className="-my-1 inline-flex items-center gap-1.5 py-1 text-xs font-medium text-ink-muted hover:text-text"
       >
         {open ? labelOpen : label}
-        <ChevronDownIcon
-          className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
-        />
+        <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div id={panelId} className="mt-3">

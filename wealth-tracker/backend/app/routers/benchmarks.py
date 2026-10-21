@@ -12,13 +12,13 @@ import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from domain.portfolio import series as charts
-from domain.portfolio import etf_holdings
 from app.deps import get_db
 from app.services import benchmark_service
 from app.services.benchmark_service import get_benchmark_prices, get_portfolio_segments
 from app.services.portfolio_service import load_portfolio
 from domain.i18n import tr
+from domain.portfolio import etf_holdings
+from domain.portfolio import series as charts
 
 router = APIRouter(prefix="/api/benchmarks", tags=["benchmarks"])
 
@@ -47,14 +47,8 @@ def _inputs(conn: sqlite3.Connection, exclude_bonds: bool):
     # setting those very funds aside as bonds. Same portfolio, two answers.
     bonds = etf_holdings.bond_isins(conn, bundle.positions)
 
-    transactions = (
-        [t for t in bundle.transactions if t["isin"] not in bonds]
-        if exclude_bonds else bundle.transactions
-    )
-    dividends = (
-        [d for d in bundle.dividends if d.get("isin") not in bonds]
-        if exclude_bonds else bundle.dividends
-    )
+    transactions = [t for t in bundle.transactions if t["isin"] not in bonds] if exclude_bonds else bundle.transactions
+    dividends = [d for d in bundle.dividends if d.get("isin") not in bonds] if exclude_bonds else bundle.dividends
     if not transactions:
         raise _NoData(tr("After excluding bonds there is nothing left to show."))
 
@@ -72,13 +66,9 @@ def _inputs(conn: sqlite3.Connection, exclude_bonds: bool):
         benchmark_prices = get_benchmark_prices(conn, start)
         segments = get_portfolio_segments(conn, transactions, bundle.prices, dividends)
     except charts.DataUnavailable:
-        raise _NoData(
-            tr("The benchmark prices could not be fetched from Yahoo Finance. Try again in a few minutes.")
-        )
+        raise _NoData(tr("The benchmark prices could not be fetched from Yahoo Finance. Try again in a few minutes."))
     if not benchmark_prices:
-        raise _NoData(
-            tr("The benchmark prices could not be fetched from Yahoo Finance. Try again in a few minutes.")
-        )
+        raise _NoData(tr("The benchmark prices could not be fetched from Yahoo Finance. Try again in a few minutes."))
 
     return transactions, bundle.prices, benchmark_prices, dividends, segments
 

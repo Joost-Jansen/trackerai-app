@@ -49,7 +49,11 @@ def test_90_days_has_weekly_run_volume_and_long_run():
 
 
 def test_90_days_tracks_pace_at_aerobic_heart_rate():
-    acts = [act("2026-09-29", km=10, secs=3200, hr=150), act("2026-09-25", km=10, secs=3300, hr=152), act("2026-09-26", km=5, secs=1300, hr=170)]
+    acts = [
+        act("2026-09-29", km=10, secs=3200, hr=150),
+        act("2026-09-25", km=10, secs=3300, hr=152),
+        act("2026-09-26", km=5, secs=1300, hr=170),
+    ]
     md = last_90_days_md(acts, {}, TODAY, zones=ZONES)
     assert "Tempo in Z2 hardlopen (149-157 bpm)" in md
     assert "5:25" in md  # median of 5:20 and 5:30; the 170 bpm run is excluded

@@ -9,7 +9,10 @@ export default function LengthVariants({ variants, className = "" }: { variants?
   if (!variants || variants.length < 2) return null;
   const km = (v: number) => (v >= 20 ? f.num(v) : f.num(v, 1));
   return (
-    <span className={`tabular-nums ${className}`} title={`${t.texts.routes.variantsHelp} ${variants.map((v) => `${km(v.distance_km)} km: ${v.runs}×`).join(", ")}`}>
+    <span
+      className={`tabular-nums ${className}`}
+      title={`${t.texts.routes.variantsHelp} ${variants.map((v) => `${km(v.distance_km)} km: ${v.runs}×`).join(", ")}`}
+    >
       {t.texts.routes.variants(variants.map((v) => km(v.distance_km)))}
     </span>
   );

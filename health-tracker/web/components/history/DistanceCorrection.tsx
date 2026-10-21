@@ -45,21 +45,49 @@ export default function DistanceCorrection({ a }: { a: ActivityDetail }) {
   }
 
   // under a kilometre in metres: "20 m", not "0.0 km"
-  const gps = a.gps_distance_km != null ? (a.gps_distance_km < 1 ? `${Math.round(a.gps_distance_km * 1000)} m` : f.km(a.gps_distance_km)) : null;
+  const gps =
+    a.gps_distance_km != null ? (a.gps_distance_km < 1 ? `${Math.round(a.gps_distance_km * 1000)} m` : f.km(a.gps_distance_km)) : null;
   const text = a.distance_doubtful ? m.doubtful(gps ?? "0 m", f.clock(a.moving_time_s)) : a.distance_manual ? m.corrected : m.openWater;
 
   return (
     <div className={`text-[12.5px] ${a.distance_doubtful && !editing ? "rounded-md bg-[var(--surface-inset)] px-4 py-3" : ""}`}>
       {editing ? (
         <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-          <Input label={m.label} inputMode="decimal" autoFocus value={value} onChange={(e) => setValue(e.target.value)} error={error ?? undefined} className="w-32" />
-          <Button size="sm" variant="primary" type="submit" disabled={busy}>{m.save}</Button>
-          <Button size="sm" variant="ghost" type="button" onClick={() => { setEditing(false); setError(null); }}>{m.cancel}</Button>
+          <Input
+            label={m.label}
+            inputMode="decimal"
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            error={error ?? undefined}
+            className="w-32"
+          />
+          <Button size="sm" variant="primary" type="submit" disabled={busy}>
+            {m.save}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            type="button"
+            onClick={() => {
+              setEditing(false);
+              setError(null);
+            }}
+          >
+            {m.cancel}
+          </Button>
         </form>
       ) : (
         <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-ink-muted">
           <span>{text}</span>
-          <button type="button" className="text-ink underline-offset-2 hover:underline" onClick={() => { setValue(a.distance_km ? String(a.distance_km) : ""); setEditing(true); }}>
+          <button
+            type="button"
+            className="text-ink underline-offset-2 hover:underline"
+            onClick={() => {
+              setValue(a.distance_km ? String(a.distance_km) : "");
+              setEditing(true);
+            }}
+          >
             {a.distance_manual ? m.change : m.fix}
           </button>
           {a.distance_manual && (

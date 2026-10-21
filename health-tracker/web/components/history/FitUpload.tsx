@@ -11,7 +11,15 @@ import { SportBadge } from "@/components/plan/SportIcon";
 import { api } from "@/lib/api";
 import { errorText, useFormat, useT } from "@/lib/i18n";
 
-type Result = { status: "added" | "merged"; id: string; sport: string; start_local: string; distance_km?: number; source: string; merged_with: string[] };
+type Result = {
+  status: "added" | "merged";
+  id: string;
+  sport: string;
+  start_local: string;
+  distance_km?: number;
+  source: string;
+  merged_with: string[];
+};
 type Row = { file: string; result?: Result; error?: string };
 
 const SOURCE_NAME: Record<string, string> = { garmin: "Garmin", strava: "Strava", wahoo: "Wahoo", fit: "FIT" };
@@ -50,13 +58,21 @@ export default function FitUpload() {
 
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)}>{t.history.upload.button}</Button>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        {t.history.upload.button}
+      </Button>
       <Dialog
         open={open}
-        onClose={() => { if (!busy) setOpen(false); }}
+        onClose={() => {
+          if (!busy) setOpen(false);
+        }}
         title={t.history.upload.title}
         description={t.history.upload.hint}
-        actions={<Button variant="ghost" disabled={!!busy} onClick={() => setOpen(false)}>{t.history.upload.close}</Button>}
+        actions={
+          <Button variant="ghost" disabled={!!busy} onClick={() => setOpen(false)}>
+            {t.history.upload.close}
+          </Button>
+        }
       >
         <div className="flex flex-col gap-3">
           <input
@@ -72,7 +88,9 @@ export default function FitUpload() {
             }}
           />
           <div>
-            <Button variant="primary" disabled={!!busy} onClick={() => input.current?.click()}>{t.history.upload.choose}</Button>
+            <Button variant="primary" disabled={!!busy} onClick={() => input.current?.click()}>
+              {t.history.upload.choose}
+            </Button>
           </div>
           {busy && <p className="text-[13px] text-ink-muted">{t.history.upload.working(busy.i, busy.n)}</p>}
           {rows.length > 0 && (
@@ -82,7 +100,11 @@ export default function FitUpload() {
                   {r.result ? (
                     <>
                       <SportBadge sport={r.result.sport} size={20} />
-                      <Link className="underline underline-offset-2" href={`/history/activity/?id=${encodeURIComponent(r.result.id)}`} onClick={() => setOpen(false)}>
+                      <Link
+                        className="underline underline-offset-2"
+                        href={`/history/activity/?id=${encodeURIComponent(r.result.id)}`}
+                        onClick={() => setOpen(false)}
+                      >
                         {f.dayMonth(r.result.start_local)}
                       </Link>
                       <span className="text-ink-muted">{r.result.distance_km ? f.km(r.result.distance_km) : ""}</span>
@@ -95,14 +117,18 @@ export default function FitUpload() {
                   ) : (
                     <>
                       <span className="truncate">{r.file}</span>
-                      <span className="ml-auto text-[12px]" style={{ color: "var(--text-loss, var(--neg))" }}>{r.error}</span>
+                      <span className="ml-auto text-[12px]" style={{ color: "var(--text-loss, var(--neg))" }}>
+                        {r.error}
+                      </span>
                     </>
                   )}
                 </li>
               ))}
             </ul>
           )}
-          {!busy && rows.length > 0 && <p className="text-[12px] text-ink-muted">{t.history.upload.done(rows.filter((r) => r.result).length)}</p>}
+          {!busy && rows.length > 0 && (
+            <p className="text-[12px] text-ink-muted">{t.history.upload.done(rows.filter((r) => r.result).length)}</p>
+          )}
         </div>
       </Dialog>
     </>

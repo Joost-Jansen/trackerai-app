@@ -36,9 +36,7 @@ if (!password) throw new Error("set DEMO_PASSWORD (the password seed_demo.py pri
 
 const VIEWPORT = { width: 1600, height: 1000 };
 
-const browser = await playwright.chromium.launch(
-  process.env.PLAYWRIGHT_BROWSERS_PATH ? {} : { executablePath: process.env.CHROMIUM_PATH },
-);
+const browser = await playwright.chromium.launch(process.env.PLAYWRIGHT_BROWSERS_PATH ? {} : { executablePath: process.env.CHROMIUM_PATH });
 // Behind an HTTPS proxy (HTTPS_PROXY) Chromium may not trust its certificate, so fetch the map tiles
 // from Node instead (which honours NODE_EXTRA_CA_CERTS) and hand them to the page.
 const proxy = process.env.HTTPS_PROXY || process.env.https_proxy;
@@ -48,9 +46,7 @@ const context = await browser.newContext({
   ...(proxy ? { proxy: { server: proxy, bypass: "localhost,127.0.0.1" } } : {}),
 });
 if (proxy) {
-  await context.route("https://tile.openstreetmap.org/**", async (route) =>
-    route.fulfill({ response: await route.fetch() }),
-  );
+  await context.route("https://tile.openstreetmap.org/**", async (route) => route.fulfill({ response: await route.fetch() }));
 }
 
 // Log in and set the account language through the API; the session cookie is shared with the pages.
@@ -140,7 +136,10 @@ await shot("zones");
 
 // a fresh token shows the connector URL and the `claude mcp add` command (a token in the local demo database only)
 await open("/settings/agents/");
-await page.locator("form button[type=submit], button", { hasText: opts.locale === "nl" ? "Nieuw token" : "New token" }).first().click();
+await page
+  .locator("form button[type=submit], button", { hasText: opts.locale === "nl" ? "Nieuw token" : "New token" })
+  .first()
+  .click();
 await settle();
 await shot("agents");
 

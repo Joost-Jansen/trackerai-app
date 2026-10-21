@@ -31,9 +31,26 @@ TIMEOUT_S = 4
 PAGE = 8
 CACHE_S = 3600
 IDS = {
-    "energy_kcal": 1008, "protein_g": 1003, "fat_g": 1004, "fiber_g": 1079, "sugars_g": 2000, "sat_fat_g": 1258, "mufa_g": 1292,
-    "pufa_g": 1293, "trans_fat_g": 1257, "alcohol_g": 1018, "sodium_mg": 1093, "iron_mg": 1089, "calcium_mg": 1087,
-    "magnesium_mg": 1090, "potassium_mg": 1092, "zinc_mg": 1095, "vit_c_mg": 1162, "vit_d_ug": 1114, "vit_b12_ug": 1178, "folate_ug": 1190,
+    "energy_kcal": 1008,
+    "protein_g": 1003,
+    "fat_g": 1004,
+    "fiber_g": 1079,
+    "sugars_g": 2000,
+    "sat_fat_g": 1258,
+    "mufa_g": 1292,
+    "pufa_g": 1293,
+    "trans_fat_g": 1257,
+    "alcohol_g": 1018,
+    "sodium_mg": 1093,
+    "iron_mg": 1089,
+    "calcium_mg": 1087,
+    "magnesium_mg": 1090,
+    "potassium_mg": 1092,
+    "zinc_mg": 1095,
+    "vit_c_mg": 1162,
+    "vit_d_ug": 1114,
+    "vit_b12_ug": 1178,
+    "folate_ug": 1190,
 }
 CARBS_BY_DIFFERENCE = 1005
 
@@ -57,15 +74,25 @@ def to_food(item: dict) -> dict | None:
     if not name:
         return None
     return {
-        "source": "usda", "source_code": str(item["fdcId"]), "name_nl": name[:200], "name_en": name[:200], "brand": (item.get("brandOwner") or None),
-        "food_group": item.get("foodCategory") if isinstance(item.get("foodCategory"), str) else None, "unit": "g",
-        "per_100": with_salt({k: per_100.get(k) for k in KEYS}), "default_portion_g": None, "source_version": "USDA FoodData Central",
+        "source": "usda",
+        "source_code": str(item["fdcId"]),
+        "name_nl": name[:200],
+        "name_en": name[:200],
+        "brand": (item.get("brandOwner") or None),
+        "food_group": item.get("foodCategory") if isinstance(item.get("foodCategory"), str) else None,
+        "unit": "g",
+        "per_100": with_salt({k: per_100.get(k) for k in KEYS}),
+        "default_portion_g": None,
+        "source_version": "USDA FoodData Central",
     }
 
 
 def fetch(query: str) -> list[dict]:
-    r = requests.get(URL, params={"api_key": os.environ["FDC_API_KEY"], "query": query, "pageSize": PAGE,
-                                  "dataType": "Foundation,SR Legacy"}, timeout=TIMEOUT_S)
+    r = requests.get(
+        URL,
+        params={"api_key": os.environ["FDC_API_KEY"], "query": query, "pageSize": PAGE, "dataType": "Foundation,SR Legacy"},
+        timeout=TIMEOUT_S,
+    )
     r.raise_for_status()
     return r.json().get("foods") or []
 

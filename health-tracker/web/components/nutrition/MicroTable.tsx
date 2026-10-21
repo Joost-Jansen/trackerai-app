@@ -17,7 +17,11 @@ export default function MicroTable({ micros }: { micros: NutritionDay["micros"] 
   const { locale } = useLocale();
   const unit = (key: string) => UNIT[key.split("_").pop() ?? ""] ?? "";
   return (
-    <CollapsibleCard title={t.title} icon={<InfoIcon width={15} height={15} />} summary={micros.group ? t.forGroup[micros.group] : t.chooseShort}>
+    <CollapsibleCard
+      title={t.title}
+      icon={<InfoIcon width={15} height={15} />}
+      summary={micros.group ? t.forGroup[micros.group] : t.chooseShort}
+    >
       <table className="w-full text-[12.5px] tabular-nums">
         <thead>
           <tr className="text-left text-ink-muted">
@@ -30,19 +34,38 @@ export default function MicroTable({ micros }: { micros: NutritionDay["micros"] 
         <tbody>
           {micros.rows.map((r) => (
             <tr key={r.key} className="border-t border-border">
-              <td className="py-1 pr-3">{tt.nutrition.nutrients[r.key]}{r.kind === "AI" && <span className="ml-1 text-[11px] text-ink-muted">(AI)</span>}</td>
-              <td className="py-1 pr-3 text-right">{r.amount == null ? "–" : `${f.trim(r.amount, 1)} ${unit(r.key)}`}{r.missing > 0 && <span className="text-ink-muted"> *</span>}</td>
-              <td className="py-1 pr-3 text-right text-ink-muted">{r.reference == null ? "–" : `${f.trim(r.reference, 1)} ${unit(r.key)}`}</td>
+              <td className="py-1 pr-3">
+                {tt.nutrition.nutrients[r.key]}
+                {r.kind === "AI" && <span className="ml-1 text-[11px] text-ink-muted">(AI)</span>}
+              </td>
+              <td className="py-1 pr-3 text-right">
+                {r.amount == null ? "–" : `${f.trim(r.amount, 1)} ${unit(r.key)}`}
+                {r.missing > 0 && <span className="text-ink-muted"> *</span>}
+              </td>
+              <td className="py-1 pr-3 text-right text-ink-muted">
+                {r.reference == null ? "–" : `${f.trim(r.reference, 1)} ${unit(r.key)}`}
+              </td>
               <td className="py-1 text-right">{r.pct == null ? "–" : `${r.pct}%`}</td>
             </tr>
           ))}
         </tbody>
       </table>
       <div className="mt-2 flex flex-col gap-1 text-[11.5px] text-ink-muted">
-        {!micros.group && <p>{t.choose} <Link href="/settings/zones/#nutrition" className="underline underline-offset-4">{t.toSettings}</Link></p>}
+        {!micros.group && (
+          <p>
+            {t.choose}{" "}
+            <Link href="/settings/zones/#nutrition" className="underline underline-offset-4">
+              {t.toSettings}
+            </Link>
+          </p>
+        )}
         {micros.rows.some((r) => r.missing > 0) && <p>{t.missing}</p>}
         <p>{t.aiNote}</p>
-        <p><a href={micros.source.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">{locale === "en" ? micros.source.en : micros.source.nl}</a></p>
+        <p>
+          <a href={micros.source.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
+            {locale === "en" ? micros.source.en : micros.source.nl}
+          </a>
+        </p>
       </div>
     </CollapsibleCard>
   );

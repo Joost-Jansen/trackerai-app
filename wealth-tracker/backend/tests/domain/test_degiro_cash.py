@@ -29,15 +29,36 @@ def _isolated_data_root(tmp_path, monkeypatch):
     monkeypatch.setattr(database, "_HERE", str(tmp_path))
 
 
-COLUMNS = ["Datum", "Tijd", "Valutadatum", "Product", "ISIN", "Omschrijving",
-            "FX", "Mutatie", "Unnamed: 8", "Saldo", "Unnamed: 10", "Order Id"]
+COLUMNS = [
+    "Datum",
+    "Tijd",
+    "Valutadatum",
+    "Product",
+    "ISIN",
+    "Omschrijving",
+    "FX",
+    "Mutatie",
+    "Unnamed: 8",
+    "Saldo",
+    "Unnamed: 10",
+    "Order Id",
+]
 
 
 def _row(date, time, balance, currency="EUR", description="Dividend"):
     return {
-        "Datum": date, "Tijd": time, "Valutadatum": date, "Product": "",
-        "ISIN": "", "Omschrijving": description, "FX": "", "Mutatie": currency,
-        "Unnamed: 8": 0.0, "Saldo": currency, "Unnamed: 10": balance, "Order Id": "",
+        "Datum": date,
+        "Tijd": time,
+        "Valutadatum": date,
+        "Product": "",
+        "ISIN": "",
+        "Omschrijving": description,
+        "FX": "",
+        "Mutatie": currency,
+        "Unnamed: 8": 0.0,
+        "Saldo": currency,
+        "Unnamed: 10": balance,
+        "Order Id": "",
     }
 
 
@@ -56,6 +77,7 @@ def _conn() -> sqlite3.Connection:
 # ---------------------------------------------------------------------------
 # Reading
 # ---------------------------------------------------------------------------
+
 
 def test_the_last_balance_of_each_day(tmp_path):
     path = _overview(
@@ -121,12 +143,22 @@ def test_an_amount_as_text_with_a_comma_is_read(tmp_path):
 # Geldbewegingen
 # ---------------------------------------------------------------------------
 
+
 def _movement(date, time, entry, balance, description="x"):
     """A row with an EUR change; mutation=None is a row without an amount."""
     return {
-        "Datum": date, "Tijd": time, "Valutadatum": date, "Product": "", "ISIN": "",
-        "Omschrijving": description, "FX": "", "Mutatie": "EUR" if entry is not None else "",
-        "Unnamed: 8": entry, "Saldo": "EUR", "Unnamed: 10": balance, "Order Id": "",
+        "Datum": date,
+        "Tijd": time,
+        "Valutadatum": date,
+        "Product": "",
+        "ISIN": "",
+        "Omschrijving": description,
+        "FX": "",
+        "Mutatie": "EUR" if entry is not None else "",
+        "Unnamed: 8": entry,
+        "Saldo": "EUR",
+        "Unnamed: 10": balance,
+        "Order Id": "",
     }
 
 
@@ -159,13 +191,13 @@ def test_a_real_withdrawal_stays_a_movement(tmp_path):
 # Storing
 # ---------------------------------------------------------------------------
 
+
 def test_importing_creates_an_account_on_the_investments_stack(tmp_path):
     """Cash at your broker belongs with your investments, as in the old bookkeeping,
     where "DeGiro inleg" already included the uninvested deposit.
     """
     conn = _conn()
-    path = _overview(tmp_path, _row("02-01-2026", "12:00", 1200.0),
-                     _row("01-01-2026", "12:00", 1000.0))
+    path = _overview(tmp_path, _row("02-01-2026", "12:00", 1200.0), _row("01-01-2026", "12:00", 1000.0))
 
     report = degiro_cash.import_file(conn, path)
 

@@ -69,7 +69,15 @@ def test_form_has_current_values_and_peak():
 
 
 def test_form_status_bands_are_a_share_of_fitness():
-    assert [form_status(p) for p in (25, 10, 0, -10, -27, -31, None)] == ["transition", "fresh", "neutral", "optimal", "optimal", "high_risk", "neutral"]
+    assert [form_status(p) for p in (25, 10, 0, -10, -27, -31, None)] == [
+        "transition",
+        "fresh",
+        "neutral",
+        "optimal",
+        "optimal",
+        "high_risk",
+        "neutral",
+    ]
 
 
 def test_recent_activities_newest_first_without_streams():
@@ -239,7 +247,12 @@ def test_plan_week_does_not_call_sessions_after_the_last_sync_missed():
 def test_plan_week_counts_every_activity_of_the_week_also_outside_a_session():
     # an extra run on Tuesday (no run planned within two days of it that is still open) and a swim on Monday 28 Sep,
     # four days before the planned swim on Friday 2 Oct: neither belongs to a session, both count for the week
-    done = [act("2026-09-28", km=10.2, secs=3700), act("2026-09-29", km=5, secs=1800), act("2026-09-28", "swim", km=1.5, secs=2400), act("2026-09-27", km=15)]
+    done = [
+        act("2026-09-28", km=10.2, secs=3700),
+        act("2026-09-29", km=5, secs=1800),
+        act("2026-09-28", "swim", km=1.5, secs=2400),
+        act("2026-09-27", km=15),
+    ]
     sessions = match_sessions(WEEK_PLAN, done, TODAY)
     w = plan_week(sessions, done, TODAY)
     assert w["sports"]["run"]["done_km"] == 15.2 and w["sports"]["run"]["done_s"] == 5500
@@ -294,7 +307,12 @@ def test_no_race_without_a_date():
 
 
 def at(day, time, sport="run", km=5.0, secs=1800, hr=140, name="Loop", z=None, **extra):
-    return {**act(day, sport=sport, km=km, secs=secs, hr=hr, z=z, name=name), "id": f"{day}_{time.replace(':', '')}_{sport}", "start_local": f"{day}T{time}:00", **extra}
+    return {
+        **act(day, sport=sport, km=km, secs=secs, hr=hr, z=z, name=name),
+        "id": f"{day}_{time.replace(':', '')}_{sport}",
+        "start_local": f"{day}T{time}:00",
+        **extra,
+    }
 
 
 def test_runs_with_a_short_break_are_one_item_with_their_parts():
@@ -356,6 +374,10 @@ def test_dashboard_recent_uses_the_merged_items():
 
 
 def test_a_marathon_pace_session_is_not_the_next_race():
-    sessions = [sess("2026-10-07", km=8, kind="marathontempo"), sess("2026-10-11", km=12, kind="race pace"), sess("2026-10-18", km=42.2, kind="wedstrijd")]
+    sessions = [
+        sess("2026-10-07", km=8, kind="marathontempo"),
+        sess("2026-10-11", km=12, kind="race pace"),
+        sess("2026-10-18", km=42.2, kind="wedstrijd"),
+    ]
     r = next_race({"race": ""}, sessions, date(2026, 10, 5))
     assert r["date"] == "2026-10-18" and r["days"] == 13

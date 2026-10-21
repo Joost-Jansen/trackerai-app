@@ -19,20 +19,29 @@ import { today } from "@/lib/money";
 import { tr, trx } from "@/lib/i18n";
 
 type Last = {
-  key: string; name: string; category: string | null; group_name: string | null; amount: number;
-  count: number; months: number; first: string | null; last: string | null;
-  is_new: boolean; stopped: boolean; manual?: boolean;
+  key: string;
+  name: string;
+  category: string | null;
+  group_name: string | null;
+  amount: number;
+  count: number;
+  months: number;
+  first: string | null;
+  last: string | null;
+  is_new: boolean;
+  stopped: boolean;
+  manual?: boolean;
 };
 export type FixedCost = Last;
 type Admin = { is_fixed: Last[]; candidates: Last[]; excluded: Last[] };
 
-function Row({ v, button, busy, onChoose }: {
-  v: Last; button: string; busy: boolean; onChoose: () => void;
-}) {
+function Row({ v, button, busy, onChoose }: { v: Last; button: string; busy: boolean; onChoose: () => void }) {
   const yearAgo = isoDay(dayNumber(today()) - 365);
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 py-2 text-[12.5px]"
-      style={{ borderTop: "1px solid var(--rule)", opacity: v.stopped && v.count > 0 ? 0.6 : 1 }}>
+    <li
+      className="flex flex-wrap items-center justify-between gap-3 py-2 text-[12.5px]"
+      style={{ borderTop: "1px solid var(--rule)", opacity: v.stopped && v.count > 0 ? 0.6 : 1 }}
+    >
       <Link href={toTransactions({ search: v.name, start: yearAgo, end: today() })} className="flex min-w-0 flex-col hover:underline">
         <span className="flex flex-wrap items-center gap-2">
           {v.name}
@@ -41,12 +50,28 @@ function Row({ v, button, busy, onChoose }: {
           {v.stopped && v.count > 0 && <Tag tone="neutral">{tr("stopped?")}</Tag>}
         </span>
         {v.count > 0 && (
-          <span className="text-xs text-ink-muted">{trx("{0} · in {1} {2} · {3}×{4}", v.category ?? "Onbekend", v.months, v.months === 1 ? tr("month") : tr("months"), v.count, v.last ? tr(" · last {0}", fmtDayMonthYear(v.last)) : "")}</span>
+          <span className="text-xs text-ink-muted">
+            {trx(
+              "{0} · in {1} {2} · {3}×{4}",
+              v.category ?? "Onbekend",
+              v.months,
+              v.months === 1 ? tr("month") : tr("months"),
+              v.count,
+              v.last ? tr(" · last {0}", fmtDayMonthYear(v.last)) : "",
+            )}
+          </span>
         )}
       </Link>
       <span className="flex items-center gap-3">
-        {v.count > 0 && <span className="num">{fmtEuro(v.amount)}<span className="text-ink-muted">{" "}{tr("/mo")}</span></span>}
-        <Button size="sm" variant="ghost" disabled={busy} onClick={onChoose}>{button}</Button>
+        {v.count > 0 && (
+          <span className="num">
+            {fmtEuro(v.amount)}
+            <span className="text-ink-muted"> {tr("/mo")}</span>
+          </span>
+        )}
+        <Button size="sm" variant="ghost" disabled={busy} onClick={onChoose}>
+          {button}
+        </Button>
       </span>
     </li>
   );
@@ -80,44 +105,82 @@ export default function FixedCostsAdmin() {
 
   return (
     <div id="fixed-costs" className="flex scroll-mt-24 flex-col gap-8">
-      <Section label={tr("Fixed costs")}
+      <Section
+        label={tr("Fixed costs")}
         meta={data ? <span className="num">{trx("{0} per month", fmtEuro(perMonth))}</span> : undefined}
-        info={<>{tr("Debits that come back every month. The app recognises them itself: in at least three months, roughly monthly, roughly the same amount. If that's wrong somewhere, say so here: what you choose wins over the recognition and counts everywhere: the marker in Budget this month, fixed versus variable and the lists on Overview. A choice applies to the name without numbers, so also to later months. You can also set it per transaction at Transactions.")}</>}>
-        {q.isLoading ? <p className="text-sm text-ink-muted">{tr("Loading…")}</p>
-          : q.isError ? <p className="text-sm text-ink-muted">{tr("Fixed costs could not load. Refresh the page.")}</p>
-          : data!.is_fixed.length === 0 ? (
-            <p className="py-2 text-sm text-ink-muted">{tr("No fixed costs yet. Below you can mark them yourself.")}</p>
-          ) : (
-            <ul className="flex flex-col">
-              {data!.is_fixed.map((v) => (
-                <Row key={v.key} v={v} busy={choose.isPending}
-                  button={v.manual ? tr("Remove") : tr("Not a fixed cost")}
-                  onChoose={() => choose.mutate({ name: v.name, is_fixed: v.manual ? null : false })} />
-              ))}
-            </ul>
-          )}
-        {error && <p className="pt-2 text-xs" style={{ color: "var(--text-loss)" }}>{error}</p>}
+        info={
+          <>
+            {tr(
+              "Debits that come back every month. The app recognises them itself: in at least three months, roughly monthly, roughly the same amount. If that's wrong somewhere, say so here: what you choose wins over the recognition and counts everywhere: the marker in Budget this month, fixed versus variable and the lists on Overview. A choice applies to the name without numbers, so also to later months. You can also set it per transaction at Transactions.",
+            )}
+          </>
+        }
+      >
+        {q.isLoading ? (
+          <p className="text-sm text-ink-muted">{tr("Loading…")}</p>
+        ) : q.isError ? (
+          <p className="text-sm text-ink-muted">{tr("Fixed costs could not load. Refresh the page.")}</p>
+        ) : data!.is_fixed.length === 0 ? (
+          <p className="py-2 text-sm text-ink-muted">{tr("No fixed costs yet. Below you can mark them yourself.")}</p>
+        ) : (
+          <ul className="flex flex-col">
+            {data!.is_fixed.map((v) => (
+              <Row
+                key={v.key}
+                v={v}
+                busy={choose.isPending}
+                button={v.manual ? tr("Remove") : tr("Not a fixed cost")}
+                onChoose={() => choose.mutate({ name: v.name, is_fixed: v.manual ? null : false })}
+              />
+            ))}
+          </ul>
+        )}
+        {error && (
+          <p className="pt-2 text-xs" style={{ color: "var(--text-loss)" }}>
+            {error}
+          </p>
+        )}
       </Section>
 
       {data && data.candidates.length > 0 && (
-        <Section label={tr("Maybe also fixed")}
-          info={<>{tr("Comes back in several months, but doesn't quite fit the pattern: a varying amount, another day, only two months so far. If it is a fixed cost after all, add it.")}</>}>
+        <Section
+          label={tr("Maybe also fixed")}
+          info={
+            <>
+              {tr(
+                "Comes back in several months, but doesn't quite fit the pattern: a varying amount, another day, only two months so far. If it is a fixed cost after all, add it.",
+              )}
+            </>
+          }
+        >
           <ul className="flex flex-col">
             {data.candidates.map((v) => (
-              <Row key={v.key} v={v} busy={choose.isPending} button={tr("Is a fixed cost")}
-                onChoose={() => choose.mutate({ name: v.name, is_fixed: true })} />
+              <Row
+                key={v.key}
+                v={v}
+                busy={choose.isPending}
+                button={tr("Is a fixed cost")}
+                onChoose={() => choose.mutate({ name: v.name, is_fixed: true })}
+              />
             ))}
           </ul>
         </Section>
       )}
 
       {data && data.excluded.length > 0 && (
-        <Section label={tr("Not a fixed cost")}
-          info={tr("What you turned off yourself. It counts as an ordinary expense, even if it comes back every month.")}>
+        <Section
+          label={tr("Not a fixed cost")}
+          info={tr("What you turned off yourself. It counts as an ordinary expense, even if it comes back every month.")}
+        >
           <ul className="flex flex-col">
             {data.excluded.map((v) => (
-              <Row key={v.key} v={v} busy={choose.isPending} button={tr("Recognise after all")}
-                onChoose={() => choose.mutate({ name: v.name, is_fixed: null })} />
+              <Row
+                key={v.key}
+                v={v}
+                busy={choose.isPending}
+                button={tr("Recognise after all")}
+                onChoose={() => choose.mutate({ name: v.name, is_fixed: null })}
+              />
             ))}
           </ul>
         </Section>

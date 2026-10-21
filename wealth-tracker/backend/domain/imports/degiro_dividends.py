@@ -29,14 +29,15 @@ Deduplication key: (date, isin, amount_original, currency_original)
 """
 
 import os
+
 import pandas as pd
-from domain.imports.degiro_export import read_export, number
 
-
+from domain.imports.degiro_export import number, read_export
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _safe_str(val) -> str:
     s = str(val).strip()
@@ -95,10 +96,10 @@ def _detect_columns(df: pd.DataFrame) -> dict:
     return found
 
 
-
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def parse_dividends(file_path: str, warnings: list[dict] | None = None) -> list[dict]:
     """
@@ -138,8 +139,8 @@ def parse_dividends(file_path: str, warnings: list[dict] | None = None) -> list[
     # Pass 1: bucket rows into dividends / taxes / FX debit events
     # ------------------------------------------------------------------
     dividend_rows: list[dict] = []
-    tax_rows:      list[dict] = []
-    fx_debit_rows: list[dict] = []   # "Valuta Debitering" — carry the FX rate
+    tax_rows: list[dict] = []
+    fx_debit_rows: list[dict] = []  # "Valuta Debitering" — carry the FX rate
 
     for _, row in df.iterrows():
         desc = _safe_str(row.get(C.get("desc", ""), "")).lower()
@@ -150,11 +151,11 @@ def parse_dividends(file_path: str, warnings: list[dict] | None = None) -> list[
         if not date_str:
             continue
 
-        isin     = _safe_str(row.get(C.get("isin", ""), ""))
-        name     = _safe_str(row.get(C.get("product", ""), ""))
+        isin = _safe_str(row.get(C.get("isin", ""), ""))
+        name = _safe_str(row.get(C.get("product", ""), ""))
         currency = _safe_str(row.get(C.get("mut_ccy", ""), "")).upper()
-        amount   = _safe_float(row.get(C.get("mut_amt", ""), ""))
-        fx_rate  = _safe_float(row.get(C.get("fx", ""), "")) if "fx" in C else None
+        amount = _safe_float(row.get(C.get("mut_amt", ""), ""))
+        fx_rate = _safe_float(row.get(C.get("fx", ""), "")) if "fx" in C else None
 
         if amount is None:
             continue
@@ -168,31 +169,37 @@ def parse_dividends(file_path: str, warnings: list[dict] | None = None) -> list[
         # "Dividend Tax" also contains "dividend".
         if "dividendbelasting" in desc or "dividend tax" in desc or "withholding" in desc:
             # Withholding tax — always EUR, always negative
-            tax_rows.append({
-                "date":       date_str,
-                "isin":       isin,
-                "amount_eur": amount,   # negative
-            })
+            tax_rows.append(
+                {
+                    "date": date_str,
+                    "isin": isin,
+                    "amount_eur": amount,  # negative
+                }
+            )
 
         elif "dividend" in desc:
             # Gross dividend row.  Keep the sign: a negative amount is a
             # correction/reversal and must reduce the totals, not add to them.
-            dividend_rows.append({
-                "date":     date_str,
-                "isin":     isin,
-                "name":     name,
-                "currency": currency,
-                "amount":   amount,
-            })
+            dividend_rows.append(
+                {
+                    "date": date_str,
+                    "isin": isin,
+                    "name": name,
+                    "currency": currency,
+                    "amount": amount,
+                }
+            )
 
         elif "valuta debitering" in desc or "fx debit" in desc or "currency debit" in desc:
             # FX conversion debit — carries the exchange rate
             if fx_rate and fx_rate != 0:
-                fx_debit_rows.append({
-                    "date":     date_str,
-                    "currency": currency,   # foreign currency (e.g. USD)
-                    "fx_rate":  fx_rate,    # foreign-currency units per EUR
-                })
+                fx_debit_rows.append(
+                    {
+                        "date": date_str,
+                        "currency": currency,  # foreign currency (e.g. USD)
+                        "fx_rate": fx_rate,  # foreign-currency units per EUR
+                    }
+                )
 
     # ------------------------------------------------------------------
     # Pass 2: build net dividend records
@@ -205,10 +212,10 @@ def parse_dividends(file_path: str, warnings: list[dict] | None = None) -> list[
     # absorb every tax row in the window when two payments fell close
     # together — totals were right but the per-payment split was wrong.)
     tax_by_div: dict[int, float] = {}
-    assigned: dict[int, int] = {}   # payment index → tax rows already on it
+    assigned: dict[int, int] = {}  # payment index → tax rows already on it
     for tax in tax_rows:
-        tax_ts   = pd.Timestamp(tax["date"])
-        best_di  = None
+        tax_ts = pd.Timestamp(tax["date"])
+        best_di = None
         best_key = None
         for di, div in enumerate(dividend_rows):
             if tax["isin"] and div["isin"] and tax["isin"] != div["isin"]:
@@ -228,9 +235,9 @@ def parse_dividends(file_path: str, warnings: list[dict] | None = None) -> list[
             assigned[best_di] = assigned.get(best_di, 0) + 1
 
     for div_idx, div in enumerate(dividend_rows):
-        currency   = div["currency"]
+        currency = div["currency"]
         amount_raw = div["amount"]
-        div_ts     = pd.Timestamp(div["date"])
+        div_ts = pd.Timestamp(div["date"])
 
         # ---- Convert to EUR ----
         if currency == "EUR":
@@ -241,16 +248,16 @@ def parse_dividends(file_path: str, warnings: list[dict] | None = None) -> list[
             # within a [0, +7] day window after the dividend date.
             # The FX rate is: foreign-currency units per EUR
             # → EUR = foreign_amount / fx_rate
-            best_fx  = None
+            best_fx = None
             best_gap = float("inf")
             for fxd in fx_debit_rows:
                 if fxd["currency"] != currency:
                     continue
                 fxd_ts = pd.Timestamp(fxd["date"])
-                gap = (fxd_ts - div_ts).days   # positive = debitering after dividend
+                gap = (fxd_ts - div_ts).days  # positive = debitering after dividend
                 if 0 <= gap <= 7 and gap < best_gap:
                     best_gap = gap
-                    best_fx  = fxd
+                    best_fx = fxd
 
             # Nothing in the window is the common case at a file boundary: a
             # December dividend converted in January has its debitering row in
@@ -280,30 +287,33 @@ def parse_dividends(file_path: str, warnings: list[dict] | None = None) -> list[
                 # No rate for this currency anywhere in the file. Still skipped,
                 # but the caller is told so it can say it on screen rather than
                 # quietly reporting a smaller total.
-                skipped_no_fx.append({
-                    "date": div["date"], "name": div["name"],
-                    "currency": currency, "amount": amount_raw,
-                })
-                print(
-                    f"  Warning: no FX rate found for {currency} dividend "
-                    f"({div['name']}, {div['date']}) — skipped."
+                skipped_no_fx.append(
+                    {
+                        "date": div["date"],
+                        "name": div["name"],
+                        "currency": currency,
+                        "amount": amount_raw,
+                    }
                 )
+                print(f"  Warning: no FX rate found for {currency} dividend ({div['name']}, {div['date']}) — skipped.")
                 continue
 
         # ---- Withholding tax assigned to this payment ----
         tax_eur = tax_by_div.get(div_idx, 0.0)
         net_eur = gross_eur + tax_eur
 
-        results.append({
-            "date":              div["date"],
-            "isin":              div["isin"],
-            "name":              div["name"],
-            "currency_original": div["currency"],
-            "amount_original":   round(amount_raw, 6),
-            "gross_eur":         round(gross_eur,  4),
-            "tax_eur":           round(tax_eur,    4),
-            "net_eur":           round(net_eur,    4),
-        })
+        results.append(
+            {
+                "date": div["date"],
+                "isin": div["isin"],
+                "name": div["name"],
+                "currency_original": div["currency"],
+                "amount_original": round(amount_raw, 6),
+                "gross_eur": round(gross_eur, 4),
+                "tax_eur": round(tax_eur, 4),
+                "net_eur": round(net_eur, 4),
+            }
+        )
 
     results.sort(key=lambda d: d["date"])
     print(f"  → Found {len(results)} dividend payment(s)")

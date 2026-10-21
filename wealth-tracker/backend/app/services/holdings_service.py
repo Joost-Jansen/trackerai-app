@@ -20,12 +20,11 @@ Details tab, and their `total_invested` must keep meaning "incl. fees" there.
 Naming: `_ex` is excluding transaction costs, `_gross` is including them.
 """
 
-from domain.portfolio import series as charts
-from domain.portfolio import positions as portfolio
-
 from app.core import price_refresh
 from app.services import dashboard_service, tradegate_service, venue_price_service
 from app.services.portfolio_service import PortfolioBundle
+from domain.portfolio import positions as portfolio
+from domain.portfolio import series as charts
 
 
 def _value_ex_costs(t: dict, costs: float) -> float:
@@ -49,9 +48,9 @@ def _value_ex_costs(t: dict, costs: float) -> float:
 def _walk(trades: list[dict]) -> dict:
     """The average-cost walk over one group of trades, in date order."""
     shares = 0.0
-    cost_ex = 0.0          # basis excl. costs of the shares still held
-    invested_gross = 0.0   # every euro ever paid on a buy, incl. costs
-    realized_ex = 0.0      # price gain locked in by sells, excl. costs
+    cost_ex = 0.0  # basis excl. costs of the shares still held
+    invested_gross = 0.0  # every euro ever paid on a buy, incl. costs
+    realized_ex = 0.0  # price gain locked in by sells, excl. costs
     costs_total = 0.0
 
     for t in sorted(trades, key=lambda x: (x["date"], x["time"] or "")):
@@ -132,14 +131,28 @@ def cost_breakdown_by_venue(transactions: list[dict]) -> dict[tuple[str, str | N
 # "ISHS V-IBDS DEC 2026 TERM EO CREG.SHS () EUR DIS. ON", with neither "ETF"
 # nor "UCITS" anywhere in it.
 _TRACKER_TOKENS = {
-    "ETF", "ETC", "ETN", "UCITS", "TRACKER", "TRACKERS",
-    "ISHARES", "ISHS", "ISHRS", "SPDR", "STST", "VANECK",
-    "VANGUARD", "VNGU", "VGRD", "XTRACKERS", "WISDOMTREE",
+    "ETF",
+    "ETC",
+    "ETN",
+    "UCITS",
+    "TRACKER",
+    "TRACKERS",
+    "ISHARES",
+    "ISHS",
+    "ISHRS",
+    "SPDR",
+    "STST",
+    "VANECK",
+    "VANGUARD",
+    "VNGU",
+    "VGRD",
+    "XTRACKERS",
+    "WISDOMTREE",
 }
 
 
 def asset_type(name: str) -> str:
-    """"tracker" or "share" — the grouping the Portfolio tab lists under.
+    """ "tracker" or "share" — the grouping the Portfolio tab lists under.
 
     Punctuation is split on as well as whitespace, so "CREG.SHS" and "ETF," do
     not hide a token. A name that matches nothing is a share: that is the safe
@@ -179,8 +192,7 @@ def listing_quote(info: dict) -> dict:
     """
     currency = charts.listing_currency(info) or "EUR"
     if currency == "EUR":
-        return {"currency": "EUR", "price": info.get("price"),
-                "previous_close": info.get("previous_close")}
+        return {"currency": "EUR", "price": info.get("price"), "previous_close": info.get("previous_close")}
     rate = info.get("quote_fx_rate")
     if not rate:
         return {"currency": currency, "price": None, "previous_close": None}
@@ -230,9 +242,7 @@ def holdings_rows(bundle: PortfolioBundle) -> list[dict]:
 
         cost_ex = b["cost_ex"]
         isin_shares = shares_by_isin.get(isin, 0.0)
-        dividends = bundle.dividends_by_isin.get(isin, 0.0) * (
-            shares / isin_shares if isin_shares > 0 else 0.0
-        )
+        dividends = bundle.dividends_by_isin.get(isin, 0.0) * (shares / isin_shares if isin_shares > 0 else 0.0)
 
         info = venue_price_service.position_quote(isin, venue, yahoo_prices, bundle.venue_prices)
         price = info["price"] if info else None
@@ -278,35 +288,37 @@ def holdings_rows(bundle: PortfolioBundle) -> list[dict]:
             else:
                 day_eur = day_pct = None
 
-        rows.append({
-            "isin": isin,
-            "name": b["name"],
-            # The Yahoo symbol even for a row priced off Tradegate: it is what
-            # the koersgrafiek is drawn from.
-            "ticker": (yahoo_prices.get(isin) or {}).get("ticker") if info else None,
-            "asset_type": asset_type(b["name"]),
-            # DeGiro's own venue code ("EAM", "XET", "TDG"), and now the thing
-            # that makes this row a distinct position rather than a detail.
-            "exchange": venue,
-            "shares_held": round(shares, 6),
-            "current_price": price,
-            "previous_close": prev,
-            "current_value": value,
-            "avg_cost_ex_costs": round(cost_ex / shares, 4) if shares > 0 else None,
-            "invested_ex_costs": round(cost_ex, 2),
-            "invested_gross": round(b["invested_gross"], 2),
-            "realized_eur": realized_eur,
-            "dividends_eur": dividends_eur,
-            "costs_eur": costs_eur,
-            "unrealized_eur": unrealized_eur,
-            "unrealized_pct": unrealized_pct,
-            "total_eur": total_eur,
-            "total_pct": total_pct,
-            "day_eur": day_eur,
-            "day_pct": day_pct,
-            "price_provider": info["provider"] if info else None,
-            "price_fetched_at": info.get("fetched_at") if info else None,
-        })
+        rows.append(
+            {
+                "isin": isin,
+                "name": b["name"],
+                # The Yahoo symbol even for a row priced off Tradegate: it is what
+                # the koersgrafiek is drawn from.
+                "ticker": (yahoo_prices.get(isin) or {}).get("ticker") if info else None,
+                "asset_type": asset_type(b["name"]),
+                # DeGiro's own venue code ("EAM", "XET", "TDG"), and now the thing
+                # that makes this row a distinct position rather than a detail.
+                "exchange": venue,
+                "shares_held": round(shares, 6),
+                "current_price": price,
+                "previous_close": prev,
+                "current_value": value,
+                "avg_cost_ex_costs": round(cost_ex / shares, 4) if shares > 0 else None,
+                "invested_ex_costs": round(cost_ex, 2),
+                "invested_gross": round(b["invested_gross"], 2),
+                "realized_eur": realized_eur,
+                "dividends_eur": dividends_eur,
+                "costs_eur": costs_eur,
+                "unrealized_eur": unrealized_eur,
+                "unrealized_pct": unrealized_pct,
+                "total_eur": total_eur,
+                "total_pct": total_pct,
+                "day_eur": day_eur,
+                "day_pct": day_pct,
+                "price_provider": info["provider"] if info else None,
+                "price_fetched_at": info.get("fetched_at") if info else None,
+            }
+        )
 
     rows.sort(key=lambda r: r["current_value"] or 0, reverse=True)
     return rows
@@ -315,12 +327,25 @@ def holdings_rows(bundle: PortfolioBundle) -> list[dict]:
 #: The Yahoo ticker suffix → the venue that listing trades on, for the source
 #: line under a price. Bare tickers are US listings.
 _YAHOO_SUFFIX_VENUE = {
-    ".AS": "Euronext Amsterdam", ".PA": "Euronext Parijs", ".BR": "Euronext Brussel",
-    ".LS": "Euronext Lissabon", ".MI": "Borsa Italiana", ".MC": "Bolsa de Madrid",
-    ".HE": "Nasdaq Helsinki", ".VI": "Wiener Börse", ".DE": "XETRA",
-    ".F": "Börse Frankfurt", ".SG": "Börse Stuttgart", ".L": "London Stock Exchange",
-    ".SW": "SIX Swiss Exchange", ".OL": "Oslo Børs", ".ST": "Nasdaq Stockholm",
-    ".CO": "Nasdaq Kopenhagen", ".TO": "Toronto", ".T": "Tokio", ".HK": "Hongkong",
+    ".AS": "Euronext Amsterdam",
+    ".PA": "Euronext Parijs",
+    ".BR": "Euronext Brussel",
+    ".LS": "Euronext Lissabon",
+    ".MI": "Borsa Italiana",
+    ".MC": "Bolsa de Madrid",
+    ".HE": "Nasdaq Helsinki",
+    ".VI": "Wiener Börse",
+    ".DE": "XETRA",
+    ".F": "Börse Frankfurt",
+    ".SG": "Börse Stuttgart",
+    ".L": "London Stock Exchange",
+    ".SW": "SIX Swiss Exchange",
+    ".OL": "Oslo Børs",
+    ".ST": "Nasdaq Stockholm",
+    ".CO": "Nasdaq Kopenhagen",
+    ".TO": "Toronto",
+    ".T": "Tokio",
+    ".HK": "Hongkong",
     ".AX": "ASX Sydney",
 }
 
@@ -349,7 +374,7 @@ def price_source(ticker: str | None, exchange: str | None, provider: str | None 
         }
     if not ticker:
         return None
-    suffix = ticker[ticker.rindex("."):] if "." in ticker else ""
+    suffix = ticker[ticker.rindex(".") :] if "." in ticker else ""
     listing_venue = _YAHOO_SUFFIX_VENUE.get(suffix) or ("VS" if suffix == "" else None)
 
     venue = portfolio._DEGIRO_VENUES.get(exchange or "")
@@ -369,9 +394,7 @@ def price_source(ticker: str | None, exchange: str | None, provider: str | None 
     }
 
 
-def position_detail(
-    bundle: PortfolioBundle, isin: str, venue: str | None = None
-) -> dict | None:
+def position_detail(bundle: PortfolioBundle, isin: str, venue: str | None = None) -> dict | None:
     """One position, with the identity a page needs above it. None when the
     ISIN (or that venue of it) is not an open position.
 
@@ -398,10 +421,7 @@ def position_detail(
 
     # The same key cost_breakdown_by_venue groups on, so "this position's
     # trades" here means exactly the trades its numbers were walked from.
-    trades = [
-        t for t in bundle.transactions
-        if t["isin"] == isin and (t.get("exchange") or None) == row["exchange"]
-    ]
+    trades = [t for t in bundle.transactions if t["isin"] == isin and (t.get("exchange") or None) == row["exchange"]]
     buys = [t for t in trades if t["transaction_type"] == "BUY"]
 
     info = _yahoo(bundle).get(isin) or {}

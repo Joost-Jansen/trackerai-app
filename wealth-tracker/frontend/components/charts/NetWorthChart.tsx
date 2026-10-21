@@ -133,13 +133,7 @@ function NetWorthPlot({
     }
     // The zero line always belongs: without it a debt of 39,000 is just as low as a
     // debt of 200, and you do not see that you are below zero.
-    const values = points.flatMap((p) => [
-      0,
-      p.net,
-      p.investments,
-      p.investments + p.bank,
-      p.debt,
-    ]);
+    const values = points.flatMap((p) => [0, p.net, p.investments, p.investments + p.bank, p.debt]);
     return { lo: Math.min(...values), hi: Math.max(...values) };
   }, [points, view]);
 
@@ -152,7 +146,7 @@ function NetWorthPlot({
 
   const timeStart = dayNumber(points[0].d);
   const timeSpan = dayNumber(points[points.length - 1].d) - timeStart || 1;
-  const x = (i: number) => (dayNumber(points[i].d) - timeStart) / timeSpan * innerW;
+  const x = (i: number) => ((dayNumber(points[i].d) - timeStart) / timeSpan) * innerW;
   const y = (v: number) => PATH.top + (1 - (v - lo) / span) * innerH;
 
   /** A stacked area between two series, as one closed path. */
@@ -166,11 +160,20 @@ function NetWorthPlot({
   };
 
   const paths: Record<Stack["key"], string> = {
-    investments: area(() => 0, (p) => p.investments),
-    bank: area((p) => p.investments, (p) => p.investments + p.bank),
+    investments: area(
+      () => 0,
+      (p) => p.investments,
+    ),
+    bank: area(
+      (p) => p.investments,
+      (p) => p.investments + p.bank,
+    ),
     // Debt hangs below the zero line; the other side of the axis is the strongest
     // separation there is and costs no colour.
-    debt: area(() => 0, (p) => p.debt),
+    debt: area(
+      () => 0,
+      (p) => p.debt,
+    ),
   };
 
   const netLine = netLineOf(points, x, y);
@@ -179,8 +182,13 @@ function NetWorthPlot({
   const nearest = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const rel = ((e.clientX - rect.left) / rect.width) * w;
-    return Math.max(0, Math.min(points.length - 1,
-      points.reduce((best, _p, i) => Math.abs(x(i) - rel) < Math.abs(x(best) - rel) ? i : best, 0)));
+    return Math.max(
+      0,
+      Math.min(
+        points.length - 1,
+        points.reduce((best, _p, i) => (Math.abs(x(i) - rel) < Math.abs(x(best) - rel) ? i : best), 0),
+      ),
+    );
   };
 
   const active = hover !== null ? points[hover] : null;
@@ -190,9 +198,10 @@ function NetWorthPlot({
   const ticks = dateTicks(first.d, last.d, innerW);
 
   // The change view's fill: between the net line and the starting value.
-  const startFill = view === "change"
-    ? `${netLineOf(points, x, y)}L${x(points.length - 1).toFixed(1)},${y(first.net).toFixed(1)}L${x(0).toFixed(1)},${y(first.net).toFixed(1)}Z`
-    : "";
+  const startFill =
+    view === "change"
+      ? `${netLineOf(points, x, y)}L${x(points.length - 1).toFixed(1)},${y(first.net).toFixed(1)}L${x(0).toFixed(1)},${y(first.net).toFixed(1)}Z`
+      : "";
 
   // Labels on the right: "Net" above its end point, "Start" on its line. When they
   // land on each other, or on an axis value, they are pushed apart and the axis
@@ -221,9 +230,13 @@ function NetWorthPlot({
             const delta = points[b].net - points[a].net;
             return (
               <span className="text-[13px]">
-                <strong>{fmtDayMonthYear(points[a].d)} – {fmtDayMonthYear(points[b].d)}</strong>
+                <strong>
+                  {fmtDayMonthYear(points[a].d)} – {fmtDayMonthYear(points[b].d)}
+                </strong>
                 {" · "}
-                <span className="num" style={{ color: tone(delta) }}>{signed(delta)}</span>
+                <span className="num" style={{ color: tone(delta) }}>
+                  {signed(delta)}
+                </span>
                 {" · "}
                 <span className="text-xs text-ink-muted">{tr("let go to show this period")}</span>
               </span>
@@ -282,7 +295,10 @@ function NetWorthPlot({
           role="img"
           aria-label={ariaLabel}
           style={{ cursor: onSelect ? "crosshair" : undefined, userSelect: "none", touchAction: "pan-y" }}
-          onMouseLeave={() => { setHover(null); setDragFrom(null); }}
+          onMouseLeave={() => {
+            setHover(null);
+            setDragFrom(null);
+          }}
           onMouseMove={(e) => setHover(nearest(e))}
           onMouseDown={(e) => {
             if (!onSelect || e.button !== 0) return;
@@ -300,15 +316,9 @@ function NetWorthPlot({
         >
           {gridValues.map((v) => (
             <g key={v}>
-              <line
-                x1={0} x2={innerW} y1={y(v)} y2={y(v)}
-                stroke="var(--border-hairline)" strokeDasharray="1 4"
-              />
+              <line x1={0} x2={innerW} y1={y(v)} y2={y(v)} stroke="var(--border-hairline)" strokeDasharray="1 4" />
               {freeForAxis(v) && (
-                <text
-                  x={innerW + 6} y={y(v) + 3.5}
-                  className="num" fontSize={10} fill="var(--text-faint)"
-                >
+                <text x={innerW + 6} y={y(v) + 3.5} className="num" fontSize={10} fill="var(--text-faint)">
                   {trueMinus(format(v))}
                 </text>
               )}
@@ -317,89 +327,92 @@ function NetWorthPlot({
 
           {/* The zero line heavier than the grid: being below zero is a different kind of fact than
               an intermediate value. */}
-          {lo < 0 && hi > 0 && (
-            <line x1={0} x2={innerW} y1={y(0)} y2={y(0)} stroke="var(--border-strong)" />
-          )}
+          {lo < 0 && hi > 0 && <line x1={0} x2={innerW} y1={y(0)} y2={y(0)} stroke="var(--border-strong)" />}
 
           {view === "change" && (
             <>
               <path d={startFill} fill="var(--chart-1)" fillOpacity={0.1} />
-              <line x1={0} x2={innerW} y1={y(first.net)} y2={y(first.net)}
-                    stroke="var(--text-faint)" strokeDasharray="4 4" />
+              <line x1={0} x2={innerW} y1={y(first.net)} y2={y(first.net)} stroke="var(--text-faint)" strokeDasharray="4 4" />
               <text x={innerW + 6} y={startLabelY} fontSize={10} fill="var(--text-faint)">
                 {tr("Start")}
               </text>
             </>
           )}
 
-          {view === "breakdown" && STACKS.map((s) => (
-            <path
-              key={s.key}
-              d={paths[s.key]}
-              fill={s.colour}
-              fillOpacity={0.55}
-              // The seam between two stacks, in the card colour. Without this stroke two areas
-              // of almost the same shade run into each other.
-              stroke="var(--surface)"
-              strokeWidth={2}
-              strokeLinejoin="round"
-            />
-          ))}
+          {view === "breakdown" &&
+            STACKS.map((s) => (
+              <path
+                key={s.key}
+                d={paths[s.key]}
+                fill={s.colour}
+                fillOpacity={0.55}
+                // The seam between two stacks, in the card colour. Without this stroke two areas
+                // of almost the same shade run into each other.
+                stroke="var(--surface)"
+                strokeWidth={2}
+                strokeLinejoin="round"
+              />
+            ))}
 
-          <path d={netLine} fill="none" stroke="var(--chart-1)" strokeWidth={2}
-                strokeLinejoin="round" strokeLinecap="round" />
+          <path d={netLine} fill="none" stroke="var(--chart-1)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
 
           {/* A faint dot on each real measurement: the line between them is extrapolated
               balance. Kept small, the hover readout says it outright. */}
           {points.map((p, i) =>
-            p.measured ? (
-              <circle key={p.d} cx={x(i)} cy={y(p.net)} r={1.5} fill="var(--chart-1)" fillOpacity={0.45} />
-            ) : null,
+            p.measured ? <circle key={p.d} cx={x(i)} cy={y(p.net)} r={1.5} fill="var(--chart-1)" fillOpacity={0.45} /> : null,
           )}
 
           {/* The stretch being dragged over. */}
           {dragFrom !== null && hover !== null && hover !== dragFrom && (
             <rect
-              x={Math.min(x(dragFrom), x(hover))} width={Math.abs(x(hover) - x(dragFrom))}
-              y={PATH.top} height={innerH}
-              fill="var(--chart-1)" fillOpacity={0.12} stroke="var(--chart-1)" strokeOpacity={0.5}
+              x={Math.min(x(dragFrom), x(hover))}
+              width={Math.abs(x(hover) - x(dragFrom))}
+              y={PATH.top}
+              height={innerH}
+              fill="var(--chart-1)"
+              fillOpacity={0.12}
+              stroke="var(--chart-1)"
+              strokeOpacity={0.5}
             />
           )}
 
           {hover !== null && (
             <>
-              <line x1={x(hover)} x2={x(hover)} y1={PATH.top} y2={PATH.top + innerH}
-                    stroke="var(--border-strong)" strokeDasharray="2 3" />
-              <circle cx={x(hover)} cy={y(points[hover].net)} r={4}
-                      fill="var(--chart-1)" stroke="var(--surface)" strokeWidth={2} />
+              <line x1={x(hover)} x2={x(hover)} y1={PATH.top} y2={PATH.top + innerH} stroke="var(--border-strong)" strokeDasharray="2 3" />
+              <circle cx={x(hover)} cy={y(points[hover].net)} r={4} fill="var(--chart-1)" stroke="var(--surface)" strokeWidth={2} />
             </>
           )}
 
           {/* Names at the end of each area, as LineChart does — that saves a legend block and makes
               identity independent of colour. */}
-          <text x={innerW + 6} y={netLabelY} fontSize={10} fill="var(--chart-1)">{tr("Net")}</text>
-          {view === "breakdown" && STACKS.map((s) => {
-            const middle =
-              s.key === "investments" ? last.investments / 2
-              : s.key === "bank" ? last.investments + last.bank / 2
-              : last.debt / 2;
-            if (last[s.key] === 0) return null;
-            return (
-              <text key={s.key} x={innerW + 6} y={y(middle) + 3.5}
-                    fontSize={10} fill="var(--text-faint)">
-                {s.label}
-              </text>
-            );
-          })}
+          <text x={innerW + 6} y={netLabelY} fontSize={10} fill="var(--chart-1)">
+            {tr("Net")}
+          </text>
+          {view === "breakdown" &&
+            STACKS.map((s) => {
+              const middle =
+                s.key === "investments" ? last.investments / 2 : s.key === "bank" ? last.investments + last.bank / 2 : last.debt / 2;
+              if (last[s.key] === 0) return null;
+              return (
+                <text key={s.key} x={innerW + 6} y={y(middle) + 3.5} fontSize={10} fill="var(--text-faint)">
+                  {s.label}
+                </text>
+              );
+            })}
 
           {/* Dates at round moments along the bottom, each with a faint tick. */}
           {ticks.map((t) => {
-            const tx = (dayNumber(t.d) - timeStart) / timeSpan * innerW;
+            const tx = ((dayNumber(t.d) - timeStart) / timeSpan) * innerW;
             return (
               <g key={t.d}>
                 <line x1={tx} x2={tx} y1={PATH.top + innerH} y2={PATH.top + innerH + 4} stroke="var(--border-strong)" />
-                <text x={tx} y={height - 4} fontSize={10} fill="var(--text-faint)"
-                      textAnchor={tx < 20 ? "start" : tx > innerW - 20 ? "end" : "middle"}>
+                <text
+                  x={tx}
+                  y={height - 4}
+                  fontSize={10}
+                  fill="var(--text-faint)"
+                  textAnchor={tx < 20 ? "start" : tx > innerW - 20 ? "end" : "middle"}
+                >
                   {t.label}
                 </text>
               </g>
@@ -411,10 +424,23 @@ function NetWorthPlot({
   );
 }
 
-
-export default function NetWorthChart({ boundaries, timeline, granularity, flows = [], sharedAsSpending = false, ...props }: {
-  points: NetWorthPoint[]; format: (v: number) => string; height?: number; ariaLabel: string; flows?: Flow[]; sharedAsSpending?: boolean;
-  boundaries?: string[] | null; timeline: ReturnType<typeof useTimeline>; granularity: string;
+export default function NetWorthChart({
+  boundaries,
+  timeline,
+  granularity,
+  flows = [],
+  sharedAsSpending = false,
+  ...props
+}: {
+  points: NetWorthPoint[];
+  format: (v: number) => string;
+  height?: number;
+  ariaLabel: string;
+  flows?: Flow[];
+  sharedAsSpending?: boolean;
+  boundaries?: string[] | null;
+  timeline: ReturnType<typeof useTimeline>;
+  granularity: string;
 }) {
   // From the balance at the end of the day before the window: see windowWithBase.
   const selected = windowWithBase(props.points, timeline.window);
@@ -426,55 +452,125 @@ export default function NetWorthChart({ boundaries, timeline, granularity, flows
     try {
       const saved = localStorage.getItem("net-worth-view");
       if (saved === "change" || saved === "breakdown") choose(saved);
-    } catch { /* no storage: the default applies */ }
+    } catch {
+      /* no storage: the default applies */
+    }
   }, []);
   const view: NetWorthView = chosen ?? "breakdown";
   const pick = (v: NetWorthView) => {
     choose(v);
-    try { localStorage.setItem("net-worth-view", v); } catch { /* fine */ }
+    try {
+      localStorage.setItem("net-worth-view", v);
+    } catch {
+      /* fine */
+    }
   };
   const VIEWS: { id: NetWorthView; label: string }[] = [
     { id: "breakdown", label: tr("Breakdown") },
     { id: "change", label: tr("Change") },
   ];
   const stepLabel = granularity === "day" ? tr("vs the day before") : tr("vs the previous point");
-  return <div>
-    {change !== null && <p className="pb-3 text-sm">
-      <Explained text={`${tr("Including deposits, withdrawals and changes in available data.")} ${tr("From {0} to {1}. The parts below add up to it; it's not a return calculation.", fmtDayMonthYear(selected[0].d), fmtDayMonthYear(selected[selected.length - 1].d))}`}>{tr("Net worth difference in view")}</Explained>
-      {": "}<strong className="num">{change > 0 ? "+" : ""}{trueMinus(props.format(change))}</strong></p>}
-    {selected.length > 1 && (() => {
-      const first = selected[0], end = selected[selected.length - 1];
-      const split = bridge(first, end, flows, sharedAsSpending);
-      // With bank transactions: what you saved, what the market did and the rest.
-      // Without them, the old split by stack, which is all there is to say.
-      const cards = split.saved !== null
-        ? [
-            { label: tr("Saved"), value: split.saved, sub: tr("Income minus spending"), help: TERMS.saved() },
-            { label: tr("Market"), value: split.market!, sub: tr("What your holdings did: price changes and dividend"), help: TERMS.market() },
-            { label: tr("Bank & cash"), value: split.bank!, sub: tr("Gifts, money for friends, transfers and corrections"), help: TERMS.bank() },
-            { label: tr("Debt"), value: split.debt!, sub: tr("Your own debts: repayments positive, interest negative"), help: TERMS.debt() },
-          ]
-        : ([
-            { key: "investments", label: tr("Change in investments"), sub: tr("Including price changes and deposits") },
-            { key: "bank", label: tr("Change in bank & cash"), sub: tr("Difference between the balances shown") },
-            { key: "debt", label: tr("Effect of debts"), sub: tr("Positive means less debt") },
-          ] as const).map((c) => ({ label: c.label, value: end[c.key] - first[c.key], sub: c.sub, help: null as string | null }));
-      return <div className={`mb-5 grid gap-3 ${cards.length === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
-        {cards.map(({ label, value, sub, help }) => (
-          <div key={label} className="rounded-lg border p-3" style={{ borderColor: "var(--rule)" }}>
-            <p className="text-xs text-ink-muted"><Explained text={help ?? sub}>{label}</Explained></p>
-            <p className="num py-1 text-lg">{Math.round(value * 100) > 0 ? "+" : ""}{trueMinus(props.format(Math.round(value * 100) / 100 || 0))}</p>
-          </div>
-        ))}
-      </div>;
-    })()}
-    {points.length > 1 && <div className="mb-3 flex flex-wrap items-center gap-3">
-      <Tabs items={VIEWS} value={view} variant="segmented" ariaLabel={tr("Chart view")} onChange={(v) => pick(v as NetWorthView)} />
-      <span className="text-xs text-ink-muted">
-        <Explained text={`${view === "change" ? tr("Net worth only, with the axis fitted to it: small changes become visible.") : tr("Investments, bank and debt stacked, from zero.")} ${tr("Drag across the chart to show that stretch.")}`}>{tr("How to read this")}</Explained>
-      </span>
-    </div>}
-    {points.length > 1 ? <NetWorthPlot key={`${timeline.window.from}:${timeline.window.to}:${granularity}:${view}`} {...props} points={points} view={view} stepLabel={stepLabel} onSelect={timeline.change} /> : <p className="py-6 text-sm text-ink-muted">{tr("Not enough data for a line in this period. Zoom out or choose another period.")}</p>}
-    {granularity !== "day" && <p className="pt-2 text-xs text-ink-muted">{trx("Latest available value per {0}; the starting point stays visible.", granularity === "month" ? (boundaries ? tr("salary month: the day before your next salary") : tr("month")) : tr("year"))}</p>}
-  </div>;
+  return (
+    <div>
+      {change !== null && (
+        <p className="pb-3 text-sm">
+          <Explained
+            text={`${tr("Including deposits, withdrawals and changes in available data.")} ${tr("From {0} to {1}. The parts below add up to it; it's not a return calculation.", fmtDayMonthYear(selected[0].d), fmtDayMonthYear(selected[selected.length - 1].d))}`}
+          >
+            {tr("Net worth difference in view")}
+          </Explained>
+          {": "}
+          <strong className="num">
+            {change > 0 ? "+" : ""}
+            {trueMinus(props.format(change))}
+          </strong>
+        </p>
+      )}
+      {selected.length > 1 &&
+        (() => {
+          const first = selected[0],
+            end = selected[selected.length - 1];
+          const split = bridge(first, end, flows, sharedAsSpending);
+          // With bank transactions: what you saved, what the market did and the rest.
+          // Without them, the old split by stack, which is all there is to say.
+          const cards =
+            split.saved !== null
+              ? [
+                  { label: tr("Saved"), value: split.saved, sub: tr("Income minus spending"), help: TERMS.saved() },
+                  {
+                    label: tr("Market"),
+                    value: split.market!,
+                    sub: tr("What your holdings did: price changes and dividend"),
+                    help: TERMS.market(),
+                  },
+                  {
+                    label: tr("Bank & cash"),
+                    value: split.bank!,
+                    sub: tr("Gifts, money for friends, transfers and corrections"),
+                    help: TERMS.bank(),
+                  },
+                  {
+                    label: tr("Debt"),
+                    value: split.debt!,
+                    sub: tr("Your own debts: repayments positive, interest negative"),
+                    help: TERMS.debt(),
+                  },
+                ]
+              : (
+                  [
+                    { key: "investments", label: tr("Change in investments"), sub: tr("Including price changes and deposits") },
+                    { key: "bank", label: tr("Change in bank & cash"), sub: tr("Difference between the balances shown") },
+                    { key: "debt", label: tr("Effect of debts"), sub: tr("Positive means less debt") },
+                  ] as const
+                ).map((c) => ({ label: c.label, value: end[c.key] - first[c.key], sub: c.sub, help: null as string | null }));
+          return (
+            <div className={`mb-5 grid gap-3 ${cards.length === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
+              {cards.map(({ label, value, sub, help }) => (
+                <div key={label} className="rounded-lg border p-3" style={{ borderColor: "var(--rule)" }}>
+                  <p className="text-xs text-ink-muted">
+                    <Explained text={help ?? sub}>{label}</Explained>
+                  </p>
+                  <p className="num py-1 text-lg">
+                    {Math.round(value * 100) > 0 ? "+" : ""}
+                    {trueMinus(props.format(Math.round(value * 100) / 100 || 0))}
+                  </p>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+      {points.length > 1 && (
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <Tabs items={VIEWS} value={view} variant="segmented" ariaLabel={tr("Chart view")} onChange={(v) => pick(v as NetWorthView)} />
+          <span className="text-xs text-ink-muted">
+            <Explained
+              text={`${view === "change" ? tr("Net worth only, with the axis fitted to it: small changes become visible.") : tr("Investments, bank and debt stacked, from zero.")} ${tr("Drag across the chart to show that stretch.")}`}
+            >
+              {tr("How to read this")}
+            </Explained>
+          </span>
+        </div>
+      )}
+      {points.length > 1 ? (
+        <NetWorthPlot
+          key={`${timeline.window.from}:${timeline.window.to}:${granularity}:${view}`}
+          {...props}
+          points={points}
+          view={view}
+          stepLabel={stepLabel}
+          onSelect={timeline.change}
+        />
+      ) : (
+        <p className="py-6 text-sm text-ink-muted">{tr("Not enough data for a line in this period. Zoom out or choose another period.")}</p>
+      )}
+      {granularity !== "day" && (
+        <p className="pt-2 text-xs text-ink-muted">
+          {trx(
+            "Latest available value per {0}; the starting point stays visible.",
+            granularity === "month" ? (boundaries ? tr("salary month: the day before your next salary") : tr("month")) : tr("year"),
+          )}
+        </p>
+      )}
+    </div>
+  );
 }

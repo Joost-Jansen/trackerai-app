@@ -1,6 +1,6 @@
 """Regenerate routes/ and summary/ from data/.
 
-    python tools/build.py
+python tools/build.py
 """
 
 from __future__ import annotations

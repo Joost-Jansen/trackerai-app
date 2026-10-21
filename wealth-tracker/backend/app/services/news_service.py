@@ -34,22 +34,22 @@ import json
 
 import requests
 
-from domain import database
 from app.core import config
+from domain import database
 
 # ---------------------------------------------------------------------------
 # Tuning
 # ---------------------------------------------------------------------------
 
-_FEED_TTL_SECONDS = 3600            # how long a merged feed is served from cache
-_AV_TTL_SECONDS = 4 * 3600         # Alpha Vantage is fetched at most this often
-_AV_DAILY_BUDGET = 20              # backstop under the 25/day free-tier cap
-_HTTP_TIMEOUT = 8                  # seconds; a slow provider must not hang a load
+_FEED_TTL_SECONDS = 3600  # how long a merged feed is served from cache
+_AV_TTL_SECONDS = 4 * 3600  # Alpha Vantage is fetched at most this often
+_AV_DAILY_BUDGET = 20  # backstop under the 25/day free-tier cap
+_HTTP_TIMEOUT = 8  # seconds; a slow provider must not hang a load
 
 _MARKET_CAP = 14
 _LIST_CAP = 10
-_HOLDINGS_TICKER_CAP = 12         # do not fan out to a huge portfolio at once
-_COMPANY_NEWS_DAYS = 7            # company-news lookback window
+_HOLDINGS_TICKER_CAP = 12  # do not fan out to a huge portfolio at once
+_COMPANY_NEWS_DAYS = 7  # company-news lookback window
 
 _FINNHUB_BASE = "https://finnhub.io/api/v1"
 _AV_BASE = "https://www.alphavantage.co/query"
@@ -70,22 +70,105 @@ _AV_MARKET_TOPICS = "financial_markets,economy_macro,economy_fiscal,economy_mone
 # in the generic economics bucket.
 _NEWS_LABELS: list[tuple[str, tuple[str, ...]]] = [
     ("Dividend", ("dividend", "payout", "payout", "buyback", "share repurchase", "inkoop")),
-    ("Earnings", ("earnings", "kwartaalcijfers", "quarterly", "results", "results",
-                  "revenue", "omzet", "guidance", "outlook", "profit", "winst", "beats",
-                  "misses", "q1", "q2", "q3", "q4", "full-year", "halfjaar")),
-    ("Analyst", ("analyst", "upgrade", "downgrade", "price target", "price_target", "rating",
-                 "overweight", "underweight", "initiates", "reiterates", "buy rating",
-                 "sell rating", "outperform")),
-    ("M&A", ("acquisition", "acquires", "merger", "takeover", "overname", "buyout",
-             "neemt over", "stake in", "to buy", "deal to", "fusie")),
-    ("World", ("war", "oorlog", "ceasefire", "wapenstilstand", "sanction", "sanctie",
-                "geopolit", "conflict", "military", "invasion", "invasie", "election",
-                "verkiezing", "opec", "oil price", "olieprijs", "strait", "missile",
-                "airstrike", "troops", "coup", "border")),
-    ("Macro", ("ecb", "fed", "inflation", "inflatie", "interest rate", "interest",
-               "central bank", "centrale bank", "recession", "recessie", "tariff",
-               "heffing", "invoerheffing", "gdp", "bbp", "jobs report", "unemployment",
-               "trade war", "handelsoorlog", "stimulus", "yield")),
+    (
+        "Earnings",
+        (
+            "earnings",
+            "kwartaalcijfers",
+            "quarterly",
+            "results",
+            "results",
+            "revenue",
+            "omzet",
+            "guidance",
+            "outlook",
+            "profit",
+            "winst",
+            "beats",
+            "misses",
+            "q1",
+            "q2",
+            "q3",
+            "q4",
+            "full-year",
+            "halfjaar",
+        ),
+    ),
+    (
+        "Analyst",
+        (
+            "analyst",
+            "upgrade",
+            "downgrade",
+            "price target",
+            "price_target",
+            "rating",
+            "overweight",
+            "underweight",
+            "initiates",
+            "reiterates",
+            "buy rating",
+            "sell rating",
+            "outperform",
+        ),
+    ),
+    (
+        "M&A",
+        ("acquisition", "acquires", "merger", "takeover", "overname", "buyout", "neemt over", "stake in", "to buy", "deal to", "fusie"),
+    ),
+    (
+        "World",
+        (
+            "war",
+            "oorlog",
+            "ceasefire",
+            "wapenstilstand",
+            "sanction",
+            "sanctie",
+            "geopolit",
+            "conflict",
+            "military",
+            "invasion",
+            "invasie",
+            "election",
+            "verkiezing",
+            "opec",
+            "oil price",
+            "olieprijs",
+            "strait",
+            "missile",
+            "airstrike",
+            "troops",
+            "coup",
+            "border",
+        ),
+    ),
+    (
+        "Macro",
+        (
+            "ecb",
+            "fed",
+            "inflation",
+            "inflatie",
+            "interest rate",
+            "interest",
+            "central bank",
+            "centrale bank",
+            "recession",
+            "recessie",
+            "tariff",
+            "heffing",
+            "invoerheffing",
+            "gdp",
+            "bbp",
+            "jobs report",
+            "unemployment",
+            "trade war",
+            "handelsoorlog",
+            "stimulus",
+            "yield",
+        ),
+    ),
 ]
 
 _DEFAULT_NEWS_LABEL = "Macro"
@@ -107,6 +190,7 @@ def classify_news(title: str, summary: str = "") -> str:
 # Normalised item + dedup
 # ---------------------------------------------------------------------------
 
+
 def _safe_link(link: str | None) -> str | None:
     """Only http(s) links go to the browser: a feed is outside data, and a
     javascript: or data: link in an <a href> would run in the app's origin."""
@@ -117,9 +201,17 @@ def _safe_link(link: str | None) -> str | None:
 
 
 def _item(
-    *, ident: str, title: str, summary: str | None, publisher: str | None,
-    link: str | None, published: str | None, ticker: str | None,
-    holding: str | None, sentiment: float | None, source_api: str,
+    *,
+    ident: str,
+    title: str,
+    summary: str | None,
+    publisher: str | None,
+    link: str | None,
+    published: str | None,
+    ticker: str | None,
+    holding: str | None,
+    sentiment: float | None,
+    source_api: str,
 ) -> dict:
     return {
         "id": ident,
@@ -169,6 +261,7 @@ def _fingerprint(*objs) -> str:
 # Finnhub (primary source)
 # ---------------------------------------------------------------------------
 
+
 def _finnhub_get(path: str, params: dict) -> list:
     if not config.FINNHUB_API_KEY:
         return []
@@ -193,9 +286,7 @@ def _finnhub_normalise(raw: dict, ticker: str | None, holding: str | None) -> di
     ts = raw.get("datetime")
     if ts:
         try:
-            published = datetime.datetime.fromtimestamp(
-                int(ts), tz=datetime.timezone.utc
-            ).isoformat()
+            published = datetime.datetime.fromtimestamp(int(ts), tz=datetime.UTC).isoformat()
         except (ValueError, OSError, OverflowError):
             pass
     ident = str(raw.get("id") or raw.get("url") or f"{ticker or 'gen'}:{headline[:60]}")
@@ -237,6 +328,7 @@ def _finnhub_company(symbol: str, holding: str | None) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Alpha Vantage (secondary source — rate-limit budgeted)
 # ---------------------------------------------------------------------------
+
 
 def _av_budget_remaining(conn) -> bool:
     """True while today's Alpha Vantage call count is under the daily budget.
@@ -313,9 +405,7 @@ def _av_normalise(raw: dict) -> dict | None:
     tp = raw.get("time_published")  # "YYYYMMDDTHHMMSS"
     if isinstance(tp, str) and len(tp) >= 15:
         try:
-            published = datetime.datetime.strptime(tp[:15], "%Y%m%dT%H%M%S").replace(
-                tzinfo=datetime.timezone.utc
-            ).isoformat()
+            published = datetime.datetime.strptime(tp[:15], "%Y%m%dT%H%M%S").replace(tzinfo=datetime.UTC).isoformat()
         except ValueError:
             pass
     sentiment = raw.get("overall_sentiment_score")
@@ -352,7 +442,9 @@ def _av_cached(conn, scope: str, *, tickers: str | None, topics: str | None) -> 
     key = f"news:av:{scope}:{_fingerprint(tickers, topics)}"
     try:
         return database.get_or_fetch(
-            conn, key, _AV_TTL_SECONDS,
+            conn,
+            key,
+            _AV_TTL_SECONDS,
             lambda: _av_fetch(conn, tickers=tickers, topics=topics),
         )
     except Exception:
@@ -382,23 +474,17 @@ def _yahoo_normalise(raw: dict, ticker: str | None, holding: str | None) -> dict
     title = c.get("title")
     if not title:
         return None
-    url = ((c.get("canonicalUrl") or {}).get("url")
-           or (c.get("clickThroughUrl") or {}).get("url")
-           or c.get("link"))
+    url = (c.get("canonicalUrl") or {}).get("url") or (c.get("clickThroughUrl") or {}).get("url") or c.get("link")
     publisher = (c.get("provider") or {}).get("displayName") or c.get("publisher")
     published = c.get("pubDate") or c.get("displayTime")
     if not published and c.get("providerPublishTime"):
         try:
-            published = datetime.datetime.fromtimestamp(
-                int(c["providerPublishTime"]), tz=datetime.timezone.utc
-            ).isoformat()
+            published = datetime.datetime.fromtimestamp(int(c["providerPublishTime"]), tz=datetime.UTC).isoformat()
         except (ValueError, OSError, OverflowError):
             published = None
     if published:
         try:
-            published = datetime.datetime.fromisoformat(
-                str(published).replace("Z", "+00:00")
-            ).isoformat()
+            published = datetime.datetime.fromisoformat(str(published).replace("Z", "+00:00")).isoformat()
         except ValueError:
             published = None
     ident = str(raw.get("id") or raw.get("uuid") or url or title[:60])
@@ -421,8 +507,9 @@ def _yahoo_news(symbol: str, holding: str | None = None, *, tag: str | None = No
         return []
     try:
         import yfinance as yf
+
         raw = yf.Ticker(symbol).get_news(count=_YAHOO_NEWS_COUNT)
-    except Exception:   # a Yahoo hiccup must not hurt the page
+    except Exception:  # a Yahoo hiccup must not hurt the page
         return []
     items = [_yahoo_normalise(r, tag, holding) for r in raw or [] if isinstance(r, dict)]
     return [i for i in items if i]
@@ -432,8 +519,10 @@ def _yahoo_news(symbol: str, holding: str | None = None, *, tag: str | None = No
 # Public feeds
 # ---------------------------------------------------------------------------
 
+
 def get_market_news(conn) -> list[dict]:
     """General world/market headlines that move the exchange."""
+
     def fetch():
         return _merge(
             _finnhub_general(),
@@ -441,6 +530,7 @@ def get_market_news(conn) -> list[dict]:
             *(_yahoo_news(s) for s in _YAHOO_MARKET_SYMBOLS),
             cap=_MARKET_CAP,
         )
+
     try:
         return database.get_or_fetch(conn, "news:market", _FEED_TTL_SECONDS, fetch)
     except Exception:
@@ -487,11 +577,7 @@ def _company_feed(conn, scope: str, holdings: list[dict]) -> list[dict]:
 
 def get_holdings_news(conn, positions: list[dict]) -> list[dict]:
     """News about the single stocks the user directly owns."""
-    holdings = [
-        {"symbol": p["ticker"], "name": p.get("name")}
-        for p in positions
-        if p.get("ticker")
-    ]
+    holdings = [{"symbol": p["ticker"], "name": p.get("name")} for p in positions if p.get("ticker")]
     return _company_feed(conn, "holdings", holdings)
 
 
@@ -505,8 +591,7 @@ def get_etf_top_news(conn, top_stocks: list[dict]) -> list[dict]:
     holdings = [
         {"symbol": s["symbol"], "name": s.get("name")}
         for s in top_stocks
-        if s.get("symbol") and s["symbol"].isascii() and " " not in s["symbol"]
-        and "…" not in s["symbol"]
+        if s.get("symbol") and s["symbol"].isascii() and " " not in s["symbol"] and "…" not in s["symbol"]
     ]
     return _company_feed(conn, "etf-top", holdings)
 

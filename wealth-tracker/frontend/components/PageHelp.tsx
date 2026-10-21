@@ -63,16 +63,18 @@ export default function PageHelp() {
         actions={
           <>
             {/* This is the short explanation; the guide for the same part is in Help. */}
-            <ButtonLink href={helpPart(pathname)} variant="ghost" onClick={() => setOpen(false)}>{tr("More in Help")}</ButtonLink>
-            <Button variant="secondary" onClick={() => setOpen(false)}>{tr("Close")}</Button>
+            <ButtonLink href={helpPart(pathname)} variant="ghost" onClick={() => setOpen(false)}>
+              {tr("More in Help")}
+            </ButtonLink>
+            <Button variant="secondary" onClick={() => setOpen(false)}>
+              {tr("Close")}
+            </Button>
           </>
         }
       >
         {/* The design's reading measure, and the body size: this is editorial text, not chrome, so
             15px and not 13. It never gets wider than the ~440px of the dialog anyway. */}
-        <div className="flex max-h-[65vh] flex-col gap-3.5 overflow-y-auto text-[15px] leading-relaxed text-ink-muted">
-          {help.body}
-        </div>
+        <div className="flex max-h-[65vh] flex-col gap-3.5 overflow-y-auto text-[15px] leading-relaxed text-ink-muted">{help.body}</div>
       </Dialog>
     </>
   );

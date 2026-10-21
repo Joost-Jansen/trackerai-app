@@ -16,11 +16,7 @@ import HoldingsTable from "@/components/etf/HoldingsTable";
 import SliceTable from "@/components/etf/SliceTable";
 import DownloadCsv from "@/components/etf/DownloadCsv";
 import { csvNumber } from "@/lib/csv";
-import QualityStrip, {
-  DIVERSIFICATION_LABELS,
-  EXPOSURE_LABELS,
-  type QualityBucket,
-} from "@/components/QualityStrip";
+import QualityStrip, { DIVERSIFICATION_LABELS, EXPOSURE_LABELS, type QualityBucket } from "@/components/QualityStrip";
 import { intlLocale, tr, trx } from "@/lib/i18n";
 
 // Allocation — what your money is really in, looked through into the funds.
@@ -118,11 +114,7 @@ const SECTOR_LABELS = new Map<string | boolean, string>([
 
 // app.py:1045-1052 colours the source column by how reliable it is.
 function sourceColour(source: string): string {
-  if (
-    source.includes("(issuer)") ||
-    ["position itself", "Individual stock"].includes(source)
-  )
-    return "text-pos";
+  if (source.includes("(issuer)") || ["position itself", "Individual stock"].includes(source)) return "text-pos";
   if (source.startsWith("Index proxy")) return "text-proxy";
   if (source === "Yahoo top 10") return "text-approx";
   return "text-neg";
@@ -180,19 +172,11 @@ function SliceSection({
             // From the title and not from `noun`: "werelddelen" minus "en" is "werelddel",
             // and a column header with a spelling mistake is a column header someone copies
             // over.
-            headers={[
-              title.replace(/^Naar /, "").replace(/^./, (c) => c.toUpperCase()),
-              tr("Share (%)"),
-              tr("Value (EUR)"),
-            ]}
+            headers={[title.replace(/^Naar /, "").replace(/^./, (c) => c.toUpperCase()), tr("Share (%)"), tr("Value (EUR)")]}
             rows={() =>
               [...slices]
                 .sort((a, b) => b.pct - a.pct)
-                .map((sl) => [
-                  localName(sl.name),
-                  csvNumber(sl.pct, 1),
-                  csvNumber((sl.pct / 100) * analysedValue),
-                ])
+                .map((sl) => [localName(sl.name), csvNumber(sl.pct, 1), csvNumber((sl.pct / 100) * analysedValue)])
             }
           />
         </span>
@@ -202,15 +186,11 @@ function SliceSection({
           form a column you can read separately from the bars. Scaled against the whole and not
           against the largest item — this is a distribution, so half a bar really should be half
           your portfolio. */}
-      <HBars
-        rows={data.map((sl) => ({ label: sl.name, value: sl.pct }))}
-        colour={colour}
-        scale="total"
-      />
+      <HBars rows={data.map((sl) => ({ label: sl.name, value: sl.pct }))} colour={colour} scale="total" />
       {misc && folded.length > 0 && (
         // "the 7 sectors in Other" and not "all 12 sectors": the other five are above,
         // and a button that promises to show them all delivered them all *once more*.
-        <Disclosure label={tr("Show the {0} {1} in \"Other\"", folded.length, noun)}>
+        <Disclosure label={tr('Show the {0} {1} in "Other"', folded.length, noun)}>
           <SliceTable slices={folded} foldedPct={misc.pct} colour="var(--n-400)" />
         </Disclosure>
       )}
@@ -248,8 +228,7 @@ export default function EtfAnalysisPage() {
     );
   }
 
-  const { sector, continent, region, region_all, coverage, excluded_pct, quality } =
-    breakdown.data;
+  const { sector, continent, region, region_all, coverage, excluded_pct, quality } = breakdown.data;
 
   // The "Other" row of the country bar, and the countries in it. The backend rolls
   // everything under 0.5% into it; without these two that segment is a number
@@ -262,8 +241,7 @@ export default function EtfAnalysisPage() {
   // taking off the bond funds. Already in the payload as the sum of what each
   // position contributes to the look-through — no extra request for a number that
   // is already there.
-  const analysedValue =
-    exposure.data?.etf_sources.reduce((sum, s) => sum + s.value, 0) ?? 0;
+  const analysedValue = exposure.data?.etf_sources.reduce((sum, s) => sum + s.value, 0) ?? 0;
 
   const countryRows: HBar[] = region.map((r) => ({
     label: localName(r.name),
@@ -284,15 +262,8 @@ export default function EtfAnalysisPage() {
   // tail at once, which shows straight away where it is.
   const foldedNames = new Set(foldedCountries.map((c) => c.name));
   const activeBarId =
-    pointed === null
-      ? null
-      : namedCountries.has(pointed)
-        ? pointed
-        : pointed === "Other" || foldedNames.has(pointed)
-          ? "Other"
-          : null;
-  const activeCountries =
-    pointed === "Other" ? foldedNames : new Set(pointed ? [pointed] : []);
+    pointed === null ? null : namedCountries.has(pointed) ? pointed : pointed === "Other" || foldedNames.has(pointed) ? "Other" : null;
+  const activeCountries = pointed === "Other" ? foldedNames : new Set(pointed ? [pointed] : []);
 
   // What the map draws: all countries, so also the tail that disappears into
   // "Other" in the bar. But *where* a country has a bar of its own, the map takes
@@ -312,10 +283,7 @@ export default function EtfAnalysisPage() {
       // The other way round from country: here the amount is the question and the
       // share the context.
       display: fmtEuro(s.value),
-      secondary:
-        analysedValue > 0
-          ? fmtEu((s.value / analysedValue) * 100, { decimals: 2, suffix: "%" })
-          : undefined,
+      secondary: analysedValue > 0 ? fmtEu((s.value / analysedValue) * 100, { decimals: 2, suffix: "%" }) : undefined,
       meta: s.sources.length > 0 ? `via ${s.sources.join(", ")}` : undefined,
     })) ?? [];
 
@@ -325,7 +293,12 @@ export default function EtfAnalysisPage() {
           qualifies every percentage below. The reason bonds drop out is behind the "?" in the top
           bar; the number you need to see without clicking. */}
       {excluded_pct > 0 && (
-        <p className="max-w-measure text-sm leading-relaxed text-ink-muted">{trx("{0} of your portfolio doesn't count below: those are your bond funds. So the percentages are about your equity part.", <span className="num">{fmtEu(excluded_pct, { decimals: 1, suffix: "%" })}</span>)}</p>
+        <p className="max-w-measure text-sm leading-relaxed text-ink-muted">
+          {trx(
+            "{0} of your portfolio doesn't count below: those are your bond funds. So the percentages are about your equity part.",
+            <span className="num">{fmtEu(excluded_pct, { decimals: 1, suffix: "%" })}</span>,
+          )}
+        </p>
       )}
 
       {/* ——— THE INSIGHTS (app.py:881-1102) ———
@@ -354,7 +327,13 @@ export default function EtfAnalysisPage() {
       <Section
         label={tr("By country")}
         info={
-          <>{trx("The country where each company is listed, added up over all your funds. Bar length is a share of the whole, as above.{0}{1}Country of listing, not where the revenue comes from: a Dutch company that earns nearly everything in Asia is shown here under the Netherlands.", <br />, <br />)}</>
+          <>
+            {trx(
+              "The country where each company is listed, added up over all your funds. Bar length is a share of the whole, as above.{0}{1}Country of listing, not where the revenue comes from: a Dutch company that earns nearly everything in Asia is shown here under the Netherlands.",
+              <br />,
+              <br />,
+            )}
+          </>
         }
         action={
           <span className="flex items-baseline gap-4">
@@ -376,7 +355,9 @@ export default function EtfAnalysisPage() {
         {/* What stays is not an explanation but an instruction: the link between map and list can't
             be seen unless you trigger it by accident. The definition of "country" is behind the "i"
             above. */}
-        <p className="max-w-measure text-xs leading-relaxed text-ink-muted">{tr("Point at a country on the map or in the list and the other lights up too.")}</p>
+        <p className="max-w-measure text-xs leading-relaxed text-ink-muted">
+          {tr("Point at a country on the map or in the list and the other lights up too.")}
+        </p>
         {/* Map on the left and wider, list on the right. The map is the overview and the list the
             answer, so in reading order the map comes first.
 
@@ -390,24 +371,13 @@ export default function EtfAnalysisPage() {
             to the "Other" bar right above it. Hence the explicit placement on lg instead of a
             different order. */}
         <div className="grid items-start gap-x-7 gap-y-5 lg:grid-cols-[1.25fr_1fr]">
-          <WorldMap
-            slices={mapSlices}
-            analysedValue={analysedValue}
-            active={activeCountries}
-            onActive={setPointed}
-          />
+          <WorldMap slices={mapSlices} analysedValue={analysedValue} active={activeCountries} onActive={setPointed} />
           <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">
-            <HBars
-              rows={countryRows}
-              colour="var(--chart-5)"
-              scale="total"
-              activeId={activeBarId}
-              onActive={setPointed}
-            />
+            <HBars rows={countryRows} colour="var(--chart-5)" scale="total" activeId={activeBarId} onActive={setPointed} />
           </div>
           {countryOther && foldedCountries.length > 0 && (
             <div className="lg:col-start-1 lg:row-start-2">
-              <Disclosure label={tr("Show the {0} countries in \"Other\"", foldedCountries.length)}>
+              <Disclosure label={tr('Show the {0} countries in "Other"', foldedCountries.length)}>
                 <SliceTable
                   slices={foldedCountries}
                   foldedPct={countryOther.pct}
@@ -427,7 +397,13 @@ export default function EtfAnalysisPage() {
         <Section
           label={tr("Your companies")}
           info={
-            <>{trx("What you actually own per company: the value of each fund times that company's weight in it, added up over all your funds.{0}{1}A company that is in three of your ETF’s therefore appears here once, with the three pieces added together.", <br />, <br />)}</>
+            <>
+              {trx(
+                "What you actually own per company: the value of each fund times that company's weight in it, added up over all your funds.{0}{1}A company that is in three of your ETF’s therefore appears here once, with the three pieces added together.",
+                <br />,
+                <br />,
+              )}
+            </>
           }
           action={
             <DownloadCsv
@@ -464,23 +440,19 @@ export default function EtfAnalysisPage() {
             {/* The coverage is an outcome about your portfolio, not an explanation: it says how
                 complete the list below is, and that changes how you read it. So it stays; the
                 arithmetic behind it is behind the "i" on the heading. */}
-            <p className="mb-3 text-xs text-ink-muted">{trx("About {0} of your equity value is in this list.", <strong className="num text-text">
-                {fmtEu(exposure.data.stock_coverage, { decimals: 1, suffix: "%" })}
-              </strong>)}</p>
+            <p className="mb-3 text-xs text-ink-muted">
+              {trx(
+                "About {0} of your equity value is in this list.",
+                <strong className="num text-text">{fmtEu(exposure.data.stock_coverage, { decimals: 1, suffix: "%" })}</strong>,
+              )}
+            </p>
             {/* Against the analysed equity value, not against the largest item and not against the
                 sum of this list: the percentage next to each bar counts against that same whole,
                 and the bar should draw that percentage. Apple at 5% is therefore a twentieth of the
                 width, exactly like a 5% sector above. */}
-            <HBars
-              rows={stockRows}
-              max={STOCKS_SHOWN}
-              colour="var(--chart-1)"
-              total={analysedValue}
-            />
+            <HBars rows={stockRows} max={STOCKS_SHOWN} colour="var(--chart-1)" total={analysedValue} />
             {exposure.data.stock_list.length > STOCKS_SHOWN && (
-              <Disclosure
-                label={tr("Show all {0} companies", exposure.data.stock_list.length.toLocaleString(intlLocale))}
-              >
+              <Disclosure label={tr("Show all {0} companies", exposure.data.stock_list.length.toLocaleString(intlLocale))}>
                 <HoldingsTable holdings={exposure.data.stock_list} total={analysedValue} />
               </Disclosure>
             )}
@@ -497,7 +469,15 @@ export default function EtfAnalysisPage() {
         label={tr("How solid are these figures?")}
         infoLabel={tr("Explanation of where the figures come from")}
         info={
-          <>{trx("All figures on this page come from the complete holdings of each fund: the files the providers publish themselves (iShares, SPDR, Vanguard), with a sector and country label for each position.{0}{1}Funds that don't publish that in a machine-readable form fall back to an index proxy or to an estimate from Yahoo or justetf. The strips below show which part of your portfolio falls in which category.{2}{3}Holdings are kept locally for 7 days.", <br />, <br />, <br />, <br />)}</>
+          <>
+            {trx(
+              "All figures on this page come from the complete holdings of each fund: the files the providers publish themselves (iShares, SPDR, Vanguard), with a sector and country label for each position.{0}{1}Funds that don't publish that in a machine-readable form fall back to an index proxy or to an estimate from Yahoo or justetf. The strips below show which part of your portfolio falls in which category.{2}{3}Holdings are kept locally for 7 days.",
+              <br />,
+              <br />,
+              <br />,
+              <br />,
+            )}
+          </>
         }
       >
         <div className="flex flex-col gap-4">
@@ -532,7 +512,18 @@ export default function EtfAnalysisPage() {
                     the heading. */}
                 <span className="mb-2 flex items-center gap-1">
                   <span className="ds-eyebrow">{tr("Where the holdings per fund come from")}</span>
-                  <InfoPopover label={tr("Explain the sources in this table")}>{trx("{0}: the complete holdings file the fund provider publishes itself. Exact.{1}{2}{3}: the holdings of another fully replicating fund on the same index. Nearly exact: it differs only in cash buffer and rebalancing moment. Used when the provider itself publishes nothing machine-readable.{4}{5}{6}: only the ten largest positions are known. An approximation.", <b>(issuer)</b>, <br />, <br />, <b>Index proxy</b>, <br />, <br />, <b>Yahoo top 10</b>)}</InfoPopover>
+                  <InfoPopover label={tr("Explain the sources in this table")}>
+                    {trx(
+                      "{0}: the complete holdings file the fund provider publishes itself. Exact.{1}{2}{3}: the holdings of another fully replicating fund on the same index. Nearly exact: it differs only in cash buffer and rebalancing moment. Used when the provider itself publishes nothing machine-readable.{4}{5}{6}: only the ten largest positions are known. An approximation.",
+                      <b>(issuer)</b>,
+                      <br />,
+                      <br />,
+                      <b>Index proxy</b>,
+                      <br />,
+                      <br />,
+                      <b>Yahoo top 10</b>,
+                    )}
+                  </InfoPopover>
                 </span>
                 <div className="table-scroll">
                   <table className="data-table">
@@ -553,9 +544,7 @@ export default function EtfAnalysisPage() {
                           <td>{s.ticker}</td>
                           <td className={`font-semibold ${sourceColour(s.source)}`}>{s.source}</td>
                           <td className="num">{s.num_holdings}</td>
-                          <td className="num">
-                            {fmtEu(s.weight_pct, { decimals: 1, suffix: "%" })}
-                          </td>
+                          <td className="num">{fmtEu(s.weight_pct, { decimals: 1, suffix: "%" })}</td>
                           <td className="num">{fmtEuro(s.value)}</td>
                         </tr>
                       ))}

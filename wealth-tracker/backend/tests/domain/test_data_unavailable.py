@@ -25,7 +25,6 @@ import pytest
 
 from domain.portfolio import series as charts
 
-
 TODAY = datetime.date.today()
 START = TODAY - datetime.timedelta(days=30)
 
@@ -33,12 +32,15 @@ START = TODAY - datetime.timedelta(days=30)
 @pytest.fixture
 def download(monkeypatch):
     """Installs a frame (or an exception) as yf.download's answer."""
+
     def install(frame):
         def fake(tickers, **kwargs):
             if isinstance(frame, Exception):
                 raise frame
             return frame
+
         monkeypatch.setattr(charts.yf, "download", fake)
+
     return install
 
 
@@ -57,10 +59,16 @@ def _closes(**by_ticker):
 
 
 def _txns():
-    return [{
-        "date": START.isoformat(), "isin": "X1", "name": "Een fonds",
-        "quantity": 10.0, "transaction_type": "BUY", "total_eur": 1000.0,
-    }]
+    return [
+        {
+            "date": START.isoformat(),
+            "isin": "X1",
+            "name": "Een fonds",
+            "quantity": 10.0,
+            "transaction_type": "BUY",
+            "total_eur": 1000.0,
+        }
+    ]
 
 
 def _prices():
@@ -70,6 +78,7 @@ def _prices():
 # ---------------------------------------------------------------------------
 # The value line
 # ---------------------------------------------------------------------------
+
 
 def test_an_empty_download_raises_instead_of_drawing_a_flat_line(download):
     download(_empty())
@@ -92,10 +101,8 @@ def test_a_raising_download_raises_ours(download):
 
 def test_real_closes_still_draw(download):
     download(_closes(AAA_AS=100.0))
-    dates, invested, values, _divs = charts.portfolio_history_series(
-        _txns(), _prices(), []
-    )
-    assert values and set(values) == {1000.0}   # 10 shares at the real EUR 100
+    dates, invested, values, _divs = charts.portfolio_history_series(_txns(), _prices(), [])
+    assert values and set(values) == {1000.0}  # 10 shares at the real EUR 100
     assert invested[0] == 1000.0
     assert dates
 
@@ -106,19 +113,23 @@ def test_a_substituted_holding_is_named(download):
         "X1": {"ticker": "AAA.AS", "price": 110.0, "currency": "EUR"},
         "X2": {"ticker": "BBB.AS", "price": 50.0, "currency": "EUR"},
     }
-    txns = _txns() + [{
-        "date": START.isoformat(), "isin": "X2", "name": "Tweede fonds",
-        "quantity": 10.0, "transaction_type": "BUY", "total_eur": 500.0,
-    }]
+    txns = _txns() + [
+        {
+            "date": START.isoformat(),
+            "isin": "X2",
+            "name": "Tweede fonds",
+            "quantity": 10.0,
+            "transaction_type": "BUY",
+            "total_eur": 500.0,
+        }
+    ]
     # Only AAA came back; BBB is a column of NaN.
     download(_closes(AAA_AS=100.0, BBB_AS=None))
 
     estimated = []
     charts.portfolio_history_series(txns, prices, [], estimated=estimated)
 
-    assert estimated == [
-        {"isin": "X2", "name": "Tweede fonds", "base": "huidige koers"}
-    ]
+    assert estimated == [{"isin": "X2", "name": "Tweede fonds", "base": "huidige koers"}]
 
 
 def test_nothing_is_estimated_when_everything_was_fetched(download):
@@ -131,6 +142,7 @@ def test_nothing_is_estimated_when_everything_was_fetched(download):
 # ---------------------------------------------------------------------------
 # The TWR segments
 # ---------------------------------------------------------------------------
+
 
 def test_segments_raise_rather_than_pin_the_twr_to_zero(download):
     download(_empty())
@@ -147,6 +159,7 @@ def test_segments_still_build_from_real_closes(download):
 # ---------------------------------------------------------------------------
 # Benchmarks and the exchange rate
 # ---------------------------------------------------------------------------
+
 
 def _benchmark_frame(with_fx: bool):
     """SPY/FEZ/EXSA plus, optionally, a usable EURUSD column."""

@@ -40,15 +40,7 @@ function norm(text: string): string {
 const MIN_QUERY = 2;
 const PER_GROUP = 8;
 
-function Group({
-  title,
-  count,
-  children,
-}: {
-  title: string;
-  count: number;
-  children: React.ReactNode;
-}) {
+function Group({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   if (count === 0) return null;
   return (
     <div>
@@ -57,23 +49,19 @@ function Group({
       </div>
       <div className="flex flex-col">{children}</div>
       {count > PER_GROUP && (
-        <p className="mt-1 text-[11px] text-ink-muted">{trx("{0} smaller {1} not shown: type something more specific.", <span className="num">{count - PER_GROUP}</span>, count - PER_GROUP === 1 ? tr("match") : tr("matches"))}</p>
+        <p className="mt-1 text-[11px] text-ink-muted">
+          {trx(
+            "{0} smaller {1} not shown: type something more specific.",
+            <span className="num">{count - PER_GROUP}</span>,
+            count - PER_GROUP === 1 ? tr("match") : tr("matches"),
+          )}
+        </p>
       )}
     </div>
   );
 }
 
-function Row({
-  name,
-  sub,
-  amount,
-  share,
-}: {
-  name: string;
-  sub?: string;
-  amount: string;
-  share?: string;
-}) {
+function Row({ name, sub, amount, share }: { name: string; sub?: string; amount: string; share?: string }) {
   return (
     <div className="row-rule flex items-baseline justify-between gap-3 py-1.5 text-[12.5px]">
       <span className="min-w-0">
@@ -113,20 +101,15 @@ export default function ExposureSearch({
 
   const results = useMemo(() => {
     if (!active) return null;
-    const matchSlice = (s: AllocationSlice) =>
-      norm(s.name).includes(needle) || norm(localName(s.name)).includes(needle);
+    const matchSlice = (s: AllocationSlice) => norm(s.name).includes(needle) || norm(localName(s.name)).includes(needle);
     return {
       sectors: sectors.filter(matchSlice).sort((a, b) => b.pct - a.pct),
       countries: countries.filter(matchSlice).sort((a, b) => b.pct - a.pct),
-      holdings: holdings
-        .filter((h) => norm(h.name).includes(needle) || norm(h.symbol).includes(needle))
-        .sort((a, b) => b.value - a.value),
+      holdings: holdings.filter((h) => norm(h.name).includes(needle) || norm(h.symbol).includes(needle)).sort((a, b) => b.value - a.value),
     };
   }, [active, needle, sectors, countries, holdings]);
 
-  const found =
-    results !== null &&
-    results.sectors.length + results.countries.length + results.holdings.length > 0;
+  const found = results !== null && results.sectors.length + results.countries.length + results.holdings.length > 0;
 
   return (
     <div>
@@ -153,19 +136,30 @@ export default function ExposureSearch({
       </div>
 
       {!active && (
-        <p className="mt-2.5 text-xs text-ink-muted">{trx("Type at least {0} letters. Searches your {1}, your {2} countries and your {3} sectors at once, also by English name.", MIN_QUERY, holdingsLoading ? (
-            tr("looked-through companies (still loading)")
-          ) : (
-            <>{trx("{0} looked-through companies", <span className="num">{holdings.length.toLocaleString(intlLocale)}</span>)}</>
-          ), <span className="num">{countries.length}</span>, <span className="num">{sectors.length}</span>)}</p>
+        <p className="mt-2.5 text-xs text-ink-muted">
+          {trx(
+            "Type at least {0} letters. Searches your {1}, your {2} countries and your {3} sectors at once, also by English name.",
+            MIN_QUERY,
+            holdingsLoading ? (
+              tr("looked-through companies (still loading)")
+            ) : (
+              <>{trx("{0} looked-through companies", <span className="num">{holdings.length.toLocaleString(intlLocale)}</span>)}</>
+            ),
+            <span className="num">{countries.length}</span>,
+            <span className="num">{sectors.length}</span>,
+          )}
+        </p>
       )}
 
-      {active && holdingsLoading && (
-        <p className="mt-3 text-xs text-ink-muted">{tr("Companies are still loading…")}</p>
-      )}
+      {active && holdingsLoading && <p className="mt-3 text-xs text-ink-muted">{tr("Companies are still loading…")}</p>}
 
       {active && !holdingsLoading && !found && (
-        <p className="mt-3 text-sm text-ink-muted">{trx("Nothing found for {0}. As far as this analysis reaches you don't own any of it, but mind the coverage below: for funds of which only the ten largest positions are known, a smaller position may be missing.", <span className="font-semibold text-text">{query.trim()}</span>)}</p>
+        <p className="mt-3 text-sm text-ink-muted">
+          {trx(
+            "Nothing found for {0}. As far as this analysis reaches you don't own any of it, but mind the coverage below: for funds of which only the ten largest positions are known, a smaller position may be missing.",
+            <span className="font-semibold text-text">{query.trim()}</span>,
+          )}
+        </p>
       )}
 
       {active && found && results && (
@@ -201,11 +195,7 @@ export default function ExposureSearch({
                 name={h.name || h.symbol}
                 sub={h.sources.length > 0 ? `via ${h.sources.join(", ")}` : undefined}
                 amount={fmtEuro(h.value)}
-                share={
-                  analysedValue > 0
-                    ? fmtEu((h.value / analysedValue) * 100, { decimals: 2, suffix: "%" })
-                    : undefined
-                }
+                share={analysedValue > 0 ? fmtEu((h.value / analysedValue) * 100, { decimals: 2, suffix: "%" }) : undefined}
               />
             ))}
           </Group>

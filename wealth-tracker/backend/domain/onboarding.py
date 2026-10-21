@@ -17,10 +17,9 @@ does not need the flow; their choice follows from what they already have.
 import json
 import sqlite3
 
-from domain.money import categorization
 from domain import database, db
-from domain.money import accounts
 from domain.i18n import tr
+from domain.money import accounts, categorization
 
 CHOICES = ("investments", "money", "both")
 # How bank data comes in: exports only, or exports plus the automatic bank
@@ -33,7 +32,7 @@ def _tally(conn: sqlite3.Connection, sql: str) -> int:
     try:
         return conn.execute(sql).fetchone()[0] or 0
     except db.OperationalError:
-        return 0    # the table does not exist (yet) in an old database
+        return 0  # the table does not exist (yet) in an old database
 
 
 def status(conn: sqlite3.Connection) -> dict:
@@ -83,11 +82,11 @@ def put(conn: sqlite3.Connection, **fields) -> None:
     new = {"choice": current["choice"], "bank": current["bank"], "done": current["done"], "step": current["step"]}
     if "choice" in fields:
         if fields["choice"] not in (*CHOICES, None):
-            raise ValueError(tr("Choose from: {0}.", ', '.join(CHOICES)))
+            raise ValueError(tr("Choose from: {0}.", ", ".join(CHOICES)))
         new["choice"] = fields["choice"]
     if "bank" in fields:
         if fields["bank"] not in (*BANK_CHOICES, None):
-            raise ValueError(tr("Choose from: {0}.", ', '.join(BANK_CHOICES)))
+            raise ValueError(tr("Choose from: {0}.", ", ".join(BANK_CHOICES)))
         new["bank"] = fields["bank"]
     if "done" in fields:
         new["done"] = bool(fields["done"])

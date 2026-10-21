@@ -153,7 +153,12 @@ export default function Budget() {
       label="Budget"
       meta={budget != null ? <span className="num">{trx("{0} per month", fmtEuro(budget))}</span> : undefined}
       info={
-        <>{trx("Per group what you want to spend per month, next to what it became. The {0} is what you spent in a normal month, over the last year of complete months, a good first budget. Hatched months aren't complete yet: the current month, or a month for which not every account has an export. Transfers to your own accounts don't count. What comes back on a group (a Tikkie, a return) is taken off the spending; how much that was is shown under the amount. Click a bar to choose that month, and a group to see the transactions in it.", <strong>{tr("median")}</strong>)}</>
+        <>
+          {trx(
+            "Per group what you want to spend per month, next to what it became. The {0} is what you spent in a normal month, over the last year of complete months, a good first budget. Hatched months aren't complete yet: the current month, or a month for which not every account has an export. Transfers to your own accounts don't count. What comes back on a group (a Tikkie, a return) is taken off the spending; how much that was is shown under the amount. Click a bar to choose that month, and a group to see the transactions in it.",
+            <strong>{tr("median")}</strong>,
+          )}
+        </>
       }
     >
       <Bars
@@ -206,11 +211,16 @@ export default function Budget() {
                 <tr key={g.group_name} style={{ borderTop: "1px solid var(--rule)" }}>
                   <td className="py-1.5 align-middle">
                     {categories.length > 0 ? (
-                      <Link href={toGroup(g.group_name)} title={tr("Transactions of {0} in {1}", g.group_name, monthYear(month))}
-                        className="underline decoration-[var(--rule)] underline-offset-4 hover:decoration-current">
+                      <Link
+                        href={toGroup(g.group_name)}
+                        title={tr("Transactions of {0} in {1}", g.group_name, monthYear(month))}
+                        className="underline decoration-[var(--rule)] underline-offset-4 hover:decoration-current"
+                      >
                         {g.group_name}
                       </Link>
-                    ) : g.group_name}
+                    ) : (
+                      g.group_name
+                    )}
                   </td>
                   <td className="py-1.5 text-right align-middle">
                     <div className="flex justify-end">
@@ -223,7 +233,9 @@ export default function Budget() {
                     {trueMinus(fmtEuro(actual))}
                     {/* Netto: wat terugkwam (Tikkie, retour) is er al af. */}
                     {(g.back?.[month] ?? 0) > 0 && (
-                      <span className="block text-[11px] text-ink-muted" title={tr("Paid back on this group, already deducted")}>{trx("{0} back", fmtEuro(g.back![month]))}</span>
+                      <span className="block text-[11px] text-ink-muted" title={tr("Paid back on this group, already deducted")}>
+                        {trx("{0} back", fmtEuro(g.back![month]))}
+                      </span>
                     )}
                   </td>
                   <td
@@ -248,7 +260,9 @@ export default function Budget() {
                             disabled={put.isPending}
                             title={tr("Set budget to {0}", fmtEuro(asBudget(g.median)))}
                             onClick={() => put.mutate({ group_name: g.group_name, amount: asBudget(g.median!) })}
-                          >{tr("Use")}</Button>
+                          >
+                            {tr("Use")}
+                          </Button>
                         )}
                       </span>
                     )}
@@ -260,10 +274,7 @@ export default function Budget() {
               <td className="py-2">{tr("Total")}</td>
               <td className="num py-2 text-right">{budget == null ? "–" : fmtEuro(budget)}</td>
               <td className="num py-2 text-right">{trueMinus(fmtEuro(totalActual))}</td>
-              <td
-                className="num py-2 text-right"
-                style={budget != null && budget - totalActual < 0 ? { color: ABOVE_IT } : undefined}
-              >
+              <td className="num py-2 text-right" style={budget != null && budget - totalActual < 0 ? { color: ABOVE_IT } : undefined}>
                 {budget == null ? "–" : trueMinus(fmtEuro(budget - totalActual))}
               </td>
               <td className="py-2 text-right">

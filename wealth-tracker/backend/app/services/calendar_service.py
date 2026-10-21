@@ -35,8 +35,8 @@ over rows. Opening this tab after the dashboard costs no network at all.
 import datetime
 import sqlite3
 
-from domain import database
 from app.services import dashboard_service, filings_service, holdings_service
+from domain import database
 
 #: How far either side of today the calendar carries events. A year back is
 #: four quarters of reports and a full dividend cycle; a year forward is more
@@ -71,16 +71,13 @@ def _shares(positions: list[dict]) -> dict[str, dict]:
     shares in companies that report, and publishes none of its own. Showing an
     empty earnings row under IWDA would invent a thing that does not exist.
     """
-    return {
-        p["isin"]: p
-        for p in positions
-        if p.get("isin") and holdings_service.asset_type(p.get("name") or "") == "share"
-    }
+    return {p["isin"]: p for p in positions if p.get("isin") and holdings_service.asset_type(p.get("name") or "") == "share"}
 
 
 # ---------------------------------------------------------------------------
 # The three kinds of certain event
 # ---------------------------------------------------------------------------
+
 
 def earnings_events(
     stored: list[dict],
@@ -108,22 +105,22 @@ def earnings_events(
             continue
         for date in dates:
             windowed.add((isin, date))
-        windows.append({
-            "isin": isin,
-            "name": shares[isin].get("name"),
-            "type": "earnings",
-            "month": dates[0][:7],
-            "from": dates[0],
-            "to": dates[-1],
-            "source": "estimate",
-        })
+        windows.append(
+            {
+                "isin": isin,
+                "name": shares[isin].get("name"),
+                "type": "earnings",
+                "month": dates[0][:7],
+                "from": dates[0],
+                "to": dates[-1],
+                "source": "estimate",
+            }
+        )
 
     seen: set[tuple[str, str]] = set()
     events: list[dict] = []
     fresh = {
-        (e["isin"], d): len(e.get("earnings_dates") or []) == 1
-        for e in entries if e.get("isin")
-        for d in (e.get("earnings_dates") or [])
+        (e["isin"], d): len(e.get("earnings_dates") or []) == 1 for e in entries if e.get("isin") for d in (e.get("earnings_dates") or [])
     }
     for row in stored:
         isin, date = row.get("isin"), row.get("date")
@@ -131,15 +128,17 @@ def earnings_events(
         if isin not in shares or not date or key in seen or key in windowed:
             continue
         if not fresh.get(key, row.get("confirmed")):
-            continue   # a window this sweep still calls a window
+            continue  # a window this sweep still calls a window
         seen.add(key)
-        events.append({
-            "date": date,
-            "type": "earnings",
-            "isin": isin,
-            "name": shares[isin].get("name"),
-            "ticker": shares[isin].get("ticker"),
-        })
+        events.append(
+            {
+                "date": date,
+                "type": "earnings",
+                "isin": isin,
+                "name": shares[isin].get("name"),
+                "ticker": shares[isin].get("ticker"),
+            }
+        )
     return events, windows
 
 
@@ -152,14 +151,16 @@ def ex_dividend_events(entries: list[dict], held: set[str]) -> list[dict]:
         isin, ex_date = entry.get("isin"), entry.get("ex_date")
         if not isin or not ex_date or isin not in held:
             continue
-        events.append({
-            "date": ex_date[:10],
-            "type": "ex_dividend",
-            "isin": isin,
-            "name": entry.get("name"),
-            "ticker": entry.get("ticker"),
-            "pay_date": (entry.get("pay_date") or None),
-        })
+        events.append(
+            {
+                "date": ex_date[:10],
+                "type": "ex_dividend",
+                "isin": isin,
+                "name": entry.get("name"),
+                "ticker": entry.get("ticker"),
+                "pay_date": (entry.get("pay_date") or None),
+            }
+        )
     return events
 
 
@@ -195,6 +196,7 @@ def dividend_paid_events(dividends: list[dict], names: dict[str, str]) -> list[d
 # The strip: everything shown at month precision
 # ---------------------------------------------------------------------------
 
+
 def estimate_rows(outlook: dict, windows: list[dict]) -> list[dict]:
     """The month-precision list under each grid: dividend ramingen plus any
     reporting window.
@@ -227,6 +229,7 @@ def estimate_rows(outlook: dict, windows: list[dict]) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Assembly
 # ---------------------------------------------------------------------------
+
 
 def build(
     conn: sqlite3.Connection,
@@ -262,14 +265,20 @@ def build(
         if event["type"] != "earnings":
             continue
         report = reports.get(event["isin"])
-        event["report"] = {
-            "kind": report["kind"],
-            "url": (filings_service.filing_on_or_after(report, event["date"]) or {}).get("url")
-                   if report["kind"] == "filing" else report.get("url"),
-            "label": (filings_service.filing_on_or_after(report, event["date"]) or {}).get("label")
-                     if report["kind"] == "filing" else None,
-            "source": report.get("source"),
-        } if report else None
+        event["report"] = (
+            {
+                "kind": report["kind"],
+                "url": (filings_service.filing_on_or_after(report, event["date"]) or {}).get("url")
+                if report["kind"] == "filing"
+                else report.get("url"),
+                "label": (filings_service.filing_on_or_after(report, event["date"]) or {}).get("label")
+                if report["kind"] == "filing"
+                else None,
+                "source": report.get("source"),
+            }
+            if report
+            else None
+        )
 
     estimates = [r for r in estimate_rows(outlook, windows) if start[:7] <= (r["month"] or "") <= end[:7]]
 

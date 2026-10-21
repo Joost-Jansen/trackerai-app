@@ -8,9 +8,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.main import create_app
-from trackerai_accounts import totp
 from tests.test_api import PASSWORD, engine, login, make_settings  # noqa: F401  (engine is a fixture)
 from tools import db
+from trackerai_accounts import totp
 
 ANNA_PW = "anna-wachtwoord-1"
 
@@ -26,12 +26,25 @@ def anna(app, engine):  # noqa: F811
     login(admin)
     admin.patch("/api/trackerai/admin/registration", json={"registration": "open"})
     c = TestClient(app)
-    assert c.post("/api/register", json={"username": "anna", "email": "anna@example.org", "password": ANNA_PW, "consent": True}).status_code == 200
+    assert (
+        c.post("/api/register", json={"username": "anna", "email": "anna@example.org", "password": ANNA_PW, "consent": True}).status_code
+        == 200
+    )
     uid = c.get("/api/me").json()["id"]
     s = db.Scope(engine, uid)
-    db.upsert_activity(s, {"start_utc": "2026-10-01T06:00:00Z", "start_local": "2026-10-01T08:00:00", "sport": "ride", "name": "Anna's ride",
-                           "distance_km": 30.0, "moving_time_s": 3600, "streams": {"time": [0, 1], "heartrate": [120, 121]},
-                           "sources": {"fit": {"id": "x"}}})
+    db.upsert_activity(
+        s,
+        {
+            "start_utc": "2026-10-01T06:00:00Z",
+            "start_local": "2026-10-01T08:00:00",
+            "sport": "ride",
+            "name": "Anna's ride",
+            "distance_km": 30.0,
+            "moving_time_s": 3600,
+            "streams": {"time": [0, 1], "heartrate": [120, 121]},
+            "sources": {"fit": {"id": "x"}},
+        },
+    )
     aid = db.load_activities(s)[0]["id"]
     db.put_fit(s, f"upload/{aid}", b"FIT-BYTES")
     db.set_setting(s, "garmin_tokens", "k1:abcd:encrypted-session")
@@ -50,8 +63,19 @@ def test_export_is_a_zip_of_own_data_without_secrets(app, engine):  # noqa: F811
     assert "attachment" in r.headers["content-disposition"] and "health-tracker-anna-" in r.headers["content-disposition"]
     z = zipfile.ZipFile(io.BytesIO(r.content))
     names = set(z.namelist())
-    assert {"README.txt", "account.json", "activities.json", "activity_streams.json", "settings.json", "plans.json", "plan_sessions.json",
-            "entries.json", "documents.json", "feedback.json", "agent_tokens.json"} <= names
+    assert {
+        "README.txt",
+        "account.json",
+        "activities.json",
+        "activity_streams.json",
+        "settings.json",
+        "plans.json",
+        "plan_sessions.json",
+        "entries.json",
+        "documents.json",
+        "feedback.json",
+        "agent_tokens.json",
+    } <= names
     assert any(n.startswith("fit/upload__") for n in names) and any(n.startswith("feedback/") for n in names)
     load = lambda n: json.loads(z.read(n))  # noqa: E731
     assert load("account.json")[0]["username"] == "anna" and "password_hash" not in load("account.json")[0]

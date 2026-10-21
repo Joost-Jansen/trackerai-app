@@ -9,17 +9,16 @@ from __future__ import annotations
 
 import io
 import os
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import APIRouter, Depends, Query, Request
 
 from api.errors import ApiError
-from trackerai_websec.uploads import ZipRejected, UploadTooLarge, check_zip, read_limited
-
 from tools import db
 from tools.derive import derive
 from tools.fit import read_fit_activity
 from tools.store import from_fit, same_start
+from trackerai_websec.uploads import UploadTooLarge, ZipRejected, check_zip, read_limited
 
 MAX_BYTES = int(os.environ.get("MAX_UPLOAD_MB") or 25) * 1024 * 1024  # a FIT file of a long ride is a few MB
 MAX_UNZIPPED = 100 * 1024 * 1024  # a .fit inside a zip: unpacked in memory, so bounded (zip bombs)

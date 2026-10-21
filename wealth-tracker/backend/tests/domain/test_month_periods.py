@@ -12,12 +12,8 @@ from datetime import date
 
 import pytest
 
-from domain.money import bank_transactions
-from domain.money import categorization
 from domain import database
-from domain.money import month_periods
-from domain.money import accounts
-from domain.money import net_worth
+from domain.money import accounts, bank_transactions, categorization, month_periods, net_worth
 
 
 @pytest.fixture(autouse=True)
@@ -42,11 +38,25 @@ def account(conn) -> int:
 
 def _tx(conn, account_id, date, amount, category):
     hash_ = f"{date}{amount}{category}"[:40]
-    bank_transactions.save(conn, account_id, [{
-        "date": date, "interest_date": None, "amount": amount, "currency": "EUR",
-        "name": "X", "counterparty_iban": None, "description": "",
-        "code": None, "kind": None, "dedup_hash": hash_, "raw": {},
-    }])
+    bank_transactions.save(
+        conn,
+        account_id,
+        [
+            {
+                "date": date,
+                "interest_date": None,
+                "amount": amount,
+                "currency": "EUR",
+                "name": "X",
+                "counterparty_iban": None,
+                "description": "",
+                "code": None,
+                "kind": None,
+                "dedup_hash": hash_,
+                "raw": {},
+            }
+        ],
+    )
     conn.execute("UPDATE bank_transactions SET category_auto = ? WHERE dedup_hash = ?", (category, hash_))
     conn.commit()
 
@@ -60,6 +70,7 @@ def _salary(conn, account_id, *dates, amount=-3000.0):
 # Working days and predicting
 # ---------------------------------------------------------------------------
 
+
 def test_easter_and_the_holidays_that_depend_on_it():
     assert month_periods._easter(2025) == date(2025, 4, 20)
     assert month_periods._easter(2026) == date(2026, 4, 5)
@@ -71,9 +82,9 @@ def test_easter_and_the_holidays_that_depend_on_it():
 
 
 def test_a_day_in_the_weekend_moves_to_the_friday_before():
-    assert month_periods.predict(2026, 2, 21) == date(2026, 2, 20)     # Sat → Fri
-    assert month_periods.predict(2026, 6, 21) == date(2026, 6, 19)     # Sun → Fri
-    assert month_periods.predict(2026, 4, 21) == date(2026, 4, 21)     # di
+    assert month_periods.predict(2026, 2, 21) == date(2026, 2, 20)  # Sat → Fri
+    assert month_periods.predict(2026, 6, 21) == date(2026, 6, 19)  # Sun → Fri
+    assert month_periods.predict(2026, 4, 21) == date(2026, 4, 21)  # di
 
 
 def test_a_holiday_also_moves_and_a_weekend_before_it_too():
@@ -95,6 +106,7 @@ def test_a_shift_does_not_leave_the_month():
 # ---------------------------------------------------------------------------
 # Recognising
 # ---------------------------------------------------------------------------
+
 
 def test_recognises_the_salary_day_and_earlier_payment(conn, account):
     _salary(conn, account, "2026-01-21", "2026-02-20", "2026-03-20", "2026-04-21")
@@ -128,6 +140,7 @@ def test_holiday_pay_in_the_same_month_does_not_move_the_reference_point(conn, a
 # ---------------------------------------------------------------------------
 # The layout
 # ---------------------------------------------------------------------------
+
 
 def test_calendar_month_by_default(conn, account):
     _salary(conn, account, "2026-01-21", "2026-02-20")
@@ -193,6 +206,7 @@ def test_invalid_settings_are_refused(conn):
 # ---------------------------------------------------------------------------
 # What calculates with it
 # ---------------------------------------------------------------------------
+
 
 def test_month_totals_follow_the_salary_month(conn, account):
     _salary(conn, account, "2026-01-21", "2026-02-20")

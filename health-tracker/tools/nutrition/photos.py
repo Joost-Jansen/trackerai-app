@@ -12,7 +12,7 @@ claims it (`attach`): one whose review was cancelled is deleted after PENDING_HO
 from __future__ import annotations
 
 import struct
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 from sqlalchemy import delete, insert, select
 
@@ -51,14 +51,14 @@ def _strip_jpeg(data: bytes) -> bytes:
             out += data[i:]
             return bytes(out)
         if 0xD0 <= marker <= 0xD7 or marker == 0x01:
-            out += data[i:i + 2]
+            out += data[i : i + 2]
             i += 2
             continue
-        (length,) = struct.unpack(">H", data[i + 2:i + 4])
+        (length,) = struct.unpack(">H", data[i + 2 : i + 4])
         if length < 2 or i + 2 + length > len(data):
             raise PhotoError("not a valid JPEG")
         if marker not in JPEG_DROP:
-            out += data[i:i + 2 + length]
+            out += data[i : i + 2 + length]
         i += 2 + length
     raise PhotoError("not a valid JPEG")
 
@@ -66,8 +66,8 @@ def _strip_jpeg(data: bytes) -> bytes:
 def _strip_png(data: bytes) -> bytes:
     out, i = bytearray(PNG), len(PNG)
     while i + 12 <= len(data):
-        (length,) = struct.unpack(">I", data[i:i + 4])
-        name = data[i + 4:i + 8]
+        (length,) = struct.unpack(">I", data[i : i + 4])
+        name = data[i + 4 : i + 8]
         end = i + 12 + length
         if end > len(data):
             raise PhotoError("not a valid PNG")
@@ -92,7 +92,7 @@ def clean(data: bytes) -> tuple[str, bytes]:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _expiry(created: datetime, keep: str) -> datetime | None:
@@ -106,22 +106,30 @@ def save(s: db.Scope, mime: str, data: bytes, keep: str = "30d") -> int | None:
         return None
     now = _now()
     with s.engine.begin() as conn:
-        return conn.execute(insert(db.meal_photos).values(user_id=s.user_id, mime=mime, data=data, created_at=now,
-                                                          expires_at=now + timedelta(hours=PENDING_HOURS))).inserted_primary_key[0]
+        return conn.execute(
+            insert(db.meal_photos).values(
+                user_id=s.user_id, mime=mime, data=data, created_at=now, expires_at=now + timedelta(hours=PENDING_HOURS)
+            )
+        ).inserted_primary_key[0]
 
 
 def attach(s: db.Scope, photo_id: int, keep: str) -> None:
     """A saved meal claims the photo: from now on it is kept by the user's setting."""
     with s.engine.begin() as conn:
-        created = conn.execute(select(db.meal_photos.c.created_at).where(db.meal_photos.c.user_id == s.user_id, db.meal_photos.c.id == photo_id)).scalar_one_or_none()
+        created = conn.execute(
+            select(db.meal_photos.c.created_at).where(db.meal_photos.c.user_id == s.user_id, db.meal_photos.c.id == photo_id)
+        ).scalar_one_or_none()
         if created is not None:
             conn.execute(db.meal_photos.update().where(db.meal_photos.c.id == photo_id).values(expires_at=_expiry(created, keep)))
 
 
 def load(s: db.Scope, photo_id: int) -> tuple[str, bytes] | None:
     with s.engine.connect() as conn:
-        row = conn.execute(select(db.meal_photos.c.mime, db.meal_photos.c.data, db.meal_photos.c.expires_at)
-                           .where(db.meal_photos.c.user_id == s.user_id, db.meal_photos.c.id == photo_id)).first()
+        row = conn.execute(
+            select(db.meal_photos.c.mime, db.meal_photos.c.data, db.meal_photos.c.expires_at).where(
+                db.meal_photos.c.user_id == s.user_id, db.meal_photos.c.id == photo_id
+            )
+        ).first()
     if row is None:
         return None
     if row.expires_at is not None and row.expires_at < _now():
@@ -131,15 +139,22 @@ def load(s: db.Scope, photo_id: int) -> tuple[str, bytes] | None:
 
 def owns(s: db.Scope, photo_id: int) -> bool:
     with s.engine.connect() as conn:
-        return conn.execute(select(db.meal_photos.c.id).where(db.meal_photos.c.user_id == s.user_id, db.meal_photos.c.id == photo_id)).first() is not None
+        return (
+            conn.execute(select(db.meal_photos.c.id).where(db.meal_photos.c.user_id == s.user_id, db.meal_photos.c.id == photo_id)).first()
+            is not None
+        )
 
 
 def purge_expired(engine, now: datetime | None = None) -> int:
     """Delete every photo past its time (all users); the meals keep everything else."""
     now = now or _now()
     with engine.begin() as conn:
-        ids = [i for (i,) in conn.execute(select(db.meal_photos.c.id).where(db.meal_photos.c.expires_at.isnot(None),
-                                                                              db.meal_photos.c.expires_at < now))]
+        ids = [
+            i
+            for (i,) in conn.execute(
+                select(db.meal_photos.c.id).where(db.meal_photos.c.expires_at.isnot(None), db.meal_photos.c.expires_at < now)
+            )
+        ]
         if not ids:
             return 0
         conn.execute(delete(db.meal_photos).where(db.meal_photos.c.id.in_(ids)))
@@ -157,6 +172,9 @@ def retention_changed(s: db.Scope, keep: str) -> None:
                 conn.execute(db.meals.update().where(db.meals.c.user_id == s.user_id, db.meals.c.photo_id.in_(ids)).values(photo_id=None))
             return
         claimed = select(db.meals.c.photo_id).where(db.meals.c.user_id == s.user_id, db.meals.c.photo_id.isnot(None))
-        for pid, created in conn.execute(select(db.meal_photos.c.id, db.meal_photos.c.created_at)
-                                         .where(db.meal_photos.c.user_id == s.user_id, db.meal_photos.c.id.in_(claimed))).all():
+        for pid, created in conn.execute(
+            select(db.meal_photos.c.id, db.meal_photos.c.created_at).where(
+                db.meal_photos.c.user_id == s.user_id, db.meal_photos.c.id.in_(claimed)
+            )
+        ).all():
             conn.execute(db.meal_photos.update().where(db.meal_photos.c.id == pid).values(expires_at=_expiry(created, keep)))

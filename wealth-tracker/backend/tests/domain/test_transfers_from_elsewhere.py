@@ -10,11 +10,9 @@ itself has in numbers.
 
 import pytest
 
-from domain.money import bank_transactions
-from domain import database
-from domain.money import accounts
-from domain.money import net_worth
 from app.services import account_service
+from domain import database
+from domain.money import accounts, bank_transactions, net_worth
 
 
 @pytest.fixture(autouse=True)
@@ -40,18 +38,31 @@ def pay(conn) -> int:
 
 @pytest.fixture()
 def savings(conn) -> int:
-    r = accounts.make_bank_account(conn, kind="bank", provider="ing", name="Oranje spaarrekening",
-                                 external_id="H12284579")
+    r = accounts.make_bank_account(conn, kind="bank", provider="ing", name="Oranje spaarrekening", external_id="H12284579")
     accounts.set_balance(conn, r, "2026-01-31", 1000.0, source="sync")
     return r
 
 
 def _tx(conn, account_id, date, amount, description="", counterparty=None, name="X"):
-    bank_transactions.save(conn, account_id, [{
-        "date": date, "interest_date": None, "amount": amount, "currency": "EUR", "name": name,
-        "counterparty_iban": counterparty, "description": description, "code": None, "kind": None,
-        "dedup_hash": f"{account_id}{date}{amount}{description}"[:40], "raw": {},
-    }])
+    bank_transactions.save(
+        conn,
+        account_id,
+        [
+            {
+                "date": date,
+                "interest_date": None,
+                "amount": amount,
+                "currency": "EUR",
+                "name": name,
+                "counterparty_iban": counterparty,
+                "description": description,
+                "code": None,
+                "kind": None,
+                "dedup_hash": f"{account_id}{date}{amount}{description}"[:40],
+                "raw": {},
+            }
+        ],
+    )
 
 
 def test_to_and_from_the_savings_account_after_the_last_export(conn, pay, savings):
@@ -75,8 +86,7 @@ def test_a_new_balance_takes_over_again(conn, pay, savings):
 
 
 def test_recognised_by_the_counterparty_iban(conn, pay):
-    bunq = accounts.make_bank_account(conn, kind="bank", provider="bunq", name="bunq sparen",
-                                    iban="NL18BUNQ0000000018")
+    bunq = accounts.make_bank_account(conn, kind="bank", provider="bunq", name="bunq sparen", iban="NL18BUNQ0000000018")
     accounts.set_balance(conn, bunq, "2026-01-31", 100.0)
     _tx(conn, pay, "2026-02-05", 75.0, "Sparen", counterparty="NL18 BUNQ 0000 0000 18")
     assert accounts.balance_on(conn, bunq, "2026-03-01") == 175.0
@@ -88,8 +98,7 @@ def test_a_number_inside_another_number_does_not_count(conn, pay, savings):
 
 
 def test_a_broker_does_not_move_along(conn, pay):
-    broker = accounts.make_bank_account(conn, kind="broker", provider="manual", name="Broker",
-                                      iban="DE00123456780000000020")
+    broker = accounts.make_bank_account(conn, kind="broker", provider="manual", name="Broker", iban="DE00123456780000000020")
     accounts.set_balance(conn, broker, "2026-01-31", 100.0)
     _tx(conn, pay, "2026-02-05", 500.0, "Storting", counterparty="DE00123456780000000020")
     assert accounts.balance_on(conn, broker, "2026-03-01") == 100.0
@@ -127,6 +136,7 @@ def test_a_savings_account_with_its_own_bookings_does_move_along(conn, pay):
     with your own accounts, so your current account tells the rest.
     """
     from domain.money import categorization
+
     categorization.seed(conn)
     savings = accounts.make_bank_account(conn, kind="bank", provider="ing", name="Spaar", external_id="H12284579")
     _tx(conn, savings, "2026-01-10", -500.0, "Transfer from current account", counterparty=PAY)

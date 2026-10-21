@@ -3,9 +3,32 @@
 // the code in words and it gets the icon of the "other" group.
 
 export type SportGroup =
-  | "run" | "ride" | "swim" | "walk" | "hike" | "strength" | "cardio" | "mind" | "row" | "climb" | "snow" | "skate"
-  | "paddle" | "water" | "dive" | "racket" | "team" | "golf" | "combat" | "multisport" | "motor" | "air" | "outdoor"
-  | "wheelchair" | "rest" | "other";
+  | "run"
+  | "ride"
+  | "swim"
+  | "walk"
+  | "hike"
+  | "strength"
+  | "cardio"
+  | "mind"
+  | "row"
+  | "climb"
+  | "snow"
+  | "skate"
+  | "paddle"
+  | "water"
+  | "dive"
+  | "racket"
+  | "team"
+  | "golf"
+  | "combat"
+  | "multisport"
+  | "motor"
+  | "air"
+  | "outdoor"
+  | "wheelchair"
+  | "rest"
+  | "other";
 
 type Sport = { group: SportGroup; nl: string; en: string };
 
@@ -165,7 +188,10 @@ export function effortKind(code: string): Effort {
 
 /** A name inside a sentence: lower case, abbreviations stay (HIIT, MMA). */
 export function lowerName(name: string): string {
-  return name.split(" ").map((w) => (w.length > 1 && w === w.toUpperCase() ? w : w.toLowerCase())).join(" ");
+  return name
+    .split(" ")
+    .map((w) => (w.length > 1 && w === w.toUpperCase() ? w : w.toLowerCase()))
+    .join(" ");
 }
 
 export function sportGroup(code: string): SportGroup {

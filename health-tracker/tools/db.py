@@ -15,7 +15,7 @@ Global tables: `users`, `invites`, `app_settings`, `agent_tokens` (a token point
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 
 from sqlalchemy import (
     JSON,
@@ -34,8 +34,8 @@ from sqlalchemy import (
     create_engine,
     delete,
     func,
-    inspect,
     insert,
+    inspect,
     select,
     text,
     update,
@@ -44,7 +44,8 @@ from sqlalchemy.engine import Engine
 
 from tools.routes import english_default_name
 from tools.sports import sport_of
-from tools.store import _rank, activity_id, merge, prepare, remove_source as _strip_source, same_start, source_distance
+from tools.store import _rank, activity_id, merge, prepare, same_start, source_distance
+from tools.store import remove_source as _strip_source
 
 SCHEMA_VERSION = 8  # v8: the nutrition tables (new tables only: create_all makes them)
 meta = MetaData()
@@ -400,8 +401,29 @@ feedback = Table(
     Column("updated_at", DateTime(timezone=True)),
 )
 
-USER_TABLES = (activities, streams, fit_files, wellness, intraday, settings, documents, entries, plan_links, plans, routes, feedback, gear, activity_gear,
-               meal_items, meals, meal_photos, user_foods, portion_memory, meal_templates, nutrition_ai_runs)
+USER_TABLES = (
+    activities,
+    streams,
+    fit_files,
+    wellness,
+    intraday,
+    settings,
+    documents,
+    entries,
+    plan_links,
+    plans,
+    routes,
+    feedback,
+    gear,
+    activity_gear,
+    meal_items,
+    meals,
+    meal_photos,
+    user_foods,
+    portion_memory,
+    meal_templates,
+    nutrition_ai_runs,
+)
 SESSION_FIELDS = ("date", "sport", "kind", "distance_km", "duration_min", "target_zone", "description", "route_id")
 
 
@@ -425,7 +447,7 @@ def connect(url: str, **kwargs) -> Engine:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # --- schema and migration ----------------------------------------------------------------------------------------
@@ -435,15 +457,59 @@ def _v1_meta() -> tuple[MetaData, dict[str, Table]]:
     """The single-user schema (before T19), only to read old data during the migration."""
     m = MetaData()
     t = {
-        "activities": Table("activities", m, Column("id", String(64), primary_key=True), Column("start_local", String(19)), Column("start_utc", String(20)), Column("sport", String(40)), Column("data", JSON)),
+        "activities": Table(
+            "activities",
+            m,
+            Column("id", String(64), primary_key=True),
+            Column("start_local", String(19)),
+            Column("start_utc", String(20)),
+            Column("sport", String(40)),
+            Column("data", JSON),
+        ),
         "activity_streams": Table("activity_streams", m, Column("activity_id", String(64), primary_key=True), Column("data", JSON)),
         "fit_files": Table("fit_files", m, Column("activity_id", String(64), primary_key=True), Column("data", LargeBinary)),
         "wellness": Table("wellness", m, Column("day", String(10), primary_key=True), Column("data", JSON)),
         "settings": Table("settings", m, Column("key", String(64), primary_key=True), Column("value", JSON)),
-        "documents": Table("documents", m, Column("key", String(64), primary_key=True), Column("body", Text), Column("updated_at", DateTime(timezone=True)), Column("updated_by", String(40))),
-        "entries": Table("entries", m, Column("id", Integer, primary_key=True), Column("kind", String(20)), Column("day", String(10)), Column("title", String(200)), Column("body", Text), Column("author", String(40)), Column("created_at", DateTime(timezone=True))),
-        "plans": Table("plans", m, Column("id", Integer, primary_key=True), Column("title", String(200)), Column("goal", Text), Column("race", String(200)), Column("notes", Text), Column("status", String(20)), Column("author", String(40)), Column("created_at", DateTime(timezone=True))),
-        "plan_sessions": Table("plan_sessions", m, Column("id", Integer, primary_key=True), Column("plan_id", Integer), *[Column(c, String) for c in ("date", "sport", "kind", "target_zone", "description", "route_id")], Column("distance_km", Float), Column("duration_min", Integer)),
+        "documents": Table(
+            "documents",
+            m,
+            Column("key", String(64), primary_key=True),
+            Column("body", Text),
+            Column("updated_at", DateTime(timezone=True)),
+            Column("updated_by", String(40)),
+        ),
+        "entries": Table(
+            "entries",
+            m,
+            Column("id", Integer, primary_key=True),
+            Column("kind", String(20)),
+            Column("day", String(10)),
+            Column("title", String(200)),
+            Column("body", Text),
+            Column("author", String(40)),
+            Column("created_at", DateTime(timezone=True)),
+        ),
+        "plans": Table(
+            "plans",
+            m,
+            Column("id", Integer, primary_key=True),
+            Column("title", String(200)),
+            Column("goal", Text),
+            Column("race", String(200)),
+            Column("notes", Text),
+            Column("status", String(20)),
+            Column("author", String(40)),
+            Column("created_at", DateTime(timezone=True)),
+        ),
+        "plan_sessions": Table(
+            "plan_sessions",
+            m,
+            Column("id", Integer, primary_key=True),
+            Column("plan_id", Integer),
+            *[Column(c, String) for c in ("date", "sport", "kind", "target_zone", "description", "route_id")],
+            Column("distance_km", Float),
+            Column("duration_min", Integer),
+        ),
         "routes": Table("routes", m, Column("id", String(20), primary_key=True), Column("sport", String(40)), Column("data", JSON)),
     }
     return m, t
@@ -452,7 +518,9 @@ def _v1_meta() -> tuple[MetaData, dict[str, Table]]:
 def _fix_sequences(conn, tables) -> None:
     """After inserting explicit ids into Postgres serial columns, move the sequences past the highest id."""
     for t in tables:
-        conn.execute(text(f"SELECT setval(pg_get_serial_sequence('{t.name}', 'id'), COALESCE((SELECT MAX(id) FROM {t.name}), 0) + 1, false)"))
+        conn.execute(
+            text(f"SELECT setval(pg_get_serial_sequence('{t.name}', 'id'), COALESCE((SELECT MAX(id) FROM {t.name}), 0) + 1, false)")
+        )
 
 
 def _migrate_v1(conn, owner_id: int = 1) -> dict:
@@ -468,7 +536,15 @@ def _migrate_v1(conn, owner_id: int = 1) -> dict:
         if name == "settings":
             tokens = next((r["value"] for r in items if r["key"] == "agent_tokens"), None) or []
             for tok in tokens:
-                conn.execute(insert(agent_tokens).values(id=tok["id"], user_id=owner_id, name=tok["name"], hash=tok["hash"], created_at=datetime.fromisoformat(tok["created_at"])))
+                conn.execute(
+                    insert(agent_tokens).values(
+                        id=tok["id"],
+                        user_id=owner_id,
+                        name=tok["name"],
+                        hash=tok["hash"],
+                        created_at=datetime.fromisoformat(tok["created_at"]),
+                    )
+                )
             items = [r for r in items if r["key"] != "agent_tokens"]
         table = meta.tables[name]
         for r in items:
@@ -509,12 +585,18 @@ def _migrate_v4(conn) -> None:
         sport = sport_of(row["data"] or {}) or {"walk": "walking", "hike": "hiking"}.get(row["sport"])  # FIT uploads before v4
         if sport and sport != row["sport"]:
             data = {**row["data"], "sport": sport}
-            conn.execute(update(activities).where(activities.c.user_id == row["user_id"], activities.c.id == row["id"]).values(sport=sport, data=data))
+            conn.execute(
+                update(activities)
+                .where(activities.c.user_id == row["user_id"], activities.c.id == row["id"])
+                .values(sport=sport, data=data)
+            )
 
 
 def _migrate_v5(conn) -> None:
     """Open-water swims: the timer time instead of Garmin's moving time, which is broken there (tools/store.py)."""
-    for row in conn.execute(select(activities.c.user_id, activities.c.id, activities.c.data).where(activities.c.sport == "swim")).mappings().all():
+    for row in (
+        conn.execute(select(activities.c.user_id, activities.c.id, activities.c.data).where(activities.c.sport == "swim")).mappings().all()
+    ):
         data = row["data"] or {}
         garmin = (data.get("sources") or {}).get("garmin") or {}
         raw = garmin.get("raw") or {}
@@ -579,10 +661,27 @@ def _user_row(row) -> dict:
     return out
 
 
-def create_user(engine: Engine, username: str, password_hash: str, is_admin: bool = False, display_name: str | None = None, user_id: int | None = None,
-                consent_at: datetime | None = None, privacy_version: str | None = None) -> int:
-    values = dict(username=username.lower(), password_hash=password_hash, is_admin=is_admin, suspended=False, display_name=display_name, created_at=_now(),
-                  session_version=0, consent_at=consent_at, privacy_version=privacy_version)
+def create_user(
+    engine: Engine,
+    username: str,
+    password_hash: str,
+    is_admin: bool = False,
+    display_name: str | None = None,
+    user_id: int | None = None,
+    consent_at: datetime | None = None,
+    privacy_version: str | None = None,
+) -> int:
+    values = dict(
+        username=username.lower(),
+        password_hash=password_hash,
+        is_admin=is_admin,
+        suspended=False,
+        display_name=display_name,
+        created_at=_now(),
+        session_version=0,
+        consent_at=consent_at,
+        privacy_version=privacy_version,
+    )
     if user_id is not None:
         values["id"] = user_id
     with engine.begin() as conn:
@@ -617,9 +716,16 @@ def list_users(engine: Engine) -> list[dict]:
     with engine.connect() as conn:
         rows = conn.execute(select(users).order_by(users.c.id)).mappings().all()
         counts = dict(conn.execute(select(activities.c.user_id, func.count()).group_by(activities.c.user_id)).all())
-        syncs = {uid: v for uid, v in conn.execute(select(settings.c.user_id, settings.c.value).where(settings.c.key == "sync_state")).all()}
+        syncs = {
+            uid: v for uid, v in conn.execute(select(settings.c.user_id, settings.c.value).where(settings.c.key == "sync_state")).all()
+        }
     return [
-        {**_user_row(r), "activities": counts.get(r["id"], 0), "files_bytes": files.get(r["id"], 0), "last_sync": (syncs.get(r["id"]) or {}).get("last_sync_local")}
+        {
+            **_user_row(r),
+            "activities": counts.get(r["id"], 0),
+            "files_bytes": files.get(r["id"], 0),
+            "last_sync": (syncs.get(r["id"]) or {}).get("last_sync_local"),
+        }
         for r in rows
     ]
 
@@ -649,7 +755,9 @@ def set_user_beta(engine: Engine, user_id: int, feature: str, enabled: bool) -> 
 def activity_totals(engine: Engine) -> dict[int, tuple[int, str | None]]:
     """{user id: (number of activities, start_utc of the newest)}, over every user (the admin hub)."""
     with engine.connect() as conn:
-        rows = conn.execute(select(activities.c.user_id, func.count(), func.max(activities.c.start_utc)).group_by(activities.c.user_id)).all()
+        rows = conn.execute(
+            select(activities.c.user_id, func.count(), func.max(activities.c.start_utc)).group_by(activities.c.user_id)
+        ).all()
     return {uid: (n, last) for uid, n, last in rows}
 
 
@@ -663,7 +771,9 @@ def activities_per_day(engine: Engine, since: date) -> dict[str, int]:
 
 def add_audit(engine: Engine, actor: str, action: str, target: str | None = None, detail: str | None = None) -> None:
     with engine.begin() as conn:
-        conn.execute(insert(admin_audit).values(actor=actor, action=action, target=target, detail=(detail or None) and detail[:200], at=_now()))
+        conn.execute(
+            insert(admin_audit).values(actor=actor, action=action, target=target, detail=(detail or None) and detail[:200], at=_now())
+        )
 
 
 def list_audit(engine: Engine, limit: int = 30) -> list[dict]:
@@ -718,7 +828,7 @@ SECRET_SETTINGS = ("garmin_tokens", "wahoo_tokens")
 
 def _jsonable(value):
     if isinstance(value, datetime):
-        return (value if value.tzinfo else value.replace(tzinfo=timezone.utc)).isoformat()
+        return (value if value.tzinfo else value.replace(tzinfo=UTC)).isoformat()
     if isinstance(value, (bytes, bytearray, memoryview)):
         return None  # binary columns (FIT files, screenshots) are exported as files of their own
     return value
@@ -731,38 +841,96 @@ def export_tables(s: Scope):
     with s.engine.connect() as conn:
         user = conn.execute(select(users).where(users.c.id == uid)).mappings().first()
         yield "account", [{k: _jsonable(v) for k, v in _user_row(user).items()}] if user else []
-        for t in (activities, streams, wellness, intraday, documents, entries, plans, plan_links, routes, gear, activity_gear,
-                  meals, meal_items, user_foods, portion_memory, meal_templates, nutrition_ai_runs):
-            yield t.name, ({k: _jsonable(v) for k, v in r.items() if k != "user_id"} for r in conn.execute(select(t).where(t.c.user_id == uid)).mappings())
-        yield "settings", ({"key": r["key"], "value": r["value"]} for r in conn.execute(select(settings).where(settings.c.user_id == uid)).mappings()
-                           if r["key"] not in SECRET_SETTINGS)
+        for t in (
+            activities,
+            streams,
+            wellness,
+            intraday,
+            documents,
+            entries,
+            plans,
+            plan_links,
+            routes,
+            gear,
+            activity_gear,
+            meals,
+            meal_items,
+            user_foods,
+            portion_memory,
+            meal_templates,
+            nutrition_ai_runs,
+        ):
+            yield (
+                t.name,
+                (
+                    {k: _jsonable(v) for k, v in r.items() if k != "user_id"}
+                    for r in conn.execute(select(t).where(t.c.user_id == uid)).mappings()
+                ),
+            )
+        yield (
+            "settings",
+            (
+                {"key": r["key"], "value": r["value"]}
+                for r in conn.execute(select(settings).where(settings.c.user_id == uid)).mappings()
+                if r["key"] not in SECRET_SETTINGS
+            ),
+        )
         plan_ids = select(plans.c.id).where(plans.c.user_id == uid).scalar_subquery()
-        yield "plan_sessions", ({k: _jsonable(v) for k, v in r.items()} for r in conn.execute(select(sessions).where(sessions.c.plan_id.in_(plan_ids))).mappings())
+        yield (
+            "plan_sessions",
+            (
+                {k: _jsonable(v) for k, v in r.items()}
+                for r in conn.execute(select(sessions).where(sessions.c.plan_id.in_(plan_ids))).mappings()
+            ),
+        )
         cols = [c for c in feedback.c if c.name not in ("screenshot", "user_id")]
-        yield "feedback", ({k: _jsonable(v) for k, v in r.items()} for r in conn.execute(select(*cols).where(feedback.c.user_id == uid)).mappings())
-        yield "agent_tokens", ({k: _jsonable(v) for k, v in r.items()} for r in conn.execute(
-            select(agent_tokens.c.id, agent_tokens.c.name, agent_tokens.c.created_at).where(agent_tokens.c.user_id == uid)).mappings())
+        yield (
+            "feedback",
+            ({k: _jsonable(v) for k, v in r.items()} for r in conn.execute(select(*cols).where(feedback.c.user_id == uid)).mappings()),
+        )
+        yield (
+            "agent_tokens",
+            (
+                {k: _jsonable(v) for k, v in r.items()}
+                for r in conn.execute(
+                    select(agent_tokens.c.id, agent_tokens.c.name, agent_tokens.c.created_at).where(agent_tokens.c.user_id == uid)
+                ).mappings()
+            ),
+        )
 
 
 def export_files(s: Scope):
     """(path in the export, bytes): the stored FIT files and feedback screenshots, one at a time."""
     with s.engine.connect() as conn:
-        keys = [k for (k,) in conn.execute(select(fit_files.c.activity_id).where(fit_files.c.user_id == s.user_id).order_by(fit_files.c.activity_id))]
-        shots = conn.execute(select(feedback.c.id, feedback.c.screenshot_type).where(feedback.c.user_id == s.user_id, feedback.c.screenshot.isnot(None))).all()
+        keys = [
+            k
+            for (k,) in conn.execute(
+                select(fit_files.c.activity_id).where(fit_files.c.user_id == s.user_id).order_by(fit_files.c.activity_id)
+            )
+        ]
+        shots = conn.execute(
+            select(feedback.c.id, feedback.c.screenshot_type).where(feedback.c.user_id == s.user_id, feedback.c.screenshot.isnot(None))
+        ).all()
     for key in keys:
         data = get_fit(s, key)
         if data is not None:
             yield f"fit/{key.replace('/', '__')}.fit", data
     for fid, media in shots:
         with s.engine.connect() as conn:
-            data = conn.execute(select(feedback.c.screenshot).where(feedback.c.id == fid, feedback.c.user_id == s.user_id)).scalar_one_or_none()
+            data = conn.execute(
+                select(feedback.c.screenshot).where(feedback.c.id == fid, feedback.c.user_id == s.user_id)
+            ).scalar_one_or_none()
         if data:
             yield f"feedback/{fid}.{(media or 'image/png').split('/')[-1]}", data
     with s.engine.connect() as conn:
-        photos = conn.execute(select(meal_photos.c.id, meal_photos.c.mime).where(meal_photos.c.user_id == s.user_id).order_by(meal_photos.c.id)).all()
+        photos = conn.execute(
+            select(meal_photos.c.id, meal_photos.c.mime).where(meal_photos.c.user_id == s.user_id).order_by(meal_photos.c.id)
+        ).all()
     for pid, media in photos:
         with s.engine.connect() as conn:
-            data = conn.execute(select(meal_photos.c.data).where(meal_photos.c.id == pid, meal_photos.c.user_id == s.user_id)).scalar_one_or_none()
+            data = conn.execute(
+                select(meal_photos.c.data).where(meal_photos.c.id == pid, meal_photos.c.user_id == s.user_id)
+            ).scalar_one_or_none()
         if data:
             yield f"meals/{pid}.{(media or 'image/jpeg').split('/')[-1]}", data
 
@@ -838,10 +1006,29 @@ FEEDBACK_KINDS = ("bug", "idea")
 FEEDBACK_STATUSES = ("new", "planned", "fixed", "wontfix")
 
 
-def add_feedback(engine: Engine, user_id: int, kind: str, message: str, page: str | None, context: dict | None, screenshot: bytes | None = None, screenshot_type: str | None = None) -> int:
+def add_feedback(
+    engine: Engine,
+    user_id: int,
+    kind: str,
+    message: str,
+    page: str | None,
+    context: dict | None,
+    screenshot: bytes | None = None,
+    screenshot_type: str | None = None,
+) -> int:
     with engine.begin() as conn:
         return conn.execute(
-            insert(feedback).values(user_id=user_id, kind=kind, message=message, page=page, context=context, screenshot=screenshot, screenshot_type=screenshot_type, status="new", created_at=_now())
+            insert(feedback).values(
+                user_id=user_id,
+                kind=kind,
+                message=message,
+                page=page,
+                context=context,
+                screenshot=screenshot,
+                screenshot_type=screenshot_type,
+                status="new",
+                created_at=_now(),
+            )
         ).inserted_primary_key[0]
 
 
@@ -870,14 +1057,20 @@ def list_feedback(engine: Engine, user_id: int | None = None, status: str | None
 def get_feedback(engine: Engine, feedback_id: int) -> dict | None:
     cols = [c for c in feedback.c if c.name != "screenshot"] + [feedback.c.screenshot.isnot(None).label("has_screenshot"), users.c.username]
     with engine.connect() as conn:
-        row = conn.execute(select(*cols).join(users, users.c.id == feedback.c.user_id, isouter=True).where(feedback.c.id == feedback_id)).mappings().first()
+        row = (
+            conn.execute(select(*cols).join(users, users.c.id == feedback.c.user_id, isouter=True).where(feedback.c.id == feedback_id))
+            .mappings()
+            .first()
+        )
     return _feedback_out(row) if row else None
 
 
 def feedback_screenshot(engine: Engine, feedback_id: int) -> tuple[int, bytes, str] | None:
     """(owner user id, bytes, media type), or None."""
     with engine.connect() as conn:
-        row = conn.execute(select(feedback.c.user_id, feedback.c.screenshot, feedback.c.screenshot_type).where(feedback.c.id == feedback_id)).first()
+        row = conn.execute(
+            select(feedback.c.user_id, feedback.c.screenshot, feedback.c.screenshot_type).where(feedback.c.id == feedback_id)
+        ).first()
     return (row[0], row[1], row[2] or "image/png") if row and row[1] else None
 
 
@@ -900,7 +1093,11 @@ def add_agent_token(s: Scope, token_id: str, name: str, token_hash: str) -> None
 
 def list_agent_tokens(s: Scope) -> list[dict]:
     with s.engine.connect() as conn:
-        rows = conn.execute(select(agent_tokens.c.id, agent_tokens.c.name, agent_tokens.c.created_at).where(agent_tokens.c.user_id == s.user_id).order_by(agent_tokens.c.created_at)).mappings()
+        rows = conn.execute(
+            select(agent_tokens.c.id, agent_tokens.c.name, agent_tokens.c.created_at)
+            .where(agent_tokens.c.user_id == s.user_id)
+            .order_by(agent_tokens.c.created_at)
+        ).mappings()
         return [{**r, "created_at": r["created_at"].isoformat()} for r in rows]
 
 
@@ -941,7 +1138,9 @@ def upsert_activity(s: Scope, record: dict) -> str:
             owner = ((match or {}).get("data") or {}).get("owners", {}).get("streams")
             if match and not owner:
                 # stored before owners were kept: streams already there came from the best of its other sources
-                has = conn.execute(select(streams.c.activity_id).where(streams.c.user_id == uid, streams.c.activity_id == match["id"])).first()
+                has = conn.execute(
+                    select(streams.c.activity_id).where(streams.c.user_id == uid, streams.c.activity_id == match["id"])
+                ).first()
                 others = [k for k in (match["data"] or {}).get("sources", {}) if k != src]
                 owner = min(others, key=_rank) if has and others else None
             if match and owner and owner != src and _rank(owner) < _rank(src):
@@ -951,13 +1150,24 @@ def upsert_activity(s: Scope, record: dict) -> str:
             merged = merge({}, record)
             if new_streams:
                 merged["owners"]["streams"] = src
-            conn.execute(insert(activities).values(user_id=uid, id=aid, start_local=merged["start_local"], start_utc=merged["start_utc"], sport=merged["sport"], data=merged))
+            conn.execute(
+                insert(activities).values(
+                    user_id=uid,
+                    id=aid,
+                    start_local=merged["start_local"],
+                    start_utc=merged["start_utc"],
+                    sport=merged["sport"],
+                    data=merged,
+                )
+            )
         else:
             aid = match["id"]
             merged = merge(match["data"], record)
             if new_streams:
                 merged["owners"]["streams"] = src
-            conn.execute(update(activities).where(activities.c.user_id == uid, activities.c.id == aid).values(data=merged, sport=merged["sport"]))
+            conn.execute(
+                update(activities).where(activities.c.user_id == uid, activities.c.id == aid).values(data=merged, sport=merged["sport"])
+            )
         if new_streams:
             conn.execute(delete(streams).where(streams.c.user_id == uid, streams.c.activity_id == aid))
             conn.execute(insert(streams).values(user_id=uid, activity_id=aid, data=new_streams))
@@ -970,7 +1180,9 @@ def delete_activity_by_source(s: Scope, source: str, source_id, day: str) -> Non
     lo, hi = (d - timedelta(days=1)).isoformat(), (d + timedelta(days=2)).isoformat()
     with s.engine.begin() as conn:
         rows = conn.execute(
-            select(activities.c.id, activities.c.data).where(activities.c.user_id == s.user_id, activities.c.start_local >= lo, activities.c.start_local < hi)
+            select(activities.c.id, activities.c.data).where(
+                activities.c.user_id == s.user_id, activities.c.start_local >= lo, activities.c.start_local < hi
+            )
         ).all()
         for aid, data in rows:
             if str(((data or {}).get("sources") or {}).get(source, {}).get("id")) == str(source_id):
@@ -1049,7 +1261,9 @@ def set_derived(s: Scope, aid: str, **fields) -> None:
 
 def load_activities(s: Scope, with_streams: bool = False) -> list[dict]:
     with s.engine.connect() as conn:
-        rows = conn.execute(select(activities.c.id, activities.c.data).where(activities.c.user_id == s.user_id).order_by(activities.c.start_local)).all()
+        rows = conn.execute(
+            select(activities.c.id, activities.c.data).where(activities.c.user_id == s.user_id).order_by(activities.c.start_local)
+        ).all()
         out = [dict(data, id=aid) for aid, data in rows]
         if with_streams:
             by_id = dict(conn.execute(select(streams.c.activity_id, streams.c.data).where(streams.c.user_id == s.user_id)).all())
@@ -1072,12 +1286,17 @@ def put_fit(s: Scope, aid: str, data: bytes) -> None:
 
 def get_fit(s: Scope, key: str) -> bytes | None:
     with s.engine.connect() as conn:
-        return conn.execute(select(fit_files.c.data).where(fit_files.c.user_id == s.user_id, fit_files.c.activity_id == key)).scalar_one_or_none()
+        return conn.execute(
+            select(fit_files.c.data).where(fit_files.c.user_id == s.user_id, fit_files.c.activity_id == key)
+        ).scalar_one_or_none()
 
 
 def has_fit(s: Scope, aid: str) -> bool:
     with s.engine.connect() as conn:
-        return conn.execute(select(fit_files.c.activity_id).where(fit_files.c.user_id == s.user_id, fit_files.c.activity_id == aid)).first() is not None
+        return (
+            conn.execute(select(fit_files.c.activity_id).where(fit_files.c.user_id == s.user_id, fit_files.c.activity_id == aid)).first()
+            is not None
+        )
 
 
 # --- wellness, settings, documents ---------------------------------------------------------------------------------
@@ -1093,7 +1312,12 @@ def write_wellness(s: Scope, day: str, values: dict) -> None:
 
 def load_wellness(s: Scope) -> dict[str, dict]:
     with s.engine.connect() as conn:
-        return {d: data for d, data in conn.execute(select(wellness.c.day, wellness.c.data).where(wellness.c.user_id == s.user_id).order_by(wellness.c.day))}
+        return {
+            d: data
+            for d, data in conn.execute(
+                select(wellness.c.day, wellness.c.data).where(wellness.c.user_id == s.user_id).order_by(wellness.c.day)
+            )
+        }
 
 
 def write_intraday(s: Scope, day: str, values: dict) -> None:
@@ -1161,8 +1385,14 @@ def gear_links(s: Scope) -> list[dict]:
     """Which gear each activity used, as it counts: the user's choice (manual, also "none") wins over Garmin's, and
     Garmin's over the sport's default. Every source keeps its rows, so going back to automatic needs no new sync."""
     with s.engine.connect() as conn:
-        rows = [dict(r) for r in conn.execute(select(activity_gear.c.activity_id, activity_gear.c.gear_id, activity_gear.c.source)
-                                               .where(activity_gear.c.user_id == s.user_id)).mappings()]
+        rows = [
+            dict(r)
+            for r in conn.execute(
+                select(activity_gear.c.activity_id, activity_gear.c.gear_id, activity_gear.c.source).where(
+                    activity_gear.c.user_id == s.user_id
+                )
+            ).mappings()
+        ]
     cleared = set(get_setting(s, GEAR_NONE_KEY) or [])
     rank = {"manual": 0, "garmin": 1, "default": 2}
     best: dict[str, int] = {}
@@ -1177,7 +1407,11 @@ def set_activity_gear(s: Scope, aid: str, gear_ids: list[int] | None) -> None:
     uid = s.user_id
     with s.engine.begin() as conn:
         mine = {g for (g,) in conn.execute(select(gear.c.id).where(gear.c.user_id == uid))}
-        conn.execute(delete(activity_gear).where(activity_gear.c.user_id == uid, activity_gear.c.activity_id == aid, activity_gear.c.source == "manual"))
+        conn.execute(
+            delete(activity_gear).where(
+                activity_gear.c.user_id == uid, activity_gear.c.activity_id == aid, activity_gear.c.source == "manual"
+            )
+        )
         for gid in dict.fromkeys(gear_ids or []):
             if gid in mine:
                 conn.execute(insert(activity_gear).values(user_id=uid, activity_id=aid, gear_id=gid, source="manual"))
@@ -1204,17 +1438,30 @@ def save_garmin_gear(s: Scope, items: list[dict]) -> dict:
     uid = s.user_id
     added = linked = 0
     with s.engine.begin() as conn:
-        mine = {r["garmin_uuid"]: dict(r) for r in conn.execute(select(gear).where(gear.c.user_id == uid, gear.c.garmin_uuid.isnot(None))).mappings()}
+        mine = {
+            r["garmin_uuid"]: dict(r)
+            for r in conn.execute(select(gear).where(gear.c.user_id == uid, gear.c.garmin_uuid.isnot(None))).mappings()
+        }
         by_garmin = _garmin_ids(conn, uid)
         for item in items:
             facts = {k: item.get(k) for k in ("name", "kind", "total_km", "activities", "max_km", "status", "date_begin", "date_end")}
             row = mine.get(item["uuid"])
             if row is None:
-                gid = conn.execute(insert(gear).values(
-                    user_id=uid, kind=item.get("kind") or "other", name=(item.get("name") or "Garmin")[:100], brand=item.get("brand"),
-                    model=item.get("model"), start_km=0, since=item.get("date_begin"), garmin_uuid=item["uuid"], garmin=facts,
-                    retired_on=(item.get("date_end") or date.today().isoformat()) if item.get("status") == "retired" else None,
-                    created_at=_now())).inserted_primary_key[0]
+                gid = conn.execute(
+                    insert(gear).values(
+                        user_id=uid,
+                        kind=item.get("kind") or "other",
+                        name=(item.get("name") or "Garmin")[:100],
+                        brand=item.get("brand"),
+                        model=item.get("model"),
+                        start_km=0,
+                        since=item.get("date_begin"),
+                        garmin_uuid=item["uuid"],
+                        garmin=facts,
+                        retired_on=(item.get("date_end") or date.today().isoformat()) if item.get("status") == "retired" else None,
+                        created_at=_now(),
+                    )
+                ).inserted_primary_key[0]
                 added += 1
             else:
                 gid = row["id"]
@@ -1229,7 +1476,11 @@ def save_garmin_gear(s: Scope, items: list[dict]) -> dict:
                 conn.execute(update(gear).where(gear.c.id == gid).values(**values))
             if item.get("activity_ids") is None:
                 continue  # Garmin did not say this time: keep the links as they are
-            conn.execute(delete(activity_gear).where(activity_gear.c.user_id == uid, activity_gear.c.gear_id == gid, activity_gear.c.source == "garmin"))
+            conn.execute(
+                delete(activity_gear).where(
+                    activity_gear.c.user_id == uid, activity_gear.c.gear_id == gid, activity_gear.c.source == "garmin"
+                )
+            )
             for gaid in dict.fromkeys(str(x) for x in item["activity_ids"]):
                 aid = by_garmin.get(gaid)
                 if aid:
@@ -1248,10 +1499,19 @@ def apply_gear_defaults(s: Scope) -> int:
         conn.execute(delete(activity_gear).where(activity_gear.c.user_id == uid, activity_gear.c.source == "default"))
         if not defaults:
             return 0
-        items = {r["id"]: r for r in conn.execute(select(gear.c.id, gear.c.since, gear.c.retired_on).where(gear.c.user_id == uid)).mappings()}
-        has = {a for (a,) in conn.execute(select(activity_gear.c.activity_id).where(activity_gear.c.user_id == uid, activity_gear.c.source != "default"))}
+        items = {
+            r["id"]: r for r in conn.execute(select(gear.c.id, gear.c.since, gear.c.retired_on).where(gear.c.user_id == uid)).mappings()
+        }
+        has = {
+            a
+            for (a,) in conn.execute(
+                select(activity_gear.c.activity_id).where(activity_gear.c.user_id == uid, activity_gear.c.source != "default")
+            )
+        }
         n = 0
-        for aid, sport, start in conn.execute(select(activities.c.id, activities.c.sport, activities.c.start_local).where(activities.c.user_id == uid)).all():
+        for aid, sport, start in conn.execute(
+            select(activities.c.id, activities.c.sport, activities.c.start_local).where(activities.c.user_id == uid)
+        ).all():
             g = items.get(defaults.get(sport))
             if not g or aid in has or aid in cleared:
                 continue
@@ -1300,7 +1560,9 @@ def get_document(s: Scope, key: str) -> dict | None:
 def add_entry(s: Scope, kind: str, title: str, body: str, author: str, day: str | None = None) -> int:
     with s.engine.begin() as conn:
         res = conn.execute(
-            insert(entries).values(user_id=s.user_id, kind=kind, day=day or date.today().isoformat(), title=title, body=body, author=author, created_at=_now())
+            insert(entries).values(
+                user_id=s.user_id, kind=kind, day=day or date.today().isoformat(), title=title, body=body, author=author, created_at=_now()
+            )
         )
         return res.inserted_primary_key[0]
 
@@ -1310,7 +1572,10 @@ def list_entries(s: Scope, kind: str | None = None, limit: int = 100) -> list[di
     if kind:
         q = q.where(entries.c.kind == kind)
     with s.engine.connect() as conn:
-        return [{**{k: v for k, v in r.items() if k != "user_id"}, "created_at": r["created_at"].isoformat()} for r in conn.execute(q).mappings()]
+        return [
+            {**{k: v for k, v in r.items() if k != "user_id"}, "created_at": r["created_at"].isoformat()}
+            for r in conn.execute(q).mappings()
+        ]
 
 
 # --- plans -----------------------------------------------------------------------------------------------------------
@@ -1321,7 +1586,9 @@ def create_plan(s: Scope, title: str, author: str, goal: str | None = None, race
     with s.engine.begin() as conn:
         conn.execute(update(plans).where(plans.c.user_id == s.user_id, plans.c.status == "active").values(status="finished"))
         res = conn.execute(
-            insert(plans).values(user_id=s.user_id, title=title, goal=goal, race=race, notes=notes, status="active", author=author, created_at=_now())
+            insert(plans).values(
+                user_id=s.user_id, title=title, goal=goal, race=race, notes=notes, status="active", author=author, created_at=_now()
+            )
         )
         return res.inserted_primary_key[0]
 
@@ -1369,12 +1636,18 @@ def set_plan_link(s: Scope, plan_id: int, activity_id: str, session_date: str | 
 def clear_plan_link(s: Scope, plan_id: int, activity_id: str) -> None:
     """Back to automatic matching for this activity."""
     with s.engine.begin() as conn:
-        conn.execute(delete(plan_links).where(plan_links.c.user_id == s.user_id, plan_links.c.plan_id == plan_id, plan_links.c.activity_id == activity_id))
+        conn.execute(
+            delete(plan_links).where(
+                plan_links.c.user_id == s.user_id, plan_links.c.plan_id == plan_id, plan_links.c.activity_id == activity_id
+            )
+        )
 
 
 def active_plan(s: Scope) -> dict | None:
     with s.engine.connect() as conn:
-        pid = conn.execute(select(plans.c.id).where(plans.c.user_id == s.user_id, plans.c.status == "active").order_by(plans.c.id.desc())).scalar()
+        pid = conn.execute(
+            select(plans.c.id).where(plans.c.user_id == s.user_id, plans.c.status == "active").order_by(plans.c.id.desc())
+        ).scalar()
     return get_plan(s, pid) if pid else None
 
 

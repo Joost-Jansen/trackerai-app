@@ -22,23 +22,31 @@ def _xlsx(rows: list[dict]) -> bytes:
     return buf.getvalue()
 
 
-def _tx(isin="IE00B4L5Y983", name="iShares Core MSCI World", qty=10, price=80.5,
-        order="order-1", date="05-01-2026", fee=-1.0):
+def _tx(isin="IE00B4L5Y983", name="iShares Core MSCI World", qty=10, price=80.5, order="order-1", date="05-01-2026", fee=-1.0):
     """A buy, with DeGiro's own signs: value and total negative, fee on top."""
     value = -(qty * price)
     return {
-        "Datum": date, "Tijd": "09:30", "Product": name, "ISIN": isin,
-        "Beurs": "EAM", "Uitvoeringsplaats": "EAM", "Aantal": qty, "Koers": price,
-        "Lokale waarde": value, "Waarde": value, "Wisselkoers": 1.0,
-        "Transactiekosten": fee, "Totaal": value + fee, "Order Id": order,
+        "Datum": date,
+        "Tijd": "09:30",
+        "Product": name,
+        "ISIN": isin,
+        "Beurs": "EAM",
+        "Uitvoeringsplaats": "EAM",
+        "Aantal": qty,
+        "Koers": price,
+        "Lokale waarde": value,
+        "Waarde": value,
+        "Wisselkoers": 1.0,
+        "Transactiekosten": fee,
+        "Totaal": value + fee,
+        "Order Id": order,
     }
 
 
 def _upload_tx(client, rows):
     resp = client.post(
         "/api/uploads/transactions",
-        files={"files": ("tx.xlsx", _xlsx(rows),
-                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={"files": ("tx.xlsx", _xlsx(rows), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
     )
     assert resp.status_code == 200, resp.text
 

@@ -24,14 +24,29 @@ TIMEOUT_S = 8
 ETHANOL_G_PER_ML = 0.789
 # our key: (Open Food Facts nutriment, factor from its unit)
 FACTOR: dict[str, tuple[str, float]] = {
-    "energy_kcal": ("energy-kcal_100g", 1), "carbs_g": ("carbohydrates_100g", 1), "sugars_g": ("sugars_100g", 1),
-    "fiber_g": ("fiber_100g", 1), "protein_g": ("proteins_100g", 1), "fat_g": ("fat_100g", 1),
-    "sat_fat_g": ("saturated-fat_100g", 1), "mufa_g": ("monounsaturated-fat_100g", 1), "pufa_g": ("polyunsaturated-fat_100g", 1),
-    "omega3_g": ("omega-3-fat_100g", 1), "trans_fat_g": ("trans-fat_100g", 1), "alcohol_g": ("alcohol_100g", ETHANOL_G_PER_ML),
-    "salt_g": ("salt_100g", 1), "sodium_mg": ("sodium_100g", 1000), "iron_mg": ("iron_100g", 1000),
-    "calcium_mg": ("calcium_100g", 1000), "magnesium_mg": ("magnesium_100g", 1000), "potassium_mg": ("potassium_100g", 1000),
-    "zinc_mg": ("zinc_100g", 1000), "vit_c_mg": ("vitamin-c_100g", 1000), "vit_d_ug": ("vitamin-d_100g", 1e6),
-    "vit_b12_ug": ("vitamin-b12_100g", 1e6), "folate_ug": ("folates_100g", 1e6),
+    "energy_kcal": ("energy-kcal_100g", 1),
+    "carbs_g": ("carbohydrates_100g", 1),
+    "sugars_g": ("sugars_100g", 1),
+    "fiber_g": ("fiber_100g", 1),
+    "protein_g": ("proteins_100g", 1),
+    "fat_g": ("fat_100g", 1),
+    "sat_fat_g": ("saturated-fat_100g", 1),
+    "mufa_g": ("monounsaturated-fat_100g", 1),
+    "pufa_g": ("polyunsaturated-fat_100g", 1),
+    "omega3_g": ("omega-3-fat_100g", 1),
+    "trans_fat_g": ("trans-fat_100g", 1),
+    "alcohol_g": ("alcohol_100g", ETHANOL_G_PER_ML),
+    "salt_g": ("salt_100g", 1),
+    "sodium_mg": ("sodium_100g", 1000),
+    "iron_mg": ("iron_100g", 1000),
+    "calcium_mg": ("calcium_100g", 1000),
+    "magnesium_mg": ("magnesium_100g", 1000),
+    "potassium_mg": ("potassium_100g", 1000),
+    "zinc_mg": ("zinc_100g", 1000),
+    "vit_c_mg": ("vitamin-c_100g", 1000),
+    "vit_d_ug": ("vitamin-d_100g", 1e6),
+    "vit_b12_ug": ("vitamin-b12_100g", 1e6),
+    "folate_ug": ("folates_100g", 1e6),
 }
 
 
@@ -93,10 +108,15 @@ def to_food(ean: str, product: dict) -> dict | None:
     except (TypeError, ValueError):
         portion = None
     return {
-        "source": "off", "source_code": ean, "name_nl": name[:200],
+        "source": "off",
+        "source_code": ean,
+        "name_nl": name[:200],
         "name_en": (product.get("product_name_en") or product.get("product_name") or "").strip()[:200] or None,
         "brand": (product.get("brands") or "").split(",")[0].strip()[:100] or None,
-        "food_group": None, "unit": unit, "per_100": with_salt(per_100), "default_portion_g": portion,
+        "food_group": None,
+        "unit": unit,
+        "per_100": with_salt(per_100),
+        "default_portion_g": portion,
         "source_version": "Open Food Facts",
     }
 

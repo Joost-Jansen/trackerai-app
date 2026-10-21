@@ -26,7 +26,7 @@ from __future__ import annotations
 import argparse
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import yaml
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
@@ -63,21 +63,22 @@ class Person:
 
 def _iso(value) -> datetime | None:
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
     try:
         d = datetime.fromisoformat(str(value))
     except (TypeError, ValueError):
         return None
-    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    return d if d.tzinfo else d.replace(tzinfo=UTC)
 
 
 # --- reading the apps ----------------------------------------------------------------------------------------------
 
+
 def read_health(url: str, key: str) -> tuple[list[Person], str | None]:
     if url.startswith("postgres://"):
-        url = "postgresql+psycopg://" + url[len("postgres://"):]
+        url = "postgresql+psycopg://" + url[len("postgres://") :]
     elif url.startswith("postgresql://"):
-        url = "postgresql+psycopg://" + url[len("postgresql://"):]
+        url = "postgresql+psycopg://" + url[len("postgresql://") :]
     engine = create_engine(sqlalchemy_url(url))
     users = Table("users", MetaData(), autoload_with=engine)
     user_settings = Table("settings", MetaData(), autoload_with=engine)
@@ -89,10 +90,20 @@ def read_health(url: str, key: str) -> tuple[list[Person], str | None]:
         for u in c.execute(select(users).order_by(users.c.id)).mappings():
             if u["username"].startswith("_"):
                 continue  # the shared example account, not a person
-            p = Person("health", u["username"].lower(), str(u["id"]), u["password_hash"], u.get("display_name"), bool(u["is_admin"]),
-                       bool(u["suspended"]), locale=locales.get(u["id"]), created_at=_iso(u.get("created_at")),
-                       last_login_at=_iso(u.get("last_login_at")), consent_at=_iso(u.get("consent_at")),
-                       privacy_version=u.get("privacy_version"))
+            p = Person(
+                "health",
+                u["username"].lower(),
+                str(u["id"]),
+                u["password_hash"],
+                u.get("display_name"),
+                bool(u["is_admin"]),
+                bool(u["suspended"]),
+                locale=locales.get(u["id"]),
+                created_at=_iso(u.get("created_at")),
+                last_login_at=_iso(u.get("last_login_at")),
+                consent_at=_iso(u.get("consent_at")),
+                privacy_version=u.get("privacy_version"),
+            )
             if u.get("totp_enabled_at") and u.get("totp_secret"):
                 try:
                     p.totp_secret = crypto.decrypt(u["totp_secret"], key)
@@ -114,9 +125,18 @@ def read_wealth(path: str, keys: list[str], rename: dict[str, str]) -> tuple[lis
     people = []
     for folder, u in ((cfg.get("credentials") or {}).get("usernames") or {}).items():
         u = u or {}
-        p = Person("wealth", rename.get(folder, folder).lower(), folder, u.get("password") or "", u.get("name"), folder in admins,
-                   bool(u.get("suspended")), locale=u.get("locale"), created_at=_iso(u.get("created_at")),
-                   last_login_at=_iso(u.get("last_login")))
+        p = Person(
+            "wealth",
+            rename.get(folder, folder).lower(),
+            folder,
+            u.get("password") or "",
+            u.get("name"),
+            folder in admins,
+            bool(u.get("suspended")),
+            locale=u.get("locale"),
+            created_at=_iso(u.get("created_at")),
+            last_login_at=_iso(u.get("last_login")),
+        )
         state = u.get("totp") or {}
         if state.get("enabled") and state.get("secret"):
             try:
@@ -132,6 +152,7 @@ def read_wealth(path: str, keys: list[str], rename: dict[str, str]) -> tuple[lis
 
 # --- the plan ------------------------------------------------------------------------------------------------------
 
+
 @dataclass
 class Plan:
     new: list[Person] = field(default_factory=list)  # a new account
@@ -144,10 +165,17 @@ class Plan:
     def report(self) -> str:
         lines = [f"registration: {self.registration}", f"account admins: {', '.join(sorted(self.admins)) or '(none)'}"]
         for p in self.new:
-            lines.append(f"new      {p.name:<20} {p.app} ({p.local_key})" + ("  2FA" if p.totp_secret else "") + "".join(f"\n         ! {n}" for n in p.notes))
+            lines.append(
+                f"new      {p.name:<20} {p.app} ({p.local_key})"
+                + ("  2FA" if p.totp_secret else "")
+                + "".join(f"\n         ! {n}" for n in p.notes)
+            )
         for w, h in self.joins:
             note = "  2FA kept from health" if w.totp_secret and h.totp_secret else ("  2FA from wealth" if w.totp_secret else "")
-            lines.append(f"join     {h.name:<20} health ({h.local_key}) + wealth ({w.local_key}){note}" + "".join(f"\n         ! {n}" for n in w.notes))
+            lines.append(
+                f"join     {h.name:<20} health ({h.local_key}) + wealth ({w.local_key}){note}"
+                + "".join(f"\n         ! {n}" for n in w.notes)
+            )
         for p in self.skipped:
             lines.append(f"done     {p.name:<20} {p.app} ({p.local_key}), imported before")
         for c in self.clashes:
@@ -155,8 +183,7 @@ class Plan:
         return "\n".join(lines)
 
 
-def plan(target: Accounts, health: list[Person], wealth: list[Person], same: set[str], admins: set[str] | None,
-         modes: list[str]) -> Plan:
+def plan(target: Accounts, health: list[Person], wealth: list[Person], same: set[str], admins: set[str] | None, modes: list[str]) -> Plan:
     out = Plan(registration=min(modes, key=STRICTNESS.index) if modes else "closed")
     if target.count():
         with target.engine.connect() as c:
@@ -179,8 +206,10 @@ def plan(target: Accounts, health: list[Person], wealth: list[Person], same: set
         if h is not None and (w.name in same or w.local_key in same):
             out.joins.append((w, h))
         elif h is not None or w.name in taken or w.name in {p.name for p in out.new}:
-            out.clashes.append(f"wealth-tracker's {w.local_key!r} and health-tracker's {w.name!r}: the same person? "
-                               f"--same {w.name}; if not, --rename {w.local_key}=<another name>")
+            out.clashes.append(
+                f"wealth-tracker's {w.local_key!r} and health-tracker's {w.name!r}: the same person? "
+                f"--same {w.name}; if not, --rename {w.local_key}=<another name>"
+            )
         else:
             out.new.append(w)
     if admins is not None:
@@ -208,24 +237,46 @@ def apply(target: Accounts, p: Plan) -> None:
             secret = person.totp_secret or (w.totp_secret if w else None)
             source = person if person.totp_secret else w
             legacy = [w.password_hash] if w and w.password_hash and w.password_hash != person.password_hash else None
-            account_id = c.execute(insert(accounts).values(
-                username=person.name, display_name=person.display_name or (w.display_name if w else None),
-                password_hash=person.password_hash, legacy_password_hashes=legacy, password_changed_at=t, session_version=0,
-                totp_secret=enc(secret), totp_enabled_at=source.totp_enabled_at if secret else None,
-                totp_backup=source.totp_backup if secret else None, is_admin=person.name in p.admins,
-                suspended=person.suspended or bool(w and w.suspended), locale=person.locale or (w.locale if w else None),
-                failed_logins=0, created_at=person.created_at or t, last_login_at=person.last_login_at)).inserted_primary_key[0]
+            account_id = c.execute(
+                insert(accounts).values(
+                    username=person.name,
+                    display_name=person.display_name or (w.display_name if w else None),
+                    password_hash=person.password_hash,
+                    legacy_password_hashes=legacy,
+                    password_changed_at=t,
+                    session_version=0,
+                    totp_secret=enc(secret),
+                    totp_enabled_at=source.totp_enabled_at if secret else None,
+                    totp_backup=source.totp_backup if secret else None,
+                    is_admin=person.name in p.admins,
+                    suspended=person.suspended or bool(w and w.suspended),
+                    locale=person.locale or (w.locale if w else None),
+                    failed_logins=0,
+                    created_at=person.created_at or t,
+                    last_login_at=person.last_login_at,
+                )
+            ).inserted_primary_key[0]
             for member in [person] + ([w] if w else []):
-                c.execute(insert(account_apps).values(
-                    account_id=account_id, app=member.app, local_key=member.local_key, is_admin=member.is_admin, enabled_at=t,
-                    consent_at=member.consent_at, privacy_version=member.privacy_version))
+                c.execute(
+                    insert(account_apps).values(
+                        account_id=account_id,
+                        app=member.app,
+                        local_key=member.local_key,
+                        is_admin=member.is_admin,
+                        enabled_at=t,
+                        consent_at=member.consent_at,
+                        privacy_version=member.privacy_version,
+                    )
+                )
         for w, h in p.joins:
             if any(h is x for x in p.new):
                 continue  # done above, with its health account
             row = c.execute(select(accounts).where(accounts.c.username == h.name)).mappings().first()
             if not row:
                 continue
-            c.execute(insert(account_apps).values(account_id=row["id"], app="wealth", local_key=w.local_key, is_admin=w.is_admin, enabled_at=t))
+            c.execute(
+                insert(account_apps).values(account_id=row["id"], app="wealth", local_key=w.local_key, is_admin=w.is_admin, enabled_at=t)
+            )
             legacy = list(row["legacy_password_hashes"] or [])
             if w.password_hash and w.password_hash != row["password_hash"] and w.password_hash not in legacy:
                 c.execute(update(accounts).where(accounts.c.id == row["id"]).values(legacy_password_hashes=legacy + [w.password_hash]))

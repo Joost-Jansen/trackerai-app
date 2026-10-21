@@ -63,9 +63,7 @@ def test_a_blocked_attempt_does_not_reach_bcrypt(client, monkeypatch):
 
     calls = []
     real = security.verify_password
-    monkeypatch.setattr(
-        security, "verify_password", lambda *a, **k: (calls.append(1), real(*a, **k))[1]
-    )
+    monkeypatch.setattr(security, "verify_password", lambda *a, **k: (calls.append(1), real(*a, **k))[1])
     assert _login(client, pw="another-guess").status_code == 429
     assert calls == [], "a throttled request must not hash anything"
 
@@ -79,12 +77,16 @@ def test_an_unknown_username_still_costs_a_hash(monkeypatch, tmp_path):
     by timing, which would be flaky on a loaded CI box."""
     path = tmp_path / "auth_config.yaml"
     path.write_text(
-        yaml.safe_dump({
-            "cookie": {"name": "c", "key": "k", "expiry_days": 30},
-            "credentials": {"usernames": {
-                "alice": {"name": "Alice", "password": security.hash_password("alicepw")},
-            }},
-        }),
+        yaml.safe_dump(
+            {
+                "cookie": {"name": "c", "key": "k", "expiry_days": 30},
+                "credentials": {
+                    "usernames": {
+                        "alice": {"name": "Alice", "password": security.hash_password("alicepw")},
+                    }
+                },
+            }
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(config, "AUTH_CONFIG_PATH", str(path))
@@ -92,7 +94,8 @@ def test_an_unknown_username_still_costs_a_hash(monkeypatch, tmp_path):
     calls = []
     real = security.verify_password
     monkeypatch.setattr(
-        auth_store.security, "verify_password",
+        auth_store.security,
+        "verify_password",
         lambda *a, **k: (calls.append(1), real(*a, **k))[1],
     )
 
@@ -126,10 +129,13 @@ def test_changing_your_password_signs_out_other_sessions(client):
     # Second (must be a later whole second than the login: `iat` and
     # `pw_changed_at` are both unix seconds).
     time.sleep(1.1)
-    assert client.post(
-        "/api/auth/change-password",
-        json={"current_password": "alicepw", "new_password": "brand-new-pw"},
-    ).status_code == 200
+    assert (
+        client.post(
+            "/api/auth/change-password",
+            json={"current_password": "alicepw", "new_password": "brand-new-pw"},
+        ).status_code
+        == 200
+    )
 
     assert client.get("/api/auth/me", cookies=stolen).status_code == 401
 
@@ -202,10 +208,7 @@ def test_a_wrong_password_is_still_wrong_in_any_capitalisation(client):
 def test_the_guessing_limit_is_not_reset_by_changing_capitals(client):
     """Otherwise each spelling of a name buys a fresh budget of attempts."""
     spellings = ["alice", "Alice", "ALICE", "aLiCe"]
-    seen = [
-        _login(client, user=spellings[i % len(spellings)], pw=f"wrong-{i}").status_code
-        for i in range(15)
-    ]
+    seen = [_login(client, user=spellings[i % len(spellings)], pw=f"wrong-{i}").status_code for i in range(15)]
     assert 429 in seen
 
 
@@ -214,8 +217,15 @@ def test_signing_up_cannot_duplicate_an_existing_name_in_other_capitals(client, 
     cfg["registration_mode"] = "open"
     open(config.AUTH_CONFIG_PATH, "w", encoding="utf-8").write(yaml.safe_dump(cfg))
 
-    response = client.post("/api/auth/register", json={
-        "username": "Alice", "email": "Alice@example.org", "name": "Alice again", "password": "another-pw", "invite_code": "",
-    })
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "username": "Alice",
+            "email": "Alice@example.org",
+            "name": "Alice again",
+            "password": "another-pw",
+            "invite_code": "",
+        },
+    )
     assert response.status_code == 409 and response.json()["code"] == "username_taken"
     assert "bezet" in response.json()["detail"].lower()  # Dutch: no X-Locale header

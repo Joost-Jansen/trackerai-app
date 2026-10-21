@@ -12,8 +12,8 @@ The account itself (ACCOUNTS_*, SESSION_COOKIE_DOMAIN, REQUIRE_TOTP, mail) is re
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Mapping
 
 # The API answers JSON, never HTML to render: nothing may load, frame or run from its responses.
 API_CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
@@ -31,7 +31,7 @@ class Settings:
     cookie_secure: bool = True
 
     @classmethod
-    def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
+    def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
         env = os.environ if env is None else env
         trackers = {}
         for app in ("health", "wealth"):

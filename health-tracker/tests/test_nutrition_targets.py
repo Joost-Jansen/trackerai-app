@@ -9,8 +9,14 @@ TODAY = date(2026, 10, 19)  # a Monday
 
 
 def act(day, minutes, sport="run", km=None, zones=None, start="08:00", **extra):
-    return {"start_local": f"{day}T{start}:00", "sport": sport, "moving_time_s": minutes * 60, "distance_km": km,
-            "hr_zones_s": zones or {}, **extra}
+    return {
+        "start_local": f"{day}T{start}:00",
+        "sport": sport,
+        "moving_time_s": minutes * 60,
+        "distance_km": km,
+        "hr_zones_s": zones or {},
+        **extra,
+    }
 
 
 def session(day, sport="run", kind=None, km=None, minutes=None, zone=None, status="planned"):

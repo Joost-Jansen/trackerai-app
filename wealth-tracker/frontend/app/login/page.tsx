@@ -94,12 +94,8 @@ export default function LoginPage() {
             then where you are. */}
         <div className="flex flex-col gap-1.5">
           <Logomark height={38} className="mb-3" />
-          <h1 className="font-display text-[34px] font-light leading-tight tracking-[-0.03em]">
-            {APP.name}
-          </h1>
-          <p className="text-[13px] text-ink-muted">
-            {tr("Log in to see your net worth, spending and portfolio.")}
-          </p>
+          <h1 className="font-display text-[34px] font-light leading-tight tracking-[-0.03em]">{APP.name}</h1>
+          <p className="text-[13px] text-ink-muted">{tr("Log in to see your net worth, spending and portfolio.")}</p>
         </div>
 
         {/* id/name/type/autoComplete are what a password manager matches on; without those four
@@ -123,7 +119,7 @@ export default function LoginPage() {
             label={tr("Password")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            error={needsCode ? undefined : error ?? undefined}
+            error={needsCode ? undefined : (error ?? undefined)}
           />
           {needsCode && (
             <Input
@@ -143,7 +139,13 @@ export default function LoginPage() {
             checked={remember}
             onChange={setRemember}
             className="items-start text-[12.5px] leading-relaxed text-ink-muted"
-            label={<span>{tr("Stay logged in for {0} days", days)}<br />{tr("On your own device. On a shared computer, untick it: you're logged out when the browser closes.")}</span>}
+            label={
+              <span>
+                {tr("Stay logged in for {0} days", days)}
+                <br />
+                {tr("On your own device. On a shared computer, untick it: you're logged out when the browser closes.")}
+              </span>
+            }
           />
           {needsCode && (
             <div className="flex flex-wrap items-center gap-4">
@@ -152,7 +154,9 @@ export default function LoginPage() {
                   {sentTo !== null ? tr("Send a new code") : tr("Email me a code instead")}
                 </button>
               )}
-              <a href="/two-step" className="text-[12.5px] text-ink-muted underline underline-offset-2">{tr("How does two-step login work?")}</a>
+              <a href="/two-step" className="text-[12.5px] text-ink-muted underline underline-offset-2">
+                {tr("How does two-step login work?")}
+              </a>
             </div>
           )}
         </div>
@@ -162,13 +166,24 @@ export default function LoginPage() {
         </Button>
 
         {canRegister && (
-          <p className="text-center text-[13px] text-ink-muted">{trx("No account yet? {0}", <a href="/register" className="ds-link">{tr("Create one")}</a>)}</p>
+          <p className="text-center text-[13px] text-ink-muted">
+            {trx(
+              "No account yet? {0}",
+              <a href="/register" className="ds-link">
+                {tr("Create one")}
+              </a>,
+            )}
+          </p>
         )}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-[12.5px] text-ink-muted">
-            <a href="/privacy" className="underline underline-offset-2">Privacy</a>
+            <a href="/privacy" className="underline underline-offset-2">
+              Privacy
+            </a>
             {" · "}
-            <a href="/terms" className="underline underline-offset-2">{tr("Terms")}</a>
+            <a href="/terms" className="underline underline-offset-2">
+              {tr("Terms")}
+            </a>
           </p>
           <LanguageChoice />
         </div>

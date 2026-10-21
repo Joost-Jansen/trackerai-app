@@ -13,7 +13,9 @@ import type { Category } from "@/lib/money";
 
 export default function UnlabelledPage() {
   const qc = useQueryClient();
-  const refresh = () => { qc.invalidateQueries(); };
+  const refresh = () => {
+    qc.invalidateQueries();
+  };
   const decisions = useDecisions(refresh);
   const [filter, setFilter] = useState<Kind | "everything">("everything");
   // From Claude's summary: show that kind and scroll to it.
@@ -40,10 +42,22 @@ export default function UnlabelledPage() {
   const data = queue.data;
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <LabelStatus coverage={data.coverage} waiting={waiting(data, decisions.away)} most_recent={data.most_recent_checked}
-        ai={ai.data} onDone={refresh} onShow={show} />
-      <Queue data={data} categories={categories.data?.categories ?? []} decisions={decisions} onDone={refresh}
-        filter={filter} onFilter={setFilter} />
+      <LabelStatus
+        coverage={data.coverage}
+        waiting={waiting(data, decisions.away)}
+        most_recent={data.most_recent_checked}
+        ai={ai.data}
+        onDone={refresh}
+        onShow={show}
+      />
+      <Queue
+        data={data}
+        categories={categories.data?.categories ?? []}
+        decisions={decisions}
+        onDone={refresh}
+        filter={filter}
+        onFilter={setFilter}
+      />
     </div>
   );
 }

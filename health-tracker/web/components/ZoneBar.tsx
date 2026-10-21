@@ -15,11 +15,18 @@ export default function ZoneBar({ sport, share, bounds }: { sport: string; share
           {t.zones.easyShort} {Math.round(easyPct(share.pct))}% · {f.hours(share.total_s)}
         </span>
       </div>
-      <div className="flex h-3 overflow-hidden rounded-full" style={{ background: "var(--surface-inset)" }} role="img"
-        aria-label={ZONES.map((z) => `${z} ${Math.round(share.pct[z])}%`).join(", ")}>
-        {ZONES.map((z) => share.pct[z] > 0 && (
-          <div key={z} style={{ width: `${share.pct[z]}%`, background: ZONE_COLOUR[z] }} title={`${z}: ${Math.round(share.pct[z])}%`} />
-        ))}
+      <div
+        className="flex h-3 overflow-hidden rounded-full"
+        style={{ background: "var(--surface-inset)" }}
+        role="img"
+        aria-label={ZONES.map((z) => `${z} ${Math.round(share.pct[z])}%`).join(", ")}
+      >
+        {ZONES.map(
+          (z) =>
+            share.pct[z] > 0 && (
+              <div key={z} style={{ width: `${share.pct[z]}%`, background: ZONE_COLOUR[z] }} title={`${z}: ${Math.round(share.pct[z])}%`} />
+            ),
+        )}
       </div>
       <div className="grid grid-cols-5 gap-1 text-[11.5px] tabular-nums">
         {ZONES.map((z) => (

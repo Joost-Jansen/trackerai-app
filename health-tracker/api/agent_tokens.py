@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel

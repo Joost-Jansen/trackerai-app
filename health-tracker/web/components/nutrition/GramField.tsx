@@ -7,7 +7,14 @@ import type { Unit } from "@/lib/nutrition";
 
 const CHIPS = [0.5, 1, 1.5, 2];
 
-export default function GramField({ value, unit, portion, estimated = false, label, onChange }: {
+export default function GramField({
+  value,
+  unit,
+  portion,
+  estimated = false,
+  label,
+  onChange,
+}: {
   value: number;
   unit: Unit;
   portion?: number | null;
@@ -65,12 +72,18 @@ export default function GramField({ value, unit, portion, estimated = false, lab
       </div>
       {portion ? (
         <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t.portion}>
-          <span className="text-[11.5px] text-ink-muted">{t.portion} {f.num(portion)} {unit}:</span>
+          <span className="text-[11.5px] text-ink-muted">
+            {t.portion} {f.num(portion)} {unit}:
+          </span>
           {CHIPS.map((c) => {
             const grams = Math.round(portion * c);
             return (
-              <button key={c} type="button" onClick={() => set(grams)}
-                className={`rounded-full border px-2 py-0.5 text-[11.5px] tabular-nums ${grams === Math.round(value) ? "border-[var(--surface-brand)] text-brand" : "border-border text-ink-muted"}`}>
+              <button
+                key={c}
+                type="button"
+                onClick={() => set(grams)}
+                className={`rounded-full border px-2 py-0.5 text-[11.5px] tabular-nums ${grams === Math.round(value) ? "border-[var(--surface-brand)] text-brand" : "border-border text-ink-muted"}`}
+              >
                 {t.portionChip(f.trim(c, 1))}
               </button>
             );

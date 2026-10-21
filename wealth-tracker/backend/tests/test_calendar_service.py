@@ -15,8 +15,8 @@ import sqlite3
 
 import pytest
 
-from domain import database
 from app.services import calendar_service as cs
+from domain import database
 
 _TODAY = datetime.date(2026, 8, 8)
 
@@ -34,16 +34,17 @@ def _share(isin="NL0010773842", name="NN GROUP NV", ticker="NN.AS"):
     return {"isin": isin, "name": name, "ticker": ticker, "shares_held": 19.0}
 
 
-def _tracker(isin="IE00B4L5Y983", name="ISHARES CORE MSCI WORLD UCITS ETF USD (ACC)",
-             ticker="IWDA.AS"):
+def _tracker(isin="IE00B4L5Y983", name="ISHARES CORE MSCI WORLD UCITS ETF USD (ACC)", ticker="IWDA.AS"):
     return {"isin": isin, "name": name, "ticker": ticker, "shares_held": 8.0}
 
 
-def _entry(isin="NL0010773842", name="NN GROUP NV", ticker="NN.AS",
-           ex_date="2026-08-10", pay_date=None, earnings=("2026-08-06",)):
+def _entry(isin="NL0010773842", name="NN GROUP NV", ticker="NN.AS", ex_date="2026-08-10", pay_date=None, earnings=("2026-08-06",)):
     return {
-        "isin": isin, "ticker": ticker, "name": name,
-        "ex_date": ex_date, "pay_date": pay_date,
+        "isin": isin,
+        "ticker": ticker,
+        "name": name,
+        "ex_date": ex_date,
+        "pay_date": pay_date,
         "earnings_dates": list(earnings),
     }
 
@@ -51,6 +52,7 @@ def _entry(isin="NL0010773842", name="NN GROUP NV", ticker="NN.AS",
 # ---------------------------------------------------------------------------
 # Which holdings can report at all
 # ---------------------------------------------------------------------------
+
 
 def test_trackers_are_not_asked_for_reporting_dates():
     """A fund publishes no results of its own. An empty earnings row under
@@ -63,6 +65,7 @@ def test_trackers_are_not_asked_for_reporting_dates():
 # ---------------------------------------------------------------------------
 # Reporting dates: day cell vs. strip
 # ---------------------------------------------------------------------------
+
 
 def test_a_confirmed_reporting_date_gets_a_day():
     stored = [{"isin": "NL0010773842", "date": "2026-08-06", "confirmed": True}]
@@ -115,9 +118,7 @@ def test_a_remembered_date_survives_the_sweep_forgetting_it():
     ]
     sweep_only_knows_the_next_one = [_entry(earnings=("2026-08-06",))]
 
-    events, _ = cs.earnings_events(
-        stored, sweep_only_knows_the_next_one, cs._shares([_share()])
-    )
+    events, _ = cs.earnings_events(stored, sweep_only_knows_the_next_one, cs._shares([_share()]))
 
     assert [e["date"] for e in events] == ["2026-05-14", "2026-08-06"]
 
@@ -133,6 +134,7 @@ def test_a_reporting_date_for_a_holding_that_is_gone_is_dropped():
 # ---------------------------------------------------------------------------
 # Ex-dividend and paid dividend
 # ---------------------------------------------------------------------------
+
 
 def test_official_ex_dividend_dates_are_kept_for_held_positions_only():
     entries = [_entry(), _entry(isin="SOLD0001", ticker="X.AS", ex_date="2026-09-01")]
@@ -170,20 +172,39 @@ def test_a_payment_that_nets_to_zero_is_not_an_event():
 # The strip
 # ---------------------------------------------------------------------------
 
+
 def test_an_official_date_is_not_repeated_in_the_estimate_strip():
     """merge_official_ex_dividends replaces a holding's first estimate with the
     real date and labels it "official". That row already has a day cell from
     ex_dividend_events; carrying it here too printed the same ex-dividend twice
     on one month.
     """
-    outlook = {"upcoming": [
-        {"isin": "NL0010773842", "name": "NN", "date": "2026-08-10",
-         "month": "2026-08", "part": "early", "source": "official",
-         "expected_eur": 32.0, "confidence": "high", "cadence": "semiannual"},
-        {"isin": "IE00B4L5Y983", "name": "IWDA", "date": "2026-09-18",
-         "month": "2026-09", "part": "mid", "source": "estimate",
-         "expected_eur": 12.0, "confidence": "medium", "cadence": "quarterly"},
-    ]}
+    outlook = {
+        "upcoming": [
+            {
+                "isin": "NL0010773842",
+                "name": "NN",
+                "date": "2026-08-10",
+                "month": "2026-08",
+                "part": "early",
+                "source": "official",
+                "expected_eur": 32.0,
+                "confidence": "high",
+                "cadence": "semiannual",
+            },
+            {
+                "isin": "IE00B4L5Y983",
+                "name": "IWDA",
+                "date": "2026-09-18",
+                "month": "2026-09",
+                "part": "mid",
+                "source": "estimate",
+                "expected_eur": 12.0,
+                "confidence": "medium",
+                "cadence": "quarterly",
+            },
+        ]
+    }
 
     rows = cs.estimate_rows(outlook, windows=[])
 
@@ -195,11 +216,21 @@ def test_the_strip_carries_no_exact_day():
     estimate ever reaches the frontend with a date on it, someone will render
     it in a cell.
     """
-    outlook = {"upcoming": [
-        {"isin": "IE00B4L5Y983", "name": "IWDA", "date": "2026-09-18",
-         "month": "2026-09", "part": "mid", "source": "estimate",
-         "expected_eur": 12.0, "confidence": "medium", "cadence": "quarterly"},
-    ]}
+    outlook = {
+        "upcoming": [
+            {
+                "isin": "IE00B4L5Y983",
+                "name": "IWDA",
+                "date": "2026-09-18",
+                "month": "2026-09",
+                "part": "mid",
+                "source": "estimate",
+                "expected_eur": 12.0,
+                "confidence": "medium",
+                "cadence": "quarterly",
+            },
+        ]
+    }
 
     rows = cs.estimate_rows(outlook, windows=[])
 
@@ -211,17 +242,18 @@ def test_the_strip_carries_no_exact_day():
 # The window
 # ---------------------------------------------------------------------------
 
+
 def test_the_window_spans_whole_months_either_side_of_today():
     start, end = cs._window(_TODAY)
 
-    assert start == "2025-08-01"     # a year back, from the 1st
-    assert end == "2027-08-31"       # a year ahead, to the last day
+    assert start == "2025-08-01"  # a year back, from the 1st
+    assert end == "2027-08-31"  # a year ahead, to the last day
 
 
 def test_events_outside_the_window_are_dropped(conn, monkeypatch):
     monkeypatch.setattr(cs.filings_service, "reports_for", lambda *a, **k: {})
     dividends = [
-        {"isin": "IE00B4L5Y983", "date": "2019-06-12", "net_eur": 9.0},   # too old
+        {"isin": "IE00B4L5Y983", "date": "2019-06-12", "net_eur": 9.0},  # too old
         {"isin": "IE00B4L5Y983", "date": "2026-06-12", "net_eur": 12.0},
     ]
 
@@ -234,16 +266,23 @@ def test_events_outside_the_window_are_dropped(conn, monkeypatch):
 # Assembly
 # ---------------------------------------------------------------------------
 
+
 def test_build_separates_facts_from_estimates(conn, monkeypatch):
     monkeypatch.setattr(cs.filings_service, "reports_for", lambda *a, **k: {})
-    database.record_earnings_dates(
-        conn, [{"isin": "NL0010773842", "date": "2026-08-06", "confirmed": True}]
-    )
+    database.record_earnings_dates(conn, [{"isin": "NL0010773842", "date": "2026-08-06", "confirmed": True}])
     outlook = {
         "upcoming": [
-            {"isin": "IE00B4L5Y983", "name": "IWDA", "date": "2026-09-18",
-             "month": "2026-09", "part": "mid", "source": "estimate",
-             "expected_eur": 12.0, "confidence": "medium", "cadence": "quarterly"},
+            {
+                "isin": "IE00B4L5Y983",
+                "name": "IWDA",
+                "date": "2026-09-18",
+                "month": "2026-09",
+                "part": "mid",
+                "source": "estimate",
+                "expected_eur": 12.0,
+                "confidence": "medium",
+                "cadence": "quarterly",
+            },
         ],
         "rest_of_year_eur": 41.5,
     }
@@ -279,16 +318,21 @@ def test_a_portfolio_of_only_trackers_is_not_an_error(conn, monkeypatch):
 
 
 def test_a_past_reporting_date_carries_its_report(conn, monkeypatch):
-    monkeypatch.setattr(cs.filings_service, "reports_for", lambda *a, **k: {
-        "NL0010773842": {"kind": "site", "source": None, "url": "https://www.nn-group.com"},
-    })
-    database.record_earnings_dates(
-        conn, [{"isin": "NL0010773842", "date": "2026-08-06", "confirmed": True}]
+    monkeypatch.setattr(
+        cs.filings_service,
+        "reports_for",
+        lambda *a, **k: {
+            "NL0010773842": {"kind": "site", "source": None, "url": "https://www.nn-group.com"},
+        },
     )
+    database.record_earnings_dates(conn, [{"isin": "NL0010773842", "date": "2026-08-06", "confirmed": True}])
 
     out = cs.build(conn, [_share()], [], {"upcoming": []}, [_entry()], today=_TODAY)
 
     earnings = [e for e in out["events"] if e["type"] == "earnings"]
     assert earnings[0]["report"] == {
-        "kind": "site", "url": "https://www.nn-group.com", "label": None, "source": None,
+        "kind": "site",
+        "url": "https://www.nn-group.com",
+        "label": None,
+        "source": None,
     }

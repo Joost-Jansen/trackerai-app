@@ -58,28 +58,27 @@ export default function SliceTable({
   // name reads as "nothing" while the answer to "am I in there?" is yes.
   const floor = 10 ** -decimals;
   const pct = (value: number) =>
-    value < floor
-      ? `<${fmtEu(floor, { decimals, suffix: unit })}`
-      : fmtEu(value, { decimals, suffix: unit });
+    value < floor ? `<${fmtEu(floor, { decimals, suffix: unit })}` : fmtEu(value, { decimals, suffix: unit });
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[11px] leading-snug text-ink-muted">{trx("Together the row “{0}” above, of {1}.", foldedAs, <span className="num">{fmtEu(foldedPct, { decimals: 1, suffix: unit })}</span>)}</p>
+      <p className="text-[11px] leading-snug text-ink-muted">
+        {trx(
+          "Together the row “{0}” above, of {1}.",
+          foldedAs,
+          <span className="num">{fmtEu(foldedPct, { decimals: 1, suffix: unit })}</span>,
+        )}
+      </p>
       {sorted.map((slice) => (
         <div key={slice.name}>
           <div className="flex items-baseline justify-between gap-3 text-[12.5px]">
             {/* The issuers have a category "Other" of their own, and here it almost always falls in
                 the tail. Untranslated it would be called "Other" — exactly the name of the row that
                 sums up this whole list, so a row that looks like a repetition of the heading. */}
-            <span className="min-w-0 truncate">
-              {slice.name === "Other" ? tr("No category") : localName(slice.name)}
-            </span>
-            <span className="num flex-none font-semibold">
-              {pct(slice.pct)}
-            </span>
+            <span className="min-w-0 truncate">{slice.name === "Other" ? tr("No category") : localName(slice.name)}</span>
+            <span className="num flex-none font-semibold">{pct(slice.pct)}</span>
           </div>
-          <div aria-hidden="true" className="mt-1 h-1.5 rounded-full"
-            style={{ background: "var(--surface-inset)" }}>
+          <div aria-hidden="true" className="mt-1 h-1.5 rounded-full" style={{ background: "var(--surface-inset)" }}>
             <div
               className="h-full rounded-full"
               style={{

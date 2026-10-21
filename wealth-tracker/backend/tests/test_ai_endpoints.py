@@ -27,7 +27,7 @@ def test_turning_it_on_is_a_preference(client, monkeypatch):
 def test_a_decision_must_be_a_known_choice(client):
     _login(client)
     assert client.post("/api/categories/ai/check/decision", json={"ids": [1], "choice": "misschien"}).status_code == 400
-    assert client.post("/api/categories/ai/verify").status_code == 400   # not turned on
+    assert client.post("/api/categories/ai/verify").status_code == 400  # not turned on
 
 
 def test_not_right_without_transactions(client):

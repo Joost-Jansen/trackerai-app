@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -17,7 +17,7 @@ from trackerai_testing import new_database_url
 
 
 def ms(iso_utc: str) -> int:
-    return int(datetime.fromisoformat(iso_utc).replace(tzinfo=timezone.utc).timestamp() * 1000)
+    return int(datetime.fromisoformat(iso_utc).replace(tzinfo=UTC).timestamp() * 1000)
 
 
 # Garmin's answers for 5 October 2026 (summer time, UTC+2), shaped like garminconnect 0.3 returns them.
@@ -40,14 +40,23 @@ GARMIN_STRESS = {
     **DAY,
     "avgStressLevel": 27,
     "stressValueDescriptorsDTOList": [{"key": "timestamp", "index": 0}, {"key": "stressLevel", "index": 1}],
-    "stressValuesArray": [[ms("2026-10-04T22:00:00"), 12], [ms("2026-10-04T22:03:00"), -1], [ms("2026-10-05T16:00:00"), -2], [ms("2026-10-05T17:00:00"), 0]],
+    "stressValuesArray": [
+        [ms("2026-10-04T22:00:00"), 12],
+        [ms("2026-10-04T22:03:00"), -1],
+        [ms("2026-10-05T16:00:00"), -2],
+        [ms("2026-10-05T17:00:00"), 0],
+    ],
     "bodyBatteryValueDescriptorsDTOList": [
         {"bodyBatteryValueDescriptorIndex": 0, "bodyBatteryValueDescriptorKey": "timestamp"},
         {"bodyBatteryValueDescriptorIndex": 1, "bodyBatteryValueDescriptorKey": "bodyBatteryStatus"},
         {"bodyBatteryValueDescriptorIndex": 2, "bodyBatteryValueDescriptorKey": "bodyBatteryLevel"},
         {"bodyBatteryValueDescriptorIndex": 3, "bodyBatteryValueDescriptorKey": "bodyBatteryVersion"},
     ],
-    "bodyBatteryValuesArray": [[ms("2026-10-04T22:00:00"), "MEASURED", 31, 2.0], [ms("2026-10-05T04:40:00"), "MEASURED", 88, 2.0], [ms("2026-10-05T05:00:00"), "MEASURED", None, 2.0]],
+    "bodyBatteryValuesArray": [
+        [ms("2026-10-04T22:00:00"), "MEASURED", 31, 2.0],
+        [ms("2026-10-05T04:40:00"), "MEASURED", 88, 2.0],
+        [ms("2026-10-05T05:00:00"), "MEASURED", None, 2.0],
+    ],
 }
 GARMIN_RESPIRATION = {
     **DAY,
@@ -55,7 +64,14 @@ GARMIN_RESPIRATION = {
     "respirationValueDescriptorsDTOList": [{"key": "timestamp", "index": 0}, {"key": "respiration", "index": 1}],
     "respirationValuesArray": [[ms("2026-10-04T22:00:00"), 14.04], [ms("2026-10-04T22:02:00"), -1.0], [ms("2026-10-05T02:00:00"), 13.0]],
 }
-GARMIN_SPO2 = {**DAY, "averageSpO2": 95, "continuousReadingDTOList": [{"epochTimestamp": ms("2026-10-04T23:00:00"), "spo2Reading": 94}, {"epochTimestamp": ms("2026-10-04T23:01:00"), "spo2Reading": None}]}
+GARMIN_SPO2 = {
+    **DAY,
+    "averageSpO2": 95,
+    "continuousReadingDTOList": [
+        {"epochTimestamp": ms("2026-10-04T23:00:00"), "spo2Reading": 94},
+        {"epochTimestamp": ms("2026-10-04T23:01:00"), "spo2Reading": None},
+    ],
+}
 GARMIN_SLEEP = {
     "bodyBatteryChange": 57,
     "dailySleepDTO": {
@@ -82,9 +98,18 @@ GARMIN_SLEEP = {
     ],
 }
 GARMIN_SUMMARY = {
-    "restingHeartRate": 46, "totalSteps": 9000, "bodyBatteryChargedValue": 60, "bodyBatteryDrainedValue": 55,
-    "restStressDuration": 30000, "lowStressDuration": 12000, "mediumStressDuration": 3600, "highStressDuration": 600,
-    "moderateIntensityMinutes": 20, "vigorousIntensityMinutes": 10, "floorsAscended": 7.0, "activeKilocalories": 512.0,
+    "restingHeartRate": 46,
+    "totalSteps": 9000,
+    "bodyBatteryChargedValue": 60,
+    "bodyBatteryDrainedValue": 55,
+    "restStressDuration": 30000,
+    "lowStressDuration": 12000,
+    "mediumStressDuration": 3600,
+    "highStressDuration": 600,
+    "moderateIntensityMinutes": 20,
+    "vigorousIntensityMinutes": 10,
+    "floorsAscended": 7.0,
+    "activeKilocalories": 512.0,
     "averageStressLevel": -1,
 }
 
@@ -108,8 +133,13 @@ def test_garmin_day_without_data_is_empty_and_sleep_alone_is_kept():
     assert intraday_from_garmin("2026-10-05") == {}
     assert intraday_from_garmin("2026-10-05", {"heartRateValues": None}, {"dailySleepDTO": {}}, {"stressValuesArray": [[1, -1]]}) == {}
     # without the day's own timestamps the offset comes from the sleep (winter time here: UTC+1)
-    sleep = {"dailySleepDTO": {"sleepStartTimestampGMT": ms("2026-12-01T22:00:00"), "sleepStartTimestampLocal": ms("2026-12-01T23:00:00"),
-                               "sleepEndTimestampLocal": ms("2026-12-02T07:00:00")}}
+    sleep = {
+        "dailySleepDTO": {
+            "sleepStartTimestampGMT": ms("2026-12-01T22:00:00"),
+            "sleepStartTimestampLocal": ms("2026-12-01T23:00:00"),
+            "sleepEndTimestampLocal": ms("2026-12-02T07:00:00"),
+        }
+    }
     out = intraday_from_garmin("2026-12-02", {"heartRateValues": [[ms("2026-12-01T23:30:00"), 50]]}, sleep)
     assert out["hr"] == [[30, 50]] and out["sleep"] == {"start": -60, "end": 420, "stages": []}
     hourly = intraday_from_garmin("2026-10-05", spo2={**DAY, "spO2HourlyAverages": [[ms("2026-10-05T00:00:00"), 96]]})
@@ -190,6 +220,7 @@ def test_garmin_client_reuses_the_sleep_of_wellness_and_fetches_four_series():
         def fn(d):
             calls.append((name, d))
             return value
+
         return fn
 
     class Api:
@@ -238,7 +269,9 @@ def test_day_view_joins_the_evening_before_and_finds_neighbours():
     db.write_intraday(s, "2026-10-04", {"hr": [[1300, 60], [1360, 55], [1420, 50]], "stress": [[1400, 30]]})
     db.write_intraday(s, "2026-10-05", garmin_day())
     db.write_intraday(s, "2026-10-08", {"hr": [[600, 70]], "sleep": {"start": -30, "end": 400, "stages": []}})
-    wellness = {f"2026-09-{d:02d}": {"sleep_resp": 14.0 + d % 2} for d in range(1, 31)} | {"2026-10-05": {"resting_hr": 47, "sleep_resp": 16.0}}
+    wellness = {f"2026-09-{d:02d}": {"sleep_resp": 14.0 + d % 2} for d in range(1, 31)} | {
+        "2026-10-05": {"resting_hr": 47, "sleep_resp": 16.0}
+    }
     v = day_view(s, wellness, date(2026, 10, 5))
     assert v["from"] == -120  # an hour before falling asleep at 23:10, on the hour
     assert v["series"]["hr"][:3] == [[-80, 55], [-20, 50], [0, 47]]  # 21:40 (1300 - 1440 = -140) falls outside

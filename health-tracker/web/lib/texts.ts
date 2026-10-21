@@ -11,7 +11,8 @@ const num = (n: number, digits = 1) => n.toFixed(digits).replace(".", ",").repla
 const fmtDayNl = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
 const RECORD_NAME: Record<RecordKey, string> = { "1k": "1 km", "5k": "5 km", "10k": "10 km", "21k": "halve marathon" };
 /** A goal distance in words: marathon, half marathon or "15 km". */
-const goalName = (km: number) => (Math.abs(km - 42.195) < 0.3 ? "marathon" : Math.abs(km - 21.0975) < 0.2 ? "halve marathon" : `${num(km)} km`);
+const goalName = (km: number) =>
+  Math.abs(km - 42.195) < 0.3 ? "marathon" : Math.abs(km - 21.0975) < 0.2 ? "halve marathon" : `${num(km)} km`;
 
 const list = (items: string[]) => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} en ${items[items.length - 1]}`);
 
@@ -38,15 +39,18 @@ export const T = {
     fresh: "5 tot 20% frisser dan je fitheid: er is ruimte voor een wedstrijd of een zware training.",
     neutral: "Tussen -10% en +5%: belasting en herstel houden elkaar in evenwicht; je fitheid blijft ongeveer gelijk.",
     optimal: "-10 tot -30% van je fitheid: je traint meer dan je gewend bent en bouwt fitheid op. Plan wel rustige dagen.",
-    high_risk: "Meer dan 30% onder je fitheid: de belasting is hoog tegenover wat je gewend bent. Neem rust; de kans op overbelasting stijgt.",
+    high_risk:
+      "Meer dan 30% onder je fitheid: de belasting is hoog tegenover wat je gewend bent. Neem rust; de kans op overbelasting stijgt.",
   } as Record<string, string>,
 
-  formMethod: "Belasting per training = TRIMP uit je hartslag per seconde (zonder hartslagdata: de gemiddelde), rusthartslag en je eigen max per sport. Fitheid is het 42-daags gemiddelde, vermoeidheid 7 dagen, vorm het verschil tussen die twee aan het eind van gisteren (de stand waarmee je vandaag begint).",
+  formMethod:
+    "Belasting per training = TRIMP uit je hartslag per seconde (zonder hartslagdata: de gemiddelde), rusthartslag en je eigen max per sport. Fitheid is het 42-daags gemiddelde, vermoeidheid 7 dagen, vorm het verschil tussen die twee aan het eind van gisteren (de stand waarmee je vandaag begint).",
 
   /** Why today's fitness minus fatigue is not exactly the form. */
   formTsb: "Vorm = fitheid min vermoeidheid van gisteren: de stand aan het begin van vandaag.",
 
-  formChartNote: "Fitheid en vermoeidheid zijn zelf al gemiddelden (42 en 7 dagen); de knop middelt alleen de vorm. Vorm in procenten: tegenover je fitheid van gisteren. Ruitjes zijn wedstrijden en tests.",
+  formChartNote:
+    "Fitheid en vermoeidheid zijn zelf al gemiddelden (42 en 7 dagen); de knop middelt alleen de vorm. Vorm in procenten: tegenover je fitheid van gisteren. Ruitjes zijn wedstrijden en tests.",
 
   /** The data is older than a day: what the site does not know since then. */
   syncStale: (days: number) =>
@@ -58,7 +62,8 @@ export const T = {
   /** A race over (about) a record distance that was faster than the fastest split: the watch measured the distance slightly short. */
   recordRace: "Snelste wedstrijd over deze afstand. Het horloge mat net minder, daardoor staat hij niet bij de splits.",
 
-  z2Pace: "Gemiddeld tempo van alle seconden in Z2 per week, alleen losse buitenruns (geen loopband, geen run na zwemmen of fietsen). Sneller bij dezelfde hartslag wijst op een betere aerobe basis.",
+  z2Pace:
+    "Gemiddeld tempo van alle seconden in Z2 per week, alleen losse buitenruns (geen loopband, geen run na zwemmen of fietsen). Sneller bij dezelfde hartslag wijst op een betere aerobe basis.",
 
   vo2max: "Schatting van het horloge na buitenruns met GPS en hartslag.",
 
@@ -74,10 +79,12 @@ export const T = {
     `Deze run volgde op ${list(before.map((s) => sportLabel(s).toLowerCase()))} dezelfde dag. Vergelijk hartslag en tempo niet met een losse run.`,
 
   driftGood: "Tempo per hartslag bleef in de tweede helft vrijwel gelijk: de aerobe basis houdt dit tempo en deze duur.",
-  driftHigh: "In de tweede helft kostte hetzelfde tempo meer hartslag (boven 5%). Oorzaak kan warmte, vocht, vermoeidheid of een te hoog starttempo zijn.",
+  driftHigh:
+    "In de tweede helft kostte hetzelfde tempo meer hartslag (boven 5%). Oorzaak kan warmte, vocht, vermoeidheid of een te hoog starttempo zijn.",
   driftMethod: "Drift = daling van snelheid per hartslag tussen de eerste en de tweede helft (alleen bewegend).",
 
-  easySession: (pct: number, z2Top: number) => `${pct}% in Z1-Z2 (onder ${z2Top} bpm volgens je eigen zones): de intensiteit die de basis bouwt.`,
+  easySession: (pct: number, z2Top: number) =>
+    `${pct}% in Z1-Z2 (onder ${z2Top} bpm volgens je eigen zones): de intensiteit die de basis bouwt.`,
   hardSession: (pct: number) => `${pct}% in Z4-Z5. Plan de dag erna rustig.`,
 
   efficiency: (sport: string) =>
@@ -121,7 +128,8 @@ export const T = {
       "Tijd per hartslagzone volgens je eigen zones. Rustige sessies (tot en met Z2): de tijd op of onder de doelzone telt, want rustiger is niet erg. Kwaliteit (Z3 en hoger): de tijd binnen de doelzone telt.",
     matching:
       "Een sessie telt als gedaan zodra er die dag een activiteit van dezelfde sport is, of tot 2 dagen ervoor of erna als de sessie nog open stond. Een run in stukken (minder dan 30 minuten pauze) telt als één sessie. Ontkoppel een activiteit of koppel er zelf een aan een sessie. De kilometers per week tellen alle activiteiten van de sporten in het schema, ook die zonder sessie.",
-    volume: "Kilometers per week: gepland tegen gedaan. Gedaan telt elke activiteit van die sport in de week, ook buiten een sessie. Sessies zonder afstand (alleen een duur) tellen bij gepland niet mee.",
+    volume:
+      "Kilometers per week: gepland tegen gedaan. Gedaan telt elke activiteit van die sport in de week, ook buiten een sessie. Sessies zonder afstand (alleen een duur) tellen bij gepland niet mee.",
   },
 
   /** Onboarding (T23): the explanations about health and performance in the tour, the checklist and Help. */
@@ -139,26 +147,37 @@ export const T = {
       "Geboortejaar, gewicht, lengte en rusthartslag. De rusthartslag gebruikt de site voor de belasting per training op dagen zonder slaapdata van je horloge.",
     firstSync: (days: number) =>
       `De eerste keer haalt de site de trainingen en het herstel (slaap, rusthartslag, Body Battery) van de afgelopen ${days} dagen op. Daarna elke ochtend vanzelf wat er nieuw is.`,
-    wristHr: "Hartslag komt meestal van de pols: bij een vreemde piek of dip in een training is het de moeite waard het verloop te bekijken voor je conclusies trekt.",
+    wristHr:
+      "Hartslag komt meestal van de pols: bij een vreemde piek of dip in een training is het de moeite waard het verloop te bekijken voor je conclusies trekt.",
   },
-
 
   /** Vandaag (dashboard). The API gives codes and numbers; the sentences are here. */
   today: {
     readiness: {
       title: "Klaar voor vandaag?",
-      verdict: { ready: "Klaar voor training", easy: "Rustig aan", recover: "Herstel eerst", unknown: "Geen nachtdata" } as Record<string, string>,
+      verdict: { ready: "Klaar voor training", easy: "Rustig aan", recover: "Herstel eerst", unknown: "Geen nachtdata" } as Record<
+        string,
+        string
+      >,
       advice: {
         recover: "Meerdere signalen van vermoeidheid. Maak er een rustdag of heel rustige training van.",
         easy: "Eén of twee signalen wijken af. Train gerust, maar houd het rustig (Z1-Z2) of kort.",
         ready: "Herstel ziet er normaal uit. Geplande training kan zoals bedoeld.",
       } as Record<string, string>,
       /** Without night data and without deviating signals: what is there is fine. */
-      unknown: (labels: string[]) => `${list(labels)} ${labels.length > 1 ? "zijn" : "is"} in orde; zonder nachtdata is herstel lastig te beoordelen.`,
+      unknown: (labels: string[]) =>
+        `${list(labels)} ${labels.length > 1 ? "zijn" : "is"} in orde; zonder nachtdata is herstel lastig te beoordelen.`,
       noNight: "Geen slaap of rusthartslag van afgelopen nacht (horloge niet gedragen of nog niet gesynct).",
-      label: { resting_hr: "Rusthartslag", respiration: "Ademhaling (nacht)", sleep_h: "Slaap", body_battery: "Body Battery", tsb: "Vorm" } as Record<string, string>,
+      label: {
+        resting_hr: "Rusthartslag",
+        respiration: "Ademhaling (nacht)",
+        sleep_h: "Slaap",
+        body_battery: "Body Battery",
+        tsb: "Vorm",
+      } as Record<string, string>,
       /** Resting HR, the heart rate while asleep and night breathing all up together (api/readiness.py illness_hint). */
-      illness: "Rusthartslag, hartslag in de slaap en ademhaling liggen samen boven je normaal. Die combinatie zie je vaak een dag of twee voor een verkoudheid: houd het rustig en kijk hoe je je voelt.",
+      illness:
+        "Rusthartslag, hartslag in de slaap en ademhaling liggen samen boven je normaal. Die combinatie zie je vaak een dag of twee voor een verkoudheid: houd het rustig en kijk hoe je je voelt.",
       value(key: string, v: number): string {
         if (key === "resting_hr") return `${v} bpm`;
         if (key === "respiration") return `${num(v)} /min`;
@@ -169,8 +188,11 @@ export const T = {
       note(code: string, p: { delta?: number; baseline?: number; score?: number; date?: string; days_ago?: number }): string {
         if (code === "vs_baseline") return `${(p.delta ?? 0) >= 0 ? "+" : ""}${num(p.delta ?? 0)} t.o.v. normaal (${num(p.baseline ?? 0)})`;
         if (code === "sleep")
-          return [p.score ? `score ${p.score}` : "", p.baseline ? `normaal ${p.baseline.toFixed(1).replace(".", ",")} u` : ""].filter(Boolean).join(", ");
-        if (code === "highest") return p.days_ago === 0 ? "hoogste vandaag" : p.days_ago === 1 ? "hoogste gisteren" : `hoogste op ${fmtDate(p.date ?? "")}`;
+          return [p.score ? `score ${p.score}` : "", p.baseline ? `normaal ${p.baseline.toFixed(1).replace(".", ",")} u` : ""]
+            .filter(Boolean)
+            .join(", ");
+        if (code === "highest")
+          return p.days_ago === 0 ? "hoogste vandaag" : p.days_ago === 1 ? "hoogste gisteren" : `hoogste op ${fmtDate(p.date ?? "")}`;
         if (code === "form_yesterday") return "fitheid min vermoeidheid van gisteren";
         return "";
       },
@@ -186,7 +208,8 @@ export const T = {
         build: "Je laatste week past bij wat je gewend bent: een goede basis om rustig op te bouwen.",
         unknown: "Na ongeveer vier weken training met hartslag is te zien hoe je laatste week zich verhoudt tot wat je gewend bent.",
       } as Record<string, string>,
-      highRatio: (high: string) => `Je laatste week was flink zwaarder dan je gewend bent (boven ${high}). Bouw rustiger op of plan een lichte dag.`,
+      highRatio: (high: string) =>
+        `Je laatste week was flink zwaarder dan je gewend bent (boven ${high}). Bouw rustiger op of plan een lichte dag.`,
       highRamp: (ramp: string) => `Je fitheid stijgt snel (+${ramp} in 7 dagen). Bouw rustiger op of plan een lichte dag.`,
       ratio: "Laatste week tegenover gewend",
       ramp: "Fitheid in 7 dagen",
@@ -206,7 +229,8 @@ export const T = {
       upcoming: (n: number) => `${n} te gaan`,
       unsynced: (n: number) => `${n} nog niet gesynct`,
       ofPlanned: (done: string, planned: string) => `${done} van ${planned}`,
-      method: "Gedaan per sport telt elke activiteit van die sport deze week, ook als die bij geen sessie hoort. Een sessie telt als gedaan bij een activiteit van dezelfde sport die dag, of tot 2 dagen ervoor of erna; op de schemapagina koppel of ontkoppel je zelf.",
+      method:
+        "Gedaan per sport telt elke activiteit van die sport deze week, ook als die bij geen sessie hoort. Een sessie telt als gedaan bij een activiteit van dezelfde sport die dag, of tot 2 dagen ervoor of erna; op de schemapagina koppel of ontkoppel je zelf.",
     },
 
     /** Countdown to the plan's next race. */
@@ -265,7 +289,12 @@ export const T = {
       close: "Sluiten",
     },
 
-    sport: { label: "Sport", all: "Alle sporten", runOnly: "Tempo in Z2, VO2max, langste run, records en voorspellingen gaan alleen over hardlopen: kies Alle sporten of Hardlopen om ze te zien." },
+    sport: {
+      label: "Sport",
+      all: "Alle sporten",
+      runOnly:
+        "Tempo in Z2, VO2max, langste run, records en voorspellingen gaan alleen over hardlopen: kies Alle sporten of Hardlopen om ze te zien.",
+    },
     /** Prestaties bij zwemmen en fietsen (api/trends.py sport_performance). */
     sportPerf: {
       bests: (s: string) => `Beste prestaties ${s.toLowerCase()}`,
@@ -296,44 +325,66 @@ export const T = {
       switch (i.code) {
         case "record_set": {
           const p = i.params;
-          return { title: `Nieuw record op ${RECORD_NAME[p.key]}: ${fmtClock(p.seconds)}`, text: `${fmtClock(p.previous_seconds - p.seconds)} sneller dan je vorige beste (${fmtClock(p.previous_seconds)}), op ${fmtDayNl(p.date)}.` };
+          return {
+            title: `Nieuw record op ${RECORD_NAME[p.key]}: ${fmtClock(p.seconds)}`,
+            text: `${fmtClock(p.previous_seconds - p.seconds)} sneller dan je vorige beste (${fmtClock(p.previous_seconds)}), op ${fmtDayNl(p.date)}.`,
+          };
         }
         case "acwr_high":
-          return { title: "Belasting loopt snel op", text: `Vermoeidheid (${i.params.atl}) is ${num(i.params.ratio)}× je fitheid (${i.params.ctl}). Boven 1,5 stijgt het blessurerisico; plan een rustiger dag.` };
+          return {
+            title: "Belasting loopt snel op",
+            text: `Vermoeidheid (${i.params.atl}) is ${num(i.params.ratio)}× je fitheid (${i.params.ctl}). Boven 1,5 stijgt het blessurerisico; plan een rustiger dag.`,
+          };
         case "ramp_fast":
-          return { title: "Snelle opbouw", text: `Fitheid +${num(i.params.ramp)} in 7 dagen. Meer dan ongeveer 5 tot 7 per week houdt je lichaam lastig bij.` };
+          return {
+            title: "Snelle opbouw",
+            text: `Fitheid +${num(i.params.ramp)} in 7 dagen. Meer dan ongeveer 5 tot 7 per week houdt je lichaam lastig bij.`,
+          };
         case "fresh":
-          return { title: "Fris", text: `Vorm +${i.params.tsb} (+${i.params.pct}% van je fitheid): goed moment voor een wedstrijd of een zware sessie.` };
+          return {
+            title: "Fris",
+            text: `Vorm +${i.params.tsb} (+${i.params.pct}% van je fitheid): goed moment voor een wedstrijd of een zware sessie.`,
+          };
         case "easy_share": {
           const p = i.params;
           const low = i.level !== "good";
           return {
             title: `${p.easy_pct}% rustig (Z1-Z2) de laatste 4 weken`,
-            text: `Z3 ${p.grey_pct}%, Z4-Z5 ${p.hard_pct}%. Voor duurtraining is ongeveer 80% rustig de gangbare richtlijn.` + (low ? " Wedstrijden tellen mee; zonder wedstrijd hoort het grootste deel in Z1-Z2 te liggen." : ""),
+            text:
+              `Z3 ${p.grey_pct}%, Z4-Z5 ${p.hard_pct}%. Voor duurtraining is ongeveer 80% rustig de gangbare richtlijn.` +
+              (low ? " Wedstrijden tellen mee; zonder wedstrijd hoort het grootste deel in Z1-Z2 te liggen." : ""),
           };
         }
         case "longest_run":
-          return { title: `Langste run laatste 4 weken: ${num(i.params.km)} km`, text: "Stukken met minder dan 30 minuten pauze tellen als één run." };
+          return {
+            title: `Langste run laatste 4 weken: ${num(i.params.km)} km`,
+            text: "Stukken met minder dan 30 minuten pauze tellen als één run.",
+          };
         case "long_run_goal": {
           const p = i.params;
           return {
             title: `Langste run laatste 4 weken: ${num(p.km)} km`,
-            text: p.km >= p.target_km
-              ? `Lange duurloop op het niveau van je doel (${goalName(p.goal_km)}).`
-              : `Voor een ${goalName(p.goal_km)} is een lange duurloop tot ongeveer ${p.target_km} km de gangbare opbouw, een paar weken voor de wedstrijd.`,
+            text:
+              p.km >= p.target_km
+                ? `Lange duurloop op het niveau van je doel (${goalName(p.goal_km)}).`
+                : `Voor een ${goalName(p.goal_km)} is een lange duurloop tot ongeveer ${p.target_km} km de gangbare opbouw, een paar weken voor de wedstrijd.`,
           };
         }
         case "goal_prediction": {
           const p = i.params;
           const diff = p.predicted_seconds - p.goal_seconds;
-          const where = Math.abs(diff) < 30 ? "ligt op je doel" : `ligt ${fmtClock(Math.abs(diff))} ${diff < 0 ? "onder" : "boven"} je doel`;
+          const where =
+            Math.abs(diff) < 30 ? "ligt op je doel" : `ligt ${fmtClock(Math.abs(diff))} ${diff < 0 ? "onder" : "boven"} je doel`;
           return {
             title: `Voorspelling ${goalName(p.goal_km)}: ${fmtClock(p.predicted_seconds)}`,
             text: `Doel ${fmtClock(p.goal_seconds)}; de voorspelling ${where}. Gerekend uit ${num(p.from_km, 2)} km op ${fmtDayNl(p.from_date)}.`,
           };
         }
         case "run_volume":
-          return { title: `Loopvolume ${num(i.params.avg_km, 0)} km/week (gem. 4 weken)`, text: `Deze week tot nu ${num(i.params.week_km)} km.` };
+          return {
+            title: `Loopvolume ${num(i.params.avg_km, 0)} km/week (gem. 4 weken)`,
+            text: `Deze week tot nu ${num(i.params.week_km)} km.`,
+          };
       }
     },
 
@@ -366,14 +417,16 @@ export const T = {
       aria: "Volume per week per sport",
       other: "Overig",
       total: "Totaal",
-      avg: (value: string, weeks: number) => `Gemiddeld ${value} per week over ${weeks} hele ${weeks === 1 ? "week" : "weken"} (de lopende week telt niet mee)`,
+      avg: (value: string, weeks: number) =>
+        `Gemiddeld ${value} per week over ${weeks} hele ${weeks === 1 ? "week" : "weken"} (de lopende week telt niet mee)`,
       noWholeWeek: "Nog geen hele week in deze periode.",
     },
 
     z2: {
       title: "Tempo in Z2 (hardlopen)",
       label: "Tempo in Z2",
-      excluded: (n: number) => `${n} ${n === 1 ? "run" : "runs"} in deze periode niet meegeteld: de polshartslag leek onbetrouwbaar (ruitjes in de grafiek).`,
+      excluded: (n: number) =>
+        `${n} ${n === 1 ? "run" : "runs"} in deze periode niet meegeteld: de polshartslag leek onbetrouwbaar (ruitjes in de grafiek).`,
       marker: (reasons: string) => `Polshartslag onbetrouwbaar: ${reasons}`,
     },
 
@@ -401,16 +454,17 @@ export const T = {
       bbShort: "Body Battery",
       stress: "Stress",
       hrv: "HRV (nacht)",
-      hrvNote: "Gemiddelde hartslagvariabiliteit tijdens de nacht, gemeten door het horloge. Vergelijk met je eigen verloop, niet met dat van anderen. Van een Apple Watch is het SDNN (Apples maat), van Garmin RMSSD: die getallen zijn niet met elkaar te vergelijken.",
+      hrvNote:
+        "Gemiddelde hartslagvariabiliteit tijdens de nacht, gemeten door het horloge. Vergelijk met je eigen verloop, niet met dat van anderen. Van een Apple Watch is het SDNN (Apples maat), van Garmin RMSSD: die getallen zijn niet met elkaar te vergelijken.",
       resp: "Ademhaling in de slaap",
       sleepStress: "Stress in de slaap",
       bbCharged: "Body Battery opgeladen in de slaap",
       spo2: "Zuurstof in de slaap (SpO2)",
       normal: (v: string) => `Je normaal: ${v} (mediaan 60 dagen).`,
-      respNote: "Ademhaling in rust is van nacht tot nacht heel stabiel; één of twee ademhalingen per minuut meer valt al op, bijvoorbeeld na een zware dag of als je iets onder de leden hebt.",
+      respNote:
+        "Ademhaling in rust is van nacht tot nacht heel stabiel; één of twee ademhalingen per minuut meer valt al op, bijvoorbeeld na een zware dag of als je iets onder de leden hebt.",
       openDay: "Klik op een dag in een grafiek om die dag in detail te zien onder Vandaag, Slaap & lichaam.",
     },
-
 
     sleepStages: {
       explain: "Uitleg",
@@ -420,13 +474,16 @@ export const T = {
       night: "Nacht",
       per: "Per nacht, week of maand",
       none: "Geen nachten met slaapfases in deze periode.",
-      summary: (nights: number, asleep: string): string => `${nights} ${nights === 1 ? "nacht" : "nachten"}, gemiddeld ${asleep} geslapen per nacht:`,
+      summary: (nights: number, asleep: string): string =>
+        `${nights} ${nights === 1 ? "nacht" : "nachten"}, gemiddeld ${asleep} geslapen per nacht:`,
       asleep: (h: string): string => `${h} geslapen`,
       asleepAvg: (h: string, nights: number): string => `${h} geslapen per nacht (${nights} nachten)`,
       overTime: "Diepe slaap en REM door de tijd",
-      rolling: (n: number, p: "night" | "week" | "month", mode: "pct" | "hours"): string => `${mode === "hours" ? "uren per nacht" : "aandeel van de tijd in bed"}, gemiddelde van de laatste ${n} ${p === "night" ? "nachten" : p === "week" ? "weken" : "maanden"}`,
+      rolling: (n: number, p: "night" | "week" | "month", mode: "pct" | "hours"): string =>
+        `${mode === "hours" ? "uren per nacht" : "aandeel van de tijd in bed"}, gemiddelde van de laatste ${n} ${p === "night" ? "nachten" : p === "week" ? "weken" : "maanden"}`,
       note: "%: het aandeel van de tijd in bed (slapend en wakker). Uren: per nacht, gemiddeld over de nachten van de balk. Oudere nachten, gesynchroniseerd voordat wakkere tijd werd opgeslagen, tonen die niet. De fases zijn een schatting van het horloge uit hartslag en beweging (geen hersengolven) en diepe slaap is het lastigst te herkennen, dus kijk naar het verloop over weken en niet naar losse nachten; de doelen zijn algemene richtlijnen voor volwassenen, en diepe slaap neemt met de leeftijd vanzelf af.",
-      lastN: (n: number, p: "night" | "week" | "month"): string => `Laatste ${n} ${p === "night" ? "nachten" : p === "week" ? "weken" : "maanden"}, per nacht`,
+      lastN: (n: number, p: "night" | "week" | "month"): string =>
+        `Laatste ${n} ${p === "night" ? "nachten" : p === "week" ? "weken" : "maanden"}, per nacht`,
       onGoal: "op doel",
       below: (d: string): string => `${d} onder doel`,
       above: (d: string): string => `${d} boven doel`,

@@ -12,10 +12,8 @@ Sign convention: spending positive, income negative.
 
 import pytest
 
-from domain.money import bank_transactions
-from domain.money import categorization
 from domain import database
-from domain.money import accounts
+from domain.money import accounts, bank_transactions, categorization
 
 
 @pytest.fixture(autouse=True)
@@ -34,8 +32,7 @@ def conn():
 
 
 def _label(conn, name, description="", amount=10.0, **kw):
-    return categorization.label(categorization.load_rules(conn), name=name,
-                               description=description, amount=amount, **kw)[0]
+    return categorization.label(categorization.load_rules(conn), name=name, description=description, amount=amount, **kw)[0]
 
 
 def _category(conn, tid):
@@ -43,8 +40,9 @@ def _category(conn, tid):
 
 
 def _rule(conn, pattern, category, priority=25):
-    conn.execute("INSERT INTO rules (priority, field, pattern, direction, category) VALUES (?, 'N', ?, '', ?)",
-                 (priority, pattern, category))
+    conn.execute(
+        "INSERT INTO rules (priority, field, pattern, direction, category) VALUES (?, 'N', ?, '', ?)", (priority, pattern, category)
+    )
     conn.commit()
 
 
@@ -52,15 +50,19 @@ def _rule(conn, pattern, category, priority=25):
 # What the money was for
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("description, category", [
-    ("Tikkie ID 000123, Hotel retour, Van A. Voorbeeld", "Vakantie"),
-    ("Tikkie ID 000124, Ubers drankjes", "Cafe & uitgaan"),
-    ("Tickets Dekmantel selectors", "Uitjes & evenementen"),
-    ("Sint cadeau Guus", "Cadeaus & goede doelen"),
-    ("Ov naar rotterdam", "Openbaar vervoer"),
-    ("Pizza vrijdag", "Uit eten & bezorgen"),
-    ("Zeilvakantie aanbetaling", "Vakantie"),
-])
+
+@pytest.mark.parametrize(
+    "description, category",
+    [
+        ("Tikkie ID 000123, Hotel retour, Van A. Voorbeeld", "Vakantie"),
+        ("Tikkie ID 000124, Ubers drankjes", "Cafe & uitgaan"),
+        ("Tickets Dekmantel selectors", "Uitjes & evenementen"),
+        ("Sint cadeau Guus", "Cadeaus & goede doelen"),
+        ("Ov naar rotterdam", "Openbaar vervoer"),
+        ("Pizza vrijdag", "Uit eten & bezorgen"),
+        ("Zeilvakantie aanbetaling", "Vakantie"),
+    ],
+)
 def test_a_tikkie_counts_under_what_it_was_for(conn, description, category):
     assert _label(conn, "Tikkie", description) == category
     # What a friend pays you back comes off that same expense.
@@ -78,8 +80,7 @@ def test_a_shop_name_comes_before_the_description(conn):
 
 def test_a_refund_at_the_till_stays_with_the_shop(conn):
     """ING sometimes calls a refund at the till cashback; that is not income."""
-    assert _label(conn, "ALBERT HEIJN 1852 DELFT", "Card sequence no.: 900 Cashback",
-                  amount=-20.0) == "Supermarkt"
+    assert _label(conn, "ALBERT HEIJN 1852 DELFT", "Card sequence no.: 900 Cashback", amount=-20.0) == "Supermarkt"
     assert _label(conn, "Cashback XL B.V.", "Uitbetaling", amount=-4.0) == "Overige inkomsten"
 
 
@@ -91,6 +92,7 @@ def test_an_old_tikkie_via_abn_amro_is_friends(conn):
 # ---------------------------------------------------------------------------
 # Who is a person, and what is a company
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("name", ["Trendhim ApS", "DELFTSCHE STUDENTEN SOCI", "EVIDES WATERBEDRIJF", "ING Punten"])
 def test_a_company_is_not_a_friend(conn, name):
@@ -121,6 +123,7 @@ def test_paying_abroad_is_holiday(conn):
 # Own accounts in the description
 # ---------------------------------------------------------------------------
 
+
 def test_your_savings_account_in_the_description_is_an_own_account(conn):
     """For a savings transfer ING puts down your own name, not an IBAN. The account
     number of the savings account is in the description, though.
@@ -129,10 +132,12 @@ def test_your_savings_account_in_the_description_is_an_own_account(conn):
     savings = accounts.make_bank_account(conn, kind="bank", provider="ing", name="Spaar")
     conn.execute("UPDATE accounts SET external_id = 'D12345678' WHERE id = ?", (savings,))
     conn.commit()
-    dest = bank_transactions.add_manually(conn, account_id=pay, date="2026-01-25", amount=700.0,
-                                              name="Hr J de Vries", description="To Oranje spaarrekening D12345678")
-    interest = bank_transactions.add_manually(conn, account_id=savings, date="2026-01-31", amount=-3.0,
-                                               name="Rente", description="Rente D12345678")
+    dest = bank_transactions.add_manually(
+        conn, account_id=pay, date="2026-01-25", amount=700.0, name="Hr J de Vries", description="To Oranje spaarrekening D12345678"
+    )
+    interest = bank_transactions.add_manually(
+        conn, account_id=savings, date="2026-01-31", amount=-3.0, name="Rente", description="Rente D12345678"
+    )
     categorization.relabel(conn)
     assert _category(conn, dest) == "Eigen rekeningen"
     # On the savings account itself its own number says nothing.
@@ -146,6 +151,7 @@ def test_even_without_the_savings_account_it_is_saving_not_a_friend(conn):
 # ---------------------------------------------------------------------------
 # Rules that do nothing
 # ---------------------------------------------------------------------------
+
 
 def test_a_rule_to_unknown_no_longer_holds_anything_back(conn):
     _rule(conn, "STICHTING MOLLIE PAYMENTS", categorization.UNKNOWN)
@@ -172,6 +178,7 @@ def test_a_new_rule_to_unknown_or_duplicate_is_not_allowed(conn):
 # Who was already a user
 # ---------------------------------------------------------------------------
 
+
 def test_who_had_version_4_gets_everything_relabelled_once(conn):
     for rule in categorization.RULES_SINCE[5]:
         conn.execute("DELETE FROM rules WHERE field=? AND pattern=? AND direction=? AND category=?", rule[1:])
@@ -180,10 +187,12 @@ def test_who_had_version_4_gets_everything_relabelled_once(conn):
     conn.commit()
     _rule(conn, "MOLLIE", categorization.UNKNOWN)
     rid = accounts.make_bank_account(conn, kind="bank", provider="ing", name="ING")
-    hotel = bank_transactions.add_manually(conn, account_id=rid, date="2026-02-01", amount=-50.0,
-                                               name="Tikkie", description="Tikkie ID 1, Hotel retour")
-    own = bank_transactions.add_manually(conn, account_id=rid, date="2026-02-02", amount=-60.0,
-                                              name="Tikkie", description="Tikkie ID 1, Hotel retour 2")
+    hotel = bank_transactions.add_manually(
+        conn, account_id=rid, date="2026-02-01", amount=-50.0, name="Tikkie", description="Tikkie ID 1, Hotel retour"
+    )
+    own = bank_transactions.add_manually(
+        conn, account_id=rid, date="2026-02-02", amount=-60.0, name="Tikkie", description="Tikkie ID 1, Hotel retour 2"
+    )
     bank_transactions.set_category_manual(conn, own, "Niet meetellen")
     categorization.relabel(conn)
     assert _category(conn, hotel) == "Ontvangen van vrienden"

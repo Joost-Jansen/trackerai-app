@@ -21,9 +21,9 @@ The Yahoo ticker stays on the row: the price history and the minute bars
 still come from there. Tradegate provides no history.
 """
 
-from domain import database
 from app.core import price_refresh
 from app.services import tradegate_service
+from domain import database
 
 #: Exchanges with a price source of their own → the name of that source.
 PROVIDERS = {tradegate_service.VENUE_CODE: "tradegate"}
@@ -58,16 +58,10 @@ def usable(quote: dict | None) -> bool:
     before a close it should have seen (price_refresh.is_stale). An old
     Tradegate price therefore does not push out the Yahoo price.
     """
-    return bool(
-        quote
-        and quote.get("currency") == "EUR"
-        and quote.get("price")
-        and not price_refresh.is_stale(quote.get("fetched_at"))
-    )
+    return bool(quote and quote.get("currency") == "EUR" and quote.get("price") and not price_refresh.is_stale(quote.get("fetched_at")))
 
 
-def position_quote(isin: str, venue: str | None, yahoo_prices: dict[str, dict],
-                   venue_prices: dict[tuple[str, str], dict]) -> dict | None:
+def position_quote(isin: str, venue: str | None, yahoo_prices: dict[str, dict], venue_prices: dict[tuple[str, str], dict]) -> dict | None:
     """The price of one position, with `provider` added ("tradegate" or "yahoo").
 
     None when there is no usable euro price — the same rule as
@@ -83,8 +77,7 @@ def position_quote(isin: str, venue: str | None, yahoo_prices: dict[str, dict],
     return None
 
 
-def effective_prices(transactions: list[dict], yahoo_prices: dict[str, dict],
-                     venue_prices: dict[tuple[str, str], dict]) -> dict[str, dict]:
+def effective_prices(transactions: list[dict], yahoo_prices: dict[str, dict], venue_prices: dict[tuple[str, str], dict]) -> dict[str, dict]:
     """The price per ISIN that gives per-ISIN code exactly the sum of the positions.
 
     Unchanged for every ISIN without a usable exchange price. Otherwise:
@@ -108,11 +101,7 @@ def effective_prices(transactions: list[dict], yahoo_prices: dict[str, dict],
         if not any(v in PROVIDERS and usable(venue_prices.get((isin, v))) for v, _ in venues):
             continue
 
-        priced = [
-            (shares, quote)
-            for venue, shares in venues
-            if (quote := position_quote(isin, venue, yahoo_prices, venue_prices))
-        ]
+        priced = [(shares, quote) for venue, shares in venues if (quote := position_quote(isin, venue, yahoo_prices, venue_prices))]
         total = sum(shares for shares, _ in priced)
         if total <= 0:
             continue
@@ -149,6 +138,7 @@ def effective_prices(transactions: list[dict], yahoo_prices: dict[str, dict],
 # ---------------------------------------------------------------------------
 # Storing and refreshing
 # ---------------------------------------------------------------------------
+
 
 def save_quote(conn, quote: dict | None) -> bool:
     """Stores a Tradegate response as the price of the TDG position.
@@ -194,7 +184,7 @@ def refresh(conn) -> dict:
                 refreshed += 1
             else:
                 failed += 1
-        except Exception as e:   # a database hiccup must not end the pass
+        except Exception as e:  # a database hiccup must not end the pass
             print(f"[venue-prices] {isin}/{venue}: {e!r}")
             failed += 1
     return {"refreshed": refreshed, "failed": failed}

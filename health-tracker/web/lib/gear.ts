@@ -39,6 +39,14 @@ export type GearOverview = { gear: Gear[]; defaults: Record<string, number>; spo
 /** What an activity used; source says why: chosen on the activity, linked in Garmin, or the default of its sport. */
 export type ActivityGear = { id: number; name: string; kind: GearKind; source: "manual" | "garmin" | "default" };
 
-export type GearActivity = { id: string; start_local: string; sport: string; name: string | null; distance_km: number | null; moving_time_s: number | null; source: ActivityGear["source"] };
+export type GearActivity = {
+  id: string;
+  start_local: string;
+  sport: string;
+  name: string | null;
+  distance_km: number | null;
+  moving_time_s: number | null;
+  source: ActivityGear["source"];
+};
 
 export const useGear = () => useQuery({ queryKey: ["gear"], queryFn: () => api.get<GearOverview>("/api/gear") });

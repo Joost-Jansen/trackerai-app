@@ -5,7 +5,7 @@ import { locale } from "./locale";
 import { nl } from "./nl";
 
 /** The text in the current language, without filling in anything. */
-export const text = (english: string): string => (locale === "nl" ? nl[english] ?? english : english);
+export const text = (english: string): string => (locale === "nl" ? (nl[english] ?? english) : english);
 
 /** The text in the current language, with {0}, {1}… filled in. */
 export function tr(english: string, ...args: unknown[]): string {

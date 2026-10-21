@@ -25,15 +25,12 @@ import os
 import re
 import sqlite3
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import trackerai_ai
-
-from domain.money import bank_transactions
-from domain.money import categorization
 from domain import preferences
 from domain.i18n import tr
-from domain.money import safe_regex
+from domain.money import bank_transactions, categorization, safe_regex
 
 MODEL = "claude-haiku-4-5-20251001"
 # Which instruction a suggestion got: model and prompt version. A new version
@@ -69,15 +66,18 @@ def on(conn: sqlite3.Connection) -> bool:
 
 # What is removed before sending. Order matters: the ING fields first, then
 # whatever numbers remain.
-_AWAY = [re.compile(p, re.IGNORECASE) for p in (
-    r"\b[A-Z]{2}\d{2}\s?[A-Z]{4}(\s?\d){6,}\b",            # IBAN
-    r"card (sequence )?no\.?:?\s*[\d*\s]+",                # card number / sequence number
-    r"\b(term(inal)?|transaction|transactie):\s*\S+",
-    r"\b(value date|date/time|date|time|datum|tijd):\s*[\d/:\-\s]+",
-    r"\b(name|description|naam|omschrijving|iban|kenmerk|referentie)\s*:",
-    r"\b(?=[A-Z]*\d)[A-Z0-9-]{10,}\b",                      # references with digits
-    r"\d{5,}",
-)]
+_AWAY = [
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        r"\b[A-Z]{2}\d{2}\s?[A-Z]{4}(\s?\d){6,}\b",  # IBAN
+        r"card (sequence )?no\.?:?\s*[\d*\s]+",  # card number / sequence number
+        r"\b(term(inal)?|transaction|transactie):\s*\S+",
+        r"\b(value date|date/time|date|time|datum|tijd):\s*[\d/:\-\s]+",
+        r"\b(name|description|naam|omschrijving|iban|kenmerk|referentie)\s*:",
+        r"\b(?=[A-Z]*\d)[A-Z0-9-]{10,}\b",  # references with digits
+        r"\d{5,}",
+    )
+]
 
 
 def mask(text: str | None) -> str:
@@ -93,17 +93,20 @@ def to_ask(conn: sqlite3.Connection) -> list[dict]:
     A payment to or from a friend only when the description says what for: there
     is nothing to guess from a name alone.
     """
-    return [dict(r) for r in conn.execute(
-        """
+    return [
+        dict(r)
+        for r in conn.execute(
+            """
         SELECT id, date, amount, name, description, category_auto FROM bank_transactions
          WHERE category_manual IS NULL
            AND COALESCE(category_auto, ?) IN (?, ?, ?)
            AND id NOT IN (SELECT transaction_id FROM ai_suggestions)
          ORDER BY date DESC, id DESC
         """,
-        (categorization.UNKNOWN, categorization.UNKNOWN, *categorization.FRIENDS),
-    ) if r["category_auto"] not in categorization.FRIENDS
-        or categorization.has_target_text(r["name"], r["description"])]
+            (categorization.UNKNOWN, categorization.UNKNOWN, *categorization.FRIENDS),
+        )
+        if r["category_auto"] not in categorization.FRIENDS or categorization.has_target_text(r["name"], r["description"])
+    ]
 
 
 def _for_claude(conn: sqlite3.Connection) -> list[dict]:
@@ -148,24 +151,31 @@ def _ask_claude(items: list[dict], categories: list[dict], *, extra: str = "", m
         "model": model,
         "max_tokens": 4096,
         "system": _SYSTEM + item_list + extra,
-        "tools": [{
-            "name": "labels",
-            "description": "The category per transaction.",
-            "input_schema": {
-                "type": "object",
-                "properties": {"labels": {"type": "array", "items": {
+        "tools": [
+            {
+                "name": "labels",
+                "description": "The category per transaction.",
+                "input_schema": {
                     "type": "object",
                     "properties": {
-                        "id": {"type": "integer"},
-                        "category": {"type": "string", "enum": names},
-                        "confidence": {"type": "number"},
-                        "reason": {"type": "string", "description": "Waarom, in hooguit acht woorden."},
+                        "labels": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {"type": "integer"},
+                                    "category": {"type": "string", "enum": names},
+                                    "confidence": {"type": "number"},
+                                    "reason": {"type": "string", "description": "Waarom, in hooguit acht woorden."},
+                                },
+                                "required": ["id", "category", "confidence"],
+                            },
+                        }
                     },
-                    "required": ["id", "category", "confidence"],
-                }}},
-                "required": ["labels"],
-            },
-        }],
+                    "required": ["labels"],
+                },
+            }
+        ],
         "tool_choice": {"type": "tool", "name": "labels"},
         "messages": [{"role": "user", "content": json.dumps(items, ensure_ascii=False)}],
     }
@@ -248,20 +258,28 @@ def analyse(conn: sqlite3.Connection, *, limit: int = MAX_PER_ROUND) -> dict:
     valid = {c["name"] for c in categories}
     types = {c["name"]: c["type"] for c in categories}
     rows = to_ask(conn)[:limit]
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    now = datetime.now(UTC).isoformat(timespec="seconds")
 
     suggestions, error = 0, None
     for begin in range(0, len(rows), PER_RUN):
-        block = rows[begin:begin + PER_RUN]
-        items = [{"id": r["id"], "date": r["date"], "amount": round(abs(r["amount"]), 2), "direction": _direction(r["amount"]),
-                  "name": mask(r["name"])[:60], "description": mask(r["description"])} for r in block]
+        block = rows[begin : begin + PER_RUN]
+        items = [
+            {
+                "id": r["id"],
+                "date": r["date"],
+                "amount": round(abs(r["amount"]), 2),
+                "direction": _direction(r["amount"]),
+                "name": mask(r["name"])[:60],
+                "description": mask(r["description"]),
+            }
+            for r in block
+        ]
         try:
             answers = _ask_claude(items, categories)
         except AiError as e:
             error = str(e)
             break
-        answered = _in_direction(_valid(answers, {r["id"] for r in block}, valid),
-                                  {r["id"]: r["amount"] for r in block}, types)
+        answered = _in_direction(_valid(answers, {r["id"] for r in block}, valid), {r["id"]: r["amount"] for r in block}, types)
         # What it skipped counts as "does not know": do not ask again either.
         conn.executemany(
             "INSERT OR REPLACE INTO ai_suggestions (transaction_id, category, confidence, reason, model, created_at) "
@@ -278,10 +296,15 @@ def analyse(conn: sqlite3.Connection, *, limit: int = MAX_PER_ROUND) -> dict:
         # and that is what a suggestion is about.
         categorization.relabel(conn)
     items = _round_items(conn, [r["id"] for r in rows])
-    return {"asked": len(rows), "suggestions": suggestions,
-            "labelled": sum(1 for i in items if i["applied"]),
-            "doubt": sum(1 for i in items if not i["applied"] and i["category"] != categorization.UNKNOWN),
-            "items": items, "rest": len(to_ask(conn)), "error": error}
+    return {
+        "asked": len(rows),
+        "suggestions": suggestions,
+        "labelled": sum(1 for i in items if i["applied"]),
+        "doubt": sum(1 for i in items if not i["applied"] and i["category"] != categorization.UNKNOWN),
+        "items": items,
+        "rest": len(to_ask(conn)),
+        "error": error,
+    }
 
 
 def _round_items(conn: sqlite3.Connection, ids: list[int]) -> list[dict]:
@@ -291,30 +314,40 @@ def _round_items(conn: sqlite3.Connection, ids: list[int]) -> list[dict]:
     if not ids:
         return []
     places = ",".join("?" * len(ids))
-    return [dict(r) | {"applied": bool(r["applied"])} for r in conn.execute(
-        f"""
+    return [
+        dict(r) | {"applied": bool(r["applied"])}
+        for r in conn.execute(
+            f"""
         SELECT t.name, t.amount, v.category, v.confidence,
                (t.category_source = 'ai' AND t.category_manual IS NULL) AS applied
           FROM ai_suggestions v JOIN bank_transactions t ON t.id = v.transaction_id
          WHERE v.transaction_id IN ({places})
          ORDER BY v.confidence DESC
-        """, ids)]
+        """,
+            ids,
+        )
+    ]
 
 
 def status(conn: sqlite3.Connection) -> dict:
-    by_ai = conn.execute(
-        "SELECT COUNT(*) FROM bank_transactions WHERE category_source = 'ai' AND category_manual IS NULL"
-    ).fetchone()[0]
+    by_ai = conn.execute("SELECT COUNT(*) FROM bank_transactions WHERE category_source = 'ai' AND category_manual IS NULL").fetchone()[0]
     groups = _to_check(conn)
-    return {"available": available(), "on": on(conn), "to_ask": len(to_ask(conn)),
-            "by_ai": by_ai, "model": MODEL,
-            "to_check": sum(len(g["ids"]) for g in groups), "to_check_groups": len(groups),
-            "rule_candidates": len(_candidates(conn)), "again": len(_retry_ids(conn)),
-            "thorough": len(_thorough_groups(conn))}
+    return {
+        "available": available(),
+        "on": on(conn),
+        "to_ask": len(to_ask(conn)),
+        "by_ai": by_ai,
+        "model": MODEL,
+        "to_check": sum(len(g["ids"]) for g in groups),
+        "to_check_groups": len(groups),
+        "rule_candidates": len(_candidates(conn)),
+        "again": len(_retry_ids(conn)),
+        "thorough": len(_thorough_groups(conn)),
+    }
 
 
 def reject(conn: sqlite3.Connection, ids: list[int]) -> dict:
-    """"Not right": Claude's label comes off and it does not suggest it again. The
+    """ "Not right": Claude's label comes off and it does not suggest it again. The
     transaction is then back among what is still to be labelled (or among
     friends, if the rules found that).
     """
@@ -333,8 +366,10 @@ def _retry_ids(conn: sqlite3.Connection) -> list[int]:
     gives the same answer, so the page does not offer that. Not what you rejected
     yourself ("Not right": a category with confidence 0).
     """
-    return [r["transaction_id"] for r in conn.execute(
-        """
+    return [
+        r["transaction_id"]
+        for r in conn.execute(
+            """
         SELECT v.transaction_id FROM ai_suggestions v JOIN bank_transactions t ON t.id = v.transaction_id
          WHERE t.category_manual IS NULL AND COALESCE(t.category_source, 'rule') != 'ai'
            AND COALESCE(t.category_auto, ?) = ?
@@ -343,8 +378,18 @@ def _retry_ids(conn: sqlite3.Connection) -> list[int]:
            AND NOT (COALESCE(v.model, '') = ? AND v.created_at >= ?)
            AND COALESCE(v.model, '') NOT LIKE ?
         """,
-        (categorization.UNKNOWN, categorization.UNKNOWN, categorization.UNKNOWN, categorization.AI_THRESHOLD,
-         VERSION, MODEL, _DIRECTION_SINCE, f"{MODEL_THOROUGH}#%"))]
+            (
+                categorization.UNKNOWN,
+                categorization.UNKNOWN,
+                categorization.UNKNOWN,
+                categorization.AI_THRESHOLD,
+                VERSION,
+                MODEL,
+                _DIRECTION_SINCE,
+                f"{MODEL_THOROUGH}#%",
+            ),
+        )
+    ]
 
 
 def ask_again(conn: sqlite3.Connection) -> dict:
@@ -361,15 +406,20 @@ def ask_again(conn: sqlite3.Connection) -> dict:
 
 def by_ai(conn: sqlite3.Connection, *, limit: int = 100) -> list[dict]:
     """What Claude labelled and you have not reviewed yet, least certain first."""
-    return [dict(r) for r in conn.execute(
-        """
+    return [
+        dict(r)
+        for r in conn.execute(
+            """
         SELECT t.id, t.date, t.account_id, t.amount, t.name, t.description,
                t.category_auto AS category, v.confidence, v.reason
           FROM bank_transactions t JOIN ai_suggestions v ON v.transaction_id = t.id
          WHERE t.category_source = 'ai' AND t.category_manual IS NULL
          ORDER BY v.confidence ASC, t.date DESC
          LIMIT ?
-        """, (limit,))]
+        """,
+            (limit,),
+        )
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -386,7 +436,7 @@ def by_ai(conn: sqlite3.Connection, *, limit: int = 100) -> list[dict]:
 
 CHECK_THRESHOLD = 0.7
 MAX_GROUPS_PER_ROUND = PER_RUN
-RULE_PRIORITY = 25          # like "Make rule" under To label
+RULE_PRIORITY = 25  # like "Make rule" under To label
 CHOICES = ("suggestion", "original", "otherwise")
 
 _CHECK = """
@@ -423,8 +473,7 @@ def _to_check(conn: sqlite3.Connection) -> list[dict]:
         # Behind a Tikkie or payment processor there is something different every time:
         # those only together when the description is equal too.
         loose = not categorization.learn_keys(r["name"], None)
-        key = (mask(r["name"]).upper(), r["amount"] < 0, r["now"],
-                   mask(r["description"]).upper() if loose else "")
+        key = (mask(r["name"]).upper(), r["amount"] < 0, r["now"], mask(r["description"]).upper() if loose else "")
         groups.setdefault(key, {"example": dict(r), "ids": []})["ids"].append(r["id"])
     return list(groups.values())
 
@@ -438,23 +487,33 @@ def verify(conn: sqlite3.Connection, *, limit: int = MAX_GROUPS_PER_ROUND) -> di
     valid = {c["name"] for c in categories}
     types = {c["name"]: c["type"] for c in categories}
     groups = _to_check(conn)[:limit]
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    now = datetime.now(UTC).isoformat(timespec="seconds")
 
     completed, error, found = 0, None, []
     for begin in range(0, len(groups), PER_RUN):
-        block = groups[begin:begin + PER_RUN]
-        items = [{"id": g["ids"][0], "date": v["date"], "amount": round(abs(v["amount"]), 2),
-                  "direction": _direction(v["amount"]),
-                  "name": mask(v["name"])[:60], "description": mask(v["description"]),
-                  "now": v["now"], "count": len(g["ids"])}
-                 for g in block for v in [g["example"]]]
+        block = groups[begin : begin + PER_RUN]
+        items = [
+            {
+                "id": g["ids"][0],
+                "date": v["date"],
+                "amount": round(abs(v["amount"]), 2),
+                "direction": _direction(v["amount"]),
+                "name": mask(v["name"])[:60],
+                "description": mask(v["description"]),
+                "now": v["now"],
+                "count": len(g["ids"]),
+            }
+            for g in block
+            for v in [g["example"]]
+        ]
         try:
             answers = _ask_claude(items, categories, extra=_CHECK)
         except AiError as e:
             error = str(e)
             break
-        answered = _in_direction(_valid(answers, {g["ids"][0] for g in block}, valid),
-                                  {g["ids"][0]: g["example"]["amount"] for g in block}, types)
+        answered = _in_direction(
+            _valid(answers, {g["ids"][0] for g in block}, valid), {g["ids"][0]: g["example"]["amount"] for g in block}, types
+        )
         rows = []
         for g in block:
             current = g["example"]["now"]
@@ -462,18 +521,27 @@ def verify(conn: sqlite3.Connection, *, limit: int = MAX_GROUPS_PER_ROUND) -> di
             category, confidence, reason = answered.get(g["ids"][0], (current, 0.0, None))
             rows += [(tid, category, confidence, reason, current, VERSION, now) for tid in g["ids"]]
             if category != current and confidence >= CHECK_THRESHOLD:
-                found.append({"name": g["example"]["name"], "now": current, "suggestion": category,
-                                 "confidence": confidence, "reason": reason, "count": len(g["ids"])})
+                found.append(
+                    {
+                        "name": g["example"]["name"],
+                        "now": current,
+                        "suggestion": category,
+                        "confidence": confidence,
+                        "reason": reason,
+                        "count": len(g["ids"]),
+                    }
+                )
         conn.executemany(
             "INSERT OR REPLACE INTO ai_checks (transaction_id, category, confidence, reason, current, model, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)", rows)
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            rows,
+        )
         conn.commit()
         completed += len(block)
 
     if error and completed == 0:
         raise AiError(error)
-    return {"checked": completed, "rest": len(_to_check(conn)),
-            "deviating": len(found), "items": found, "error": error}
+    return {"checked": completed, "rest": len(_to_check(conn)), "deviating": len(found), "items": found, "error": error}
 
 
 def deviations(conn: sqlite3.Connection, *, limit: int = 100) -> list[dict]:
@@ -496,13 +564,22 @@ def deviations(conn: sqlite3.Connection, *, limit: int = 100) -> list[dict]:
         # Also what was stored before the direction check.
         if fit_direction(r["suggestion"], r["amount"], types) != r["suggestion"]:
             continue
-        g = groups.setdefault((r["name"], r["now"], r["suggestion"]), {
-            "name": r["name"], "now": r["now"], "suggestion": r["suggestion"], "confidence": 0.0,
-            "ids": [], "total": 0.0, "last": r["date"], "description": r["description"],
-            "reason": r["reason"],
-            # A rule on the name is only possible when the name is the counterparty.
-            "rule_possible": bool(categorization.learn_keys(r["name"], None)),
-        })
+        g = groups.setdefault(
+            (r["name"], r["now"], r["suggestion"]),
+            {
+                "name": r["name"],
+                "now": r["now"],
+                "suggestion": r["suggestion"],
+                "confidence": 0.0,
+                "ids": [],
+                "total": 0.0,
+                "last": r["date"],
+                "description": r["description"],
+                "reason": r["reason"],
+                # A rule on the name is only possible when the name is the counterparty.
+                "rule_possible": bool(categorization.learn_keys(r["name"], None)),
+            },
+        )
         g["ids"].append(r["id"])
         g["total"] += r["amount"]
         g["confidence"] = max(g["confidence"], r["confidence"])
@@ -513,14 +590,13 @@ def deviations(conn: sqlite3.Connection, *, limit: int = 100) -> list[dict]:
     return off
 
 
-def decision(conn: sqlite3.Connection, *, ids: list[int], choice: str,
-            category: str | None = None, rule: bool = False) -> dict:
+def decision(conn: sqlite3.Connection, *, ids: list[int], choice: str, category: str | None = None, rule: bool = False) -> dict:
     """What you make of it. `original` leaves everything; `suggestion` or `otherwise`
     sets the category — as a rule on the name (also for what is still to come),
     or as your own label on exactly these transactions.
     """
     if choice not in CHOICES:
-        raise ValueError(tr("Choose from: {0}.", ', '.join(CHOICES)))
+        raise ValueError(tr("Choose from: {0}.", ", ".join(CHOICES)))
     ids = sorted({int(i) for i in ids})
     if not ids:
         raise ValueError(tr("No transactions were chosen."))
@@ -532,8 +608,9 @@ def decision(conn: sqlite3.Connection, *, ids: list[int], choice: str,
         names = {r["name"] for r in conn.execute(f"SELECT name FROM bank_transactions WHERE id IN ({places})", ids)}
         name = next(iter(names)) if len(names) == 1 else None
         if rule and name and categorization.learn_keys(name, None):
-            categorization.make_rule(conn, priority=RULE_PRIORITY, field="N", pattern=re.escape(name.strip().upper()),
-                                     direction="", category=category)
+            categorization.make_rule(
+                conn, priority=RULE_PRIORITY, field="N", pattern=re.escape(name.strip().upper()), direction="", category=category
+            )
             categorization.relabel(conn, everything=True)
         else:
             bank_transactions.set_category_manual_for(conn, ids, category)
@@ -555,7 +632,7 @@ def decision(conn: sqlite3.Connection, *, ids: list[int], choice: str,
 # You accept it or not.
 
 MIN_TIMES = 2
-MAX_CANDIDATES = 30      # one request per call, as above
+MAX_CANDIDATES = 30  # one request per call, as above
 
 _PATTERNS = """You make labelling rules for a household budget. Per group you get the names of one counterparty as the
 bank writes them, and the category. Give per group a short regex pattern (Python, case-insensitive; it searches
@@ -591,8 +668,9 @@ def _candidates(conn: sqlite3.Connection) -> list[dict]:
         # If the rules already know it, there is nothing to gain.
         if all(r["category_source"] == "rule" and r["category_auto"] == category for r, _ in items):
             continue
-        off.append({"key": key, "category": category,
-                    "names": sorted({r["name"] for r, _ in items})[:8], "ids": [r["id"] for r, _ in items]})
+        off.append(
+            {"key": key, "category": category, "names": sorted({r["name"] for r, _ in items})[:8], "ids": [r["id"] for r, _ in items]}
+        )
     return sorted(off, key=lambda k: -len(k["ids"]))
 
 
@@ -602,23 +680,36 @@ def _ask_patterns(groups: list[dict]) -> list[dict]:
         "model": MODEL,
         "max_tokens": 2048,
         "system": _PATTERNS,
-        "tools": [{
-            "name": "patterns",
-            "description": "The pattern per group.",
-            "input_schema": {
-                "type": "object",
-                "properties": {"patterns": {"type": "array", "items": {
+        "tools": [
+            {
+                "name": "patterns",
+                "description": "The pattern per group.",
+                "input_schema": {
                     "type": "object",
-                    "properties": {"id": {"type": "integer"}, "pattern": {"type": "string"}},
-                    "required": ["id", "pattern"],
-                }}},
-                "required": ["patterns"],
-            },
-        }],
+                    "properties": {
+                        "patterns": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {"id": {"type": "integer"}, "pattern": {"type": "string"}},
+                                "required": ["id", "pattern"],
+                            },
+                        }
+                    },
+                    "required": ["patterns"],
+                },
+            }
+        ],
         "tool_choice": {"type": "tool", "name": "patterns"},
-        "messages": [{"role": "user", "content": json.dumps(
-            [{"id": g["id"], "category": g["category"], "names": [mask(n)[:60] for n in g["names"]]}
-             for g in groups], ensure_ascii=False)}],
+        "messages": [
+            {
+                "role": "user",
+                "content": json.dumps(
+                    [{"id": g["id"], "category": g["category"], "names": [mask(n)[:60] for n in g["names"]]} for g in groups],
+                    ensure_ascii=False,
+                ),
+            }
+        ],
     }
     return _api(body).get("patterns", [])
 
@@ -631,9 +722,12 @@ def _fallback(key: str) -> str:
 
 
 def _all_rows(conn: sqlite3.Connection) -> list[dict]:
-    return [dict(r) for r in conn.execute(
-        "SELECT id, name, category_manual, category_effective AS category, category_source "
-        "FROM bank_transactions_typed")]
+    return [
+        dict(r)
+        for r in conn.execute(
+            "SELECT id, name, category_manual, category_effective AS category, category_source FROM bank_transactions_typed"
+        )
+    ]
 
 
 def _test(rows: list[dict], pattern: str | None, category: str, ids: list[int]) -> dict | None:
@@ -651,15 +745,26 @@ def _test(rows: list[dict], pattern: str | None, category: str, ids: list[int]) 
     if not touches or len({r["id"] for r in touches} & set(ids)) < 0.9 * len(ids):
         return None
     weak = (categorization.UNKNOWN, *categorization.FRIENDS)
-    clashes = sum(1 for r in touches if r["category_manual"] and r["category_manual"] != category
-                and r["category_manual"] not in categorization._NOT_LEARN)
+    clashes = sum(
+        1
+        for r in touches
+        if r["category_manual"] and r["category_manual"] != category and r["category_manual"] not in categorization._NOT_LEARN
+    )
     changes = sum(1 for r in touches if not r["category_manual"] and r["category"] != category)
-    overwrites = sum(1 for r in touches if not r["category_manual"] and r["category_source"] == "rule"
-                       and r["category"] not in weak and r["category"] != category)
+    overwrites = sum(
+        1
+        for r in touches
+        if not r["category_manual"] and r["category_source"] == "rule" and r["category"] not in weak and r["category"] != category
+    )
     if clashes > 0.1 * len(touches) or overwrites > max(1, len(touches) // 5):
         return None
-    return {"touches": len(touches), "changes": changes, "overwrites": overwrites, "clashes": clashes,
-            "examples": sorted({r["name"] for r in touches})[:5]}
+    return {
+        "touches": len(touches),
+        "changes": changes,
+        "overwrites": overwrites,
+        "clashes": clashes,
+        "examples": sorted({r["name"] for r in touches})[:5],
+    }
 
 
 def make_rule_suggestions(conn: sqlite3.Connection, *, limit: int = MAX_CANDIDATES) -> dict:
@@ -668,10 +773,10 @@ def make_rule_suggestions(conn: sqlite3.Connection, *, limit: int = MAX_CANDIDAT
     candidates = _candidates(conn)[:limit]
     rows = _all_rows(conn)
     existing = {(r["pattern"], r["category"]) for r in categorization.load_rules(conn, only_active=False)}
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    now = datetime.now(UTC).isoformat(timespec="seconds")
     suggested, items = 0, []
     for begin in range(0, len(candidates), 30):
-        block = candidates[begin:begin + 30]
+        block = candidates[begin : begin + 30]
         for i, k in enumerate(block):
             k["id"] = i
         try:
@@ -681,20 +786,24 @@ def make_rule_suggestions(conn: sqlite3.Connection, *, limit: int = MAX_CANDIDAT
                 raise
             break
         for k in block:
-            pattern = next((p for p in (answers.get(k["id"]), _fallback(k["key"]))
-                            if isinstance(p, str) and (p, k["category"]) not in existing
-                            and _test(rows, p, k["category"], k["ids"])), None)
+            pattern = next(
+                (
+                    p
+                    for p in (answers.get(k["id"]), _fallback(k["key"]))
+                    if isinstance(p, str) and (p, k["category"]) not in existing and _test(rows, p, k["category"], k["ids"])
+                ),
+                None,
+            )
             # What did not work is remembered too: otherwise it costs the same again every time.
             conn.execute(
-                "INSERT OR IGNORE INTO rule_suggestions (key, pattern, category, status, created_at) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (k["key"], pattern, k["category"], None if pattern else "onbruikbaar", now))
+                "INSERT OR IGNORE INTO rule_suggestions (key, pattern, category, status, created_at) VALUES (?, ?, ?, ?, ?)",
+                (k["key"], pattern, k["category"], None if pattern else "onbruikbaar", now),
+            )
             suggested += bool(pattern)
             if pattern:
                 items.append({"pattern": pattern, "category": k["category"], "count": len(k["ids"])})
         conn.commit()
-    return {"suggested": suggested, "viewed": len(candidates), "items": items,
-            "rest": len(_candidates(conn))}
+    return {"suggested": suggested, "viewed": len(candidates), "items": items, "rest": len(_candidates(conn))}
 
 
 def rule_suggestions(conn: sqlite3.Connection) -> list[dict]:
@@ -720,13 +829,14 @@ def rule_suggestion_decision(conn: sqlite3.Connection, *, ids: list[int], accept
     if accept:
         open_ = [v for v in rule_suggestions(conn) if v["id"] in chosen]
         for v in open_:
-            categorization.make_rule(conn, priority=RULE_PRIORITY, field="N", pattern=v["pattern"],
-                                     direction="", category=v["category"])
+            categorization.make_rule(conn, priority=RULE_PRIORITY, field="N", pattern=v["pattern"], direction="", category=v["category"])
         if open_:
             categorization.relabel(conn, everything=True)
         chosen = {v["id"] for v in open_}
-    conn.executemany("UPDATE rule_suggestions SET status = ? WHERE id = ? AND status IS NULL",
-                     [("accepted" if accept else "rejected", i) for i in chosen])
+    conn.executemany(
+        "UPDATE rule_suggestions SET status = ? WHERE id = ? AND status IS NULL",
+        [("accepted" if accept else "rejected", i) for i in chosen],
+    )
     conn.commit()
     return {"updated": len(chosen)}
 
@@ -776,8 +886,10 @@ def _examples(conn: sqlite3.Connection, n: int = 80) -> list[str]:
     """How this user labels: the most frequent counterparties with their category.
     Without friends (those are names of people) and without internal.
     """
-    return [f"{mask(r['name'])[:50]} → {r['category']}" for r in conn.execute(
-        """
+    return [
+        f"{mask(r['name'])[:50]} → {r['category']}"
+        for r in conn.execute(
+            """
         SELECT t.name AS name, t.category_effective AS category, COUNT(*) AS count
           FROM bank_transactions_typed t JOIN categories c ON c.name = t.category_effective
          WHERE t.category_effective NOT IN (?, ?, ?) AND c.type != 'INTERNAL'
@@ -785,8 +897,10 @@ def _examples(conn: sqlite3.Connection, n: int = 80) -> list[str]:
          ORDER BY count DESC
          LIMIT ?
         """,
-        (categorization.UNKNOWN, *categorization.FRIENDS, n),
-    ) if mask(r["name"])]
+            (categorization.UNKNOWN, *categorization.FRIENDS, n),
+        )
+        if mask(r["name"])
+    ]
 
 
 def thorough(conn: sqlite3.Connection, *, limit: int = THOROUGH_PER_RUN) -> dict:
@@ -798,26 +912,35 @@ def thorough(conn: sqlite3.Connection, *, limit: int = THOROUGH_PER_RUN) -> dict
     groups = _thorough_groups(conn)[:limit]
     if not groups:
         return {"asked": 0, "labelled": 0, "doubt": 0, "items": [], "rest": 0, "error": None}
-    items = [{
-        "id": g[0]["id"], "name": mask(g[0]["name"])[:60], "direction": _direction(sum(r["amount"] for r in g)),
-        "count": len(g), "total": round(abs(sum(r["amount"] for r in g)), 2),
-        "examples": [{"date": r["date"], "amount": round(abs(r["amount"]), 2), "description": mask(r["description"])}
-                        for r in g[:5]],
-    } for g in groups]
+    items = [
+        {
+            "id": g[0]["id"],
+            "name": mask(g[0]["name"])[:60],
+            "direction": _direction(sum(r["amount"] for r in g)),
+            "count": len(g),
+            "total": round(abs(sum(r["amount"] for r in g)), 2),
+            "examples": [{"date": r["date"], "amount": round(abs(r["amount"]), 2), "description": mask(r["description"])} for r in g[:5]],
+        }
+        for g in groups
+    ]
     extra = _THOROUGH + "\n".join(f"- {v}" for v in _examples(conn))
     answers = _ask_claude(items, categories, extra=extra, model=MODEL_THOROUGH)
-    answered = _in_direction(_valid(answers, {g[0]["id"] for g in groups}, valid),
-                              {g[0]["id"]: sum(r["amount"] for r in g) for g in groups}, types)
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    answered = _in_direction(
+        _valid(answers, {g[0]["id"] for g in groups}, valid), {g[0]["id"]: sum(r["amount"] for r in g) for g in groups}, types
+    )
+    now = datetime.now(UTC).isoformat(timespec="seconds")
     conn.executemany(
-        "INSERT OR REPLACE INTO ai_suggestions (transaction_id, category, confidence, reason, model, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        [(r["id"], *answered.get(g[0]["id"], (categorization.UNKNOWN, 0.0, None)), THOROUGH_VERSION, now)
-         for g in groups for r in g],
+        "INSERT OR REPLACE INTO ai_suggestions (transaction_id, category, confidence, reason, model, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        [(r["id"], *answered.get(g[0]["id"], (categorization.UNKNOWN, 0.0, None)), THOROUGH_VERSION, now) for g in groups for r in g],
     )
     conn.commit()
     categorization.relabel(conn)
     off = _round_items(conn, [g[0]["id"] for g in groups])
-    return {"asked": len(groups), "labelled": sum(1 for i in off if i["applied"]),
-            "doubt": sum(1 for i in off if not i["applied"] and i["category"] != categorization.UNKNOWN),
-            "items": off, "rest": len(_thorough_groups(conn)), "error": None}
+    return {
+        "asked": len(groups),
+        "labelled": sum(1 for i in off if i["applied"]),
+        "doubt": sum(1 for i in off if not i["applied"] and i["category"] != categorization.UNKNOWN),
+        "items": off,
+        "rest": len(_thorough_groups(conn)),
+        "error": None,
+    }

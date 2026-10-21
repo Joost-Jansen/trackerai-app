@@ -6,10 +6,7 @@ import { api } from "@/lib/api";
 import { fmtEu, fmtEuro } from "@/lib/format";
 import { Button, Figure, Section } from "@/components/ds";
 import InfoPopover from "@trackerai/ui/components/InfoPopover";
-import AllocationBars, {
-  type AllocationStatus,
-  DeviationLegend,
-} from "@/components/rebalancing/AllocationBars";
+import AllocationBars, { type AllocationStatus, DeviationLegend } from "@/components/rebalancing/AllocationBars";
 import { tr, trx } from "@/lib/i18n";
 
 // Rebalancing — where your portfolio stands against your target allocation, and
@@ -62,15 +59,7 @@ type Market = {
 };
 
 /** A euro amount field. min-h-10 on a phone: a 44px touch target. */
-function AmountField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-}) {
+function AmountField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <label className="flex flex-wrap items-center gap-2 text-[13px]">
       {label}
@@ -132,34 +121,15 @@ function SaveButton({
   primary?: boolean;
 }) {
   return (
-    <Button
-      variant={primary ? "primary" : "secondary"}
-      onClick={onClick}
-      disabled={disabled || pending}
-      className="flex-none"
-    >
+    <Button variant={primary ? "primary" : "secondary"} onClick={onClick} disabled={disabled || pending} className="flex-none">
       {pending ? tr("Saving…") : children}
     </Button>
   );
 }
 
 /** The share of the deposit that goes to one bucket. */
-function SplitTile({
-  label,
-  amount,
-  share,
-}: {
-  label: string;
-  amount: number;
-  share: number;
-}) {
-  return (
-    <Figure
-      label={label}
-      value={fmtEuro(amount)}
-      note={tr("{0} of your deposits", fmtEu(share, { decimals: 0, suffix: "%" }))}
-    />
-  );
+function SplitTile({ label, amount, share }: { label: string; amount: number; share: number }) {
+  return <Figure label={label} value={fmtEuro(amount)} note={tr("{0} of your deposits", fmtEu(share, { decimals: 0, suffix: "%" }))} />;
 }
 
 export default function RebalancingPage() {
@@ -207,13 +177,11 @@ export default function RebalancingPage() {
     onSuccess: () => queryClient.invalidateQueries(),
   });
   const saveCategories = useMutation({
-    mutationFn: (cats: Record<string, string>) =>
-      api.put("/api/rebalancing/categories", { categories: cats }),
+    mutationFn: (cats: Record<string, string>) => api.put("/api/rebalancing/categories", { categories: cats }),
     onSuccess: () => queryClient.invalidateQueries(),
   });
   const saveMarketTargets = useMutation({
-    mutationFn: (targets: Record<string, number>) =>
-      api.put("/api/rebalancing/market/targets", { targets }),
+    mutationFn: (targets: Record<string, number>) => api.put("/api/rebalancing/market/targets", { targets }),
     onSuccess: () => queryClient.invalidateQueries(),
   });
 
@@ -223,9 +191,7 @@ export default function RebalancingPage() {
 
   const alloc = allocation.data;
   const bondTarget = 100 - stockTarget;
-  const marketSum = marketTargets
-    ? MARKETS.reduce((sum, m) => sum + (marketTargets[m] ?? 0), 0)
-    : 0;
+  const marketSum = marketTargets ? MARKETS.reduce((sum, m) => sum + (marketTargets[m] ?? 0), 0) : 0;
 
   return (
     <div className="flex flex-col gap-11">
@@ -233,7 +199,13 @@ export default function RebalancingPage() {
       <Section
         label={tr("Target allocation")}
         info={
-          <>{trx("Choose how much of your portfolio should be in shares. The other side is calculated automatically, so it always adds up to 100%.{0}{1}This is your choice, not advice from us. Everything on this page then calculates against this target.", <br />, <br />)}</>
+          <>
+            {trx(
+              "Choose how much of your portfolio should be in shares. The other side is calculated automatically, so it always adds up to 100%.{0}{1}This is your choice, not advice from us. Everything on this page then calculates against this target.",
+              <br />,
+              <br />,
+            )}
+          </>
         }
       >
         {/* Slider and button on one line left ~80px of slider on a phone — a control you can't aim
@@ -242,16 +214,22 @@ export default function RebalancingPage() {
           <div className="flex-1">
             <TargetSlider label={tr("Shares")} value={stockTarget} onChange={setStockTarget} labelWidth="w-24" />
           </div>
-          <SaveButton pending={saveTargets.isPending} onClick={() => saveTargets.mutate(stockTarget)}>{tr("Save target")}</SaveButton>
+          <SaveButton pending={saveTargets.isPending} onClick={() => saveTargets.mutate(stockTarget)}>
+            {tr("Save target")}
+          </SaveButton>
         </div>
-        <p className="mt-2.5 text-xs text-ink-muted">{trx("Bonds: {0}, automatically the rest.", <strong className="num text-text">{bondTarget}%</strong>)}</p>
+        <p className="mt-2.5 text-xs text-ink-muted">
+          {trx("Bonds: {0}, automatically the rest.", <strong className="num text-text">{bondTarget}%</strong>)}
+        </p>
         {saveTargets.isSuccess && <p className="mt-1 text-xs text-pos">{tr("Target saved.")}</p>}
       </Section>
 
       {/* ——— HUIDIG VS DOEL (app.py:1222-1271) ——— */}
       <Section label={tr("Current against your target")}>
         {alloc.total_value === 0 ? (
-          <p className="text-sm text-ink-muted">{trx("No prices available yet. Refresh them via {0} in the bar above.", <strong>{tr("Update")}</strong>)}</p>
+          <p className="text-sm text-ink-muted">
+            {trx("No prices available yet. Refresh them via {0} in the bar above.", <strong>{tr("Update")}</strong>)}
+          </p>
         ) : (
           <>
             <AllocationBars
@@ -263,8 +241,7 @@ export default function RebalancingPage() {
                 currentEur: alloc.by_category[cat],
               }))}
             />
-            <div className="mt-3.5 pt-2.5"
-              style={{ borderTop: "1px solid var(--border-hairline)" }}>
+            <div className="mt-3.5 pt-2.5" style={{ borderTop: "1px solid var(--border-hairline)" }}>
               <DeviationLegend />
             </div>
           </>
@@ -276,7 +253,13 @@ export default function RebalancingPage() {
         <Section
           label={tr("Your next deposit")}
           info={
-            <>{trx("Enter how much you are going to deposit. We split it over shares and bonds so your portfolio ends up as close as possible to your target.{0}{1}Selling is never suggested: it is arithmetic on one amount, not a plan to overhaul your portfolio.", <br />, <br />)}</>
+            <>
+              {trx(
+                "Enter how much you are going to deposit. We split it over shares and bonds so your portfolio ends up as close as possible to your target.{0}{1}Selling is never suggested: it is arithmetic on one amount, not a plan to overhaul your portfolio.",
+                <br />,
+                <br />,
+              )}
+            </>
           }
         >
           <AmountField label={tr("Deposit (€)")} value={amount} onChange={setAmount} />
@@ -294,8 +277,7 @@ export default function RebalancingPage() {
                 ))}
               </div>
 
-              <div className="mt-4 pt-3.5"
-                style={{ borderTop: "1px solid var(--border-hairline)" }}>
+              <div className="mt-4 pt-3.5" style={{ borderTop: "1px solid var(--border-hairline)" }}>
                 <div className="ds-eyebrow mb-2.5 block">{trx("Allocation after this deposit of {0}", fmtEuro(amount))}</div>
                 <AllocationBars
                   rows={CATEGORIES.map((cat) => ({
@@ -316,7 +298,14 @@ export default function RebalancingPage() {
       <Section
         label={tr("Classify your positions")}
         info={
-          <>{trx("Set each position to shares or bonds. We guess based on the name. Correct what goes wrong and click {0}.{1}{2}Your choice is saved and overrides the guess from then on, also after you upload new transactions.", <b>{tr("Save classification")}</b>, <br />, <br />)}</>
+          <>
+            {trx(
+              "Set each position to shares or bonds. We guess based on the name. Correct what goes wrong and click {0}.{1}{2}Your choice is saved and overrides the guess from then on, also after you upload new transactions.",
+              <b>{tr("Save classification")}</b>,
+              <br />,
+              <br />,
+            )}
+          </>
         }
       >
         <div className="table-scroll">
@@ -339,9 +328,7 @@ export default function RebalancingPage() {
                     <select
                       value={categories[p.isin] ?? p.category}
                       aria-label={tr("Category for {0}", p.name)}
-                      onChange={(e) =>
-                        setCategories((prev) => ({ ...prev, [p.isin]: e.target.value }))
-                      }
+                      onChange={(e) => setCategories((prev) => ({ ...prev, [p.isin]: e.target.value }))}
                       className="ds-select !h-8"
                     >
                       {CATEGORIES.map((c) => (
@@ -357,11 +344,9 @@ export default function RebalancingPage() {
           </table>
         </div>
         <div className="mt-3 flex items-center gap-3">
-          <SaveButton
-            primary={false}
-            pending={saveCategories.isPending}
-            onClick={() => saveCategories.mutate(categories)}
-          >{tr("Save classification")}</SaveButton>
+          <SaveButton primary={false} pending={saveCategories.isPending} onClick={() => saveCategories.mutate(categories)}>
+            {tr("Save classification")}
+          </SaveButton>
           {saveCategories.isSuccess && <span className="text-xs text-pos">{tr("Classification saved.")}</span>}
         </div>
       </Section>
@@ -371,7 +356,14 @@ export default function RebalancingPage() {
         label={tr("Which market gets your next deposit?")}
         infoLabel={tr("Explanation the market split")}
         info={
-          <>{trx("You don't need to tag anything yourself here. This comes from the same looked-through holdings as the country breakdown on {0}.{1}{2}Every equity position (inside your ETF’s and individual) is classified by country of listing and added up to US, Europe or emerging markets. What falls in none of the three is shown separately under the bars.", <b>{tr("Allocation")}</b>, <br />, <br />)}</>
+          <>
+            {trx(
+              "You don't need to tag anything yourself here. This comes from the same looked-through holdings as the country breakdown on {0}.{1}{2}Every equity position (inside your ETF’s and individual) is classified by country of listing and added up to US, Europe or emerging markets. What falls in none of the three is shown separately under the bars.",
+              <b>{tr("Allocation")}</b>,
+              <br />,
+              <br />,
+            )}
+          </>
         }
       >
         {market.isLoading || !market.data || !marketTargets ? (
@@ -390,7 +382,13 @@ export default function RebalancingPage() {
             </div>
 
             {marketSum !== 100 && (
-              <p className="num mt-3 text-[13px] text-warn">{trx("{0} = {1}: slide until it adds up to 100%.", MARKETS.map((m) => `${MARKET_NL[m] ?? m} ${marketTargets[m] ?? 0}%`).join(" + "), <strong>{marketSum}%</strong>)}</p>
+              <p className="num mt-3 text-[13px] text-warn">
+                {trx(
+                  "{0} = {1}: slide until it adds up to 100%.",
+                  MARKETS.map((m) => `${MARKET_NL[m] ?? m} ${marketTargets[m] ?? 0}%`).join(" + "),
+                  <strong>{marketSum}%</strong>,
+                )}
+              </p>
             )}
 
             <div className="mt-3 flex items-center gap-3">
@@ -398,20 +396,21 @@ export default function RebalancingPage() {
                 pending={saveMarketTargets.isPending}
                 disabled={marketSum !== 100}
                 onClick={() => saveMarketTargets.mutate(marketTargets)}
-              >{tr("Save market targets")}</SaveButton>
-              {saveMarketTargets.isSuccess && (
-                <span className="text-xs text-pos">{tr("Market targets saved.")}</span>
-              )}
+              >
+                {tr("Save market targets")}
+              </SaveButton>
+              {saveMarketTargets.isSuccess && <span className="text-xs text-pos">{tr("Market targets saved.")}</span>}
             </div>
 
             {market.data.equity_value === 0 ? (
-              <p className="mt-3.5 text-sm text-ink-muted">{trx("No prices for your equity positions yet. Refresh them via {0} above.", <strong>{tr("Update")}</strong>)}</p>
+              <p className="mt-3.5 text-sm text-ink-muted">
+                {trx("No prices for your equity positions yet. Refresh them via {0} above.", <strong>{tr("Update")}</strong>)}
+              </p>
             ) : marketSum !== 100 ? (
               <p className="mt-3.5 text-sm text-ink-muted">{tr("Set your market targets to 100% together to see the analysis.")}</p>
             ) : (
               <>
-                <div className="mt-4 pt-3.5"
-                style={{ borderTop: "1px solid var(--border-hairline)" }}>
+                <div className="mt-4 pt-3.5" style={{ borderTop: "1px solid var(--border-hairline)" }}>
                   <AllocationBars
                     rows={MARKETS.map((m) => ({
                       label: MARKET_NL[m] ?? m,
@@ -421,32 +420,36 @@ export default function RebalancingPage() {
                       currentEur: market.data.by_market[m],
                     }))}
                   />
-                  <div className="mt-3.5 pt-2.5"
-              style={{ borderTop: "1px solid var(--border-hairline)" }}>
+                  <div className="mt-3.5 pt-2.5" style={{ borderTop: "1px solid var(--border-hairline)" }}>
                     <DeviationLegend />
                   </div>
                 </div>
 
                 {market.data.other_value > 0 && (
-                  <p className="mt-3 text-xs text-ink-muted">{trx("{0} of your shares ({1}) is in other developed markets (Japan, Canada, Australia) or isn't classified: that doesn't count in the three-way split above.", <span className="num">
-                      {fmtEu((market.data.other_value / market.data.equity_value) * 100, {
-                        decimals: 1,
-                        suffix: "%",
-                      })}
-                    </span>, <span className="num">{fmtEuro(market.data.other_value)}</span>)}</p>
+                  <p className="mt-3 text-xs text-ink-muted">
+                    {trx(
+                      "{0} of your shares ({1}) is in other developed markets (Japan, Canada, Australia) or isn't classified: that doesn't count in the three-way split above.",
+                      <span className="num">
+                        {fmtEu((market.data.other_value / market.data.equity_value) * 100, {
+                          decimals: 1,
+                          suffix: "%",
+                        })}
+                      </span>,
+                      <span className="num">{fmtEuro(market.data.other_value)}</span>,
+                    )}
+                  </p>
                 )}
 
-                <div className="mt-4 pt-3.5"
-                style={{ borderTop: "1px solid var(--border-hairline)" }}>
+                <div className="mt-4 pt-3.5" style={{ borderTop: "1px solid var(--border-hairline)" }}>
                   <span className="mb-3 flex items-center gap-1">
                     <span className="ds-eyebrow">{tr("Split your next deposit")}</span>
-                    <InfoPopover label={tr("Explanation split your next deposit")}>{tr("Enter how much you are going to put into shares. We split it so the gap between the US, Europe and emerging markets closes fastest.")}</InfoPopover>
+                    <InfoPopover label={tr("Explanation split your next deposit")}>
+                      {tr(
+                        "Enter how much you are going to put into shares. We split it so the gap between the US, Europe and emerging markets closes fastest.",
+                      )}
+                    </InfoPopover>
                   </span>
-                  <AmountField
-                    label={tr("Deposit in shares (€)")}
-                    value={marketAmount}
-                    onChange={setMarketAmount}
-                  />
+                  <AmountField label={tr("Deposit in shares (€)")} value={marketAmount} onChange={setMarketAmount} />
 
                   {marketAmount > 0 && marketSplit.data && (
                     <>
@@ -463,9 +466,10 @@ export default function RebalancingPage() {
                         ))}
                       </div>
 
-                      <div className="mt-4 pt-3.5"
-                style={{ borderTop: "1px solid var(--border-hairline)" }}>
-                        <div className="ds-eyebrow mb-2.5 block">{trx("Market split after this deposit of {0}", fmtEuro(marketAmount))}</div>
+                      <div className="mt-4 pt-3.5" style={{ borderTop: "1px solid var(--border-hairline)" }}>
+                        <div className="ds-eyebrow mb-2.5 block">
+                          {trx("Market split after this deposit of {0}", fmtEuro(marketAmount))}
+                        </div>
                         <AllocationBars
                           rows={MARKETS.map((m) => ({
                             label: MARKET_NL[m] ?? m,

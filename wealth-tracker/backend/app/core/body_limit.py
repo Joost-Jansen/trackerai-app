@@ -40,9 +40,17 @@ class BodyLimitMiddleware:
         finally:
             i18n.reset_locale(token)
         body = json.dumps({"detail": detail, "code": "upload_too_large", "params": {"max_mb": mb}}).encode()
-        await send({"type": "http.response.start", "status": 413,
-                    "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode()),
-                                (b"connection", b"close")]})
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 413,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(body)).encode()),
+                    (b"connection", b"close"),
+                ],
+            }
+        )
         await send({"type": "http.response.body", "body": body})
 
     async def __call__(self, scope, receive, send):

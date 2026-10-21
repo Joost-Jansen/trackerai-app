@@ -22,15 +22,12 @@ Three agreements:
 
 import secrets
 import sqlite3
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 
-from domain.money import bank_transactions
-from domain.money import categorization
 from domain import secret_box as secret
-from domain.money import accounts
-from domain.money.bank_providers import base
-from domain.money.bank_providers import enablebanking
 from domain.i18n import tr
+from domain.money import accounts, bank_transactions, categorization
+from domain.money.bank_providers import base, enablebanking
 
 BACK_PATH = "/api/connections/enablebanking/callback"
 # Where the bank sent people back before the English rename. Still served, so a
@@ -57,12 +54,13 @@ class UnknownConsent(Exception):
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc).replace(microsecond=0)
+    return datetime.now(UTC).replace(microsecond=0)
 
 
 # ---------------------------------------------------------------------------
 # The key
 # ---------------------------------------------------------------------------
+
 
 def save_key(conn: sqlite3.Connection, app_id: str, pem: bytes) -> None:
     app_id = (app_id or "").strip()
@@ -101,8 +99,7 @@ def upgrade_secrets(conn: sqlite3.Connection) -> int:
     for row in conn.execute("SELECT provider, key FROM bank_connections").fetchall():
         try:
             if row["key"] and secret.needs_rotation(row["key"]):
-                conn.execute("UPDATE bank_connections SET key = ? WHERE provider = ?",
-                             (secret.rotate(row["key"]), row["provider"]))
+                conn.execute("UPDATE bank_connections SET key = ? WHERE provider = ?", (secret.rotate(row["key"]), row["provider"]))
                 changed += 1
         except Exception:
             continue
@@ -124,8 +121,7 @@ def _session_id(value: str | None) -> str | None:
 
 
 def _connection(conn: sqlite3.Connection) -> dict | None:
-    row = conn.execute("SELECT * FROM bank_connections WHERE provider = ?",
-                       (enablebanking.PROVIDER,)).fetchone()
+    row = conn.execute("SELECT * FROM bank_connections WHERE provider = ?", (enablebanking.PROVIDER,)).fetchone()
     return dict(row) if row else None
 
 
@@ -148,7 +144,7 @@ def status(conn: sqlite3.Connection) -> dict:
     for t in conn.execute("SELECT * FROM bank_consents ORDER BY lower(bank), id DESC"):
         t = dict(t)
         if t["status"] == "waiting" and _now() - datetime.fromisoformat(t["created_at"]) > ABORTED_AFTER:
-            continue    # came back halfway: no connection, only noise
+            continue  # came back halfway: no connection, only noise
         if t["status"] == "active" and t["valid_until"] and datetime.fromisoformat(t["valid_until"]) <= _now():
             t["status"] = "expired"
         t["accounts"] = [
@@ -156,7 +152,8 @@ def status(conn: sqlite3.Connection) -> dict:
             for r in conn.execute(
                 """SELECT r.id, r.name, r.iban FROM bank_consent_accounts k
                    JOIN accounts r ON r.id = k.account_id WHERE k.consent_id = ? ORDER BY r.name""",
-                (t["id"],))
+                (t["id"],),
+            )
         ]
         for away in ("state", "session_id", "redirect_url"):
             t.pop(away, None)
@@ -171,6 +168,7 @@ def status(conn: sqlite3.Connection) -> dict:
 # ---------------------------------------------------------------------------
 # Consent
 # ---------------------------------------------------------------------------
+
 
 def _verify_origin(origin: str) -> str:
     origin = (origin or "").strip().rstrip("/")
@@ -198,8 +196,7 @@ def start(conn: sqlite3.Connection, *, bank: str, country: str, origin: str, htt
     answer = eb.start(bank=bank, country=country, redirect_url=redirect_url, state=state, valid_until=valid_until)
     # Trying again: an earlier failed or abandoned attempt at this bank no longer
     # matters. A working consent stays until the new one is there (complete).
-    conn.execute("DELETE FROM bank_consents WHERE bank = ? AND country = ? AND status IN ('waiting', 'error')",
-                 (bank, country))
+    conn.execute("DELETE FROM bank_consents WHERE bank = ? AND country = ? AND status IN ('waiting', 'error')", (bank, country))
     conn.execute(
         """INSERT INTO bank_consents (bank, country, state, redirect_url, valid_until, status, created_at)
            VALUES (?, ?, ?, ?, ?, 'waiting', ?)""",
@@ -225,8 +222,7 @@ def by_state(conn: sqlite3.Connection, state: str) -> dict | None:
 
 
 def failed(conn: sqlite3.Connection, state: str, message: str) -> None:
-    conn.execute("UPDATE bank_consents SET status = 'error', error = ?, state = NULL WHERE state = ?",
-                 (message[:500], state))
+    conn.execute("UPDATE bank_consents SET status = 'error', error = ?, state = NULL WHERE state = ?", (message[:500], state))
     conn.commit()
 
 
@@ -237,8 +233,7 @@ def _provider_for(bank: str) -> str:
 
 def complete(conn: sqlite3.Connection, *, state: str, code: str, http=None) -> int:
     """The user is back from their bank: create the session and link the accounts."""
-    row = conn.execute("SELECT * FROM bank_consents WHERE state = ? AND status = 'waiting'",
-                       (state,)).fetchone()
+    row = conn.execute("SELECT * FROM bank_consents WHERE state = ? AND status = 'waiting'", (state,)).fetchone()
     if not row:
         raise UnknownConsent(tr("This consent is unknown or already completed."))
     consent = dict(row)
@@ -257,15 +252,17 @@ def complete(conn: sqlite3.Connection, *, state: str, code: str, http=None) -> i
         if bank_account is None:
             behind = (iban or account["uid"])[-4:]
             account_id = accounts.make_bank_account(
-                conn, kind="bank", provider=_provider_for(consent["bank"]),
-                name=f"{consent['bank']} ···{behind}", iban=iban,
+                conn,
+                kind="bank",
+                provider=_provider_for(consent["bank"]),
+                name=f"{consent['bank']} ···{behind}",
+                iban=iban,
                 currency=account.get("currency") or base.CURRENCY,
             )
         else:
             account_id = bank_account["id"]
         conn.execute(
-            "INSERT OR REPLACE INTO bank_consent_accounts (consent_id, account_uid, account_id) "
-            "VALUES (?, ?, ?)",
+            "INSERT OR REPLACE INTO bank_consent_accounts (consent_id, account_uid, account_id) VALUES (?, ?, ?)",
             (consent["id"], account["uid"], account_id),
         )
     conn.commit()
@@ -273,8 +270,9 @@ def complete(conn: sqlite3.Connection, *, state: str, code: str, http=None) -> i
     # One consent per bank: the new one replaces what was already there at this
     # bank (a renewal, or connecting an earlier time). Otherwise every account
     # would be fetched through two sessions and you no longer see which applies.
-    for old in conn.execute("SELECT id FROM bank_consents WHERE bank = ? AND country = ? AND id != ?",
-                            (consent["bank"], consent["country"], consent["id"])).fetchall():
+    for old in conn.execute(
+        "SELECT id FROM bank_consents WHERE bank = ? AND country = ? AND id != ?", (consent["bank"], consent["country"], consent["id"])
+    ).fetchall():
         delete_consent(conn, old["id"], http)
     return consent["id"]
 
@@ -282,6 +280,7 @@ def complete(conn: sqlite3.Connection, *, state: str, code: str, http=None) -> i
 # ---------------------------------------------------------------------------
 # Fetching
 # ---------------------------------------------------------------------------
+
 
 def _from(rules: list[dict], last: str | None) -> list[dict]:
     """Only from the last day that is already there. What was already on that day —
@@ -291,8 +290,7 @@ def _from(rules: list[dict], last: str | None) -> list[dict]:
     return [r for r in rules if not last or r["date"] >= last]
 
 
-def fetch(conn: sqlite3.Connection, *, http=None, today: date | None = None,
-            only_if_older_than: timedelta | None = None) -> dict:
+def fetch(conn: sqlite3.Connection, *, http=None, today: date | None = None, only_if_older_than: timedelta | None = None) -> dict:
     """Fetches balances and new transactions for every active consent.
 
     Fetched when you ask for it, and by itself when you open the app — then with
@@ -306,13 +304,12 @@ def fetch(conn: sqlite3.Connection, *, http=None, today: date | None = None,
     report = {"accounts": 0, "added": 0, "balances": 0, "errors": [], "skipped": 0}
 
     for t in [dict(r) for r in conn.execute("SELECT * FROM bank_consents WHERE status = 'active'")]:
-        if (only_if_older_than is not None and t["last_fetched"]
-                and _now() - datetime.fromisoformat(t["last_fetched"]) < only_if_older_than):
+        if only_if_older_than is not None and t["last_fetched"] and _now() - datetime.fromisoformat(t["last_fetched"]) < only_if_older_than:
             report["skipped"] += 1
             continue
         if t["valid_until"] and datetime.fromisoformat(t["valid_until"]) <= _now():
             conn.execute("UPDATE bank_consents SET status = 'expired' WHERE id = ?", (t["id"],))
-            report["errors"].append(tr("The consent at {0} has expired; give consent again.", t['bank']))
+            report["errors"].append(tr("The consent at {0} has expired; give consent again.", t["bank"]))
             continue
         try:
             links = conn.execute("SELECT * FROM bank_consent_accounts WHERE consent_id = ?", (t["id"],)).fetchall()
@@ -324,8 +321,7 @@ def fetch(conn: sqlite3.Connection, *, http=None, today: date | None = None,
                 if account is None:
                     report["errors"].append(tr("{0}: a linked account no longer exists here; give consent again.", t["bank"]))
                     continue
-                last = conn.execute("SELECT MAX(date) FROM bank_transactions WHERE account_id = ?",
-                                       (account["id"],)).fetchone()[0]
+                last = conn.execute("SELECT MAX(date) FROM bank_transactions WHERE account_id = ?", (account["id"],)).fetchone()[0]
                 from_date = last or (today - timedelta(days=DEFAULT_BACK_DAYS)).isoformat()
                 raw = eb.transactions(link["account_uid"], from_date)
                 rules = [r for r in (enablebanking.to_rule(tx, account["iban"]) for tx in raw) if r]
@@ -338,15 +334,17 @@ def fetch(conn: sqlite3.Connection, *, http=None, today: date | None = None,
                     accounts.set_balance(conn, account["id"], balance[0], balance[1], source="sync")
                     report["balances"] += 1
                 # Counts only, never amounts or descriptions: enough to see where a fetch stopped.
-                print(f"[bank-fetch] {t['bank']} ···{(account['iban'] or link['account_uid'])[-4:]}: since {from_date} "
-                      f"{len(raw)} from the bank, {len(rules)} readable, {len(new)} on or after the last day, {saved} new, "
-                      f"balance {'yes' if balance else 'no'}", flush=True)
+                print(
+                    f"[bank-fetch] {t['bank']} ···{(account['iban'] or link['account_uid'])[-4:]}: since {from_date} "
+                    f"{len(raw)} from the bank, {len(rules)} readable, {len(new)} on or after the last day, {saved} new, "
+                    f"balance {'yes' if balance else 'no'}",
+                    flush=True,
+                )
                 # A balance fetched earlier that counted payments that were still pending then
                 # and are booked now: correct it.
                 accounts.restore_pending(conn, account["id"])
                 report["accounts"] += 1
-            conn.execute("UPDATE bank_consents SET last_fetched = ?, error = NULL WHERE id = ?",
-                         (_now().isoformat(), t["id"]))
+            conn.execute("UPDATE bank_consents SET last_fetched = ?, error = NULL WHERE id = ?", (_now().isoformat(), t["id"]))
         except enablebanking.ErrorNote as e:
             conn.execute("UPDATE bank_consents SET error = ? WHERE id = ?", (str(e)[:500], t["id"]))
             report["errors"].append(f"{t['bank']}: {e}")
@@ -362,6 +360,7 @@ def fetch(conn: sqlite3.Connection, *, http=None, today: date | None = None,
 # Cleaning up
 # ---------------------------------------------------------------------------
 
+
 def delete_consent(conn: sqlite3.Connection, consent_id: int, http=None) -> bool:
     """Revokes the consent at the bank and forgets it. Accounts and transactions
     stay: they are yours, not the connection's.
@@ -374,7 +373,7 @@ def delete_consent(conn: sqlite3.Connection, consent_id: int, http=None) -> bool
         try:
             client(conn, http).stop(session_id)
         except (enablebanking.ErrorNote, NotConfigured):
-            pass    # already expired or revoked: local cleanup goes ahead
+            pass  # already expired or revoked: local cleanup goes ahead
     conn.execute("DELETE FROM bank_consent_accounts WHERE consent_id = ?", (consent_id,))
     conn.execute("DELETE FROM bank_consents WHERE id = ?", (consent_id,))
     conn.commit()

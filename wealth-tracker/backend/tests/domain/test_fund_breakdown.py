@@ -21,29 +21,26 @@ import pytest
 
 from app.services import etf_service
 
-
 HOLDINGS = [
     # Weights on purpose do not add up to 1: 0.994 in total, like a real file
     # with a cash line stripped out of it.
-    {"symbol": "NVDA", "name": "NVIDIA CORP", "weight": 0.40,
-     "sector": "Information Technology", "country": "United States"},
-    {"symbol": "GOOGL", "name": "ALPHABET INC", "weight": 0.20,
-     "sector": "Communication", "country": "United States"},
-    {"symbol": "GOOG", "name": "ALPHABET INC", "weight": 0.15,
-     "sector": "Communication", "country": "United States"},
-    {"symbol": "ASML", "name": "ASML HOLDING", "weight": 0.244,
-     "sector": "Information Technology", "country": "Netherlands"},
+    {"symbol": "NVDA", "name": "NVIDIA CORP", "weight": 0.40, "sector": "Information Technology", "country": "United States"},
+    {"symbol": "GOOGL", "name": "ALPHABET INC", "weight": 0.20, "sector": "Communication", "country": "United States"},
+    {"symbol": "GOOG", "name": "ALPHABET INC", "weight": 0.15, "sector": "Communication", "country": "United States"},
+    {"symbol": "ASML", "name": "ASML HOLDING", "weight": 0.244, "sector": "Information Technology", "country": "Netherlands"},
 ]
 
 
 @pytest.fixture
 def breakdown(monkeypatch):
     monkeypatch.setattr(
-        etf_service.issuer_holdings, "fetch_issuer_holdings",
+        etf_service.issuer_holdings,
+        "fetch_issuer_holdings",
         lambda conn, isin, name=None: list(HOLDINGS),
     )
     monkeypatch.setattr(
-        etf_service.issuer_holdings, "source_info",
+        etf_service.issuer_holdings,
+        "source_info",
         lambda conn, isin, name=None: ("iShares (issuer)", "exact"),
     )
     return etf_service.fund_breakdown(None, "IE00TEST", "TEST FUND", 1000.0)
@@ -55,7 +52,10 @@ def test_share_classes_of_one_company_are_one_row(breakdown):
     # 0.35 of 0.994 — and second, ahead of ASML, which it is not on either of
     # its own two lines.
     assert breakdown["holdings"][1] == {
-        "name": "ALPHABET INC", "symbol": "GOOGL", "pct": 35.21, "value": 352.11,
+        "name": "ALPHABET INC",
+        "symbol": "GOOGL",
+        "pct": 35.21,
+        "value": 352.11,
     }
 
 
@@ -97,7 +97,8 @@ def test_top10_of_a_short_fund_is_the_whole_fund(breakdown):
 def test_a_fund_without_a_readable_issuer_file_gets_the_empty_shape(monkeypatch):
     """Same keys, empty — the page has one thing to check, not eight."""
     monkeypatch.setattr(
-        etf_service.issuer_holdings, "fetch_issuer_holdings",
+        etf_service.issuer_holdings,
+        "fetch_issuer_holdings",
         lambda conn, isin, name=None: None,
     )
     result = etf_service.fund_breakdown(None, "IE00BOND", "SOME BOND FUND", 1000.0)
@@ -115,11 +116,13 @@ def test_a_position_without_a_value_still_lists_what_is_in_the_fund(monkeypatch)
     rather than the whole section disappearing.
     """
     monkeypatch.setattr(
-        etf_service.issuer_holdings, "fetch_issuer_holdings",
+        etf_service.issuer_holdings,
+        "fetch_issuer_holdings",
         lambda conn, isin, name=None: list(HOLDINGS),
     )
     monkeypatch.setattr(
-        etf_service.issuer_holdings, "source_info",
+        etf_service.issuer_holdings,
+        "source_info",
         lambda conn, isin, name=None: ("iShares (issuer)", "exact"),
     )
     result = etf_service.fund_breakdown(None, "IE00TEST", "TEST FUND", None)

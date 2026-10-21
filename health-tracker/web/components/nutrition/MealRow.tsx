@@ -6,7 +6,17 @@ import { UtensilsIcon } from "@trackerai/ui/icons";
 import { useFormat, useT } from "@/lib/i18n";
 import { photoUrl, type Meal } from "@/lib/nutrition";
 
-export default function MealRow({ meal, onEdit, compact = false, showMoment = true }: { meal: Meal; onEdit?: (m: Meal) => void; compact?: boolean; showMoment?: boolean }) {
+export default function MealRow({
+  meal,
+  onEdit,
+  compact = false,
+  showMoment = true,
+}: {
+  meal: Meal;
+  onEdit?: (m: Meal) => void;
+  compact?: boolean;
+  showMoment?: boolean;
+}) {
   const t = useT().nutrition;
   const f = useFormat();
   const [open, setOpen] = useState(false);
@@ -22,13 +32,23 @@ export default function MealRow({ meal, onEdit, compact = false, showMoment = tr
             <UtensilsIcon width={18} height={18} />
           </span>
         )}
-        <button type="button" className="min-w-0 text-left" onClick={() => setOpen(!open)} aria-expanded={open} title={open ? t.meal.close : t.meal.open}>
-          <span className="block text-[12px] tabular-nums text-ink-muted">{showMoment ? `${meal.eaten_at} · ${t.moments[meal.moment]}` : meal.eaten_at}</span>
+        <button
+          type="button"
+          className="min-w-0 text-left"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          title={open ? t.meal.close : t.meal.open}
+        >
+          <span className="block text-[12px] tabular-nums text-ink-muted">
+            {showMoment ? `${meal.eaten_at} · ${t.moments[meal.moment]}` : meal.eaten_at}
+          </span>
           <span className={`block text-[13px] ${compact ? "truncate" : ""}`}>{names}</span>
         </button>
         <span className="text-right text-[12.5px] tabular-nums">
           <span className="block">{t.kcal(f.num(meal.totals.energy_kcal))}</span>
-          <span className="block text-[11.5px] text-ink-muted">{t.nutrients.protein_g} {f.num(meal.totals.protein_g)} g</span>
+          <span className="block text-[11.5px] text-ink-muted">
+            {t.nutrients.protein_g} {f.num(meal.totals.protein_g)} g
+          </span>
         </span>
       </div>
       {open && (
@@ -37,7 +57,9 @@ export default function MealRow({ meal, onEdit, compact = false, showMoment = tr
             {meal.items.map((i) => (
               <li key={i.id} className="flex justify-between gap-3">
                 <span className="min-w-0 truncate">{i.name}</span>
-                <span className="shrink-0 text-ink-muted">{f.num(i.grams)} {i.unit} · {t.kcal(f.num(i.nutrients.energy_kcal ?? 0))}</span>
+                <span className="shrink-0 text-ink-muted">
+                  {f.num(i.grams)} {i.unit} · {t.kcal(f.num(i.nutrients.energy_kcal ?? 0))}
+                </span>
               </li>
             ))}
           </ul>

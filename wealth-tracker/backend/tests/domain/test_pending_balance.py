@@ -12,10 +12,8 @@ from uuid import uuid4
 
 import pytest
 
-from domain.money import bank_transactions
 from domain import database
-from domain.money import accounts
-from domain.money import net_worth
+from domain.money import accounts, bank_transactions, net_worth
 
 
 @pytest.fixture(autouse=True)
@@ -37,11 +35,25 @@ def rid(conn) -> int:
 
 
 def _tx(conn, rid, date, amount, name="WINKEL"):
-    bank_transactions.save(conn, rid, [{
-        "date": date, "interest_date": None, "amount": amount, "currency": "EUR", "name": name,
-        "counterparty_iban": None, "description": "", "code": None, "kind": None,
-        "dedup_hash": uuid4().hex, "raw": {},
-    }])
+    bank_transactions.save(
+        conn,
+        rid,
+        [
+            {
+                "date": date,
+                "interest_date": None,
+                "amount": amount,
+                "currency": "EUR",
+                "name": name,
+                "counterparty_iban": None,
+                "description": "",
+                "code": None,
+                "kind": None,
+                "dedup_hash": uuid4().hex,
+                "raw": {},
+            }
+        ],
+    )
 
 
 def _deviations(conn):
@@ -117,9 +129,11 @@ def test_a_transaction_that_appears_twice(conn, rid):
     _tx(conn, rid, "2026-01-20", 7.8, name="CAFE")
     # An import keeps out duplicates; two sources together (an export and the
     # connection, each with its own reference) can still put down a second one.
-    conn.execute("INSERT INTO bank_transactions (account_id, date, amount, currency, name, description, dedup_hash, source) "
-                 "SELECT account_id, date, amount, currency, name, description, 'tweede', source "
-                 "FROM bank_transactions WHERE name = 'CAFE'")
+    conn.execute(
+        "INSERT INTO bank_transactions (account_id, date, amount, currency, name, description, dedup_hash, source) "
+        "SELECT account_id, date, amount, currency, name, description, 'tweede', source "
+        "FROM bank_transactions WHERE name = 'CAFE'"
+    )
     conn.commit()
     accounts.set_balance(conn, rid, "2026-01-31", 992.2)
     [a] = _deviations(conn)
@@ -138,6 +152,7 @@ def test_moving_to_a_day_with_a_measurement_keeps_that_one(conn, rid):
 # A balance is a snapshot: halfway through the day, and with what is already pending.
 # ---------------------------------------------------------------------------
 
+
 def _pending_in_last(conn):
     return net_worth.series(conn, [])["pending_in_last"]
 
@@ -145,6 +160,7 @@ def _pending_in_last(conn):
 def _day(back: int) -> str:
     """A date `back` days before today: 'pending' only applies with a recent last balance."""
     from datetime import date, timedelta
+
     return (date.today() - timedelta(days=back)).isoformat()
 
 

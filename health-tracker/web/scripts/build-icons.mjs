@@ -41,9 +41,7 @@ function svg({ rounded, scale }) {
     ? `<rect class="tile" width="32" height="32" rx="7.5" fill="${INK}"/>`
     : `<rect width="32" height="32" fill="${INK}"/>`;
   // On a dark tab bar the ink tile gets a faint light edge so its shape still reads.
-  const style = rounded
-    ? `<style>@media (prefers-color-scheme: dark){.tile{stroke:#4d6a5b;stroke-width:1}}</style>`
-    : "";
+  const style = rounded ? `<style>@media (prefers-color-scheme: dark){.tile{stroke:#4d6a5b;stroke-width:1}}</style>` : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">${style}${tile}${mark(scale)}</svg>\n`;
 }
 

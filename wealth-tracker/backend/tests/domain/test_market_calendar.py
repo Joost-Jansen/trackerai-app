@@ -27,9 +27,8 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.
 sys.path.insert(0, os.path.join(_REPO_ROOT, "backend"))
 sys.path.insert(0, _REPO_ROOT)
 
-from app.core import price_refresh                    # noqa: E402
-from app.services import dashboard_service            # noqa: E402
-
+from app.core import price_refresh  # noqa: E402
+from app.services import dashboard_service  # noqa: E402
 
 D = datetime.date
 DT = datetime.datetime
@@ -39,42 +38,55 @@ DT = datetime.datetime
 # The calendar
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("year,easter", [
-    (2024, D(2024, 3, 31)),
-    (2025, D(2025, 4, 20)),
-    (2026, D(2026, 4, 5)),
-    (2027, D(2027, 3, 28)),
-])
+
+@pytest.mark.parametrize(
+    "year,easter",
+    [
+        (2024, D(2024, 3, 31)),
+        (2025, D(2025, 4, 20)),
+        (2026, D(2026, 4, 5)),
+        (2027, D(2027, 3, 28)),
+    ],
+)
 def test_easter_dates(year, easter):
     assert price_refresh._easter(year) == easter
 
 
-@pytest.mark.parametrize("day", [
-    D(2026, 1, 1),    # New Year's Day
-    D(2026, 4, 3),    # Good Friday
-    D(2026, 4, 6),    # Easter Monday
-    D(2026, 5, 1),    # Labour Day
-    D(2026, 12, 25),
-    D(2026, 12, 26),
-])
+@pytest.mark.parametrize(
+    "day",
+    [
+        D(2026, 1, 1),  # New Year's Day
+        D(2026, 4, 3),  # Good Friday
+        D(2026, 4, 6),  # Easter Monday
+        D(2026, 5, 1),  # Labour Day
+        D(2026, 12, 25),
+        D(2026, 12, 26),
+    ],
+)
 def test_holidays_are_not_trading_days(day):
     assert not price_refresh.is_trading_day(day)
 
 
-@pytest.mark.parametrize("day", [
-    D(2026, 8, 8),    # Saturday — the day from the bug report
-    D(2026, 8, 9),    # Sunday
-])
+@pytest.mark.parametrize(
+    "day",
+    [
+        D(2026, 8, 8),  # Saturday — the day from the bug report
+        D(2026, 8, 9),  # Sunday
+    ],
+)
 def test_weekend_is_not_a_trading_day(day):
     assert not price_refresh.is_trading_day(day)
 
 
-@pytest.mark.parametrize("day", [
-    D(2026, 8, 7),    # Friday
-    D(2026, 8, 10),   # Monday
-    D(2026, 4, 2),    # Maundy Thursday: the exchange is simply open
-    D(2026, 12, 24),  # Christmas Eve: a shortened day, but a trading day
-])
+@pytest.mark.parametrize(
+    "day",
+    [
+        D(2026, 8, 7),  # Friday
+        D(2026, 8, 10),  # Monday
+        D(2026, 4, 2),  # Maundy Thursday: the exchange is simply open
+        D(2026, 12, 24),  # Christmas Eve: a shortened day, but a trading day
+    ],
+)
 def test_ordinary_weekdays_trade(day):
     assert price_refresh.is_trading_day(day)
 
@@ -83,15 +95,19 @@ def test_ordinary_weekdays_trade(day):
 # "Has a session begun printing prices today?"
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("now,expected", [
-    (DT(2026, 8, 7, 10, 0), True),    # Friday, during trading
-    (DT(2026, 8, 7, 23, 0), True),    # Friday after the close: the day *has* happened
-    (DT(2026, 8, 8, 10, 0), False),   # Saturday
-    (DT(2026, 8, 9, 21, 0), False),   # Sunday
-    (DT(2026, 8, 10, 8, 0), False),   # Monday before the open
-    (DT(2026, 8, 10, 9, 30), True),   # Monday after the open
-    (DT(2026, 4, 3, 14, 0), False),   # Good Friday, in the middle of the day
-])
+
+@pytest.mark.parametrize(
+    "now,expected",
+    [
+        (DT(2026, 8, 7, 10, 0), True),  # Friday, during trading
+        (DT(2026, 8, 7, 23, 0), True),  # Friday after the close: the day *has* happened
+        (DT(2026, 8, 8, 10, 0), False),  # Saturday
+        (DT(2026, 8, 9, 21, 0), False),  # Sunday
+        (DT(2026, 8, 10, 8, 0), False),  # Monday before the open
+        (DT(2026, 8, 10, 9, 30), True),  # Monday after the open
+        (DT(2026, 4, 3, 14, 0), False),  # Good Friday, in the middle of the day
+    ],
+)
 def test_traded_today(now, expected):
     assert price_refresh.traded_today(now) is expected
 
@@ -113,6 +129,7 @@ def test_a_quote_from_before_the_weekend_is_not_stale_on_saturday():
 # What the chip and the Attention block then report
 # ---------------------------------------------------------------------------
 
+
 def _portfolio():
     positions = [
         {"isin": "NL0011794037", "name": "Ahold", "shares_held": 100.0, "current_value": 3333.0},
@@ -121,10 +138,20 @@ def _portfolio():
     prices = {
         # Friday's close against Thursday's — exactly what the cache holds over the
         # weekend: -€67.00 and +€21.50, together -€45.50.
-        "NL0011794037": {"price": 33.33, "previous_close": 34.00, "currency": "EUR",
-                         "ticker": "AD.AS", "fetched_at": "2026-08-07 22:30:00"},
-        "IE00B4L5Y983": {"price": 128.65, "previous_close": 128.22, "currency": "EUR",
-                         "ticker": "IWDA.AS", "fetched_at": "2026-08-07 22:30:00"},
+        "NL0011794037": {
+            "price": 33.33,
+            "previous_close": 34.00,
+            "currency": "EUR",
+            "ticker": "AD.AS",
+            "fetched_at": "2026-08-07 22:30:00",
+        },
+        "IE00B4L5Y983": {
+            "price": 128.65,
+            "previous_close": 128.22,
+            "currency": "EUR",
+            "ticker": "IWDA.AS",
+            "fetched_at": "2026-08-07 22:30:00",
+        },
     }
     return positions, prices
 

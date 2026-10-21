@@ -106,7 +106,9 @@ def this_week_md(activities: list[dict], wellness: dict, today: date, last_sync:
         )
 
     order = ["run", "ride", "swim"]
-    sports = [sp for sp in sorted(by_sport, key=lambda x: (order.index(x) if x in order else 99, x)) if sp in zones and _sum_zones(by_sport[sp])]
+    sports = [
+        sp for sp in sorted(by_sport, key=lambda x: (order.index(x) if x in order else 99, x)) if sp in zones and _sum_zones(by_sport[sp])
+    ]
     if sports:
         per_sport = {sp: _sum_zones(by_sport[sp]) for sp in sports}
         lines += ["", "## Hartslagzones (eigen zones, zie zones.json)", "", "| Zone | " + " | ".join(sports) + " |"]
@@ -140,7 +142,10 @@ def last_90_days_md(activities: list[dict], wellness: dict, today: date, zones: 
     runs = [a for a in run_sessions(activities) if first <= _day(a) <= today]
 
     lines = [f"# Laatste 13 weken ({first.isoformat()} t/m {today.isoformat()})", "", "## Hardlopen per week", ""]
-    lines += ["| Week vanaf | km | Runs | Langste (km) | Gem. HR | Gem. slaap (u) | Gem. HRV | Gem. rust-HR |", "|---|---|---|---|---|---|---|---|"]
+    lines += [
+        "| Week vanaf | km | Runs | Langste (km) | Gem. HR | Gem. slaap (u) | Gem. HRV | Gem. rust-HR |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
     for monday in weeks:
         in_week = [a for a in runs if monday <= _day(a) < monday + timedelta(days=7)]
         days = [(monday + timedelta(days=i)).isoformat() for i in range(7)]
@@ -161,7 +166,13 @@ def last_90_days_md(activities: list[dict], wellness: dict, today: date, zones: 
         long_run = max(runs, key=lambda a: a.get("distance_km") or 0)
         lines += ["", f"Langste run: {long_run['distance_km']:.1f} km op {_day(long_run).isoformat()}"]
 
-    lines += ["", "## Hardlopen per week in eigen zones (% van de tijd)", "", "| Week vanaf | Z1 | Z2 | Z3 | Z4-5 |", "|---|---|---|---|---|"]
+    lines += [
+        "",
+        "## Hardlopen per week in eigen zones (% van de tijd)",
+        "",
+        "| Week vanaf | Z1 | Z2 | Z3 | Z4-5 |",
+        "|---|---|---|---|---|",
+    ]
     for monday in weeks:
         z = _sum_zones([a for a in runs if monday <= _day(a) < monday + timedelta(days=7)])
         total = sum(z.values()) if z else 0
@@ -170,7 +181,13 @@ def last_90_days_md(activities: list[dict], wellness: dict, today: date, zones: 
             lines.append(f"| {monday.isoformat()} | " + " | ".join(f"{round(x / total * 100)}%" for x in share) + " |")
 
     low, high = zones["run"]["bounds"][0], zones["run"]["bounds"][1] - 1
-    lines += ["", f"## Tempo in Z2 hardlopen ({low}-{high} bpm), aerobe efficiëntie per 4 weken", "", "| Periode | Mediaan tempo/km | Runs |", "|---|---|---|"]
+    lines += [
+        "",
+        f"## Tempo in Z2 hardlopen ({low}-{high} bpm), aerobe efficiëntie per 4 weken",
+        "",
+        "| Periode | Mediaan tempo/km | Runs |",
+        "|---|---|---|",
+    ]
     for start in range(len(weeks) % 4, len(weeks), 4):  # anchored at the end: latest block is 4 full weeks
         block = weeks[start : start + 4]
         begin, end = block[0], block[-1] + timedelta(days=6)

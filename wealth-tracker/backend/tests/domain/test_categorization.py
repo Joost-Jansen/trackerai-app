@@ -26,10 +26,8 @@ import sqlite3
 
 import pytest
 
-from domain.money import bank_transactions
-from domain.money import categorization
 from domain import database
-from domain.money import accounts
+from domain.money import accounts, bank_transactions, categorization
 
 
 @pytest.fixture(autouse=True)
@@ -58,6 +56,7 @@ def _label(conn, name, description="", counterparty_iban=None, amount=10.0, own=
 # ---------------------------------------------------------------------------
 # Seeding
 # ---------------------------------------------------------------------------
+
 
 def test_seeding_sets_up_the_taxonomy_and_the_rules():
     conn = _conn()
@@ -88,6 +87,7 @@ def test_every_rule_points_to_an_existing_category():
 # Which rule wins
 # ---------------------------------------------------------------------------
 
+
 def test_lower_priority_wins():
     """INTERNAL is at 10 so a savings transfer never becomes an expense."""
     conn = _conn()
@@ -114,6 +114,7 @@ def test_unknown_when_nothing_matches():
 # ---------------------------------------------------------------------------
 # The fields N / T / A / P
 # ---------------------------------------------------------------------------
+
 
 def test_a_personal_name_is_recognised_as_a_friend():
     """Two to four words, no digits, no company suffix."""
@@ -151,28 +152,28 @@ def test_a_payment_processor_without_a_usable_description_stays_unknown():
 # Own accounts
 # ---------------------------------------------------------------------------
 
+
 def test_a_transfer_to_your_own_account_is_internal():
     """Money to your own account is not an expense, even when it shows as a debit in
     your bank export.
     """
     conn = _conn()
-    assert _label(conn, "J DE VRIES", counterparty_iban="NL00BUNQ0000000002",
-                  amount=500.0, own={"NL00BUNQ0000000002"}) == "Eigen rekeningen"
+    assert (
+        _label(conn, "J DE VRIES", counterparty_iban="NL00BUNQ0000000002", amount=500.0, own={"NL00BUNQ0000000002"}) == "Eigen rekeningen"
+    )
     conn.close()
 
 
 def test_the_same_transfer_without_an_own_iban_is_not_internal():
     conn = _conn()
-    assert _label(conn, "J DE VRIES", counterparty_iban="NL00BUNQ0000000002",
-                  amount=500.0, own=set()) != "Eigen rekeningen"
+    assert _label(conn, "J DE VRIES", counterparty_iban="NL00BUNQ0000000002", amount=500.0, own=set()) != "Eigen rekeningen"
     conn.close()
 
 
 def test_own_ibans_come_from_the_accounts():
     """They are not in the code and not in a separate file, but in your accounts."""
     conn = _conn()
-    accounts.make_bank_account(conn, kind="bank", provider="bunq", name="bunq",
-                             iban="NL00 BUNQ 0000 0000 02")
+    accounts.make_bank_account(conn, kind="bank", provider="bunq", name="bunq", iban="NL00 BUNQ 0000 0000 02")
     assert categorization.own_ibans(conn) == {"NL00BUNQ0000000002"}
     conn.close()
 
@@ -181,22 +182,36 @@ def test_own_ibans_come_from_the_accounts():
 # Herlabelen
 # ---------------------------------------------------------------------------
 
+
 def _save(conn, name, description="", amount=10.0, hash_="a" * 16):
     account_id = accounts.search_on_iban(conn, "NL00INGB0000000001")
     if account_id is None:
-        account_id = accounts.make_bank_account(
-            conn, kind="bank", provider="ing", name="ING", iban="NL00INGB0000000001")
+        account_id = accounts.make_bank_account(conn, kind="bank", provider="ing", name="ING", iban="NL00INGB0000000001")
     else:
         account_id = account_id["id"]
     # Every row its own day, derived from the hash. save() sees two rows with the
     # same date and the same amount as the same booking from another source (an
     # export next to the bank connection); these tests are about labelling, not
     # about merging, and store their rows one by one.
-    bank_transactions.save(conn, account_id, [{
-        "date": f"2026-02-{1 + ord(hash_[0]) % 28:02d}", "interest_date": None, "amount": amount, "currency": "EUR",
-        "name": name, "counterparty_iban": None, "description": description,
-        "code": None, "kind": None, "dedup_hash": hash_, "raw": {},
-    }])
+    bank_transactions.save(
+        conn,
+        account_id,
+        [
+            {
+                "date": f"2026-02-{1 + ord(hash_[0]) % 28:02d}",
+                "interest_date": None,
+                "amount": amount,
+                "currency": "EUR",
+                "name": name,
+                "counterparty_iban": None,
+                "description": description,
+                "code": None,
+                "kind": None,
+                "dedup_hash": hash_,
+                "raw": {},
+            }
+        ],
+    )
 
 
 def test_relabelling_fills_the_automatic_category_and_the_type():
@@ -257,8 +272,7 @@ def test_a_new_rule_labels_the_history_too():
     assert bank_transactions.load(conn)[0]["category"] == categorization.UNKNOWN
 
     categorization.make_category(conn, group_name="Wonen", name="Oppas", type="EXPENSE")
-    categorization.make_rule(conn, priority=25, field="N", pattern=r"OPPASDIENST",
-                             direction="", category="Oppas")
+    categorization.make_rule(conn, priority=25, field="N", pattern=r"OPPASDIENST", direction="", category="Oppas")
     assert categorization.relabel(conn, everything=True)["labelled"] == 1
     assert bank_transactions.load(conn)[0]["category"] == "Oppas"
     conn.close()
@@ -280,6 +294,7 @@ def test_the_report_counts_how_many_stayed_unknown():
 # Parity with the existing bookkeeping
 # ---------------------------------------------------------------------------
 
+
 def test_the_ported_engine_gives_the_same_answers():
     """The sharpest test there is: the same history, the same outcome.
 
@@ -291,22 +306,22 @@ def test_the_ported_engine_gives_the_same_answers():
         pytest.skip("FINANCIEN_CLASSIFIED niet gezet — zie de moduledocstring")
 
     rows = json.loads(open(path, encoding="utf-8").read())
-    own = set(json.loads(
-        open(os.path.join(os.path.dirname(path), "eigen_rekeningen.json"), encoding="utf-8").read()
-    )["ibans"])
+    own = set(json.loads(open(os.path.join(os.path.dirname(path), "eigen_rekeningen.json"), encoding="utf-8").read())["ibans"])
 
     # Parity of the *engine*, with the original's rules. The default rules in
     # categorization.py are deliberately more general — no employer, no landlord, no
     # regular pub — and so would not label identically here. That is also not what
     # this test proves.
-    rules_path = os.environ.get("FINANCES_RULES") or os.path.join(
-        os.path.dirname(os.path.dirname(path)), "migration", "rules.py")
+    rules_path = os.environ.get("FINANCES_RULES") or os.path.join(os.path.dirname(os.path.dirname(path)), "migration", "rules.py")
     spec = importlib.util.spec_from_file_location("original", rules_path)
     original = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(original)
     rules = sorted(
-        ({"priority": p_, "field": v, "pattern": pat, "direction": r, "category": cat}
-         for p_, v, pat, r, cat in original.R if cat != "Eigen rekeningen"),
+        (
+            {"priority": p_, "field": v, "pattern": pat, "direction": r, "category": cat}
+            for p_, v, pat, r, cat in original.R
+            if cat != "Eigen rekeningen"
+        ),
         key=lambda x: x["priority"],
     )
     conn = _conn()
@@ -326,16 +341,14 @@ def test_the_ported_engine_gives_the_same_answers():
         if got != row["cat_new"]:
             deviations.append((row["name"], row["cat_new"], got))
 
-    assert not deviations, (
-        f"{len(deviations)} van {len(rows)} anders gelabeld; eerste vijf: "
-        f"{deviations[:5]}"
-    )
+    assert not deviations, f"{len(deviations)} van {len(rows)} anders gelabeld; eerste vijf: {deviations[:5]}"
     conn.close()
 
 
 # ---------------------------------------------------------------------------
 # Types
 # ---------------------------------------------------------------------------
+
 
 def test_money_received_counts_as_income_not_as_spending():
     """In the original these two were EXPENSE.
@@ -375,8 +388,7 @@ def test_a_lowercase_pattern_works_too():
     """
     conn = _conn()
     categorization.make_category(conn, group_name="Inkomsten", name="Rente", type="INCOME")
-    categorization.make_rule(conn, priority=25, field="N", pattern="bunq",
-                             direction="", category="Rente")
+    categorization.make_rule(conn, priority=25, field="N", pattern="bunq", direction="", category="Rente")
 
     assert _label(conn, "bunq", amount=-1.50) == "Rente"
     assert _label(conn, "BUNQ", amount=-1.50) == "Rente"
@@ -388,15 +400,12 @@ def test_a_rule_from_a_transaction_labels_the_others_with_the_same_name():
     """The whole loop: one correction, and the rest of that counterparty moves along."""
     conn = _conn()
     for i, name in enumerate(["bunq", "bunq", "ALBERT HEIJN 1"]):
-        _save(conn, name, amount=-1.50 if name == "bunq" else 10.0,
-                hash_=f"{i}" * 16)
+        _save(conn, name, amount=-1.50 if name == "bunq" else 10.0, hash_=f"{i}" * 16)
     categorization.relabel(conn)
-    assert sum(1 for r in bank_transactions.load(conn)
-               if r["category"] == categorization.UNKNOWN) == 2
+    assert sum(1 for r in bank_transactions.load(conn) if r["category"] == categorization.UNKNOWN) == 2
 
     categorization.make_category(conn, group_name="Inkomsten", name="Rente", type="INCOME")
-    categorization.make_rule(conn, priority=25, field="N", pattern="BUNQ",
-                             direction="", category="Rente")
+    categorization.make_rule(conn, priority=25, field="N", pattern="BUNQ", direction="", category="Rente")
     categorization.relabel(conn, everything=True)
 
     rows = bank_transactions.load(conn)
@@ -441,6 +450,7 @@ def test_a_refund_in_a_known_category_stays_spending():
 # ---------------------------------------------------------------------------
 # The type follows the category you see
 # ---------------------------------------------------------------------------
+
 
 def test_a_manual_category_also_changes_where_it_counts():
     """The core of the correction loop, and it was broken.

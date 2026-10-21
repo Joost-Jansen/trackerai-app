@@ -10,13 +10,25 @@ realized gains plus dividends minus every cost DeGiro charged.
 Pure functions over plain dicts, no network, no database.
 """
 
-from domain.portfolio import positions as portfolio
 from app.services import holdings_service as hs
 from app.services.portfolio_service import PortfolioBundle
+from domain.portfolio import positions as portfolio
 
 
-def _tx(kind="BUY", qty=10.0, price=100.0, fee=2.0, date="2026-01-05", time="09:30",
-        isin="X1", name="Fund X", autofx=None, value=None, total=None, exchange=None):
+def _tx(
+    kind="BUY",
+    qty=10.0,
+    price=100.0,
+    fee=2.0,
+    date="2026-01-05",
+    time="09:30",
+    isin="X1",
+    name="Fund X",
+    autofx=None,
+    value=None,
+    total=None,
+    exchange=None,
+):
     """One DeGiro transaction row, with its sign conventions.
 
     A buy's value and total are negative (money out), a sell's positive, and
@@ -28,10 +40,17 @@ def _tx(kind="BUY", qty=10.0, price=100.0, fee=2.0, date="2026-01-05", time="09:
     if total is None:
         total = value - fee if kind == "BUY" else value - fee
     return {
-        "isin": isin, "name": name, "date": date, "time": time,
-        "transaction_type": kind, "quantity": qty, "price": price,
-        "value_eur": value, "total_eur": total,
-        "transaction_fee": -fee, "autofx_cost": autofx,
+        "isin": isin,
+        "name": name,
+        "date": date,
+        "time": time,
+        "transaction_type": kind,
+        "quantity": qty,
+        "price": price,
+        "value_eur": value,
+        "total_eur": total,
+        "transaction_fee": -fee,
+        "autofx_cost": autofx,
         "exchange": exchange,
     }
 
@@ -40,7 +59,9 @@ def _bundle(transactions, prices=None, dividends_by_isin=None):
     prices = prices or {}
     positions = portfolio.calculate_positions(transactions, prices)
     return PortfolioBundle(
-        prices=prices, transactions=transactions, dividends=[],
+        prices=prices,
+        transactions=transactions,
+        dividends=[],
         dividends_by_isin=dividends_by_isin or {},
         positions=positions,
         summary=portfolio.calculate_portfolio_summary(positions, transactions, []),
@@ -54,6 +75,7 @@ def _price(price=110.0, prev=None, currency="EUR"):
 # ---------------------------------------------------------------------------
 # The cost split
 # ---------------------------------------------------------------------------
+
 
 def test_avg_cost_excludes_transaction_costs():
     """10 shares at 100 with a 2 euro fee cost 1002, but the average cost is 100.
@@ -88,8 +110,8 @@ def test_value_reconstructed_from_total_when_the_column_is_missing():
     sell["total_eur"] = 478.0  # 480 received, minus a 2 euro fee
 
     b = hs.cost_breakdown([buy, sell])["X1"]
-    assert b["cost_ex"] == 600.0                     # 6 shares left at 100
-    assert round(b["realized_ex"], 2) == 80.0        # sold 4 at 120, cost 100
+    assert b["cost_ex"] == 600.0  # 6 shares left at 100
+    assert round(b["realized_ex"], 2) == 80.0  # sold 4 at 120, cost 100
     assert b["invested_gross"] == 1002.0
 
 
@@ -97,9 +119,10 @@ def test_value_reconstructed_from_total_when_the_column_is_missing():
 # Unrealised vs. Total
 # ---------------------------------------------------------------------------
 
+
 def test_unrealized_measures_price_against_avg_cost():
     rows = hs.holdings_rows(_bundle([_tx()], {"X1": _price(110.0)}))
-    assert rows[0]["unrealized_eur"] == 100.0        # 1100 value vs 1000 basis
+    assert rows[0]["unrealized_eur"] == 100.0  # 1100 value vs 1000 basis
     assert rows[0]["unrealized_pct"] == 10.0
 
 
@@ -107,8 +130,8 @@ def test_total_is_unrealized_minus_costs_when_nothing_was_sold():
     """With no sells and no dividends the two columns differ by the costs
     alone, and Totaal % is the classic return on every euro paid."""
     rows = hs.holdings_rows(_bundle([_tx()], {"X1": _price(110.0)}))
-    assert rows[0]["total_eur"] == 98.0              # 100 unrealized - 2 costs
-    assert rows[0]["total_pct"] == 9.78              # 98 / 1002
+    assert rows[0]["total_eur"] == 98.0  # 100 unrealized - 2 costs
+    assert rows[0]["total_pct"] == 9.78  # 98 / 1002
 
 
 def test_total_includes_realized_gains_and_dividends():
@@ -126,7 +149,7 @@ def test_total_includes_realized_gains_and_dividends():
     assert r["dividends_eur"] == 15.0
     assert r["costs_eur"] == 4.0
     assert r["total_eur"] == 151.0
-    assert r["total_pct"] == 15.07                   # 151 / 1002
+    assert r["total_pct"] == 15.07  # 151 / 1002
 
 
 def test_total_pct_is_measured_against_everything_ever_invested():
@@ -142,7 +165,7 @@ def test_total_pct_is_measured_against_everything_ever_invested():
     r = rows[0]
     assert r["invested_ex_costs"] == 100.0
     assert r["total_eur"] == 186.0
-    assert r["total_pct"] == 18.56                   # 186 / 1002, not / 100
+    assert r["total_pct"] == 18.56  # 186 / 1002, not / 100
 
 
 def test_the_four_reported_parts_add_up_to_the_reported_total():
@@ -159,10 +182,7 @@ def test_the_four_reported_parts_add_up_to_the_reported_total():
         _tx(kind="SELL", qty=3.0, price=120.005, fee=1.005, date="2026-02-05"),
     ]
     r = hs.holdings_rows(_bundle(txs, {"X1": _price(110.005)}, {"X1": 15.005}))[0]
-    assert (
-        r["unrealized_eur"] + r["realized_eur"] + r["dividends_eur"] - r["costs_eur"]
-        == r["total_eur"]
-    )
+    assert r["unrealized_eur"] + r["realized_eur"] + r["dividends_eur"] - r["costs_eur"] == r["total_eur"]
 
 
 def test_unpriced_position_reports_no_result_at_all():
@@ -196,9 +216,10 @@ def test_closed_positions_do_not_appear():
 # Today
 # ---------------------------------------------------------------------------
 
+
 def test_day_figures_come_from_the_previous_close():
     rows = hs.holdings_rows(_bundle([_tx()], {"X1": _price(110.0, prev=100.0)}))
-    assert rows[0]["day_eur"] == 100.0               # 10 shares, +10 each
+    assert rows[0]["day_eur"] == 100.0  # 10 shares, +10 each
     assert rows[0]["day_pct"] == 10.0
 
 
@@ -211,6 +232,7 @@ def test_day_figures_are_absent_without_a_previous_close():
 # The header strip
 # ---------------------------------------------------------------------------
 
+
 def test_totals_sum_the_rows_and_flag_completeness():
     txs = [
         _tx(isin="X1", name="Fund X"),
@@ -221,10 +243,10 @@ def test_totals_sum_the_rows_and_flag_completeness():
     bundle = _bundle(txs, prices)
     totals = hs.holdings_totals(hs.holdings_rows(bundle), bundle)
 
-    assert totals["value"] == 2200.0                 # 1100 + 1100
+    assert totals["value"] == 2200.0  # 1100 + 1100
     assert totals["num_positions"] == 2
     assert totals["unrealized"]["eur"] == 200.0
-    assert totals["total"]["eur"] == 196.0           # 200 - 4 costs
+    assert totals["total"]["eur"] == 196.0  # 200 - 4 costs
     assert totals["total"]["complete"] is True
     assert totals["day"]["delta_eur"] == 200.0
 
@@ -236,7 +258,7 @@ def test_totals_stay_visible_but_incomplete_when_a_position_has_no_price():
 
     assert totals["prices_available"] is False
     assert totals["total"]["complete"] is False
-    assert totals["total"]["eur"] == 98.0            # only the priced position
+    assert totals["total"]["eur"] == 98.0  # only the priced position
     # The unpriced one still contributed its costs to the breakdown strip.
     assert totals["costs_eur"] == 4.0
 
@@ -247,6 +269,7 @@ def test_totals_stay_visible_but_incomplete_when_a_position_has_no_price():
 # The dashboard shows one figure this tab does not: transaction costs over the
 # *whole* portfolio, closed positions included. The tests below pin the reason
 # it is presented as "of which", never as a fourth term in the breakdown.
+
 
 def test_total_costs_covers_closed_positions_too():
     """The Portfolio tab counts only open positions; the dashboard's
@@ -289,7 +312,7 @@ def test_the_three_chips_still_add_up_to_the_headline():
     """
     txs = [_tx(), _tx(kind="SELL", qty=4.0, price=120.0, date="2026-02-05")]
     s = _bundle(txs, {"X1": _price(110.0)}, {"X1": 15.0}).summary
-    s = {**s, "total_dividends": 15.0}   # dividends reach the summary via its own arg
+    s = {**s, "total_dividends": 15.0}  # dividends reach the summary via its own arg
 
     headline = s["total_gain"] + s["total_dividends"]
     chips = s["unrealized_gain"] + s["realized_gain"] + s["total_dividends"]
@@ -300,6 +323,7 @@ def test_the_three_chips_still_add_up_to_the_headline():
 # ---------------------------------------------------------------------------
 # The dashboard's breakdown as a sum
 # ---------------------------------------------------------------------------
+
 
 def test_gross_split_makes_the_breakdown_add_up():
     """ongerealiseerd + gerealiseerd + dividend - kosten = totaalrendement.
@@ -319,12 +343,7 @@ def test_gross_split_makes_the_breakdown_add_up():
     dividends = 15.0
 
     headline = s["total_gain"] + dividends
-    parts = (
-        s["unrealized_gain_ex_costs"]
-        + s["realized_gain_ex_costs"]
-        + dividends
-        - s["total_costs"]
-    )
+    parts = s["unrealized_gain_ex_costs"] + s["realized_gain_ex_costs"] + dividends - s["total_costs"]
     assert round(parts, 2) == round(headline, 2)
 
 
@@ -340,9 +359,7 @@ def test_gross_split_differs_from_the_net_one_by_exactly_the_costs():
     g = hs.gross_result_split(bundle)
     s = bundle.summary
 
-    lifted = (g["unrealized_gain_ex_costs"] - s["unrealized_gain"]) + (
-        g["realized_gain_ex_costs"] - s["realized_gain"]
-    )
+    lifted = (g["unrealized_gain_ex_costs"] - s["unrealized_gain"]) + (g["realized_gain_ex_costs"] - s["realized_gain"])
     assert round(lifted, 2) == s["total_costs"] == 4.0
     # And each side gets the costs that belong to it: 2 on the open position,
     # 1 + 1 on the one that was bought and sold.
@@ -365,6 +382,7 @@ def test_gross_split_ignores_unpriced_positions_like_the_summary_does():
 # ---------------------------------------------------------------------------
 # DeGiro's export carries no product type, so the grouping is read off the
 # product name. These are the real names from a live portfolio.
+
 
 def test_funds_are_recognised_as_trackers():
     for name in [
@@ -396,9 +414,7 @@ def test_issuer_names_that_are_also_listed_companies_do_not_misfile_their_shares
 
 
 def test_rows_carry_their_type_and_venue():
-    rows = hs.holdings_rows(
-        _bundle([_tx(isin="X1", name="NN GROUP NV", exchange="EAM")], {"X1": _price(110.0)})
-    )
+    rows = hs.holdings_rows(_bundle([_tx(isin="X1", name="NN GROUP NV", exchange="EAM")], {"X1": _price(110.0)}))
     assert rows[0]["asset_type"] == "share"
     assert rows[0]["exchange"] == "EAM"
 
@@ -414,6 +430,7 @@ def test_venue_is_absent_rather_than_wrong_when_unknown():
 # DeGiro holds a position per product *and* venue, each with its own average
 # price. The same ETF on Amsterdam and on Tradegate is two lines in their app,
 # and this tab has to be readable beside it.
+
 
 def test_the_same_fund_on_two_venues_is_two_positions():
     txs = [
@@ -444,7 +461,7 @@ def test_a_sale_only_releases_the_basis_of_its_own_venue():
         _tx(isin="X1", kind="SELL", qty=10.0, price=110.0, exchange="EAM", date="2026-02-05"),
     ]
     rows = hs.holdings_rows(_bundle(txs, {"X1": _price(210.0)}))
-    assert len(rows) == 1                                  # EAM is closed
+    assert len(rows) == 1  # EAM is closed
     assert rows[0]["exchange"] == "TDG"
     assert rows[0]["avg_cost_ex_costs"] == 200.0
 
@@ -475,7 +492,7 @@ def test_dividends_are_split_over_the_venues_by_shares():
     ]
     rows = hs.holdings_rows(_bundle(txs, {"X1": _price(100.0)}, {"X1": 40.0}))
     by_venue = {r["exchange"]: r for r in rows}
-    assert by_venue["EAM"]["dividends_eur"] == 10.0        # 10 of 40 shares
+    assert by_venue["EAM"]["dividends_eur"] == 10.0  # 10 of 40 shares
     assert by_venue["TDG"]["dividends_eur"] == 30.0
     assert sum(r["dividends_eur"] for r in rows) == 40.0
 

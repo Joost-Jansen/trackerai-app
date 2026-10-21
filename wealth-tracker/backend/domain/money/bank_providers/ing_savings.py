@@ -21,15 +21,22 @@ by its IBAN — plus the interest, and that *is* income.
 
 import re
 
-from domain.money.bank_providers import base
 from domain.i18n import tr
-
+from domain.money.bank_providers import base
 
 PROVIDER = "ing"
 
 COLUMNS = (
-    "Date", "Description", "Account", "Account name", "Counterparty",
-    "Debit/credit", "Amount", "Currency", "Transaction type", "Resulting balance",
+    "Date",
+    "Description",
+    "Account",
+    "Account name",
+    "Counterparty",
+    "Debit/credit",
+    "Amount",
+    "Currency",
+    "Transaction type",
+    "Resulting balance",
 )
 
 _DATE_FORMAT = "%Y-%m-%d"
@@ -55,9 +62,7 @@ def parse_row(row: dict) -> dict:
 
     direction = base.clean(row.get("Debit/credit")).lower()
     if direction not in ("debit", "credit"):
-        raise base.UnreadableRule(
-            tr("Unknown direction in Debit/credit: {0}", repr(row.get('Debit/credit')))
-        )
+        raise base.UnreadableRule(tr("Unknown direction in Debit/credit: {0}", repr(row.get("Debit/credit"))))
     amount = abs(base.parse_amount(row.get("Amount")))
     if direction == "credit":
         amount = -amount

@@ -24,8 +24,12 @@ type Step = "choose" | "analysing" | "barcode" | "again";
 
 function Option({ title, text, onClick, disabled = false }: { title: string; text: string; onClick: () => void; disabled?: boolean }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled}
-      className="flex flex-col items-start gap-0.5 rounded-md border border-border px-4 py-3 text-left hover:bg-[var(--surface-sunken)] disabled:opacity-50">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex flex-col items-start gap-0.5 rounded-md border border-border px-4 py-3 text-left hover:bg-[var(--surface-sunken)] disabled:opacity-50"
+    >
       <span className="text-[14px] font-medium">{title}</span>
       <span className="text-[12px] text-ink-muted">{text}</span>
     </button>
@@ -49,8 +53,12 @@ function Again({ day, onPick }: { day: string; onPick: (start: EditorStart) => v
         <section className="flex flex-col gap-1.5">
           <h3 className="text-[12px] font-medium text-ink-muted">{t.likeYesterday}</h3>
           {yesterday.map((m) => (
-            <Option key={`y${m.id}`} title={m.items.map((i) => i.name).join(", ")} text={`${m.eaten_at} · ${Math.round(m.totals.energy_kcal)} kcal`}
-              onClick={() => onPick({ input: "repeat", items: fromMeal(m, false), moment: m.moment })} />
+            <Option
+              key={`y${m.id}`}
+              title={m.items.map((i) => i.name).join(", ")}
+              text={`${m.eaten_at} · ${Math.round(m.totals.energy_kcal)} kcal`}
+              onClick={() => onPick({ input: "repeat", items: fromMeal(m, false), moment: m.moment })}
+            />
           ))}
         </section>
       )}
@@ -58,8 +66,12 @@ function Again({ day, onPick }: { day: string; onPick: (start: EditorStart) => v
         <section className="flex flex-col gap-1.5">
           <h3 className="text-[12px] font-medium text-ink-muted">{t.favourites}</h3>
           {favourites.map((f) => (
-            <Option key={`f${f.id}`} title={f.name} text={f.items.map((i) => i.name).join(", ")}
-              onClick={() => onPick({ input: "repeat", items: fromTemplate(f), moment: f.moment })} />
+            <Option
+              key={`f${f.id}`}
+              title={f.name}
+              text={f.items.map((i) => i.name).join(", ")}
+              onClick={() => onPick({ input: "repeat", items: fromTemplate(f), moment: f.moment })}
+            />
           ))}
         </section>
       )}
@@ -99,17 +111,38 @@ function Barcode({ onFound }: { onFound: (food: Food) => void }) {
   }
 
   return (
-    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (ean.trim()) look(ean.trim()); }}>
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (ean.trim()) look(ean.trim());
+      }}
+    >
       {canReadBarcodes() && (
         <>
           <input ref={file} type="file" accept="image/*" capture="environment" className="hidden" onChange={scanned} />
-          <Button variant="secondary" onClick={() => file.current?.click()} disabled={busy}>{t.scan}</Button>
+          <Button variant="secondary" onClick={() => file.current?.click()} disabled={busy}>
+            {t.scan}
+          </Button>
         </>
       )}
-      <Input label={t.ean} inputMode="numeric" autoFocus={!canReadBarcodes()} value={ean} onChange={(e) => setEan(e.target.value.replace(/\D/g, ""))} maxLength={14} />
-      <Button variant="primary" type="submit" disabled={busy || ean.length < 8}>{t.lookUp}</Button>
+      <Input
+        label={t.ean}
+        inputMode="numeric"
+        autoFocus={!canReadBarcodes()}
+        value={ean}
+        onChange={(e) => setEan(e.target.value.replace(/\D/g, ""))}
+        maxLength={14}
+      />
+      <Button variant="primary" type="submit" disabled={busy || ean.length < 8}>
+        {t.lookUp}
+      </Button>
       <p className="text-[11.5px] text-ink-muted">{t.offNote}</p>
-      {error && <p className="text-[12.5px] text-loss" role="alert">{error}</p>}
+      {error && (
+        <p className="text-[12.5px] text-loss" role="alert">
+          {error}
+        </p>
+      )}
     </form>
   );
 }
@@ -124,7 +157,12 @@ export default function AddMealSheet({ day, ai, onClose, file }: { day: string; 
   const [error, setError] = useState<string | null>(null);
   const camera = useRef<HTMLInputElement>(null);
 
-  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  useEffect(
+    () => () => {
+      if (preview) URL.revokeObjectURL(preview);
+    },
+    [preview],
+  );
 
   async function analyse(photo: File) {
     setError(null);
@@ -156,10 +194,19 @@ export default function AddMealSheet({ day, ai, onClose, file }: { day: string; 
 
   if (editor) return <MealEditor day={day} start={editor} onClose={onClose} />;
 
-  const title = step === "analysing" ? t.analysing : step === "barcode" ? t.barcode : step === "again" ? t.again : tt.nutrition.editor.addTitle;
+  const title =
+    step === "analysing" ? t.analysing : step === "barcode" ? t.barcode : step === "again" ? t.again : tt.nutrition.editor.addTitle;
   return (
-    <Dialog open onClose={onClose} title={title}
-      actions={<Button variant="ghost" onClick={step === "choose" || step === "analysing" ? onClose : () => setStep("choose")}>{step === "choose" || step === "analysing" ? t.close : t.back}</Button>}>
+    <Dialog
+      open
+      onClose={onClose}
+      title={title}
+      actions={
+        <Button variant="ghost" onClick={step === "choose" || step === "analysing" ? onClose : () => setStep("choose")}>
+          {step === "choose" || step === "analysing" ? t.close : t.back}
+        </Button>
+      }
+    >
       <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={picked} />
       {step === "choose" && (
         <div className="grid gap-2 sm:grid-cols-2">
@@ -167,16 +214,32 @@ export default function AddMealSheet({ day, ai, onClose, file }: { day: string; 
           <Option title={t.search} text={t.searchText} onClick={() => setEditor({ input: "search", items: [] })} />
           <Option title={t.barcode} text={t.barcodeText} onClick={() => setStep("barcode")} />
           <Option title={t.again} text={t.againText} onClick={() => setStep("again")} />
-          {!ai && <p className="text-[11.5px] text-ink-muted sm:col-span-2"><Link href="/settings/zones/#nutrition" className="underline underline-offset-4">{t.turnOn}</Link></p>}
-          {error && <p className="text-[12.5px] text-loss sm:col-span-2" role="alert">{error}</p>}
+          {!ai && (
+            <p className="text-[11.5px] text-ink-muted sm:col-span-2">
+              <Link href="/settings/zones/#nutrition" className="underline underline-offset-4">
+                {t.turnOn}
+              </Link>
+            </p>
+          )}
+          {error && (
+            <p className="text-[12.5px] text-loss sm:col-span-2" role="alert">
+              {error}
+            </p>
+          )}
         </div>
       )}
       {step === "analysing" && (
         <div className="flex flex-col items-center gap-3" aria-busy="true">
           {/* eslint-disable-next-line @next/next/no-img-element -- a local preview of the photo being analysed */}
           {preview && <img src={preview} alt="" className="max-h-48 w-full rounded-md object-cover opacity-80" />}
-          <p className="text-[13px] text-ink-muted" aria-live="polite">{t.looking}</p>
-          <div className="flex w-full flex-col gap-2">{[0, 1, 2].map((i) => <span key={i} className="h-8 animate-pulse rounded bg-[var(--surface-sunken)]" />)}</div>
+          <p className="text-[13px] text-ink-muted" aria-live="polite">
+            {t.looking}
+          </p>
+          <div className="flex w-full flex-col gap-2">
+            {[0, 1, 2].map((i) => (
+              <span key={i} className="h-8 animate-pulse rounded bg-[var(--surface-sunken)]" />
+            ))}
+          </div>
         </div>
       )}
       {step === "barcode" && <Barcode onFound={(food) => setEditor({ input: "barcode", items: [fromFood(food, locale)] })} />}

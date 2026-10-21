@@ -15,13 +15,14 @@ import sqlite3
 
 from fastapi import APIRouter, Depends
 
-from domain import database
-from domain.portfolio import etf_holdings
 from app.deps import get_db
 from app.services import etf_service
 from app.services.portfolio_service import load_portfolio
+from domain import database
+from domain.portfolio import etf_holdings
 
 router = APIRouter(prefix="/api/etf-analysis", tags=["etf-analysis"])
+
 
 def _breakdown(conn: sqlite3.Connection) -> dict:
     return etf_service.get_breakdown(conn, load_portfolio(conn).positions)
@@ -49,9 +50,7 @@ def breakdown(conn: sqlite3.Connection = Depends(get_db)):
         "region": etf_service.as_slices(data["region_totals"]),
         # The same countries with nothing folded into "Other". The balk draws
         # `region`; this is what sits behind its "Overig".
-        "region_all": etf_service.as_slices(
-            data.get("region_all_totals", data["region_totals"]), decimals=2
-        ),
+        "region_all": etf_service.as_slices(data.get("region_all_totals", data["region_totals"]), decimals=2),
         "coverage": data["coverage"],
         "excluded_pct": data["excluded_pct"],
         "quality": etf_service.diversification_quality(data["coverage"]),

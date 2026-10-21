@@ -24,9 +24,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
-from domain.portfolio import series as charts  # noqa: E402
 from domain.portfolio import positions as portfolio  # noqa: E402
-
+from domain.portfolio import series as charts  # noqa: E402
 
 FIRST_BUY = datetime.date.today() - datetime.timedelta(days=6)
 DAYS = pd.DatetimeIndex([FIRST_BUY + datetime.timedelta(days=i) for i in range(7)])
@@ -35,22 +34,28 @@ DAYS = pd.DatetimeIndex([FIRST_BUY + datetime.timedelta(days=i) for i in range(7
 @pytest.fixture
 def closes(monkeypatch):
     """yf.download answers each call with a flat frame for what it was asked."""
+
     def install(**by_ticker):
         by_ticker = {t.replace("_", ".").replace("EUR.X", "EUR=X"): v for t, v in by_ticker.items()}
 
         def download(tickers, **kw):
             asked = [t for t in tickers if t in by_ticker]
-            return pd.DataFrame(
-                {("Close", t): [by_ticker[t]] * len(DAYS) for t in asked}, index=DAYS
-            )
+            return pd.DataFrame({("Close", t): [by_ticker[t]] * len(DAYS) for t in asked}, index=DAYS)
+
         monkeypatch.setattr(charts.yf, "download", download)
+
     return install
 
 
 def _buy(isin, quantity, total_eur):
     return {
-        "date": FIRST_BUY.isoformat(), "time": "09:30", "isin": isin, "name": isin,
-        "quantity": quantity, "total_eur": total_eur, "transaction_type": "BUY",
+        "date": FIRST_BUY.isoformat(),
+        "time": "09:30",
+        "isin": isin,
+        "name": isin,
+        "quantity": quantity,
+        "total_eur": total_eur,
+        "transaction_type": "BUY",
     }
 
 
@@ -100,6 +105,7 @@ def test_a_rate_that_starts_after_the_history_means_no_chart(closes, monkeypatch
         if tickers == ["USDEUR=X"]:
             return {"USDEUR=X": late}
         return real(tickers, **kw)
+
     monkeypatch.setattr(charts, "_download_closes", download)
 
     with pytest.raises(charts.DataUnavailable):
@@ -111,9 +117,7 @@ def test_a_row_from_before_quote_currency_is_read_as_its_currency(closes):
     closes(AAA_AS=100.0)
     prices = {"NL_FUND": {"ticker": "AAA.AS", "price": 100.0, "currency": "EUR"}}
 
-    _dates, _invested, values, _vd = charts.portfolio_history_series(
-        [TRANSACTIONS[0]], prices, []
-    )
+    _dates, _invested, values, _vd = charts.portfolio_history_series([TRANSACTIONS[0]], prices, [])
 
     assert values[-1] == pytest.approx(1000.0)
 
@@ -121,9 +125,7 @@ def test_a_row_from_before_quote_currency_is_read_as_its_currency(closes):
 def test_to_eur_remembers_what_the_ticker_quotes_in(monkeypatch):
     monkeypatch.setattr(portfolio, "_fx_to_eur_rate", lambda ccy: 0.9)
 
-    converted = portfolio._to_eur(
-        {"ticker": "TSM", "price": 110.0, "currency": "USD", "previous_close": 100.0}
-    )
+    converted = portfolio._to_eur({"ticker": "TSM", "price": 110.0, "currency": "USD", "previous_close": 100.0})
 
     assert converted["currency"] == "EUR"
     assert converted["price"] == pytest.approx(99.0)

@@ -62,7 +62,7 @@ def encrypt(value: str, key: str) -> str:
 
 def decrypt(token: str, key: str) -> str:
     if token.startswith(PREFIX):
-        kid, _, body = token[len(PREFIX):].partition(":")
+        kid, _, body = token[len(PREFIX) :].partition(":")
         if kid != key_id(key):
             raise WrongKey("versleuteld met een andere sleutel")
         token = body

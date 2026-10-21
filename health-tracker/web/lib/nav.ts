@@ -23,7 +23,13 @@ const tab = (id: NavTab["id"], href: string, adminOnly?: boolean): NavTab => ({ 
 export const NAV: NavGroup[] = [
   {
     items: [
-      { id: "dashboard", label: "", href: "/dashboard/", icon: "layout", tabs: [tab("overview", "/dashboard/"), tab("sleepBody", "/dashboard/body/")] },
+      {
+        id: "dashboard",
+        label: "",
+        href: "/dashboard/",
+        icon: "layout",
+        tabs: [tab("overview", "/dashboard/"), tab("sleepBody", "/dashboard/body/")],
+      },
       {
         id: "trends",
         label: "",
@@ -34,7 +40,14 @@ export const NAV: NavGroup[] = [
       { id: "routes", label: "", href: "/routes/", icon: "route" },
       { id: "history", label: "", href: "/history/", icon: "map" },
       { id: "plan", label: "", href: "/plan/", icon: "clipboard" },
-      { id: "nutrition", label: "", href: "/nutrition/", icon: "utensils", beta: "nutrition", tabs: [tab("day", "/nutrition/"), tab("nutritionTrends", "/nutrition/trends/"), tab("foods", "/nutrition/foods/")] },
+      {
+        id: "nutrition",
+        label: "",
+        href: "/nutrition/",
+        icon: "utensils",
+        beta: "nutrition",
+        tabs: [tab("day", "/nutrition/"), tab("nutritionTrends", "/nutrition/trends/"), tab("foods", "/nutrition/foods/")],
+      },
       {
         id: "log",
         label: "",

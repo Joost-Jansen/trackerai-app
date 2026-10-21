@@ -68,10 +68,30 @@ def _values():
     """Amounts, rounding-boundary values, exact ties, and arbitrary doubles."""
     random.seed(20260717)  # fixed: a formatter regression should not depend on the day
     vals = [
-        0.0, -0.0, 1.0, -1.0, 0.5, 10.0, 1234.5, 13363.06, 3422.78, -19.31,
-        28.27, 271.74, 9940.28, 477.63, -0.01, 1234567.891, 123456789.123,
+        0.0,
+        -0.0,
+        1.0,
+        -1.0,
+        0.5,
+        10.0,
+        1234.5,
+        13363.06,
+        3422.78,
+        -19.31,
+        28.27,
+        271.74,
+        9940.28,
+        477.63,
+        -0.01,
+        1234567.891,
+        123456789.123,
         # each of these printed differently before this test existed
-        2.675, 1.005, 0.125, 0.375, 0.135, 0.00005,
+        2.675,
+        1.005,
+        0.125,
+        0.375,
+        0.135,
+        0.00005,
     ]
     for _ in range(600):
         vals.append(round(random.uniform(-50000, 50000), random.choice([0, 1, 2, 3, 4, 6])))
@@ -129,30 +149,45 @@ def test_fmt_eu_matches_format_ts(tmp_path):
     random.seed(20260717)
     cases = [{"value": v, "opts": random.choice(_VARIANTS)} for v in _values()]
     expected = [
-        fmt_eu(c["value"], c["opts"].get("decimals", 2), c["opts"].get("prefix", ""),
-               c["opts"].get("suffix", ""), c["opts"].get("plus", False))
+        fmt_eu(
+            c["value"], c["opts"].get("decimals", 2), c["opts"].get("prefix", ""), c["opts"].get("suffix", ""), c["opts"].get("plus", False)
+        )
         for c in cases
     ]
     actual = _run_node(cases, tmp_path)
 
-    mismatches = [
-        f"{c['value']!r} {c['opts']} -> python={e!r} ts={a!r}"
-        for c, e, a in zip(cases, expected, actual) if e != a
-    ]
+    mismatches = [f"{c['value']!r} {c['opts']} -> python={e!r} ts={a!r}" for c, e, a in zip(cases, expected, actual) if e != a]
     assert not mismatches, f"{len(mismatches)}/{len(cases)} differ:\n" + "\n".join(mismatches[:20])
 
 
 @needs_node
 def test_share_counts_match_python_g_format(tmp_path):
     """Share counts print via f"{v:g}", not fmt_eu — significant digits, no grouping."""
-    vals = [0, 1, 10, 10.0, 0.5, 100, 1000, 100000, 1000000, 12345678, 0.001,
-            0.00001, 123.456, 1.23456789, 2.5, 999999, 1000001, -5, -0.5, 0.125]
+    vals = [
+        0,
+        1,
+        10,
+        10.0,
+        0.5,
+        100,
+        1000,
+        100000,
+        1000000,
+        12345678,
+        0.001,
+        0.00001,
+        123.456,
+        1.23456789,
+        2.5,
+        999999,
+        1000001,
+        -5,
+        -0.5,
+        0.125,
+    ]
     cases = [{"value": v, "shares": True} for v in vals]
     expected = [f"{v:g}".replace(".", ",") for v in vals]
     actual = _run_node(cases, tmp_path)
 
-    mismatches = [
-        f"{v!r} -> python={e!r} ts={a!r}"
-        for v, e, a in zip(vals, expected, actual) if e != a
-    ]
+    mismatches = [f"{v!r} -> python={e!r} ts={a!r}" for v, e, a in zip(vals, expected, actual) if e != a]
     assert not mismatches, "\n".join(mismatches)

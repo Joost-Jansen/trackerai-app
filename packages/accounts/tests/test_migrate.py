@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 import yaml
@@ -10,27 +10,52 @@ from trackerai_accounts import Accounts, Config, connect, crypto, migrate, totp
 from trackerai_accounts.service import hash_password
 from trackerai_accounts.store import sqlalchemy_url
 
-T = datetime(2026, 1, 1, tzinfo=timezone.utc)
+T = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 def health_db(url, key):
     """health-tracker's users table as it was before the shared accounts, in the database at `url`."""
     m = MetaData()
-    users = Table("users", m, Column("id", Integer, primary_key=True), Column("username", String(40)), Column("display_name", String(80)),
-                  Column("password_hash", String(100)), Column("is_admin", Boolean), Column("suspended", Boolean),
-                  Column("created_at", DateTime(timezone=True)), Column("last_login_at", DateTime(timezone=True)),
-                  Column("session_version", Integer), Column("consent_at", DateTime(timezone=True)), Column("privacy_version", String(20)),
-                  Column("totp_secret", Text), Column("totp_enabled_at", DateTime(timezone=True)), Column("totp_last_step", Integer),
-                  Column("totp_backup", JSON))
-    settings = Table("settings", m, Column("user_id", Integer), Column("key", String(64)), Column("value", JSON), PrimaryKeyConstraint("user_id", "key"))
+    users = Table(
+        "users",
+        m,
+        Column("id", Integer, primary_key=True),
+        Column("username", String(40)),
+        Column("display_name", String(80)),
+        Column("password_hash", String(100)),
+        Column("is_admin", Boolean),
+        Column("suspended", Boolean),
+        Column("created_at", DateTime(timezone=True)),
+        Column("last_login_at", DateTime(timezone=True)),
+        Column("session_version", Integer),
+        Column("consent_at", DateTime(timezone=True)),
+        Column("privacy_version", String(20)),
+        Column("totp_secret", Text),
+        Column("totp_enabled_at", DateTime(timezone=True)),
+        Column("totp_last_step", Integer),
+        Column("totp_backup", JSON),
+    )
+    settings = Table(
+        "settings", m, Column("user_id", Integer), Column("key", String(64)), Column("value", JSON), PrimaryKeyConstraint("user_id", "key")
+    )
     app_settings = Table("app_settings", m, Column("key", String(64), primary_key=True), Column("value", JSON))
     engine = create_engine(sqlalchemy_url(url))
     m.create_all(engine)
     with engine.begin() as c:
         for row in [
-            dict(id=1, username="joost", password_hash=hash_password("health password 1"), is_admin=True, suspended=False, created_at=T,
-                 consent_at=T, privacy_version="2026-10-07", totp_secret=crypto.encrypt("JBSWY3DPEHPK3PXP", key), totp_enabled_at=T,
-                 totp_backup=["h1"]),
+            dict(
+                id=1,
+                username="joost",
+                password_hash=hash_password("health password 1"),
+                is_admin=True,
+                suspended=False,
+                created_at=T,
+                consent_at=T,
+                privacy_version="2026-10-07",
+                totp_secret=crypto.encrypt("JBSWY3DPEHPK3PXP", key),
+                totp_enabled_at=T,
+                totp_backup=["h1"],
+            ),
             dict(id=2, username="anna", password_hash=hash_password("anna's passphrase"), is_admin=False, suspended=False, created_at=T),
             dict(id=3, username="_example", password_hash="x", is_admin=False, suspended=False, created_at=T),
         ]:
@@ -45,13 +70,22 @@ def wealth_yaml(path, key):
     cfg = {
         "admins": ["Joost"],
         "registration_mode": "open",
-        "credentials": {"usernames": {
-            "Joost": {"name": "Joost", "password": hash_password("wealth password 2"),
-                      "totp": {"enabled": True, "secret": box.encrypt(b"KRSXG5CTMVRXEZLU").decode(), "backup_codes": ["w1"]}},
-            "tim": {"name": "Tim", "password": hash_password("tim's passphrase"), "locale": "nl",
-                    "totp": {"enabled": True, "secret": box.encrypt(b"KRSXG5CTMVRXEZLU").decode(), "backup_codes": []}},
-            "anna": {"name": "Anna W", "password": hash_password("another anna")},
-        }},
+        "credentials": {
+            "usernames": {
+                "Joost": {
+                    "name": "Joost",
+                    "password": hash_password("wealth password 2"),
+                    "totp": {"enabled": True, "secret": box.encrypt(b"KRSXG5CTMVRXEZLU").decode(), "backup_codes": ["w1"]},
+                },
+                "tim": {
+                    "name": "Tim",
+                    "password": hash_password("tim's passphrase"),
+                    "locale": "nl",
+                    "totp": {"enabled": True, "secret": box.encrypt(b"KRSXG5CTMVRXEZLU").decode(), "backup_codes": []},
+                },
+                "anna": {"name": "Anna W", "password": hash_password("another anna")},
+            }
+        },
     }
     path.write_text(yaml.safe_dump(cfg))
     return str(path)

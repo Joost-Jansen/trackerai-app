@@ -8,7 +8,6 @@ import yaml
 from app.core import auth_store, config
 from domain import database
 from domain.money import categorization, safe_regex
-
 from tests.test_mcp_agents import _agent, _call, _login, _seed_bank
 
 
@@ -63,13 +62,27 @@ def test_last_used_is_recorded(client):
 def test_backtracking_patterns_are_refused(client):
     _login(client)
     for pattern in ("(a|aa)+$", "(a+)+", r"(\w+\s?)*$", "(.*,){20}", "x" * 501):
-        r = client.post("/api/categories/rules", json={
-            "priority": 30, "field": "N", "pattern": pattern, "direction": "", "category": "Huur",
-        })
+        r = client.post(
+            "/api/categories/rules",
+            json={
+                "priority": 30,
+                "field": "N",
+                "pattern": pattern,
+                "direction": "",
+                "category": "Huur",
+            },
+        )
         assert r.status_code == 400, pattern
-    ok = client.post("/api/categories/rules", json={
-        "priority": 30, "field": "N", "pattern": r"ALBERT HEIJN|\bJUMBO\b|AH TO GO \d+", "direction": "", "category": "Huur",
-    })
+    ok = client.post(
+        "/api/categories/rules",
+        json={
+            "priority": 30,
+            "field": "N",
+            "pattern": r"ALBERT HEIJN|\bJUMBO\b|AH TO GO \d+",
+            "direction": "",
+            "category": "Huur",
+        },
+    )
     assert ok.status_code == 201
 
 

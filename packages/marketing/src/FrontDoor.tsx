@@ -24,7 +24,10 @@ export type FrontDoorProps = {
 const MARK = { health: HealthMark, wealth: WealthMark };
 const VISUAL = { health: HealthVisual, wealth: WealthVisual };
 const ORDER: BrandId[] = ["health", "wealth"];
-const LANGUAGES: { id: Locale; name: string }[] = [{ id: "en", name: "English" }, { id: "nl", name: "Nederlands" }];
+const LANGUAGES: { id: Locale; name: string }[] = [
+  { id: "en", name: "English" },
+  { id: "nl", name: "Nederlands" },
+];
 
 export default function FrontDoor({ locale, urls, privacyHref, days }: FrontDoorProps) {
   const c = COPY[locale];
@@ -50,11 +53,19 @@ export default function FrontDoor({ locale, urls, privacyHref, days }: FrontDoor
           <div className="mk-grid-lines" aria-hidden />
           <div className="mk-wrap">
             <p className="mk-eyebrow mk-fade-up">{c.hero.eyebrow}</p>
-            <h1 className="mk-h1 mk-fade-up" style={{ animationDelay: "80ms" }}>{c.hero.title}</h1>
-            <p className="mk-lead mk-fade-up" style={{ animationDelay: "160ms" }}>{c.hero.lead}</p>
+            <h1 className="mk-h1 mk-fade-up" style={{ animationDelay: "80ms" }}>
+              {c.hero.title}
+            </h1>
+            <p className="mk-lead mk-fade-up" style={{ animationDelay: "160ms" }}>
+              {c.hero.lead}
+            </p>
             <div className="mk-actions mk-fade-up" style={{ animationDelay: "240ms" }}>
-              <a href="#health" className="mk-btn mk-btn--accent mk-health">{c.hero.health}</a>
-              <a href="#wealth" className="mk-btn mk-btn--accent mk-wealth">{c.hero.wealth}</a>
+              <a href="#health" className="mk-btn mk-btn--accent mk-health">
+                {c.hero.health}
+              </a>
+              <a href="#wealth" className="mk-btn mk-btn--accent mk-wealth">
+                {c.hero.wealth}
+              </a>
             </div>
           </div>
 
@@ -70,11 +81,19 @@ export default function FrontDoor({ locale, urls, privacyHref, days }: FrontDoor
                   </div>
                   <h2 className="mk-h3">{b.title}</h2>
                   <ul className="mk-points">
-                    {b.points.map((p) => <li key={p}>{p}</li>)}
+                    {b.points.map((p) => (
+                      <li key={p}>{p}</li>
+                    ))}
                   </ul>
                   <div className="mk-actions">
-                    {urls[id] && <a href={`${urls[id]}/`} className="mk-btn mk-btn--accent">{open(id)}</a>}
-                    <a href={`#${id}`} className="mk-btn mk-btn--ghost">{c.more}</a>
+                    {urls[id] && (
+                      <a href={`${urls[id]}/`} className="mk-btn mk-btn--accent">
+                        {open(id)}
+                      </a>
+                    )}
+                    <a href={`#${id}`} className="mk-btn mk-btn--ghost">
+                      {c.more}
+                    </a>
                   </div>
                 </article>
               );
@@ -92,16 +111,27 @@ export default function FrontDoor({ locale, urls, privacyHref, days }: FrontDoor
               <div className="mk-grid-lines" aria-hidden />
               <div className="mk-wrap mk-split">
                 <div className="mk-split-text">
-                  <p className="mk-eyebrow mk-kicker"><Mark size={18} /> {b.kicker}</p>
+                  <p className="mk-eyebrow mk-kicker">
+                    <Mark size={18} /> {b.kicker}
+                  </p>
                   <h2 className="mk-h2">{b.title}</h2>
                   <p className="mk-lead">{b.lead}</p>
                   <ul className="mk-checks">
-                    {b.privacy.map((p) => <li key={p}><Icon name="lock" size={16} />{p}</li>)}
+                    {b.privacy.map((p) => (
+                      <li key={p}>
+                        <Icon name="lock" size={16} />
+                        {p}
+                      </li>
+                    ))}
                   </ul>
                   {urls[id] && (
                     <div className="mk-actions">
-                      <a href={`${urls[id]}/`} className="mk-btn mk-btn--accent">{open(id)}</a>
-                      <a href="#signup" className="mk-btn mk-btn--ghost">{c.createAccount}</a>
+                      <a href={`${urls[id]}/`} className="mk-btn mk-btn--accent">
+                        {open(id)}
+                      </a>
+                      <a href="#signup" className="mk-btn mk-btn--ghost">
+                        {c.createAccount}
+                      </a>
                     </div>
                   )}
                 </div>
@@ -110,7 +140,9 @@ export default function FrontDoor({ locale, urls, privacyHref, days }: FrontDoor
               <div className="mk-wrap mk-features">
                 {b.features.map((f) => (
                   <div key={f.title} className="mk-glass">
-                    <span className="mk-icon"><Icon name={f.icon} /></span>
+                    <span className="mk-icon">
+                      <Icon name={f.icon} />
+                    </span>
                     <h3 className="mk-h4">{f.title}</h3>
                     <p>{f.text}</p>
                   </div>
@@ -128,7 +160,9 @@ export default function FrontDoor({ locale, urls, privacyHref, days }: FrontDoor
             <div className="mk-features mk-features--light">
               {c.shared.items.map((f) => (
                 <div key={f.title} className="mk-tile">
-                  <span className="mk-icon mk-icon--duo"><Icon name={f.icon} /></span>
+                  <span className="mk-icon mk-icon--duo">
+                    <Icon name={f.icon} />
+                  </span>
                   <h3 className="mk-h4">{f.title}</h3>
                   <p>{f.text}</p>
                 </div>
@@ -167,15 +201,26 @@ export default function FrontDoor({ locale, urls, privacyHref, days }: FrontDoor
 
       <footer className="mk-footer">
         <div className="mk-wrap mk-footer-row">
-          <span className="mk-brand"><TrackerAIMark size={18} /><span>{c.footer.made}</span></span>
+          <span className="mk-brand">
+            <TrackerAIMark size={18} />
+            <span>{c.footer.made}</span>
+          </span>
           <span className="mk-footer-links">
             {privacyHref && <a href={privacyHref}>{c.footer.privacy}</a>}
             {/* English until someone picks Nederlands; the host keeps the choice (`?lang=`, see LOCALE_COOKIE). Each
                 language is named in itself, so the way back is readable whichever is shown. */}
             <span className="mk-lang" role="group" aria-label={c.footer.language}>
-              {LANGUAGES.map(({ id, name }) => (id === locale
-                ? <span key={id} aria-current="true" lang={id}>{name}</span>
-                : <a key={id} href={`?lang=${id}`} lang={id} hrefLang={id} rel="nofollow">{name}</a>))}
+              {LANGUAGES.map(({ id, name }) =>
+                id === locale ? (
+                  <span key={id} aria-current="true" lang={id}>
+                    {name}
+                  </span>
+                ) : (
+                  <a key={id} href={`?lang=${id}`} lang={id} hrefLang={id} rel="nofollow">
+                    {name}
+                  </a>
+                ),
+              )}
             </span>
           </span>
         </div>

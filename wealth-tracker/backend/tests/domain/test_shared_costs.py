@@ -20,11 +20,26 @@ def _conn():
 
 def _pot(conn, account, rows):
     """rows: [(date, amount)], saved in one import, all in "Niet meetellen"."""
-    bank_transactions.save(conn, account, [{
-        "date": d, "interest_date": None, "amount": a, "currency": "EUR",
-        "name": "X", "counterparty_iban": None, "description": "",
-        "code": None, "kind": None, "dedup_hash": f"{n:016d}", "raw": {},
-    } for n, (d, a) in enumerate(rows)])
+    bank_transactions.save(
+        conn,
+        account,
+        [
+            {
+                "date": d,
+                "interest_date": None,
+                "amount": a,
+                "currency": "EUR",
+                "name": "X",
+                "counterparty_iban": None,
+                "description": "",
+                "code": None,
+                "kind": None,
+                "dedup_hash": f"{n:016d}",
+                "raw": {},
+            }
+            for n, (d, a) in enumerate(rows)
+        ],
+    )
     conn.execute("UPDATE bank_transactions SET category_auto = ?", (categorization.EXCLUDE,))
     conn.commit()
 
@@ -34,9 +49,13 @@ def _trip(conn):
     you pay the boat 1600, and later refund 50 of deposit to each friend."""
     r = accounts.make_bank_account(conn, kind="bank", provider="manual", name="bunq")
     accounts.set_balance(conn, r, "2026-01-01", 5000.0)
-    _pot(conn, r, [("2026-02-01", -400.0)] * 3      # friends pay ahead
-                  + [("2026-03-01", 1600.0)]          # you pay the boat
-                  + [("2026-04-01", 50.0)] * 3)       # their deposit back
+    _pot(
+        conn,
+        r,
+        [("2026-02-01", -400.0)] * 3  # friends pay ahead
+        + [("2026-03-01", 1600.0)]  # you pay the boat
+        + [("2026-04-01", 50.0)] * 3,
+    )  # their deposit back
     return r
 
 

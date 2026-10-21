@@ -47,15 +47,20 @@ import AccountGate, { needsGate } from "@/components/AccountGate";
 import { adminHref, useFrontDoor, useTrackerUrl } from "@/lib/frontDoor";
 
 type Me = {
-  username: string; name: string; is_admin: boolean; beta_features: string[]; locale?: string | null;
+  username: string;
+  name: string;
+  is_admin: boolean;
+  beta_features: string[];
+  locale?: string | null;
   // the shared trackerai account: what is still missing before this tracker opens (components/AccountGate.tsx)
-  totp_setup_required?: boolean; in_app?: boolean;
+  totp_setup_required?: boolean;
+  in_app?: boolean;
 };
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
   const first = parts[0]?.[0] ?? "";
-  const last = parts.length > 1 ? parts[parts.length - 1][0] : parts[0]?.[1] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : (parts[0]?.[1] ?? "");
   return (first + last).toUpperCase();
 }
 
@@ -143,10 +148,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("mousedown", onClick);
   }, [menuOpen]);
 
-  const groups = useMemo(
-    () => visibleNav({ beta: me?.beta_features ?? [], isAdmin: me?.is_admin ?? false }),
-    [me]
-  );
+  const groups = useMemo(() => visibleNav({ beta: me?.beta_features ?? [], isAdmin: me?.is_admin ?? false }), [me]);
   const item = findItem(groups, pathname);
   const tab = findTab(item, pathname);
 
@@ -175,21 +177,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const frontDoor = useFrontDoor(!!me);
   const healthUrl = useTrackerUrl("health", !!me);
   const tabVisible = (itemId: string, tabId: string) =>
-    itemId !== "help"
-    || (tabId === "portfolio" ? isIncluded(choice, "investments") : tabId === "money" ? isIncluded(choice, "money") : true);
-  const visibleTabs = item?.tabs?.filter((t) => tabVisible(item.id, t.id)).map((t) => ({
-    id: t.id,
-    label: t.id === "labelling" && outstanding > 0
-      ? <span className="inline-flex items-center gap-1.5">{t.label} <Badge>{outstanding}</Badge></span>
-      : t.label,
-    href: t.id === "admin" ? adminHref(frontDoor) : t.href,
-  })) ?? [];
+    itemId !== "help" ||
+    (tabId === "portfolio" ? isIncluded(choice, "investments") : tabId === "money" ? isIncluded(choice, "money") : true);
+  const visibleTabs =
+    item?.tabs
+      ?.filter((t) => tabVisible(item.id, t.id))
+      .map((t) => ({
+        id: t.id,
+        label:
+          t.id === "labelling" && outstanding > 0 ? (
+            <span className="inline-flex items-center gap-1.5">
+              {t.label} <Badge>{outstanding}</Badge>
+            </span>
+          ) : (
+            t.label
+          ),
+        href: t.id === "admin" ? adminHref(frontDoor) : t.href,
+      })) ?? [];
 
   if (gate) return <AccountGate me={gate} onReady={() => setMeVersion((v) => v + 1)} />;
   if (!me) {
-    return (
-      <div className="grid min-h-screen place-items-center text-sm text-ink-muted">{tr("Loading…")}</div>
-    );
+    return <div className="grid min-h-screen place-items-center text-sm text-ink-muted">{tr("Loading…")}</div>;
   }
 
   return (
@@ -233,7 +241,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   await api.post("/api/auth/logout");
                   router.replace("/login");
                 }}
-              >{tr("Log out")}</button>
+              >
+                {tr("Log out")}
+              </button>
             </div>
           </div>
         }
@@ -260,8 +270,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <PageHelp />
             </span>
             {visibleTabs.length > 1 ? (
-              <nav className="ds-topbar__tabs ml-2 hidden min-w-0 flex-1 self-stretch overflow-x-auto no-scrollbar lg:block" aria-label={tr("Views of {0}", item?.label ?? tr("this page"))}>
-                <Tabs items={visibleTabs} value={tab?.id} ariaLabel={tr("Views of {0}", item?.label ?? tr("this page"))} className="h-full whitespace-nowrap" />
+              <nav
+                className="ds-topbar__tabs ml-2 hidden min-w-0 flex-1 self-stretch overflow-x-auto no-scrollbar lg:block"
+                aria-label={tr("Views of {0}", item?.label ?? tr("this page"))}
+              >
+                <Tabs
+                  items={visibleTabs}
+                  value={tab?.id}
+                  ariaLabel={tr("Views of {0}", item?.label ?? tr("this page"))}
+                  className="h-full whitespace-nowrap"
+                />
               </nav>
             ) : null}
             <span className={`ds-topbar__spacer ${visibleTabs.length > 1 ? "lg:hidden" : ""}`} />
@@ -298,16 +316,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       boxShadow: "inset 0 0 0 1px var(--border-hairline), var(--shadow-3)",
                     }}
                   >
-                    <Link
-                      href="/account"
-                      onClick={() => setMenuOpen(false)}
-                      className="block px-3 py-2 text-sm hover:bg-surface-2"
-                    >{tr("Settings")}</Link>
-                    <Link
-                      href="/help"
-                      onClick={() => setMenuOpen(false)}
-                      className="block px-3 py-2 text-sm hover:bg-surface-2"
-                    >
+                    <Link href="/account" onClick={() => setMenuOpen(false)} className="block px-3 py-2 text-sm hover:bg-surface-2">
+                      {tr("Settings")}
+                    </Link>
+                    <Link href="/help" onClick={() => setMenuOpen(false)} className="block px-3 py-2 text-sm hover:bg-surface-2">
                       Help
                     </Link>
                     <button
@@ -333,7 +345,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         router.replace("/login");
                       }}
                       className="block w-full px-3 py-2 text-left text-sm hover:bg-surface-2"
-                    >{tr("Log out")}</button>
+                    >
+                      {tr("Log out")}
+                    </button>
                   </div>
                 )}
               </div>
@@ -352,24 +366,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {gated ? (
             <div className="mx-auto flex max-w-md flex-col items-start gap-3 py-16">
               <h2 className="font-display text-[21px] font-normal tracking-[-0.014em]">{tr("This isn't on for your account")}</h2>
-              <p className="text-[13px] leading-relaxed text-ink-muted">{tr("This part is turned on per account. Ask the admin about it if you want to use it.")}</p>
-              <Link href={APP.home} className="text-[13px] underline underline-offset-4">{tr("To Net worth")}</Link>
+              <p className="text-[13px] leading-relaxed text-ink-muted">
+                {tr("This part is turned on per account. Ask the admin about it if you want to use it.")}
+              </p>
+              <Link href={APP.home} className="text-[13px] underline underline-offset-4">
+                {tr("To Net worth")}
+              </Link>
             </div>
-          ) : children}
+          ) : (
+            children
+          )}
         </main>
       </div>
 
-      <UpdateSheet
-        money={money}
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        onOpenTutorial={() => setTutorialOpen(true)}
-      />
-      <DegiroExplanation
-        open={tutorialOpen}
-        onClose={() => setTutorialOpen(false)}
-        onUpdate={() => setSheetOpen(true)}
-      />
+      <UpdateSheet money={money} open={sheetOpen} onClose={() => setSheetOpen(false)} onOpenTutorial={() => setTutorialOpen(true)} />
+      <DegiroExplanation open={tutorialOpen} onClose={() => setTutorialOpen(false)} onUpdate={() => setSheetOpen(true)} />
       {/* The first time: what do you want to keep track of, and the steps that go with it. */}
       <Welcome enabled={!!me} onUpdate={() => setSheetOpen(true)} nav={groups} />
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />

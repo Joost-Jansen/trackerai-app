@@ -12,13 +12,13 @@ import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from domain.portfolio import series as charts
-from domain import database
 from app.deps import CurrentUser, get_current_user, get_db
 from app.services import returns_service
 from app.services.dashboard_service import _fingerprint
 from app.services.portfolio_service import load_portfolio
+from domain import database
 from domain.i18n import tr
+from domain.portfolio import series as charts
 
 router = APIRouter(prefix="/api/returns", tags=["returns"])
 

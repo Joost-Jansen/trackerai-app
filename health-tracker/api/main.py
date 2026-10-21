@@ -17,24 +17,47 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, Query
 from pydantic import BaseModel
 from sqlalchemy import text
-from trackerai_accounts import Accounts, Config, connect as connect_accounts, crypto, install as install_accounts, make_router as accounts_router
-from trackerai_accounts import open_accounts, session as account_session
-from trackerai_accounts.config import front_door_origins
 
-from api import account, agent_tokens, apple, connections, daily, errors, example, feedback, gear, mcp, nutrition, onboarding, routes_api, settings_api, tracker_admin, uploads, users, zones_api
+from api import (
+    account,
+    agent_tokens,
+    apple,
+    connections,
+    daily,
+    errors,
+    example,
+    feedback,
+    gear,
+    mcp,
+    nutrition,
+    onboarding,
+    routes_api,
+    settings_api,
+    tracker_admin,
+    uploads,
+    users,
+    zones_api,
+)
+from api.content import content_router
+from api.dashboard import build_dashboard, next_race, plan_week, sync_day, today_form_pct, today_tsb
+from api.errors import ApiError
+from api.history import activity_detail, heatmap, list_activities
+from api.plans import enrich
+from api.plans import make_router as plans_router
+from api.readiness import readiness
+from api.sync_runner import SyncRunner
+from api.trends import build_trends, hr_flags
+from tools import db, secretbox
+from trackerai_accounts import Accounts, Config, crypto, open_accounts
+from trackerai_accounts import connect as connect_accounts
+from trackerai_accounts import install as install_accounts
+from trackerai_accounts import make_router as accounts_router
+from trackerai_accounts import session as account_session
+from trackerai_accounts.config import front_door_origins
 from trackerai_websec import log_redact
 from trackerai_websec.csrf import OriginCheckMiddleware
 from trackerai_websec.headers import SecurityHeadersMiddleware
 from trackerai_websec.uploads import BodyLimitMiddleware
-from api.errors import ApiError
-from api.sync_runner import SyncRunner
-from api.content import content_router
-from api.dashboard import build_dashboard, next_race, plan_week, sync_day, today_form_pct, today_tsb
-from api.history import activity_detail, heatmap, list_activities
-from api.plans import enrich, make_router as plans_router
-from api.readiness import readiness
-from api.trends import build_trends, hr_flags
-from tools import db, secretbox
 
 TZ = ZoneInfo("Europe/Amsterdam")
 # Only JSON and files come from here (the pages from health-web, with their own policy): nothing may run or load.
@@ -62,7 +85,7 @@ class Settings:
     accounts: Config | None = None  # the shared accounts (ACCOUNTS_*); tests get their own in the test database
 
     @classmethod
-    def from_env(cls) -> "Settings":
+    def from_env(cls) -> Settings:
         return cls(
             jwt_secret=os.environ.get("TRAINING_JWT_SECRET", ""),
             user=os.environ.get("TRAINING_USER", ""),
@@ -113,14 +136,26 @@ def test_accounts(settings: Settings, engine) -> Accounts:
     with engine.begin() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS accounts"))
     url = engine.url.update_query_dict({"options": "-csearch_path=accounts"}).render_as_string(hide_password=False)
-    cfg = Config(database_url=url, session_secret=(settings.jwt_secret or "test").ljust(32, "x"),
-                 encryption_key=secretbox.default_key() or crypto.new_key(), cookie_secure=settings.cookie_secure,
-                 session_days=settings.session_days, require_totp="off")
+    cfg = Config(
+        database_url=url,
+        session_secret=(settings.jwt_secret or "test").ljust(32, "x"),
+        encryption_key=secretbox.default_key() or crypto.new_key(),
+        cookie_secure=settings.cookie_secure,
+        session_days=settings.session_days,
+        require_totp="off",
+    )
     return Accounts(connect_accounts(cfg.database_url), cfg)
 
 
-def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, garmin_client=None,
-               example_url: str | None = None, accounts: Accounts | None = None, **sync_kwargs) -> FastAPI:
+def create_app(
+    engine=None,
+    settings: Settings | None = None,
+    garmin_auth=None,
+    garmin_client=None,
+    example_url: str | None = None,
+    accounts: Accounts | None = None,
+    **sync_kwargs,
+) -> FastAPI:
     """`garmin_auth`, `garmin_client` and `sync_kwargs` replace the real Garmin login, client and FIT reader (tests).
     `example_url`: the database the example account's schemas live in (api/example.py; default the app's own).
     `accounts`: the shared accounts (default: from ACCOUNTS_* in production, a schema in the test's database in tests)."""
@@ -145,8 +180,12 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
     examples = example.ExampleData(example_url or engine.url.render_as_string(hide_password=False), today)
     guards = users.Guards.from_env(settings.trusted_proxies)
     account_routes, sessions = accounts_router(
-        accounts, users.APP, client_ip=guards.ip, after_leave=lambda: purge(),
-        aliases={"/api/login": "/api/auth/login", "/api/logout": "/api/auth/logout", "/api/register": "/api/auth/register"})
+        accounts,
+        users.APP,
+        client_ip=guards.ip,
+        after_leave=lambda: purge(),
+        aliases={"/api/login": "/api/auth/login", "/api/logout": "/api/auth/logout", "/api/register": "/api/auth/register"},
+    )
     current_user, token_user, local_user = users.make_auth(engine, stores, accounts, sessions, settings.agent_token_hash, examples, guards)
     app = FastAPI(title="health-tracker", docs_url=None, redoc_url=None, openapi_url=None)
     errors.install(app)
@@ -157,13 +196,17 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
     # the front door (trackerai.nl, www.trackerai.nl): its admin hub posts here through /api/hub/health/...
     origins = (*settings.public_origins, *front_door_origins(accounts.config.cookie_domain))
     app.add_middleware(OriginCheckMiddleware, allowed_origins=origins, cookie_name=account_session.COOKIE, exempt_paths=("/api/mcp",))
-    app.add_middleware(BodyLimitMiddleware, default=JSON_BODY_MAX, limits={
-        "/api/activities/upload": uploads.MAX_BYTES + 1024,
-        "/api/apple/import": apple.MAX_BYTES + 1024,
-        "/api/apple/upload": apple.CHUNK_BYTES + 1024,
-        "/api/nutrition/admin/nevo": nutrition.NEVO_MAX_BYTES + 1024,
-        "/api/nutrition/photo": nutrition.photos.MAX_BYTES + 1024,
-    })
+    app.add_middleware(
+        BodyLimitMiddleware,
+        default=JSON_BODY_MAX,
+        limits={
+            "/api/activities/upload": uploads.MAX_BYTES + 1024,
+            "/api/apple/import": apple.MAX_BYTES + 1024,
+            "/api/apple/upload": apple.CHUNK_BYTES + 1024,
+            "/api/nutrition/admin/nevo": nutrition.NEVO_MAX_BYTES + 1024,
+            "/api/nutrition/photo": nutrition.photos.MAX_BYTES + 1024,
+        },
+    )
     app.add_middleware(SecurityHeadersMiddleware, csp=API_CSP, hsts=settings.cookie_secure)
     app.state.engine, app.state.stores, app.state.examples, app.state.accounts = engine, stores, examples, accounts
     runner = SyncRunner(engine, stores, client_factory=garmin_client, **sync_kwargs)
@@ -227,7 +270,12 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
         return cache[key]
 
     @app.get("/api/activities")
-    def activities(sport: str | None = None, start: str | None = Query(None, alias="from"), end: str | None = Query(None, alias="to"), u=Depends(current_user)):
+    def activities(
+        sport: str | None = None,
+        start: str | None = Query(None, alias="from"),
+        end: str | None = Query(None, alias="to"),
+        u=Depends(current_user),
+    ):
         s = u.store
         flags = cached(u, ("hrflags",), lambda: hr_flags(s.activities, s.streams))
         return list_activities(s.activities, sport, start, end, hr_flags=flags)
@@ -240,7 +288,9 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
             raise ApiError(404, "activity_not_found")
         links = db.gear_links(u.scope)
         out["gear"] = gear.gear_of(links, db.list_gear(u.scope), activity_id)
-        out["gear_chosen"] = activity_id in (db.get_setting(u.scope, db.GEAR_NONE_KEY) or []) or any(x["source"] == "manual" for x in out["gear"])
+        out["gear_chosen"] = activity_id in (db.get_setting(u.scope, db.GEAR_NONE_KEY) or []) or any(
+            x["source"] == "manual" for x in out["gear"]
+        )
         return out
 
     @app.patch("/api/activities/{activity_id}")
@@ -263,7 +313,11 @@ def create_app(engine=None, settings: Settings | None = None, garmin_auth=None, 
         plan = db.active_plan(u.scope)
         # the goal-based insights follow the active plan, so it is part of the cache key
         key = ("trends", day, plan and (plan["id"], plan.get("race"), plan.get("goal")))
-        return cached(u, key, lambda: build_trends(s.activities, s.wellness, s.zones, s.streams, day, s.rhr_fallback, plan=plan, last_sync=s.last_sync))
+        return cached(
+            u,
+            key,
+            lambda: build_trends(s.activities, s.wellness, s.zones, s.streams, day, s.rhr_fallback, plan=plan, last_sync=s.last_sync),
+        )
 
     app.include_router(plans_router(today, current_user))
     app.include_router(content_router(current_user))

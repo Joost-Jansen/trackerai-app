@@ -100,8 +100,14 @@ def test_search_matches_word_prefixes_synonyms_and_ranks_what_you_eat(engine):
 
 
 def _breakfast(s, grams=60, source="user"):
-    return meals.create(s, day="2026-10-19", eaten_at="07:30", moment="breakfast", input="search",
-                        items=[{"food_ref": "nevo:9001", "grams": grams, "grams_source": source}, {"food_ref": "nevo:9002", "grams": 120}])
+    return meals.create(
+        s,
+        day="2026-10-19",
+        eaten_at="07:30",
+        moment="breakfast",
+        input="search",
+        items=[{"food_ref": "nevo:9001", "grams": grams, "grams_source": source}, {"food_ref": "nevo:9002", "grams": 120}],
+    )
 
 
 def test_a_meal_keeps_a_snapshot_of_its_nutrients(engine):
@@ -159,8 +165,11 @@ def test_no_user_reaches_anothers_meals(engine):
     assert meals.remove(bob, m["id"]) is False and meals.get(alice, m["id"])
     assert meals.portions(bob) == {} and meals.history(bob) == {}
     with engine.begin() as c:
-        uid = c.execute(db.user_foods.insert().values(user_id=1, name_nl="Eigen muesli", unit="g", per_100={"energy_kcal": 400},
-                                                       created_at=meals._now())).inserted_primary_key[0]
+        uid = c.execute(
+            db.user_foods.insert().values(
+                user_id=1, name_nl="Eigen muesli", unit="g", per_100={"energy_kcal": 400}, created_at=meals._now()
+            )
+        ).inserted_primary_key[0]
     assert foods.get(alice, f"user:{uid}")["name"] == "Eigen muesli" and foods.get(bob, f"user:{uid}") is None
     assert [f["name"] for f in foods.search(alice, "muesli")] == ["Eigen muesli"] and foods.search(bob, "muesli") == []
 

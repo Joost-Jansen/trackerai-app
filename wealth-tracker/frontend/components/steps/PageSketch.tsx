@@ -3,8 +3,7 @@
 // text. Only the app's own colour tokens, so light and dark both work.
 
 export type Kind =
-  | "cards" | "table" | "line" | "calendar" | "donut" | "bars" | "budget"
-  | "news" | "form" | "help" | "sidebar" | "upload" | "chat";
+  "cards" | "table" | "line" | "calendar" | "donut" | "bars" | "budget" | "news" | "form" | "help" | "sidebar" | "upload" | "chat";
 
 /** Which drawing fits which page (nav ids from lib/nav.ts). */
 export const SKETCH_OF: Record<string, Kind> = {
@@ -51,7 +50,14 @@ function Content({ kind }: { kind: Kind }) {
             </g>
           ))}
           <rect x={78} y={80} width={226} height={86} rx={6} fill={CARD} />
-          <path d="M88 150 L120 138 L150 142 L182 120 L214 126 L246 104 L292 96" fill="none" stroke={A} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M88 150 L120 138 L150 142 L182 120 L214 126 L246 104 L292 96"
+            fill="none"
+            stroke={A}
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </>
       );
     case "table":
@@ -61,8 +67,24 @@ function Content({ kind }: { kind: Kind }) {
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <g key={i}>
               {i > 0 && <line x1={86} x2={296} y1={40 + i * 20} y2={40 + i * 20} stroke={RULE} />}
-              <rect x={88} y={46 + i * 20} width={i === 0 ? 30 : 60 - (i % 3) * 10} height={5} rx={2.5} fill={INK} opacity={i === 0 ? 0.5 : 0.8} />
-              <rect x={190} y={46 + i * 20} width={36} height={5} rx={2.5} fill={i === 0 ? INK : i % 2 ? A : B} opacity={i === 0 ? 0.5 : 0.9} />
+              <rect
+                x={88}
+                y={46 + i * 20}
+                width={i === 0 ? 30 : 60 - (i % 3) * 10}
+                height={5}
+                rx={2.5}
+                fill={INK}
+                opacity={i === 0 ? 0.5 : 0.8}
+              />
+              <rect
+                x={190}
+                y={46 + i * 20}
+                width={36}
+                height={5}
+                rx={2.5}
+                fill={i === 0 ? INK : i % 2 ? A : B}
+                opacity={i === 0 ? 0.5 : 0.9}
+              />
               <rect x={258} y={46 + i * 20} width={30} height={5} rx={2.5} fill={INK} opacity={i === 0 ? 0.5 : 0.8} />
             </g>
           ))}
@@ -73,9 +95,26 @@ function Content({ kind }: { kind: Kind }) {
         <>
           <rect x={78} y={34} width={226} height={132} rx={6} fill={CARD} />
           <rect x={88} y={44} width={60} height={8} rx={3} fill={INK} />
-          {[80, 110, 140].map((y) => <line key={y} x1={88} x2={296} y1={y} y2={y} stroke={RULE} strokeDasharray="2 4" />)}
-          <path d="M88 150 L118 142 L148 146 L178 128 L208 122 L238 106 L268 100 L296 84" fill="none" stroke={A} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M88 152 L118 148 L148 146 L178 140 L208 136 L238 128 L268 124 L296 116" fill="none" stroke={B} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" opacity={0.8} />
+          {[80, 110, 140].map((y) => (
+            <line key={y} x1={88} x2={296} y1={y} y2={y} stroke={RULE} strokeDasharray="2 4" />
+          ))}
+          <path
+            d="M88 150 L118 142 L148 146 L178 128 L208 122 L238 106 L268 100 L296 84"
+            fill="none"
+            stroke={A}
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M88 152 L118 148 L148 146 L178 140 L208 136 L238 128 L268 124 L296 116"
+            fill="none"
+            stroke={B}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.8}
+          />
         </>
       );
     case "calendar":
@@ -83,9 +122,12 @@ function Content({ kind }: { kind: Kind }) {
         <>
           <rect x={78} y={34} width={226} height={132} rx={6} fill={CARD} />
           {Array.from({ length: 28 }, (_, i) => {
-            const col = i % 7, row = Math.floor(i / 7);
+            const col = i % 7,
+              row = Math.floor(i / 7);
             const on = [3, 10, 18, 23].includes(i);
-            return <rect key={i} x={88 + col * 30} y={44 + row * 30} width={24} height={24} rx={5} fill={on ? A : RULE} opacity={on ? 1 : 0.6} />;
+            return (
+              <rect key={i} x={88 + col * 30} y={44 + row * 30} width={24} height={24} rx={5} fill={on ? A : RULE} opacity={on ? 1 : 0.6} />
+            );
           })}
         </>
       );
@@ -157,9 +199,15 @@ function Content({ kind }: { kind: Kind }) {
         <>
           <rect x={78} y={34} width={226} height={132} rx={6} fill={CARD} />
           <circle cx={120} cy={82} r={24} fill="none" stroke={A} strokeWidth={4} />
-          <text x={120} y={92} textAnchor="middle" fontSize={28} fontWeight={600} fill={A}>?</text>
-          {[0, 1, 2, 3].map((i) => <rect key={i} x={160} y={64 + i * 12} width={120 - (i % 2) * 30} height={5} rx={2.5} fill={INK} />)}
-          {[0, 1].map((i) => <rect key={i} x={90} y={128 + i * 14} width={190 - i * 50} height={5} rx={2.5} fill={INK} opacity={0.6} />)}
+          <text x={120} y={92} textAnchor="middle" fontSize={28} fontWeight={600} fill={A}>
+            ?
+          </text>
+          {[0, 1, 2, 3].map((i) => (
+            <rect key={i} x={160} y={64 + i * 12} width={120 - (i % 2) * 30} height={5} rx={2.5} fill={INK} />
+          ))}
+          {[0, 1].map((i) => (
+            <rect key={i} x={90} y={128 + i * 14} width={190 - i * 50} height={5} rx={2.5} fill={INK} opacity={0.6} />
+          ))}
         </>
       );
     case "upload":
@@ -167,7 +215,14 @@ function Content({ kind }: { kind: Kind }) {
         <>
           <rect x={78} y={34} width={226} height={132} rx={6} fill={CARD} />
           <rect x={120} y={56} width={142} height={84} rx={10} fill="none" stroke={A} strokeWidth={2} strokeDasharray="6 5" />
-          <path d="M191 112 V80 M179 92 L191 80 L203 92" fill="none" stroke={A} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M191 112 V80 M179 92 L191 80 L203 92"
+            fill="none"
+            stroke={A}
+            strokeWidth={4}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
           <rect x={160} y={122} width={62} height={5} rx={2.5} fill={INK} />
         </>
       );
@@ -180,7 +235,19 @@ function Content({ kind }: { kind: Kind }) {
           <rect x={88} y={76} width={170} height={44} rx={11} fill={A} opacity={0.18} />
           <rect x={98} y={86} width={130} height={5} rx={2.5} fill={A} />
           <rect x={98} y={98} width={100} height={5} rx={2.5} fill={A} opacity={0.7} />
-          {[0, 1, 2, 3].map((i) => <rect key={i} x={98 + i * 14} y={108} width={8} height={4 + i * 3} rx={1.5} fill={A} opacity={0.6} transform={`translate(0 ${-i * 3})`} />)}
+          {[0, 1, 2, 3].map((i) => (
+            <rect
+              key={i}
+              x={98 + i * 14}
+              y={108}
+              width={8}
+              height={4 + i * 3}
+              rx={1.5}
+              fill={A}
+              opacity={0.6}
+              transform={`translate(0 ${-i * 3})`}
+            />
+          ))}
           <rect x={88} y={136} width={206} height={20} rx={10} fill="none" stroke={RULE} strokeWidth={1.5} />
         </>
       );
@@ -200,17 +267,32 @@ function Content({ kind }: { kind: Kind }) {
 export default function PageSketch({ kind, label }: { kind: Kind; label?: string }) {
   const nav = kind === "sidebar";
   return (
-    <svg viewBox="0 0 320 180" className="block h-auto w-full rounded-lg" role="img" aria-label={label}
-      style={{ background: "var(--surface-inset)" }}>
+    <svg
+      viewBox="0 0 320 180"
+      className="block h-auto w-full rounded-lg"
+      role="img"
+      aria-label={label}
+      style={{ background: "var(--surface-inset)" }}
+    >
       {/* Browser frame */}
       <rect x={6} y={6} width={308} height={168} rx={10} fill="var(--surface-page)" stroke={RULE} />
-      {[0, 1, 2].map((i) => <circle key={i} cx={18 + i * 9} cy={17} r={2.6} fill={INK} opacity={0.6} />)}
+      {[0, 1, 2].map((i) => (
+        <circle key={i} cx={18 + i * 9} cy={17} r={2.6} fill={INK} opacity={0.6} />
+      ))}
       <line x1={6} x2={314} y1={26} y2={26} stroke={RULE} />
       {/* Sidebar: a few menu bars, the active one highlighted */}
       <rect x={6} y={26} width={62} height={148} fill="var(--surface-sunken)" />
       {[0, 1, 2, 3, 4, 5].map((i) => (
-        <rect key={i} x={14} y={38 + i * 18} width={nav ? 46 : 40 - (i % 3) * 6} height={nav && i < 6 ? 7 : 5} rx={3}
-          fill={i === 1 ? A : INK} opacity={i === 1 ? 1 : nav ? 0.8 : 0.5} />
+        <rect
+          key={i}
+          x={14}
+          y={38 + i * 18}
+          width={nav ? 46 : 40 - (i % 3) * 6}
+          height={nav && i < 6 ? 7 : 5}
+          rx={3}
+          fill={i === 1 ? A : INK}
+          opacity={i === 1 ? 1 : nav ? 0.8 : 0.5}
+        />
       ))}
       <Content kind={kind} />
     </svg>

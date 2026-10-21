@@ -9,12 +9,12 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
-from trackerai_accounts import Config, crypto, session as account_session
-
 from api import auth
 from api.main import Settings, check_production_secrets, create_app
 from tests.test_api import PASSWORD, engine, login, make_settings  # noqa: F401  (engine is a fixture)
 from tools import db, secretbox
+from trackerai_accounts import Config, crypto
+from trackerai_accounts import session as account_session
 from trackerai_testing import new_database_url
 
 PROXY = ("172.18.0.3", 40000)  # Caddy on the docker network
@@ -46,7 +46,10 @@ def test_forged_forwarding_headers_from_an_untrusted_peer_are_ignored(app):
 
 def test_registration_is_limited_per_ip(app):
     c = via_proxy(app, "198.51.100.9")
-    codes = [c.post("/api/register", json={"username": f"new{i}", "email": f"new{i}@example.org", "password": "paars-fiets-tegel-7"}).status_code for i in range(6)]
+    codes = [
+        c.post("/api/register", json={"username": f"new{i}", "email": f"new{i}@example.org", "password": "paars-fiets-tegel-7"}).status_code
+        for i in range(6)
+    ]
     assert codes[:5] == [403] * 5 and codes[5] == 429  # registration is closed, but every attempt counts (invite guessing)
 
 
@@ -79,7 +82,12 @@ def test_admin_reset_ends_the_users_sessions(app):
     login(admin)
     admin.patch("/api/trackerai/admin/registration", json={"registration": "open"})
     anna = TestClient(app)
-    assert anna.post("/api/register", json={"username": "anna", "email": "anna@example.org", "password": "anna-wachtwoord-1", "consent": True}).status_code == 200
+    assert (
+        anna.post(
+            "/api/register", json={"username": "anna", "email": "anna@example.org", "password": "anna-wachtwoord-1", "consent": True}
+        ).status_code
+        == 200
+    )
     admin.post(f"/api/trackerai/admin/accounts/{app.state.accounts.by_username('anna')['id']}/reset-password")
     assert anna.get("/api/me").status_code == 401
 
@@ -122,7 +130,13 @@ def test_production_needs_explicit_secrets(monkeypatch):
     with pytest.raises(RuntimeError, match="APP_ENCRYPTION_KEY"):
         check_production_secrets(good)
     with pytest.raises(RuntimeError, match="ACCOUNTS_SESSION_SECRET"):
-        check_production_secrets(Settings(accounts=Config(database_url="postgresql://never-connected/accounts", session_secret="short", encryption_key=crypto.new_key())))
+        check_production_secrets(
+            Settings(
+                accounts=Config(
+                    database_url="postgresql://never-connected/accounts", session_secret="short", encryption_key=crypto.new_key()
+                )
+            )
+        )
     monkeypatch.setenv("TOKEN_ENCRYPTION_KEY", "not-a-key")
     with pytest.raises(RuntimeError, match="valid"):
         check_production_secrets(good)
@@ -147,9 +161,13 @@ def test_derived_key_helper_keeps_old_values_readable(monkeypatch, capsys):
 def test_schema_6_adds_the_user_columns_to_an_older_database():
     e = db.connect(new_database_url())
     with e.begin() as c:
-        c.execute(text("CREATE TABLE users (id SERIAL PRIMARY KEY, username VARCHAR(40) NOT NULL UNIQUE, display_name VARCHAR(80), "
-                       "password_hash VARCHAR(100) NOT NULL, is_admin BOOLEAN NOT NULL, suspended BOOLEAN NOT NULL, "
-                       "created_at TIMESTAMP WITH TIME ZONE NOT NULL, last_login_at TIMESTAMP WITH TIME ZONE)"))
+        c.execute(
+            text(
+                "CREATE TABLE users (id SERIAL PRIMARY KEY, username VARCHAR(40) NOT NULL UNIQUE, display_name VARCHAR(80), "
+                "password_hash VARCHAR(100) NOT NULL, is_admin BOOLEAN NOT NULL, suspended BOOLEAN NOT NULL, "
+                "created_at TIMESTAMP WITH TIME ZONE NOT NULL, last_login_at TIMESTAMP WITH TIME ZONE)"
+            )
+        )
         c.execute(text("INSERT INTO users VALUES (1, 'joost', NULL, 'h', true, false, '2026-01-01 00:00:00+00', NULL)"))
     db.create_schema(e)
     u = db.get_user(e, 1)
@@ -167,7 +185,12 @@ def test_registration_needs_explicit_consent_and_records_it(app, engine, monkeyp
     c = TestClient(app)
     r = c.post("/api/register", json={"username": "anna", "email": "anna@example.org", "password": "anna-wachtwoord-1"})
     assert r.status_code == 422 and r.json()["code"] == "consent_required"
-    assert c.post("/api/register", json={"username": "anna", "email": "anna@example.org", "password": "anna-wachtwoord-1", "consent": True}).status_code == 200
+    assert (
+        c.post(
+            "/api/register", json={"username": "anna", "email": "anna@example.org", "password": "anna-wachtwoord-1", "consent": True}
+        ).status_code
+        == 200
+    )
     assert c.get("/api/me").json()["id"]  # health-tracker's own user, made on the first visit, carries the consent
     row = db.get_user_by_name(engine, "anna")
     assert row["consent_at"] and row["privacy_version"]

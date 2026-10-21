@@ -17,7 +17,20 @@ import { useFormat, useLocale, useT } from "@/lib/i18n";
 import { dayNumber, isoDay, movingAverage, timeTicks, type DateWindow, type DayPoint } from "@/lib/timeline";
 import { fmtClock, type TrendsPlus } from "@/lib/training";
 
-export const TB_METRICS = ["fitness", "form", "volume", "z2", "vo2", "resting_hr", "sleep_h", "hrv", "sleep_resp", "stress_avg", "sleep_stress", "body_battery_high"] as const;
+export const TB_METRICS = [
+  "fitness",
+  "form",
+  "volume",
+  "z2",
+  "vo2",
+  "resting_hr",
+  "sleep_h",
+  "hrv",
+  "sleep_resp",
+  "stress_avg",
+  "sleep_stress",
+  "body_battery_high",
+] as const;
 export type TbMetric = (typeof TB_METRICS)[number];
 const DEFAULT: TbMetric[] = ["fitness", "z2", "resting_hr", "sleep_h"];
 const STORE = "training-body:panels";
@@ -108,8 +121,23 @@ export default function TrainingBody({ t, window: win }: { t: TrendsPlus; window
         : t.recovery_weekly.filter((r) => r[key] != null).map((r) => ({ d: r.week, v: r[key] as number }));
     const int = (v: number) => String(Math.round(v));
     const out: Record<TbMetric, Panel> = {
-      fitness: { key: "fitness", colour: "var(--chart-1)", points: t.form.map((r) => ({ d: r.date, v: r.ctl })), smooth: false, near: 1, format: int },
-      form: { key: "form", colour: "var(--chart-4)", points: t.form.map((r) => ({ d: r.date, v: r.tsb })), smooth: false, near: 1, format: (v) => `${v > 0 ? "+" : ""}${Math.round(v)}`, baseline: 0 },
+      fitness: {
+        key: "fitness",
+        colour: "var(--chart-1)",
+        points: t.form.map((r) => ({ d: r.date, v: r.ctl })),
+        smooth: false,
+        near: 1,
+        format: int,
+      },
+      form: {
+        key: "form",
+        colour: "var(--chart-4)",
+        points: t.form.map((r) => ({ d: r.date, v: r.tsb })),
+        smooth: false,
+        near: 1,
+        format: (v) => `${v > 0 ? "+" : ""}${Math.round(v)}`,
+        baseline: 0,
+      },
       volume: {
         key: "volume",
         colour: "var(--chart-1)",
@@ -118,15 +146,86 @@ export default function TrainingBody({ t, window: win }: { t: TrendsPlus; window
         near: 4,
         format: (v) => f.hours(v * 3600),
       },
-      z2: { key: "z2", colour: "var(--zone-2)", points: t.z2_pace.map((r) => ({ d: r.week, v: r.pace_s_per_km })), smooth: false, near: 4, format: (v) => `${fmtClock(v)}/km`, invert: true },
-      vo2: { key: "vo2", colour: "var(--chart-3)", points: t.vo2max.map((r) => ({ d: r.date, v: r.value })), smooth: false, near: 10, format: int },
-      resting_hr: { key: "resting_hr", colour: "var(--chart-6)", points: body("resting_hr"), smooth: daily.length > 0, near: daily.length ? 1 : 4, format: (v) => `${Math.round(v)} bpm`, reference: normals.resting_hr },
-      sleep_h: { key: "sleep_h", colour: "var(--chart-5)", points: body("sleep_h"), smooth: daily.length > 0, near: daily.length ? 1 : 4, format: (v) => f.hours(v * 3600), reference: normals.sleep_h },
-      hrv: { key: "hrv", colour: "var(--chart-3)", points: body("hrv"), smooth: daily.length > 0, near: daily.length ? 1 : 4, format: (v) => `${Math.round(v)} ms`, reference: normals.hrv },
-      sleep_resp: { key: "sleep_resp", colour: "var(--chart-5)", points: body("sleep_resp"), smooth: daily.length > 0, near: daily.length ? 1 : 4, format: (v) => `${f.num(v, 1)} /min`, reference: normals.sleep_resp },
-      stress_avg: { key: "stress_avg", colour: "var(--chart-4)", points: body("stress_avg"), smooth: daily.length > 0, near: daily.length ? 1 : 4, format: int, reference: normals.stress_avg },
-      sleep_stress: { key: "sleep_stress", colour: "var(--chart-4)", points: body("sleep_stress"), smooth: daily.length > 0, near: daily.length ? 1 : 4, format: int, reference: normals.sleep_stress },
-      body_battery_high: { key: "body_battery_high", colour: "var(--chart-1)", points: body("body_battery_high"), smooth: daily.length > 0, near: daily.length ? 1 : 4, format: int, reference: normals.body_battery_high },
+      z2: {
+        key: "z2",
+        colour: "var(--zone-2)",
+        points: t.z2_pace.map((r) => ({ d: r.week, v: r.pace_s_per_km })),
+        smooth: false,
+        near: 4,
+        format: (v) => `${fmtClock(v)}/km`,
+        invert: true,
+      },
+      vo2: {
+        key: "vo2",
+        colour: "var(--chart-3)",
+        points: t.vo2max.map((r) => ({ d: r.date, v: r.value })),
+        smooth: false,
+        near: 10,
+        format: int,
+      },
+      resting_hr: {
+        key: "resting_hr",
+        colour: "var(--chart-6)",
+        points: body("resting_hr"),
+        smooth: daily.length > 0,
+        near: daily.length ? 1 : 4,
+        format: (v) => `${Math.round(v)} bpm`,
+        reference: normals.resting_hr,
+      },
+      sleep_h: {
+        key: "sleep_h",
+        colour: "var(--chart-5)",
+        points: body("sleep_h"),
+        smooth: daily.length > 0,
+        near: daily.length ? 1 : 4,
+        format: (v) => f.hours(v * 3600),
+        reference: normals.sleep_h,
+      },
+      hrv: {
+        key: "hrv",
+        colour: "var(--chart-3)",
+        points: body("hrv"),
+        smooth: daily.length > 0,
+        near: daily.length ? 1 : 4,
+        format: (v) => `${Math.round(v)} ms`,
+        reference: normals.hrv,
+      },
+      sleep_resp: {
+        key: "sleep_resp",
+        colour: "var(--chart-5)",
+        points: body("sleep_resp"),
+        smooth: daily.length > 0,
+        near: daily.length ? 1 : 4,
+        format: (v) => `${f.num(v, 1)} /min`,
+        reference: normals.sleep_resp,
+      },
+      stress_avg: {
+        key: "stress_avg",
+        colour: "var(--chart-4)",
+        points: body("stress_avg"),
+        smooth: daily.length > 0,
+        near: daily.length ? 1 : 4,
+        format: int,
+        reference: normals.stress_avg,
+      },
+      sleep_stress: {
+        key: "sleep_stress",
+        colour: "var(--chart-4)",
+        points: body("sleep_stress"),
+        smooth: daily.length > 0,
+        near: daily.length ? 1 : 4,
+        format: int,
+        reference: normals.sleep_stress,
+      },
+      body_battery_high: {
+        key: "body_battery_high",
+        colour: "var(--chart-1)",
+        points: body("body_battery_high"),
+        smooth: daily.length > 0,
+        near: daily.length ? 1 : 4,
+        format: int,
+        reference: normals.body_battery_high,
+      },
     };
     return out;
   }, [t, f]);
@@ -157,7 +256,11 @@ export default function TrainingBody({ t, window: win }: { t: TrendsPlus; window
   return (
     <div className="flex flex-col gap-3">
       {/* One scrolling row on a phone, wrapped from sm up. */}
-      <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0" role="group" aria-label={w.choose}>
+      <div
+        className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
+        role="group"
+        aria-label={w.choose}
+      >
         {available.map((k) => {
           const on = chosen.includes(k);
           return (
@@ -168,7 +271,11 @@ export default function TrainingBody({ t, window: win }: { t: TrendsPlus; window
               onClick={() => toggle(k)}
               className={`flex flex-none items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[12px] ${on ? "border-[var(--border-strong)] bg-[var(--surface-inset)] text-[var(--text-primary)]" : "border-border text-ink-muted hover:text-[var(--text-primary)]"}`}
             >
-              <span aria-hidden className="inline-block h-[3px] w-2.5 rounded-full" style={{ background: on ? all[k].colour : "var(--border-strong)" }} />
+              <span
+                aria-hidden
+                className="inline-block h-[3px] w-2.5 rounded-full"
+                style={{ background: on ? all[k].colour : "var(--border-strong)" }}
+              />
               {w.metric[k]}
             </button>
           );
@@ -200,7 +307,11 @@ export default function TrainingBody({ t, window: win }: { t: TrendsPlus; window
         onBlur={() => setHover(null)}
       >
         {shown.map((p) => {
-          const values = [...p.inside.map((q) => q.v), ...(p.reference != null ? [p.reference] : []), ...(p.baseline != null ? [p.baseline] : [])];
+          const values = [
+            ...p.inside.map((q) => q.v),
+            ...(p.reference != null ? [p.reference] : []),
+            ...(p.baseline != null ? [p.baseline] : []),
+          ];
           if (!values.length) {
             return (
               <div key={p.key}>
@@ -217,7 +328,8 @@ export default function TrainingBody({ t, window: win }: { t: TrendsPlus; window
             const frac = (v - lo) / (hi - lo || 1);
             return 4 + (p.invert ? frac : 1 - frac) * (PANEL_H - 8);
           };
-          const path = (pts: DayPoint[]) => pts.map((q, i) => `${i ? "L" : "M"}${x(dayNumber(q.d)).toFixed(1)} ${y(q.v).toFixed(1)}`).join("");
+          const path = (pts: DayPoint[]) =>
+            pts.map((q, i) => `${i ? "L" : "M"}${x(dayNumber(q.d)).toFixed(1)} ${y(q.v).toFixed(1)}`).join("");
           const hv = hover != null ? nearest(p.inside, hover, p.near) : null;
           const last = p.inside[p.inside.length - 1];
           return (
@@ -236,9 +348,24 @@ export default function TrainingBody({ t, window: win }: { t: TrendsPlus; window
                   <line x1="0" x2={plotW} y1={y(p.invert ? hi : lo)} y2={y(p.invert ? hi : lo)} />
                 </g>
                 {(p.reference ?? p.baseline) != null && (
-                  <line x1="0" x2={plotW} y1={y((p.reference ?? p.baseline)!)} y2={y((p.reference ?? p.baseline)!)} stroke="var(--chart-2)" strokeWidth="1" strokeDasharray="4 4" opacity={0.7} />
+                  <line
+                    x1="0"
+                    x2={plotW}
+                    y1={y((p.reference ?? p.baseline)!)}
+                    y2={y((p.reference ?? p.baseline)!)}
+                    stroke="var(--chart-2)"
+                    strokeWidth="1"
+                    strokeDasharray="4 4"
+                    opacity={0.7}
+                  />
                 )}
-                <path className="ds-chart__line" d={path(p.inside)} stroke={p.colour} strokeWidth={p.smooth ? 1 : 1.6} opacity={p.smooth ? 0.35 : 1} />
+                <path
+                  className="ds-chart__line"
+                  d={path(p.inside)}
+                  stroke={p.colour}
+                  strokeWidth={p.smooth ? 1 : 1.6}
+                  opacity={p.smooth ? 0.35 : 1}
+                />
                 {p.smooth && <path className="ds-chart__line" d={path(p.avg)} stroke={p.colour} strokeWidth={1.8} />}
                 {hover != null && <line className="ds-chart__cursor" x1={x(hover)} x2={x(hover)} y1={0} y2={PANEL_H} />}
                 {hv && <circle className="ds-chart__dot" cx={x(dayNumber(hv.d))} cy={y(hv.v)} r="3" fill={p.colour} />}
@@ -261,7 +388,11 @@ export default function TrainingBody({ t, window: win }: { t: TrendsPlus; window
           <div
             className="ds-chart__tip"
             aria-live="polite"
-            style={{ left: x(hover) + (x(hover) > plotW / 2 ? -12 : 12), top: 18, transform: x(hover) > plotW / 2 ? "translateX(-100%)" : "none" }}
+            style={{
+              left: x(hover) + (x(hover) > plotW / 2 ? -12 : 12),
+              top: 18,
+              transform: x(hover) > plotW / 2 ? "translateX(-100%)" : "none",
+            }}
           >
             <div className="font-semibold">{f.weekdayDay(hoverDay)}</div>
             {shown.map((p) => {

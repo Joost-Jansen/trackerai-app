@@ -38,7 +38,14 @@ export function compareZones(items: ZoneHistoryItem[], x: number, which: "curren
   const rows = ZONES.map((z) => {
     const pct = target.total_s ? (target.seconds[z] / target.total_s) * 100 : null;
     const avg = avgPct ? avgPct[z] : null;
-    return { zone: z, pct, avgPct: avg, diff: pct != null && avg != null ? pct - avg : null, seconds: target.seconds[z], avgSeconds: sum[z] / n };
+    return {
+      zone: z,
+      pct,
+      avgPct: avg,
+      diff: pct != null && avg != null ? pct - avg : null,
+      seconds: target.seconds[z],
+      avgSeconds: sum[z] / n,
+    };
   });
   return {
     target,

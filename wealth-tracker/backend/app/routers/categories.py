@@ -17,12 +17,10 @@ import sqlite3
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
-from domain import db
-from domain.money import ai_labelling
-from domain.money import bank_transactions
-from domain.money import categorization
 from app.deps import CurrentUser, get_current_user, get_db, require_money
+from domain import db
 from domain.i18n import tr
+from domain.money import ai_labelling, bank_transactions, categorization
 
 router = APIRouter(tags=["categories"], dependencies=[Depends(require_money)])
 
@@ -52,8 +50,7 @@ def make_category(
         category_id = categorization.make_category(conn, group_name=group_name, name=name, type=type)
     except db.IntegrityError as e:
         # The only UNIQUE is the name.
-        raise HTTPException(status.HTTP_409_CONFLICT,
-                            tr("There is already a category called '{0}'.", name)) from e
+        raise HTTPException(status.HTTP_409_CONFLICT, tr("There is already a category called '{0}'.", name)) from e
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
@@ -155,14 +152,17 @@ def make_rule(
     categorization.seed(conn)
     try:
         rule_id = categorization.make_rule(
-            conn, priority=priority, field=field, pattern=pattern,
-            direction=direction, category=category,
+            conn,
+            priority=priority,
+            field=field,
+            pattern=pattern,
+            direction=direction,
+            category=category,
         )
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
-    rule = next(r for r in categorization.load_rules(conn, only_active=False)
-                 if r["id"] == rule_id)
+    rule = next(r for r in categorization.load_rules(conn, only_active=False) if r["id"] == rule_id)
     return {"rule": rule}
 
 
@@ -216,9 +216,12 @@ def ai_status(
     labelled that you have not reviewed yet.
     """
     categorization.seed(conn)
-    return {**ai_labelling.status(conn), "transactions": ai_labelling.by_ai(conn),
-            "deviations": ai_labelling.deviations(conn),
-            "rule_suggestions": ai_labelling.rule_suggestions(conn)}
+    return {
+        **ai_labelling.status(conn),
+        "transactions": ai_labelling.by_ai(conn),
+        "deviations": ai_labelling.deviations(conn),
+        "rule_suggestions": ai_labelling.rule_suggestions(conn),
+    }
 
 
 @router.post("/api/categories/ai/rule-suggestions")
@@ -278,7 +281,7 @@ def ai_reject(
     conn: sqlite3.Connection = Depends(get_db),
     _: CurrentUser = Depends(get_current_user),
 ):
-    """"Not right": take Claude's label off, and do not suggest it again."""
+    """ "Not right": take Claude's label off, and do not suggest it again."""
     try:
         return ai_labelling.reject(conn, ids)
     except ValueError as e:

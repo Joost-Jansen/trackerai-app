@@ -16,8 +16,9 @@ def _account(client) -> int:
 
 
 def _tx(client, rid, date, amount, direction, name) -> int:
-    r = client.post("/api/bank-transactions", json={"account_id": rid, "date": date, "amount": amount,
-                                                  "direction": direction, "name": name})
+    r = client.post(
+        "/api/bank-transactions", json={"account_id": rid, "date": date, "amount": amount, "direction": direction, "name": name}
+    )
     assert r.status_code == 201, r.text
     return r.json()["transaction"]["id"]
 

@@ -39,8 +39,15 @@ export type Flow = {
 };
 
 type Balance = {
-  d: string; investments: number; bank: number; debt: number; net: number; held?: number;
-  portfolio?: number; portfolio_invested?: number; portfolio_dividends?: number;
+  d: string;
+  investments: number;
+  bank: number;
+  debt: number;
+  net: number;
+  held?: number;
+  portfolio?: number;
+  portfolio_invested?: number;
+  portfolio_dividends?: number;
 };
 
 export type Bridge = {
@@ -62,12 +69,17 @@ export type Bridge = {
  */
 export function bridge(from: Balance, to: Balance, flows: Flow[], sharedAsSpending = false): Bridge {
   const change = to.net - from.net;
-  const debt = (to.debt - (to.held ?? 0)) - (from.debt - (from.held ?? 0));
+  const debt = to.debt - (to.held ?? 0) - (from.debt - (from.held ?? 0));
   // Before the first bank transaction there is nothing to split with.
   if (!flows.length || from.d < dayBefore(flows[0].d)) {
     return { change, saved: null, market: null, bank: null, debt: null, detail: null, shared: 0 };
   }
-  let saved = 0, deposited = 0, others = 0, unlabelled = 0, bankFlow = 0, bankTx = 0;
+  let saved = 0,
+    deposited = 0,
+    others = 0,
+    unlabelled = 0,
+    bankFlow = 0,
+    bankTx = 0;
   for (const f of flows) {
     if (f.d > from.d && f.d <= to.d) {
       saved += f.saved;
@@ -78,11 +90,16 @@ export function bridge(from: Balance, to: Balance, flows: Flow[], sharedAsSpendi
       bankTx += f.bank_tx ?? 0;
     }
   }
-  const onHoldings = from.portfolio_invested !== undefined && to.portfolio_invested !== undefined
-    && from.portfolio !== undefined && to.portfolio !== undefined;
+  const onHoldings =
+    from.portfolio_invested !== undefined &&
+    to.portfolio_invested !== undefined &&
+    from.portfolio !== undefined &&
+    to.portfolio !== undefined;
   const market = onHoldings
-    ? (to.portfolio! - from.portfolio!) - (to.portfolio_invested! - from.portfolio_invested!)
-      + ((to.portfolio_dividends ?? 0) - (from.portfolio_dividends ?? 0))
+    ? to.portfolio! -
+      from.portfolio! -
+      (to.portfolio_invested! - from.portfolio_invested!) +
+      ((to.portfolio_dividends ?? 0) - (from.portfolio_dividends ?? 0))
     : to.investments - from.investments - deposited;
   let friends = (to.held ?? 0) - (from.held ?? 0) + others;
   const shared = sharedAsSpending ? friends : 0;
@@ -94,7 +111,6 @@ export function bridge(from: Balance, to: Balance, flows: Flow[], sharedAsSpendi
   const listed = flows[0].bank_tx !== undefined ? bankTx + unlabelled + (sharedAsSpending ? 0 : others) : null;
   return { change, saved, market, bank, debt, detail: { friends, unlabelled, corrections, transfers, listed }, shared };
 }
-
 
 function dayBefore(d: string): string {
   const t = new Date(`${d}T00:00:00Z`);

@@ -15,22 +15,22 @@ from __future__ import annotations
 import hashlib
 import os
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
-from trackerai_accounts import Accounts, Sessions
-from trackerai_accounts.routes import Session
-from trackerai_accounts.oauth import OAuth, PREFIX
-from trackerai_accounts.service import PRIVACY_VERSION
 
 from api import auth, betas, example
 from api.data import DataStore
 from api.errors import ApiError
+from tools import db, secretbox
+from trackerai_accounts import Accounts, Sessions
+from trackerai_accounts.oauth import PREFIX, OAuth
+from trackerai_accounts.routes import Session
+from trackerai_accounts.service import PRIVACY_VERSION
 from trackerai_websec.client_ip import client_ip, trusted_networks
 from trackerai_websec.throttle import Limiter
-from tools import db, secretbox
 
 APP = "health"  # this app's name in the accounts
 LOCALES = ("nl", "en")
@@ -46,7 +46,7 @@ class Guards:
     token_ip: Limiter = field(default_factory=lambda: Limiter(20, 15 * 60))  # failed agent/MCP tokens
 
     @classmethod
-    def from_env(cls, trusted_proxies: str) -> "Guards":
+    def from_env(cls, trusted_proxies: str) -> Guards:
         return cls(trusted=trusted_networks(trusted_proxies))
 
     def ip(self, request: Request) -> str:
@@ -81,8 +81,15 @@ class User:
         return "agent" if self.via == "agent" else self.username
 
     def public(self) -> dict:
-        return {"id": self.id, "username": self.username, "display_name": self.display_name, "is_admin": self.is_admin, "via": self.via,
-                "totp_enabled": self.totp_enabled, "account_admin": self.account_admin}
+        return {
+            "id": self.id,
+            "username": self.username,
+            "display_name": self.display_name,
+            "is_admin": self.is_admin,
+            "via": self.via,
+            "totp_enabled": self.totp_enabled,
+            "account_admin": self.account_admin,
+        }
 
 
 class Stores:
@@ -108,8 +115,11 @@ def check_locale(locale: str | None) -> None:
 
 def privacy_info() -> dict:
     """Who runs this installation (the controller under the GDPR): PRIVACY_CONTROLLER, PRIVACY_CONTACT."""
-    return {"controller": os.environ.get("PRIVACY_CONTROLLER", "").strip() or None, "contact": os.environ.get("PRIVACY_CONTACT", "").strip() or None,
-            "version": PRIVACY_VERSION}
+    return {
+        "controller": os.environ.get("PRIVACY_CONTROLLER", "").strip() or None,
+        "contact": os.environ.get("PRIVACY_CONTACT", "").strip() or None,
+        "version": PRIVACY_VERSION,
+    }
 
 
 def bootstrap(engine, accounts: Accounts, username: str, password_hash: str, key: str = "") -> int:
@@ -147,16 +157,32 @@ def bring_in(engine, accounts: Accounts, key: str = "") -> int:
             except secretbox.WrongKey:
                 print(f"accounts: {name!r} sets up two-step login again (its secret is not readable with this key)", flush=True)
         first = bool(row["is_admin"]) and not any(a["is_admin"] for a in accounts.list_accounts())
-        accounts.create_linked(name, row["password_hash"], APP, str(uid), is_admin=first, app_admin=bool(row["is_admin"]),
-                               display_name=row.get("display_name"), locale=db.get_setting(db.Scope(engine, uid), "locale"),
-                               suspended=bool(row["suspended"]), totp_secret=secret,
-                               totp_backup=row.get("totp_backup") if secret else None)
+        accounts.create_linked(
+            name,
+            row["password_hash"],
+            APP,
+            str(uid),
+            is_admin=first,
+            app_admin=bool(row["is_admin"]),
+            display_name=row.get("display_name"),
+            locale=db.get_setting(db.Scope(engine, uid), "locale"),
+            suspended=bool(row["suspended"]),
+            totp_secret=secret,
+            totp_backup=row.get("totp_backup") if secret else None,
+        )
         moved += 1
     return moved
 
 
-def make_auth(engine, stores: Stores, accounts: Accounts, sessions: Sessions, legacy_agent_hash: str = "",
-              examples: "example.ExampleData | None" = None, guards: Guards | None = None) -> tuple[Callable, Callable, Callable]:
+def make_auth(
+    engine,
+    stores: Stores,
+    accounts: Accounts,
+    sessions: Sessions,
+    legacy_agent_hash: str = "",
+    examples: example.ExampleData | None = None,
+    guards: Guards | None = None,
+) -> tuple[Callable, Callable, Callable]:
     """Returns (current_user dependency, token_user(token) -> User | None, local_user(session) -> user id). With
     `examples`, a site login that asks for example data on a data route gets the example account's read-only store
     instead of its own (api/example.py)."""
@@ -177,8 +203,14 @@ def make_auth(engine, stores: Stores, accounts: Accounts, sessions: Sessions, le
                 n += 1
                 name = f"{s.username}-{n}"
             app = s.apps.get(APP) or {}
-            uid = db.create_user(engine, name, "!", display_name=s.account.get("display_name"), consent_at=app.get("consent_at"),
-                                 privacy_version=app.get("privacy_version"))
+            uid = db.create_user(
+                engine,
+                name,
+                "!",
+                display_name=s.account.get("display_name"),
+                consent_at=app.get("consent_at"),
+                privacy_version=app.get("privacy_version"),
+            )
             accounts.set_local_key(s.id, APP, str(uid))
             return uid
 
@@ -190,8 +222,16 @@ def make_auth(engine, stores: Stores, accounts: Accounts, sessions: Sessions, le
         if not account:
             return None  # deleted, suspended, or no longer using health-tracker
         app_admin = bool((accounts.apps(account["id"]).get(APP) or {}).get("is_admin"))
-        return User(u["id"], account["username"], account.get("display_name"), app_admin, via, stores.get(u["id"]),
-                    totp_enabled=bool(account.get("totp_enabled_at")), account_id=account["id"])
+        return User(
+            u["id"],
+            account["username"],
+            account.get("display_name"),
+            app_admin,
+            via,
+            stores.get(u["id"]),
+            totp_enabled=bool(account.get("totp_enabled_at")),
+            account_id=account["id"],
+        )
 
     def token_user(token: str | None) -> User | None:
         if not token:
@@ -231,8 +271,17 @@ def make_auth(engine, stores: Stores, accounts: Accounts, sessions: Sessions, le
         if app["consent_at"] is None:
             raise ApiError(403, "consent_required")  # given health-tracker by an admin: consents on the first visit
         uid = local_user(s)
-        u = User(uid, s.username, s.account.get("display_name"), bool(app["is_admin"]), "cookie", stores.get(uid),
-                 totp_enabled=bool(s.account.get("totp_enabled_at")), account_id=s.id, account_admin=bool(s.account["is_admin"]))
+        u = User(
+            uid,
+            s.username,
+            s.account.get("display_name"),
+            bool(app["is_admin"]),
+            "cookie",
+            stores.get(uid),
+            totp_enabled=bool(s.account.get("totp_enabled_at")),
+            account_id=s.id,
+            account_admin=bool(s.account["is_admin"]),
+        )
         if examples is not None and example.serves(request):
             # only the data comes from the example account; never another real user's, and never writable
             return User(example.EXAMPLE_USER_ID, u.username, u.display_name, False, "cookie", examples.store(), example=True)
@@ -261,8 +310,13 @@ def make_router(engine, stores: Stores, accounts: Accounts, sessions: Sessions, 
     def auth_config():
         """Public: what the login and registration pages should offer, who runs this installation (privacy page), and
         the front door to link to (trackerai.nl, its admin page; null for a tracker on its own)."""
-        return {"registration": accounts.registration_mode(), "first_user": accounts.count() == 0, "privacy": privacy_info(),
-                "session_days": accounts.config.session_days, "front_door_url": accounts.config.front_door_url}
+        return {
+            "registration": accounts.registration_mode(),
+            "first_user": accounts.count() == 0,
+            "privacy": privacy_info(),
+            "session_days": accounts.config.session_days,
+            "front_door_url": accounts.config.front_door_url,
+        }
 
     @r.get("/api/me")
     def me(request: Request, response: Response):
@@ -274,13 +328,26 @@ def make_router(engine, stores: Stores, accounts: Accounts, sessions: Sessions, 
         s = sessions.current(request, response)
         view = accounts.view(s.account, s.apps)
         app = s.apps.get(APP)
-        out = {"id": None, "username": s.username, "display_name": s.account.get("display_name"), "is_admin": False, "via": "cookie",
-               "locale": s.account.get("locale"), "account_admin": view["is_admin"], "apps": view["apps"],
-               "totp_enabled": view["totp_enabled"], "email_codes": view["email_codes"], "two_step": view["two_step"],
-               "email": view["email"], "email_verify_required": view["email_verify_required"],
-               "totp_required": view["totp_required"],
-               "totp_setup_required": view["totp_setup_required"], "in_app": app is not None,
-               "consent_needed": app is not None and app["consent_at"] is None, "betas": []}
+        out = {
+            "id": None,
+            "username": s.username,
+            "display_name": s.account.get("display_name"),
+            "is_admin": False,
+            "via": "cookie",
+            "locale": s.account.get("locale"),
+            "account_admin": view["is_admin"],
+            "apps": view["apps"],
+            "totp_enabled": view["totp_enabled"],
+            "email_codes": view["email_codes"],
+            "two_step": view["two_step"],
+            "email": view["email"],
+            "email_verify_required": view["email_verify_required"],
+            "totp_required": view["totp_required"],
+            "totp_setup_required": view["totp_setup_required"],
+            "in_app": app is not None,
+            "consent_needed": app is not None and app["consent_at"] is None,
+            "betas": [],
+        }
         if app is not None and not out["consent_needed"] and not out["totp_setup_required"] and not out["email_verify_required"]:
             out["id"], out["is_admin"] = local_user(s), bool(app["is_admin"])
             out["betas"] = betas.of_user(engine, out["id"])  # gate a beta feature on the site with these
@@ -292,7 +359,11 @@ def make_router(engine, stores: Stores, accounts: Accounts, sessions: Sessions, 
         account = accounts.update_profile(u.account_id, body.display_name, body.locale)
         if body.display_name is not None:
             db.update_user(engine, u.id, display_name=account.get("display_name"))
-        return {**db.get_user(engine, u.id), "username": account["username"], "display_name": account.get("display_name"),
-                "locale": account.get("locale")}
+        return {
+            **db.get_user(engine, u.id),
+            "username": account["username"],
+            "display_name": account.get("display_name"),
+            "locale": account.get("locale"),
+        }
 
     return r

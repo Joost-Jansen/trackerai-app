@@ -12,13 +12,7 @@
 import type { SparklinePoint } from "@/lib/dashboard";
 import { tr } from "@/lib/i18n";
 
-export default function Sparkline({
-  points,
-  className = "",
-}: {
-  points: SparklinePoint[];
-  className?: string;
-}) {
+export default function Sparkline({ points, className = "" }: { points: SparklinePoint[]; className?: string }) {
   if (points.length < 2) return null;
 
   const W = 188;
@@ -31,9 +25,7 @@ export default function Sparkline({
 
   const x = (i: number) => (i / (points.length - 1)) * (W - 2 * PATH) + PATH;
   const y = (v: number) => PATH + (1 - (v - min) / span) * (H - 2 * PATH);
-  const line = points
-    .map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(p.v).toFixed(1)}`)
-    .join(" ");
+  const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(" ");
 
   const up = values[values.length - 1] >= values[0];
   const colour = up ? "var(--data-gain)" : "var(--data-loss)";
@@ -51,14 +43,7 @@ export default function Sparkline({
       aria-label={tr("Value over the last month, {0}", up ? "stijgend" : "dalend")}
       className={`ds-spark w-full ${className}`}
     >
-      <path
-        d={line}
-        stroke={colour}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
+      <path d={line} stroke={colour} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }

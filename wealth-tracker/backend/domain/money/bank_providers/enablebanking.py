@@ -24,15 +24,15 @@ Read-only: this file has no payment function at all.
 
 import os
 import time
-from urllib.parse import quote
 from datetime import date
+from urllib.parse import quote
 
 import jwt
 import requests
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
-from domain.money.bank_providers import base
 from domain.i18n import tr
+from domain.money.bank_providers import base
 
 PROVIDER = "enablebanking"
 BASE_URL = os.environ.get("ENABLEBANKING_API_URL", "https://api.enablebanking.com")
@@ -52,7 +52,9 @@ def verify_key(pem: bytes) -> None:
     try:
         key = load_pem_private_key(pem, password=None)
     except Exception as e:
-        raise ValueError(tr("This is not a valid private key. Upload the .pem file Enable Banking downloaded when you registered your application.")) from e
+        raise ValueError(
+            tr("This is not a valid private key. Upload the .pem file Enable Banking downloaded when you registered your application.")
+        ) from e
     if key.key_size < 2048:
         raise ValueError(tr("This key is too short."))
 
@@ -68,14 +70,19 @@ class Client:
         now = int(time.time())
         return jwt.encode(
             {"iss": "enablebanking.com", "aud": "api.enablebanking.com", "iat": now, "exp": now + 3600},
-            self._key, algorithm="RS256", headers={"kid": self.app_id},
+            self._key,
+            algorithm="RS256",
+            headers={"kid": self.app_id},
         )
 
     def _ask(self, method: str, path: str, **kwargs) -> dict:
         try:
             answer = self._http.request(
-                method, f"{BASE_URL}{path}",
-                headers={"Authorization": f"Bearer {self._token()}"}, timeout=30, **kwargs,
+                method,
+                f"{BASE_URL}{path}",
+                headers={"Authorization": f"Bearer {self._token()}"},
+                timeout=30,
+                **kwargs,
             )
         except requests.RequestException as e:
             raise ErrorNote(tr("Enable Banking can't be reached: {0}", e)) from e
@@ -92,13 +99,17 @@ class Client:
         return self._ask("GET", "/aspsps", params={"country": country, "psu_type": "personal"}).get("aspsps", [])
 
     def start(self, *, bank: str, country: str, redirect_url: str, state: str, valid_until: str) -> dict:
-        return self._ask("POST", "/auth", json={
-            "access": {"valid_until": valid_until},
-            "aspsp": {"name": bank, "country": country},
-            "state": state,
-            "redirect_url": redirect_url,
-            "psu_type": "personal",
-        })
+        return self._ask(
+            "POST",
+            "/auth",
+            json={
+                "access": {"valid_until": valid_until},
+                "aspsp": {"name": bank, "country": country},
+                "state": state,
+                "redirect_url": redirect_url,
+                "psu_type": "personal",
+            },
+        )
 
     def session(self, code: str) -> dict:
         return self._ask("POST", "/sessions", json={"code": code})
@@ -159,8 +170,8 @@ def to_rule(tx: dict, account_iban: str | None) -> dict | None:
         # Without an IBAN (a savings account at the same bank) the account number the
         # bank does give: that is how accounts.py recognises the savings account.
         "counterparty_iban": base.normalise_iban(
-            counter_account.get("iban") or (counter_account.get("other") or {}).get("identification")
-            or counter_account.get("bban")),
+            counter_account.get("iban") or (counter_account.get("other") or {}).get("identification") or counter_account.get("bban")
+        ),
         "description": description,
         "account_iban": account_iban,
         "code": (tx.get("bank_transaction_code") or {}).get("code"),
@@ -173,8 +184,7 @@ def to_rule(tx: dict, account_iban: str | None) -> dict | None:
     }
 
 
-def chosen_balance(balances: list[dict], today: str | None = None,
-                  transactions: list[dict] | None = None) -> tuple[str, float] | None:
+def chosen_balance(balances: list[dict], today: str | None = None, transactions: list[dict] | None = None) -> tuple[str, float] | None:
     """(date, amount) of the balance that best says what is on the account.
 
     The "expected" balance (XPCD) counts payments that are still pending — ING

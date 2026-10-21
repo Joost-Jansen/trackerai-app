@@ -26,13 +26,13 @@ os.environ.setdefault("ACCOUNTS_SWEEP", "off")
 def _accounts():
     """Accounts of this test's own: a Postgres database of its own (packages/testing), two-step login not required (a test about it sets
     `accounts.config` itself). Logins from auth_config.yaml become accounts on their first use (core/accounts.py)."""
+    from app.core import accounts as shared
     from trackerai_accounts import Accounts, Config, connect, crypto
     from trackerai_testing import new_database_url
 
-    from app.core import accounts as shared
-
-    cfg = Config(database_url=new_database_url(), session_secret="s" * 40, encryption_key=crypto.new_key(),
-                 cookie_secure=False, require_totp="off")
+    cfg = Config(
+        database_url=new_database_url(), session_secret="s" * 40, encryption_key=crypto.new_key(), cookie_secure=False, require_totp="off"
+    )
     a = Accounts(connect(cfg.database_url), cfg)
     shared.use(a)
     yield a
@@ -58,8 +58,9 @@ def _wealth_schemas(monkeypatch):
     with psycopg.connect(url, autocommit=True) as conn:
         # A connection the test left open would hold its locks and make DROP SCHEMA wait for ever. Tests run one at
         # a time against a database of their own, so every other connection to it is that test's leftover.
-        conn.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity"
-                     " WHERE datname = current_database() AND pid <> pg_backend_pid()")
+        conn.execute(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()"
+        )
         for (schema,) in conn.execute("SELECT nspname FROM pg_namespace WHERE nspname LIKE %s", (prefix + "%",)).fetchall():
             conn.execute(f'DROP SCHEMA "{schema}" CASCADE')
 
@@ -109,9 +110,9 @@ def client(tmp_path, monkeypatch):
     Two, not one, so cross-user isolation is always testable: every endpoint
     here is scoped by the session cookie alone.
     """
-    from domain import database
     from app.core import config, security
     from app.main import app
+    from domain import database
 
     monkeypatch.setattr(database, "_HERE", str(tmp_path))
 
