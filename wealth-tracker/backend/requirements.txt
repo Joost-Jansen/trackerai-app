@@ -6,10 +6,10 @@
 # installed in this backend's environment/image.
 -r ../requirements.txt
 
-fastapi==0.142.2
-uvicorn[standard]==0.50.2
+fastapi==0.143.3
+uvicorn[standard]==0.54.0
 python-multipart==0.0.32   # required by FastAPI for file uploads (UploadFile)
-pyjwt==2.13.0
+pyjwt==2.15.1
 pyyaml==6.0.3
 cryptography==49.0.0   # RS256 for Enable Banking and encrypting bank connections (secret_box.py)
 psycopg[binary]==3.3.6   # Postgres for the users' data when WEALTH_DATABASE_URL is set (domain/db.py); the same pin as packages/accounts
