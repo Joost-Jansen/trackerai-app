@@ -422,5 +422,4 @@ responsible for keeping your own instance and its data secure.
 
 ## License
 
-No license has been chosen yet, so all rights remain with the authors and reuse needs their permission until a license
-file is added.
+[MIT](../LICENSE) (c) 2026 Joost Jansen, for the whole repository.

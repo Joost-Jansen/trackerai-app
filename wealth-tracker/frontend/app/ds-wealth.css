@@ -6,6 +6,11 @@
 .time-filterbar__button:hover, .time-filterbar__button[data-open="true"] { background: var(--surface-inset); color: var(--text-primary); }
 .time-filterbar__chip { display: inline-flex; align-items: center; gap: 6px; border-color: var(--rule); background: var(--surface-inset); color: var(--text-primary); transition: background-color 180ms ease; }
 .time-filterbar__chip:hover { background: var(--surface-card); }
+.month-picker { border: 1px solid transparent; transition: background-color 180ms ease, border-color 180ms ease; }
+.month-picker[data-picked="true"] { background: var(--surface-inset); border-color: var(--brand-500); }
+.month-picker__step:not(:disabled):hover { color: var(--text-primary); background: var(--surface-card); }
+.month-picker__select { color: var(--text-primary); }
+.month-picker__select:focus-visible, .month-picker__step:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 1px; }
 .time-filterbar__panel {
   position: absolute; top: 100%; right: 0; width: min(100%, 900px); max-height: min(70vh, 680px);
   overflow-y: auto; padding: var(--sp-5); background: var(--surface-card);

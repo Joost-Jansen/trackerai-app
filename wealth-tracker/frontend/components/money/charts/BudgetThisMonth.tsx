@@ -7,7 +7,7 @@
 //
 // Budgets are per main category (budget.py): planning ten groups you keep up,
 // forty categories you do not. They apply to all your accounts, so independent of
-// the filters at the top.
+// the filters at the top. The month is the one in the bar at the top (ctx.month).
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -16,32 +16,31 @@ import { fmtDayMonth, fmtEuro } from "@/lib/format";
 import { trueMinus } from "@trackerai/ui/lib/typography";
 import { dayNumber } from "@/lib/timeline";
 import { today, type BudgetOverview } from "@/lib/money";
-import { ChartCard, Setting, monthsUntil, percent, TipCard, useTip, type ChartProps } from "./base";
+import { ChartCard, MonthSetting, Setting, monthName, percent, TipCard, useTip, type ChartProps } from "./base";
 import { tr, trx } from "@/lib/i18n";
 
-export const DEFAULT = { show: "budget", back: "0" };
+export const DEFAULT = { show: "budget" };
 // This much faster than planned (as a share of the budget) is worth mentioning.
 const MARGIN = 0.05;
 
 export default function BudgetThisMonth({ ctx, inst, put, editing }: ChartProps) {
   const i = { ...DEFAULT, ...inst };
   const { tip, props } = useTip();
+  // Only the current month has a pace — a past month is done.
+  const { month, running } = ctx;
+  // Enough months back to reach the chosen one; one extra for a month without any spending.
+  const back = ctx.monthChoices.length - 1 - ctx.monthChoices.indexOf(month);
+  const n = Math.min(120, Math.max(4, back + 2));
   const q = useQuery({
-    queryKey: ["budget", "this-month"],
-    queryFn: () => api.get<BudgetOverview>("/api/budget?months=4"),
+    queryKey: ["budget", "this-month", n],
+    queryFn: () => api.get<BudgetOverview>(`/api/budget?months=${n}`),
   });
-
-  // 0 is the current month; 1, 2, 3 the months before. Only the current month has a
-  // pace — a past month is done.
-  const back = Math.max(0, Math.min(3, Number(i.back) || 0));
-  const running = back === 0;
-  const [month] = monthsUntil(today(), ctx.boundaries, back + 1);
   const length = dayNumber(month.end) - dayNumber(month.start) + 1;
   const day = running ? Math.min(length, dayNumber(today()) - dayNumber(month.start) + 1) : length;
   const pace = day / length;
   const end = month.end < today() ? month.end : today();
   const word = ctx.monthWord;
-  const title = [tr("Budget this month"), tr("Budget previous {0}", word), tr("Budget 2 {0}s ago", word), tr("Budget 3 {0}s ago", word)][back];
+  const title = running ? tr("Budget this month") : tr("Budget {0}", monthName(month.key));
 
   // Net, as with Budget: a Tikkie on "Cafe & uitgaan" counts against the drinks.
   // `back` is that part, so you see why a group comes out low or even below zero.
@@ -64,15 +63,14 @@ export default function BudgetThisMonth({ ctx, inst, put, editing }: ChartProps)
   return (
     <ChartCard title={title} editing={editing}
       settings={<>
-        <Setting label={tr("Month")} value={String(back)} onChange={(w) => put("back", w)}
-          options={[["0", tr("This {0}", word)], ["1", tr("Previous {0}", word)], ["2", tr("2 months ago")], ["3", tr("3 months ago")]]} />
+        <MonthSetting ctx={ctx} />
         <Setting label={tr("Display")} value={i.show} onChange={(w) => put("show", w)}
           options={[["budget", tr("With budget")], ["all", tr("All main categories")]]} />
       </>}
       meta={<span className="num text-xs text-ink-muted">
         {fmtDayMonth(month.start)} – {fmtDayMonth(month.end)}{running && withBudget.length > 0 ? tr(" · day {0} of {1}", day, length) : ""}
       </span>}
-      info={<>{trx("What you spent in this {0} ({1} – {2}) per main category, next to your budget. In the current {3} each bar has a marker: what you expect to have spent by today. Fixed costs the app recognises in your transactions (every month, about the same amount) count on the day they usually go out; the rest of the budget spread evenly over the {4}. If the bar is past the marker, you're spending faster than expected. Refunds on a group (a Tikkie, a return) are deducted from the spending. Which {5} you see you choose at Set up. You set budgets at Budget; they apply to all your accounts, regardless of the filters at the top.", word, fmtDayMonth(month.start), fmtDayMonth(month.end), word, word, word)}</>}>
+      info={<>{trx("What you spent in this {0} ({1} – {2}) per main category, next to your budget. In the current {3} each bar has a marker: what you expect to have spent by today. Fixed costs the app recognises in your transactions (every month, about the same amount) count on the day they usually go out; the rest of the budget spread evenly over the {4}. If the bar is past the marker, you're spending faster than expected. Refunds on a group (a Tikkie, a return) are deducted from the spending. Which {5} you see you choose in the bar at the top or at Set up: it's the same for every card about one month. You set budgets at Budget; they apply to all your accounts, regardless of the filters at the top.", word, fmtDayMonth(month.start), fmtDayMonth(month.end), word, word, word)}</>}>
       {q.isLoading ? <p className="text-xs text-ink-muted">{tr("Loading…")}</p> : withBudget.length === 0 && i.show === "budget" ? (
         <p className="py-2 text-sm text-ink-muted">{trx("No budget yet. Set a monthly budget per main category at {0}. What you spend in a normal month is there as a suggestion.", <Link href="/spending/budget" className="underline underline-offset-4">Budget</Link>)}</p>
       ) : (

@@ -15,11 +15,48 @@ import type { Category, Account } from "@/lib/money";
 import Link from "next/link";
 import { fmtDayMonthYear } from "@/lib/format";
 import { DEFAULT_PERIOD, type Direction, type SpendingFilters } from "@/lib/spending-filters";
+import { monthName, type Month } from "@/components/money/charts/base";
 import { tr } from "@/lib/i18n";
 
+/**
+ * The month of the month cards, in the bar next to the periods: ‹ This month ›.
+ * A month other than the current one is marked, with a × back to this month.
+ */
+export function MonthPicker({ choices, value, monthWord, onChange }: {
+  /** Ascending; the last is the current month. */
+  choices: Month[]; value: string; monthWord: string; onChange: (key: string) => void;
+}) {
+  const current = choices[choices.length - 1]?.key ?? "";
+  const found = choices.findIndex((m) => m.key === value);
+  const k = found >= 0 ? found : choices.length - 1;
+  const picked = choices[k]?.key !== current;
+  const go = (key: string) => onChange(key === current ? "" : key);
+  const step = "month-picker__step shrink-0 rounded px-1.5 py-1 text-xs text-ink-muted disabled:opacity-30";
+  return (
+    <span className="month-picker flex shrink-0 items-center gap-0.5 rounded-full py-0.5 pl-2.5 pr-1" data-picked={picked}>
+      <span className="mr-1 text-[11px] text-ink-muted">{tr("Month")}</span>
+      <button type="button" className={step} disabled={k <= 0} onClick={() => go(choices[k - 1].key)}
+        aria-label={tr("Previous {0}", monthWord)} title={tr("Previous {0}", monthWord)}>‹</button>
+      <select aria-label={tr("Month of the month cards")} value={choices[k]?.key ?? ""} onChange={(e) => go(e.target.value)}
+        title={choices[k] ? `${fmtDayMonthYear(choices[k].start)} – ${fmtDayMonthYear(choices[k].end)}` : undefined}
+        className="month-picker__select cursor-pointer appearance-none bg-transparent px-0.5 text-center text-xs font-medium">
+        {[...choices].reverse().map((m) => (
+          <option key={m.key} value={m.key}>{m.key === current ? tr("This {0}", monthWord) : monthName(m.key)}</option>
+        ))}
+      </select>
+      <button type="button" className={step} disabled={!picked} onClick={() => go(choices[k + 1].key)}
+        aria-label={tr("Next {0}", monthWord)} title={tr("Next {0}", monthWord)}>›</button>
+      {picked && <button type="button" className={step} onClick={() => go(current)}
+        aria-label={tr("Back to this {0}", monthWord)} title={tr("Back to this {0}", monthWord)}>×</button>}
+    </span>
+  );
+}
+
 /** The period stays visible; other filters are reachable within the same fixed bar. */
-export function PeriodsBar({ f, accounts, children, onClear }: {
+export function PeriodsBar({ f, accounts, children, onClear, month }: {
   f: SpendingFilters; accounts: Account[]; children: ReactNode; onClear?: () => void;
+  /** Next to the periods: the month of the month cards (MonthPicker). */
+  month?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
@@ -60,6 +97,7 @@ export function PeriodsBar({ f, accounts, children, onClear }: {
       <div className="flex min-w-0 items-center gap-2 overflow-x-auto no-scrollbar py-2">
         <Tabs items={periodTabs(PERIODS)} value={f.timeline.period} onChange={f.timeline.choose}
           variant="quiet" ariaLabel={tr("Period of Spending")} className="shrink-0 whitespace-nowrap" />
+        {month && <><span className="mx-1 h-5 shrink-0 border-l" style={{ borderColor: "var(--rule)" }} aria-hidden />{month}</>}
         {selection.length > 0 && <span className="mx-1 h-5 shrink-0 border-l" style={{ borderColor: "var(--rule)" }} aria-hidden />}
         {selection.map((item, i) => <button key={`${item.label}-${i}`} type="button" onClick={item.away}
           title={tr("Remove filter {0}", item.label)} aria-label={tr("Remove filter {0}", item.label)}

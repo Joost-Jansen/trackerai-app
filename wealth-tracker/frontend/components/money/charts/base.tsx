@@ -47,6 +47,21 @@ export function monthsUntil(end: string, boundaries: string[] | null, n: number)
   return off;
 }
 
+/**
+ * The months you can look at one by one: from the month of your first data up to
+ * and including the current one, ascending. Always at least the current month.
+ */
+export function monthChoices(first: string, boundaries: string[] | null, last: string): Month[] {
+  const n = boundaries?.length ? boundaries.length
+    : (Number(last.slice(0, 4)) - Number(first.slice(0, 4))) * 12 + Number(last.slice(5, 7)) - Number(first.slice(5, 7)) + 1;
+  const all = monthsUntil(last, boundaries, Math.max(1, n));
+  const shown = all.filter((m) => m.end >= first);
+  return shown.length ? shown : all.slice(-1);
+}
+
+/** "Sep 2026": a month on its own, where the year is not obvious. */
+export const monthName = (key: string) => `${fmtMonth(key)} ${key.slice(0, 4)}`;
+
 /** "Sep", with the year added where it is needed: at the first and at a new year. */
 export function monthLabel(key: string, i: number, items: { key: string }[]): string {
   const year = i === 0 || key.slice(0, 4) !== items[i - 1]?.key.slice(0, 4);
@@ -107,6 +122,13 @@ export type Context = {
   /** IBANs of this user's accounts, for own transfers. */
   ownIbans: Set<string>;
   monthWord: string;
+  /** The month the month cards look at (the month in the bar at the top), and whether it is the current one. */
+  month: Month;
+  running: boolean;
+  /** All months you can choose, ascending; the last is the current month. */
+  monthChoices: Month[];
+  /** Chooses the month for every month card at once; "" is back to the current month. */
+  setMonth: (key: string) => void;
   dest: (w: { start?: string; end?: string; categories?: string[]; search?: string }) => void;
 };
 
@@ -254,6 +276,21 @@ export function Setting({ label, value, options, onChange }: {
       <Tabs variant="segmented" ariaLabel={label} items={options.map(([id, l]) => ({ id, label: l }))} value={value} onChange={onChange} />
     </span>
   );
+}
+
+/**
+ * The month as a setting of a month card: the current month and the three before
+ * it, plus the chosen month when it lies further back. It is the same month as in
+ * the bar at the top, so changing it here changes every month card.
+ */
+export function MonthSetting({ ctx }: { ctx: Context }) {
+  const recent = ctx.monthChoices.slice(-4).reverse();
+  const options = recent.map((m, k): [string, string] =>
+    [m.key, k === 0 ? tr("This {0}", ctx.monthWord) : k === 1 ? tr("Previous {0}", ctx.monthWord) : monthName(m.key)]);
+  if (!recent.some((m) => m.key === ctx.month.key)) options.push([ctx.month.key, monthName(ctx.month.key)]);
+  const current = recent[0]?.key;
+  return <Setting label={tr("Month")} value={ctx.month.key} options={options}
+    onChange={(key) => ctx.setMonth(key === current ? "" : key)} />;
 }
 
 export function ChartCard({ title, info, meta, settings, editing, children }: {

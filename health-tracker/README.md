@@ -473,4 +473,4 @@ trademarks of Garmin Ltd.
 
 ## License
 
-[MIT](LICENSE) (c) 2026 Joost Jansen.
+[MIT](../LICENSE) (c) 2026 Joost Jansen, for the whole repository.

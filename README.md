@@ -163,3 +163,12 @@ CI runs one workflow per app, triggered by changes in that app, in `packages/` o
 - **Self-hosting on a mini PC:** see `health-tracker/docs/SELF_HOSTING.md` and `wealth-tracker/docs/SELF_HOSTING.md`.
   The shared edge (Caddy and the Cloudflare tunnel) is in `health-tracker/deploy/edge`, and moves to a top-level
   `deploy/` in step 3 of the plan.
+
+## License
+
+[MIT](LICENSE) (c) 2026 Joost Jansen. The license covers the code in this repository, not third-party data: the NEVO food
+table is not in the repository and stays out of it, and market data such as Yahoo Finance prices is fetched at run time
+under its own terms.
+
+Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). Security issues go through
+[SECURITY.md](SECURITY.md).
