@@ -100,12 +100,13 @@ flowchart LR
     H --> ACC
     W --> ACC
     H --> HD[(health data<br/>Postgres)]
-    W --> WD[(money data<br/>SQLite per account)]
+    W --> WD[(money data<br/>Postgres, a schema per account)]
 ```
 
 One session cookie on the parent domain holds on every tracker. Who you are (login, two-step login, language, which
 trackers you use) is shared; your data is not: health data stays in health-tracker's database, money data in
-wealth-tracker's, and an agent token only ever reaches the tracker that made it.
+wealth-tracker's (a schema per account), and an agent token only ever reaches the tracker that made it. All three
+stores are Postgres; a self-hosted wealth-tracker without `WEALTH_DATABASE_URL` keeps one SQLite file per account.
 
 ## Repository
 
@@ -153,8 +154,8 @@ CI runs one workflow per app, triggered by changes in that app, in `packages/` o
   | health-web | `health-tracker/web/Dockerfile` (repo root) | health.trackerai.nl |
   | health-api | `health-tracker/api/Dockerfile` (repo root) | the API behind it |
   | health-sync | `health-tracker/Dockerfile.sync` (`health-tracker/`) | daily Garmin sync |
-  | stock-tracker / money | `wealth-tracker/frontend/Dockerfile` (repo root) | wealth.trackerai.nl |
-  | stock-tracker / api | `wealth-tracker/backend/Dockerfile` (repo root) | the API behind it |
+  | wealth-web | `wealth-tracker/frontend/Dockerfile` (repo root) | wealth.trackerai.nl |
+  | api | `wealth-tracker/backend/Dockerfile` (repo root) | the API behind it |
   | trackerai-web | `trackerai/web/Dockerfile` (repo root) | trackerai.nl, www.trackerai.nl |
   | trackerai-api | `trackerai/api/Dockerfile` (repo root) | the API behind it |
 

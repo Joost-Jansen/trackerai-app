@@ -116,7 +116,7 @@ own app: [trackerai/](../trackerai), trackerai-web and trackerai-api.
 |---|---|
 | Web | Next.js 16 (App Router, standalone server), React 19, TypeScript, Tailwind, TanStack Query, hand-written SVG charts |
 | API | Python 3.13, FastAPI, pandas, PyJWT, bcrypt, cryptography (Fernet) |
-| Data | One SQLite database per user (WAL mode); logins in the shared trackerai accounts database (Postgres); beta flags in `auth_config.yaml` |
+| Data | Postgres: one `wealth` database with a schema per user (`WEALTH_DATABASE_URL`, `domain/db.py`); without it one SQLite file per user (WAL mode), for self-hosting and the local demo. Logins in the shared trackerai accounts database (Postgres); beta flags in `auth_config.yaml` |
 | Market data | `yfinance` (prices and history), OpenFIGI (ISIN to ticker), Tradegate quotes, issuer ETF holdings files, Finnhub and Alpha Vantage (news, optional) |
 | Hosting | Two services on Railway, built from the monorepo root, or Docker Compose behind Caddy and a Cloudflare Tunnel on a mini PC or Raspberry Pi |
 
@@ -127,7 +127,7 @@ flowchart LR
     P -->|pages| W[Next.js web]
     P -->|/api/*| A[FastAPI api]
     W -.->|/api/* rewrite when there is no Caddy| A
-    A --> DB[(data/users/&lt;user&gt;/portfolio.db<br/>one SQLite per user)]
+    A --> DB[(Postgres: a schema per user<br/>or one SQLite file per user)]
     A --> AC[(trackerai accounts<br/>login, two-step, apps)]
     AG[Your agent] -->|MCP + token| A
     A -->|prices, history| Y[Yahoo Finance]
@@ -149,10 +149,10 @@ codes), language, admin and suspended flags, and which trackers an account uses 
 tracker reaches. Login sets an httpOnly session cookie on the shared parent domain with a signed JWT (HS256,
 `ACCOUNTS_SESSION_SECRET`), so one login holds on every tracker. Logins are rate-limited per account (across trackers)
 and per IP before the password is checked, so a blocked attempt costs no bcrypt; sign-up is rate-limited too. Every
-request resolves the session to the account's data folder and opens that user's own SQLite file; there is no shared data
-table, so one user's queries cannot reach another user's data. A suspended account's session stops working immediately.
-`auth_config.yaml` keeps what is wealth-tracker's own (beta flags per account, its admins); a login from before the
-shared accounts becomes an account on its first login.
+request resolves the session to the account's data folder and opens that user's own schema (or SQLite file); there is no
+shared data table, so one user's queries cannot reach another user's data. A suspended account's session stops working
+immediately. `auth_config.yaml` keeps what is wealth-tracker's own (beta flags per account, its admins); a login from
+before the shared accounts becomes an account on its first login.
 
 **Secrets.** The private key of a user's Enable Banking connection is encrypted with Fernet (AES-128-CBC + HMAC-SHA256)
 using `APP_ENCRYPTION_KEY`, or, without it, a key the server generates once on the data volume (owner-readable only), and it
@@ -182,21 +182,22 @@ is never sent back to the browser. API keys (news, Anthropic) are server environ
 ### Railway
 
 1. Fork [trackerai-app](https://github.com/Joost-Jansen/trackerai-app).
-2. Create a project with two services from the fork, both on branch `main`, both built from the repo root:
+2. Create a project with two services from the fork, both on branch `main`, both built from the repo root, and a
+   Postgres service (the shared accounts and, with `WEALTH_DATABASE_URL`, the users' data in a `wealth` database):
 
    | Service | Root directory | Dockerfile | Watch paths | Healthcheck | Volume |
    |---|---|---|---|---|---|
    | `api` | `/` | `wealth-tracker/backend/Dockerfile` | `wealth-tracker/**` except `frontend/` and `docs/`, `packages/accounts/**` | `/api/health` | mounted at `/data` |
-   | `money` | `/` | `wealth-tracker/frontend/Dockerfile` | `wealth-tracker/frontend/**`, `packages/**`, `package.json`, `package-lock.json` | `/login` | none |
+   | `wealth-web` | `/` | `wealth-tracker/frontend/Dockerfile` | `wealth-tracker/frontend/**`, `packages/**`, `package.json`, `package-lock.json` | `/login` | none |
 
 3. Set the variables from the table below, including the shared account (`ACCOUNTS_*`) with the same values as
-   health-tracker. Give only `money` a public domain; `api` stays on the private network. The front door is
+   health-tracker. Give only `wealth-web` a public domain; `api` stays on the private network. The front door is
    trackerai/'s (trackerai-web and trackerai-api).
 4. Deploy and sign up: on an empty accounts database the first account becomes the admin, and sign-up switches to
    closed. Invite others from the admin page (an invitation link per person, or open sign-up).
 5. Connect your bank or upload exports under **Update**, and your DeGiro exports for the portfolio.
 
-Keep `api` at one replica: SQLite on one volume allows one writing machine. Turn on volume backups in Railway.
+Keep `api` at one replica: the data volume (feedback, `auth_config.yaml`) allows one writing machine. Turn on volume backups in Railway.
 
 ### A mini PC, a Raspberry Pi or any Docker host
 
