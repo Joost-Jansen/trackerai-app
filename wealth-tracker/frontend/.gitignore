@@ -4,3 +4,5 @@ out/
 next-env.d.ts
 .env*.local
 *.tsbuildinfo
+# Written by `next dev` (agentRules in next.config)
+AGENTS.md
