@@ -31,7 +31,7 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - api-data:/data  # temporary uploads and exports, the example account (api/Dockerfile sets TMPDIR and friends)
+      - api-data:/data # temporary uploads and exports, the example account (api/Dockerfile sets TMPDIR and friends)
     networks:
       - default
       - edge
@@ -43,7 +43,13 @@ services:
     mem_limit: 1g
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').getcode()==200 else 1)"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').getcode()==200 else 1)",
+        ]
       interval: 30s
       timeout: 5s
       start_period: 30s
@@ -86,7 +92,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
-      - default  # internal only: never published, never on `edge`
+      - default # internal only: never published, never on `edge`
     security_opt:
       - no-new-privileges:true
     shm_size: 256m
@@ -101,7 +107,7 @@ services:
 
 networks:
   default:
-    internal: true  # web <-> api <-> postgres; the api reaches the internet (Garmin, Wahoo) through `edge`
+    internal: true # web <-> api <-> postgres; the api reaches the internet (Garmin, Wahoo) through `edge`
   edge:
     external: true
 

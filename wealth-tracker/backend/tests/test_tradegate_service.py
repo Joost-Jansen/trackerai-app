@@ -16,9 +16,19 @@ from app.services import tradegate_service as tg
 
 # A real answer, verbatim, for IE00B3XXRP09 — note "low" as a string.
 REAL_PAYLOAD = {
-    "bid": 125.38, "ask": 125.465, "bidsize": 1000, "asksize": 1000, "delta": 0.08,
-    "stueck": 25575, "umsatz": 3198126, "avg": 125.0489, "executions": 3991,
-    "last": 125.36, "high": 125.545, "low": "124,80", "close": 125.265,
+    "bid": 125.38,
+    "ask": 125.465,
+    "bidsize": 1000,
+    "asksize": 1000,
+    "delta": 0.08,
+    "stueck": 25575,
+    "umsatz": 3198126,
+    "avg": 125.0489,
+    "executions": 3991,
+    "last": 125.36,
+    "high": 125.545,
+    "low": "124,80",
+    "close": 125.265,
 }
 
 # Wednesday 16 September 2026, mid-session.
@@ -94,38 +104,47 @@ def _script(monkeypatch, *answers) -> FakeHttp:
 # Input
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("isin", ["IE00B4L5YC18", "IE00B3XXRP09", "US0378331005", "DE0007664039", "NL0010773842"])
 def test_real_isins_pass_the_checksum(isin):
     assert tg.is_valid_isin(isin)
 
 
-@pytest.mark.parametrize("isin", [
-    "US0378331006",     # one digit off in the check digit
-    "IE00B4L5YC1",      # too short
-    "ie00b4l5yc18",     # lower case is not normalised here
-    "1E00B4L5YC18",     # country code must be letters
-    "", None, 12345,
-])
+@pytest.mark.parametrize(
+    "isin",
+    [
+        "US0378331006",  # one digit off in the check digit
+        "IE00B4L5YC1",  # too short
+        "ie00b4l5yc18",  # lower case is not normalised here
+        "1E00B4L5YC18",  # country code must be letters
+        "",
+        None,
+        12345,
+    ],
+)
 def test_malformed_isins_are_rejected(isin):
     assert not tg.is_valid_isin(isin)
 
 
-@pytest.mark.parametrize("raw, expected", [
-    (55.52, 55.52),
-    (0, 0.0),
-    ("124,80", 124.8),
-    ("1 234,56", 1234.56),
-    ("1 234,56", 1234.56),
-    ("1.234,56", 1234.56),
-    ("-1,39%", -1.39),
-    ("55.52", 55.52),
-    ("./.", None),
-    ("", None),
-    ("abc", None),
-    (None, None),
-    (True, None),
-    (float("nan"), None),
-])
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        (55.52, 55.52),
+        (0, 0.0),
+        ("124,80", 124.8),
+        ("1 234,56", 1234.56),
+        ("1 234,56", 1234.56),
+        ("1.234,56", 1234.56),
+        ("-1,39%", -1.39),
+        ("55.52", 55.52),
+        ("./.", None),
+        ("", None),
+        ("abc", None),
+        (None, None),
+        (True, None),
+        (float("nan"), None),
+    ],
+)
 def test_numbers_are_read_in_both_notations(raw, expected):
     assert tg.parse_number(raw) == expected
 
@@ -134,11 +153,12 @@ def test_numbers_are_read_in_both_notations(raw, expected):
 # Reading a quote
 # ---------------------------------------------------------------------------
 
+
 def test_last_bid_and_ask_stay_three_separate_numbers():
     q = tg.parse_quote("IE00B3XXRP09", REAL_PAYLOAD, IN_SESSION)
     assert (q["last"], q["bid"], q["ask"]) == (125.36, 125.38, 125.465)
     assert q["previous_close"] == 125.265
-    assert q["low"] == 124.8           # the German-string field
+    assert q["low"] == 124.8  # the German-string field
     assert q["volume"] == 25575 and q["executions"] == 3991
     assert q["currency"] == "EUR"
     assert q["venue"] == "TDG"
@@ -195,6 +215,7 @@ def test_a_payload_without_any_price_is_no_data(payload):
 # ---------------------------------------------------------------------------
 # get_quote: statuses, cache, failures
 # ---------------------------------------------------------------------------
+
 
 def test_an_ok_answer(monkeypatch):
     http = _script(monkeypatch, FakeResponse(json_body=REAL_PAYLOAD))
@@ -257,7 +278,7 @@ def test_a_refusal_is_not_retried_and_backs_off(monkeypatch, offline, code):
     http = _script(monkeypatch, FakeResponse(status_code=code, text="<html>"))
     assert tg.get_quote("IE00B3XXRP09")["status"] == "refused"
     assert len(http.calls) == 1
-    offline.t += tg.TTL_UNAVAILABLE_SECONDS + 1     # a normal failure would retry by now
+    offline.t += tg.TTL_UNAVAILABLE_SECONDS + 1  # a normal failure would retry by now
     tg.get_quote("IE00B3XXRP09")
     assert len(http.calls) == 1
 

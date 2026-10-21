@@ -59,16 +59,7 @@ type Props = {
   children: React.ReactNode;
 };
 
-export default function Section({
-  label,
-  info,
-  infoLabel,
-  meta,
-  action,
-  tone = "ink",
-  className = "",
-  children,
-}: Props) {
+export default function Section({ label, info, infoLabel, meta, action, tone = "ink", className = "", children }: Props) {
   const tr = useTr();
   // The header with its "i" as one block, so the button stays on the left by the
   // text and does not drift to the middle of the header row. items-center and not
@@ -79,9 +70,7 @@ export default function Section({
       <span className="ds-section__label inline-flex items-center gap-1" style={style}>
         {label}
         {info && (
-          <InfoPopover
-            label={infoLabel ?? (typeof label === "string" ? tr("Explanation {0}", label) : tr("Explanation"))}
-          >
+          <InfoPopover label={infoLabel ?? (typeof label === "string" ? tr("Explanation {0}", label) : tr("Explanation"))}>
             {info}
           </InfoPopover>
         )}
@@ -99,10 +88,7 @@ export default function Section({
     // subject starts.
     return (
       <section className={`ds-section ${className}`}>
-        <div
-          className="ds-section__head"
-          style={{ borderBottomWidth: 2, borderBottomColor: "var(--brand)" }}
-        >
+        <div className="ds-section__head" style={{ borderBottomWidth: 2, borderBottomColor: "var(--brand)" }}>
           {heading({ color: "var(--text-brand)" })}
           {meta && <span className="ds-section__meta">{meta}</span>}
         </div>
@@ -171,11 +157,7 @@ export function Figure({
     <div className={`flex flex-col gap-[5px] ${className}`}>
       <span className="flex items-center gap-1">
         <Eyebrow>{label}</Eyebrow>
-        {info && (
-          <InfoPopover label={typeof label === "string" ? tr("Explanation {0}", label) : tr("Explanation")}>
-            {info}
-          </InfoPopover>
-        )}
+        {info && <InfoPopover label={typeof label === "string" ? tr("Explanation {0}", label) : tr("Explanation")}>{info}</InfoPopover>}
       </span>
       <span
         className="num font-display text-[21px] leading-tight tracking-[-0.02em]"

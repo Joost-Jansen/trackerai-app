@@ -10,20 +10,37 @@ import { DEGIRO_ROUTES } from "@/components/steps/degiro";
 import { tr } from "@/lib/i18n";
 
 export function DegiroSteps({ onUpdate }: { onUpdate?: () => void }) {
-  return (
-    <StepPlan routes={DEGIRO_ROUTES} phone="mobile"
-      done={onUpdate ? { label: tr("To Update"), onClick: onUpdate } : undefined} />
-  );
+  return <StepPlan routes={DEGIRO_ROUTES} phone="mobile" done={onUpdate ? { label: tr("To Update"), onClick: onUpdate } : undefined} />;
 }
 
-export default function DegiroExplanation({ open, onClose, onUpdate }: {
+export default function DegiroExplanation({
+  open,
+  onClose,
+  onUpdate,
+}: {
   open: boolean;
   onClose: () => void;
   /** After the last step: the natural moment to open Update. */
   onUpdate?: () => void;
 }) {
   return (
-    <StepPlanDialog open={open} onClose={onClose} title={tr("Files from DeGiro")} routes={DEGIRO_ROUTES} phone="mobile"
-      done={onUpdate ? { label: tr("To Update"), onClick: () => { onClose(); onUpdate(); } } : undefined} />
+    <StepPlanDialog
+      open={open}
+      onClose={onClose}
+      title={tr("Files from DeGiro")}
+      routes={DEGIRO_ROUTES}
+      phone="mobile"
+      done={
+        onUpdate
+          ? {
+              label: tr("To Update"),
+              onClick: () => {
+                onClose();
+                onUpdate();
+              },
+            }
+          : undefined
+      }
+    />
   );
 }

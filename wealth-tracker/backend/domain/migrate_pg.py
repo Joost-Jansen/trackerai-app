@@ -28,7 +28,7 @@ import math
 import os
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 from domain import database, db
 
@@ -46,7 +46,8 @@ def sqlite_users(root: str | None = None) -> list[str]:
     if not os.path.isdir(users_dir):
         return []
     return sorted(
-        name for name in os.listdir(users_dir)
+        name
+        for name in os.listdir(users_dir)
         if not name.startswith(SKIP_PREFIX) and os.path.isfile(os.path.join(users_dir, name, "portfolio.db"))
     )
 
@@ -87,8 +88,7 @@ def _checksum(rows: list[tuple], types: list[str]) -> str:
 
 
 def _sqlite_tables(src: sqlite3.Connection) -> list[str]:
-    return [r[0] for r in src.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")]
+    return [r[0] for r in src.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")]
 
 
 def _copy_table(src: sqlite3.Connection, dst: db.PgConnection, table: str) -> dict:
@@ -109,13 +109,17 @@ def _copy_table(src: sqlite3.Connection, dst: db.PgConnection, table: str) -> di
         placeholders = ", ".join(["%s"] * len(cols))
         quoted = ", ".join(f'"{c}"' for c in cols)
         with raw.cursor() as cur:
-            cur.executemany(f'INSERT INTO "{table}" ({quoted}) VALUES ({placeholders})',
-                            [tuple(bytes(v) if isinstance(v, memoryview) else v for v in r) for r in rows])
+            cur.executemany(
+                f'INSERT INTO "{table}" ({quoted}) VALUES ({placeholders})',
+                [tuple(bytes(v) if isinstance(v, memoryview) else v for v in r) for r in rows],
+            )
     if info["identity"] and info["identity"] in cols:
         ident = info["identity"]
         # The next new row continues after the copied ones, as SQLite's would.
-        raw.execute(f'SELECT setval(pg_get_serial_sequence(%s, %s), COALESCE(MAX("{ident}"), 0) + 1, false)'
-                    f' FROM "{table}"', (f'"{dst.schema}"."{table}"', ident))
+        raw.execute(
+            f'SELECT setval(pg_get_serial_sequence(%s, %s), COALESCE(MAX("{ident}"), 0) + 1, false) FROM "{table}"',
+            (f'"{dst.schema}"."{table}"', ident),
+        )
 
     back = [tuple(r) for r in raw.execute(f'SELECT {", ".join(chr(34) + c + chr(34) for c in cols)} FROM "{table}"')]
     if len(back) != len(rows):
@@ -151,8 +155,7 @@ def migrate_user(folder: str, url: str | None = None, keep: bool = True) -> dict
             db.drop_schema(folder, url)
             return report
         dst._raw.execute(f'CREATE TABLE "{MARK}" (at TEXT, report TEXT)')
-        dst._raw.execute(f'INSERT INTO "{MARK}" VALUES (%s, %s)',
-                         (datetime.now(timezone.utc).isoformat(timespec="seconds"), json.dumps(report)))
+        dst._raw.execute(f'INSERT INTO "{MARK}" VALUES (%s, %s)', (datetime.now(UTC).isoformat(timespec="seconds"), json.dumps(report)))
         dst.commit()
         return report
     except Exception:

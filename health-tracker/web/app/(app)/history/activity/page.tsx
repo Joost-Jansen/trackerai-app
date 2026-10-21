@@ -21,7 +21,10 @@ import DistanceCorrection from "@/components/history/DistanceCorrection";
 import { effortKind } from "@/lib/sports";
 import { type ActivityDetail, zoneShare } from "@/lib/training";
 
-const ActivityMap = dynamic(() => import("@/components/map/ActivityMap"), { ssr: false, loading: () => <div className="h-[360px] animate-pulse rounded bg-[var(--surface-inset)]" /> });
+const ActivityMap = dynamic(() => import("@/components/map/ActivityMap"), {
+  ssr: false,
+  loading: () => <div className="h-[360px] animate-pulse rounded bg-[var(--surface-inset)]" />,
+});
 
 const href = (id: string) => `/history/activity/?id=${encodeURIComponent(id)}`;
 
@@ -59,8 +62,13 @@ function Insights({ a }: { a: ActivityDetail }) {
     const sorted = [...hist].sort((x, y) => x.pace_s_per_km! - y.pace_s_per_km!);
     const rank = me ? sorted.findIndex((r) => r.id === a.id) + 1 : null;
     const avgHr = others.filter((r) => r.avg_hr).map((r) => r.avg_hr!);
-    const hrText = me?.avg_hr && avgHr.length ? t.activity.hrVsAvg(me.avg_hr, Math.round(avgHr.reduce((s, v) => s + v, 0) / avgHr.length)) : "";
-    if (rank) items.push({ title: t.activity.rank(rank, hist.length), text: `${t.activity.fastest(f.pace(sorted[0].pace_s_per_km), f.weekdayDay(sorted[0].date))}${hrText}` });
+    const hrText =
+      me?.avg_hr && avgHr.length ? t.activity.hrVsAvg(me.avg_hr, Math.round(avgHr.reduce((s, v) => s + v, 0) / avgHr.length)) : "";
+    if (rank)
+      items.push({
+        title: t.activity.rank(rank, hist.length),
+        text: `${t.activity.fastest(f.pace(sorted[0].pace_s_per_km), f.weekdayDay(sorted[0].date))}${hrText}`,
+      });
   }
   const bounds = a.zone_bounds;
   const z = a.hr_zones_s;
@@ -68,7 +76,8 @@ function Insights({ a }: { a: ActivityDetail }) {
     const total = Object.values(z).reduce((s, v) => s + v, 0);
     const easy = total ? ((z.Z1 + z.Z2) / total) * 100 : 0;
     if (total > 1200 && easy >= 80) items.push({ title: t.activity.easy, text: T.easySession(Math.round(easy), bounds[1]), tone: "good" });
-    else if (total > 1200 && (z.Z4 + z.Z5) / total >= 0.25) items.push({ title: t.activity.hard, text: T.hardSession(Math.round(((z.Z4 + z.Z5) / total) * 100)) });
+    else if (total > 1200 && (z.Z4 + z.Z5) / total >= 0.25)
+      items.push({ title: t.activity.hard, text: T.hardSession(Math.round(((z.Z4 + z.Z5) / total) * 100)) });
   }
   if (!items.length) return null;
   return (
@@ -76,7 +85,10 @@ function Insights({ a }: { a: ActivityDetail }) {
       <ul className="flex flex-col gap-3">
         {items.map((i) => (
           <li key={i.title} className="flex gap-3 text-[13px]">
-            <span className="mt-1.5 inline-block h-2 w-2 flex-none rounded-full" style={{ background: i.tone === "good" ? "var(--zone-2)" : i.tone === "warn" ? "var(--zone-4)" : "var(--zone-1)" }} />
+            <span
+              className="mt-1.5 inline-block h-2 w-2 flex-none rounded-full"
+              style={{ background: i.tone === "good" ? "var(--zone-2)" : i.tone === "warn" ? "var(--zone-4)" : "var(--zone-1)" }}
+            />
             <span>
               <span className="font-medium">{i.title}.</span> <span className="text-ink-muted">{i.text}</span>
             </span>
@@ -103,33 +115,61 @@ function Detail({ id }: { id: string }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2 text-[12.5px]">
-        <Link href="/history/" className="text-ink-muted hover:underline">{t.activity.back}</Link>
+        <Link href="/history/" className="text-ink-muted hover:underline">
+          {t.activity.back}
+        </Link>
         <span className="flex gap-4">
-          {a.prev_id && <Link href={href(a.prev_id)} className="text-ink-muted hover:underline">{t.activity.prev}</Link>}
-          {a.next_id && <Link href={href(a.next_id)} className="text-ink-muted hover:underline">{t.activity.next}</Link>}
+          {a.prev_id && (
+            <Link href={href(a.prev_id)} className="text-ink-muted hover:underline">
+              {t.activity.prev}
+            </Link>
+          )}
+          {a.next_id && (
+            <Link href={href(a.next_id)} className="text-ink-muted hover:underline">
+              {t.activity.next}
+            </Link>
+          )}
         </span>
       </div>
 
       <Card>
         <div className="mb-4 flex items-start gap-3">
-          <span className="mt-1"><SportBadge sport={a.sport} size={36} /></span>
+          <span className="mt-1">
+            <SportBadge sport={a.sport} size={36} />
+          </span>
           <div className="min-w-0">
-          <div className="text-[12.5px] text-ink-muted">
-            {f.weekdayDayYear(a.start_local.slice(0, 10))} · {a.start_local.slice(11, 16)} · {t.sport(a.sport)}
-          </div>
-          <h1 className="font-display text-[27px] font-light leading-tight">{a.name ?? t.sport(a.sport)}</h1>
+            <div className="text-[12.5px] text-ink-muted">
+              {f.weekdayDayYear(a.start_local.slice(0, 10))} · {a.start_local.slice(11, 16)} · {t.sport(a.sport)}
+            </div>
+            <h1 className="font-display text-[27px] font-light leading-tight">{a.name ?? t.sport(a.sport)}</h1>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           {a.distance_km ? <Stat label={t.activity.distance} value={f.km(a.distance_km)} /> : null}
-          <Stat label={t.activity.time} value={f.clock(a.moving_time_s)} note={a.elapsed_time_s && a.elapsed_time_s - (a.moving_time_s ?? 0) > 60 ? t.activity.total(f.clock(a.elapsed_time_s)) : undefined} />
-          {a.distance_km ? <Stat label={effortKind(a.sport) === "speed" ? t.activity.speed : t.activity.pace} value={f.intensity(a)} /> : null}
+          <Stat
+            label={t.activity.time}
+            value={f.clock(a.moving_time_s)}
+            note={
+              a.elapsed_time_s && a.elapsed_time_s - (a.moving_time_s ?? 0) > 60 ? t.activity.total(f.clock(a.elapsed_time_s)) : undefined
+            }
+          />
+          {a.distance_km ? (
+            <Stat label={effortKind(a.sport) === "speed" ? t.activity.speed : t.activity.pace} value={f.intensity(a)} />
+          ) : null}
           {a.avg_hr ? <Stat label={t.activity.hr} value={`${a.avg_hr}`} note={a.max_hr ? t.activity.max(a.max_hr) : undefined} /> : null}
           {a.elevation_gain_m ? <Stat label={t.activity.elevation} value={`${Math.round(a.elevation_gain_m)} m`} /> : null}
-          {a.avg_cadence_spm ? <Stat label={t.activity.cadence} value={`${a.avg_cadence_spm}`} note={t.activity.stepsPerMin} /> : a.vo2max ? <Stat label="VO2max" value={a.vo2max} /> : null}
+          {a.avg_cadence_spm ? (
+            <Stat label={t.activity.cadence} value={`${a.avg_cadence_spm}`} note={t.activity.stepsPerMin} />
+          ) : a.vo2max ? (
+            <Stat label="VO2max" value={a.vo2max} />
+          ) : null}
         </div>
-        <div className="mt-3"><DistanceCorrection a={a} /></div>
-        <div className="mt-3"><ActivityGear a={a} /></div>
+        <div className="mt-3">
+          <DistanceCorrection a={a} />
+        </div>
+        <div className="mt-3">
+          <ActivityGear a={a} />
+        </div>
       </Card>
 
       {a.same_day.length > 0 && (
@@ -138,7 +178,10 @@ function Detail({ id }: { id: string }) {
           {a.same_day.map((x, i) => (
             <span key={x.id}>
               {i > 0 && " · "}
-              <Link className="underline underline-offset-2" href={href(x.id)}>{t.sport(x.sport)} {x.start_local.slice(11, 16)}{x.distance_km ? ` (${f.km(x.distance_km)})` : ""}</Link>
+              <Link className="underline underline-offset-2" href={href(x.id)}>
+                {t.sport(x.sport)} {x.start_local.slice(11, 16)}
+                {x.distance_km ? ` (${f.km(x.distance_km)})` : ""}
+              </Link>
             </span>
           ))}
         </p>
@@ -164,7 +207,15 @@ function Detail({ id }: { id: string }) {
 
       {s && (
         <Card title={t.activity.streams}>
-          <StreamChart time={s.time} heartrate={s.heartrate} velocity={s.velocity} altitude={s.altitude} bounds={a.zone_bounds} sport={a.sport} onCursor={setCursor} />
+          <StreamChart
+            time={s.time}
+            heartrate={s.heartrate}
+            velocity={s.velocity}
+            altitude={s.altitude}
+            bounds={a.zone_bounds}
+            sport={a.sport}
+            onCursor={setCursor}
+          />
         </Card>
       )}
 
@@ -192,7 +243,11 @@ function Detail({ id }: { id: string }) {
                     <td className="py-1.5 text-ink-muted">{i + 1}</td>
                     <td className="py-1.5">{f.km(l.distance_km)}</td>
                     <td className="py-1.5">{f.clock(l.time_s)}</td>
-                    <td className="py-1.5">{a.sport === "run" ? (l.pace ?? "–") : f.intensity({ sport: a.sport, moving_time_s: l.time_s, distance_km: l.distance_km })}</td>
+                    <td className="py-1.5">
+                      {a.sport === "run"
+                        ? (l.pace ?? "–")
+                        : f.intensity({ sport: a.sport, moving_time_s: l.time_s, distance_km: l.distance_km })}
+                    </td>
                     <td className="py-1.5">{l.avg_hr ?? "–"}</td>
                   </tr>
                 ))}
@@ -210,14 +265,28 @@ function Detail({ id }: { id: string }) {
             format={(v) => f.clock(-v)}
             endLabels={false}
             xFormat={(d) => f.monthShortYear(d)}
-            series={[{ label: t.activity.pace, colour: "var(--chart-1)", width: 2, fill: true, points: routeRuns.map((r) => ({ d: r.date, v: -r.pace_s_per_km! })) }]}
+            series={[
+              {
+                label: t.activity.pace,
+                colour: "var(--chart-1)",
+                width: 2,
+                fill: true,
+                points: routeRuns.map((r) => ({ d: r.date, v: -r.pace_s_per_km! })),
+              },
+            ]}
           />
           <ul className="mt-3 grid grid-cols-2 gap-x-4 text-[12px] tabular-nums sm:grid-cols-3">
-            {[...routeRuns].reverse().slice(0, 9).map((r) => (
-              <li key={r.id} className={r.id === a.id ? "font-semibold" : "text-ink-muted"}>
-                <Link href={href(r.id)} className="hover:underline">{f.day(r.date)} · {f.pace(r.pace_s_per_km)}{r.avg_hr ? ` · ${r.avg_hr}` : ""}</Link>
-              </li>
-            ))}
+            {[...routeRuns]
+              .reverse()
+              .slice(0, 9)
+              .map((r) => (
+                <li key={r.id} className={r.id === a.id ? "font-semibold" : "text-ink-muted"}>
+                  <Link href={href(r.id)} className="hover:underline">
+                    {f.day(r.date)} · {f.pace(r.pace_s_per_km)}
+                    {r.avg_hr ? ` · ${r.avg_hr}` : ""}
+                  </Link>
+                </li>
+              ))}
           </ul>
         </Card>
       )}
@@ -246,10 +315,19 @@ function SplitTable({ splits, t, f }: { splits: ActivityDetail["splits"]; t: Mes
             <td className="py-1.5 text-ink-muted">{s.km}</td>
             <td className={`py-1.5 ${s.seconds === fastest ? "font-semibold" : ""}`}>{f.clock(s.seconds)}</td>
             <td className="py-1.5 pr-3">
-              <span className="block h-1.5 rounded-full" style={{ width: `${40 + (60 * (slowest - s.seconds)) / Math.max(1, slowest - fastest)}%`, background: "var(--chart-1)", opacity: 0.7 }} />
+              <span
+                className="block h-1.5 rounded-full"
+                style={{
+                  width: `${40 + (60 * (slowest - s.seconds)) / Math.max(1, slowest - fastest)}%`,
+                  background: "var(--chart-1)",
+                  opacity: 0.7,
+                }}
+              />
             </td>
             <td className="py-1.5">{s.avg_hr ?? "–"}</td>
-            <td className="py-1.5 text-ink-muted">{s.elevation_m != null ? `${s.elevation_m > 0 ? "+" : ""}${Math.round(s.elevation_m)} m` : "–"}</td>
+            <td className="py-1.5 text-ink-muted">
+              {s.elevation_m != null ? `${s.elevation_m > 0 ? "+" : ""}${Math.round(s.elevation_m)} m` : "–"}
+            </td>
           </tr>
         ))}
       </tbody>

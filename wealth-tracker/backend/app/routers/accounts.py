@@ -22,11 +22,10 @@ import sqlite3
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
-from domain.money import accounts
-from domain.money import debt_schedule
 from app.deps import CurrentUser, get_current_user, get_db, require_money
 from app.services import account_service
 from domain.i18n import tr
+from domain.money import accounts, debt_schedule
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"], dependencies=[Depends(require_money)])
 
@@ -79,8 +78,13 @@ def make(
 ):
     try:
         account_id = accounts.make_bank_account(
-            conn, kind=kind, provider=provider, name=name,
-            iban=iban, currency=currency, external_id=external_id,
+            conn,
+            kind=kind,
+            provider=provider,
+            name=name,
+            iban=iban,
+            currency=currency,
+            external_id=external_id,
         )
     except accounts.AccountExistsAlready as e:
         raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
@@ -147,8 +151,7 @@ def set_schedule(
     if account["kind"] != "debt":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, tr("Interest and repayment belong to a debt."))
     try:
-        debt_schedule.put(conn, account_id, interest=interest, repayment=repayment,
-                         from_date=from_date or account_service.today())
+        debt_schedule.put(conn, account_id, interest=interest, repayment=repayment, from_date=from_date or account_service.today())
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
     return {"account": account_service.one(conn, account_id)}

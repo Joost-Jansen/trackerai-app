@@ -19,7 +19,15 @@ function useDebounced<T>(value: T, ms: number): T {
   return v;
 }
 
-export default function FoodPicker({ onPick, autoFocus = false, initial = "" }: { onPick: (food: Food) => void; autoFocus?: boolean; initial?: string }) {
+export default function FoodPicker({
+  onPick,
+  autoFocus = false,
+  initial = "",
+}: {
+  onPick: (food: Food) => void;
+  autoFocus?: boolean;
+  initial?: string;
+}) {
   const t = useT().nutrition;
   const f = useFormat();
   const { locale } = useLocale();
@@ -43,14 +51,18 @@ export default function FoodPicker({ onPick, autoFocus = false, initial = "" }: 
   // Search mode as soon as there is text, also in the moment before the debounced query runs.
   const searching = text.trim().length > 0;
   const pending = searching && (q !== text.trim() || search.isFetching);
-  const list = searching ? (q ? search.data ?? [] : []) : recent.data ?? [];
+  const list = searching ? (q ? (search.data ?? []) : []) : (recent.data ?? []);
 
   return (
     <div className="flex flex-col gap-2">
       <label className="ds-field">
         <span className="ds-field__label">{t.editor.search}</span>
         <span className="relative">
-          <SearchIcon width={15} height={15} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-faint)]" />
+          <SearchIcon
+            width={15}
+            height={15}
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-faint)]"
+          />
           <input
             className="ds-input w-full pl-8"
             type="search"
@@ -69,11 +81,21 @@ export default function FoodPicker({ onPick, autoFocus = false, initial = "" }: 
         <ul className="flex max-h-56 flex-col overflow-y-auto rounded border border-border">
           {list.map((food) => (
             <li key={food.ref} className="border-t border-border first:border-t-0">
-              <button type="button" onClick={() => onPick(food)} className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left hover:bg-[var(--surface-sunken)]">
+              <button
+                type="button"
+                onClick={() => onPick(food)}
+                className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left hover:bg-[var(--surface-sunken)]"
+              >
                 <span className="min-w-0">
                   <span className="block truncate text-[13px]">{foodName(food, locale)}</span>
                   <span className="block text-[11px] text-ink-muted">
-                    {[food.source === "user" ? t.editor.own : food.source.toUpperCase(), locale === "en" && food.name_en ? food.name : null, food.brand].filter(Boolean).join(" · ")}
+                    {[
+                      food.source === "user" ? t.editor.own : food.source.toUpperCase(),
+                      locale === "en" && food.name_en ? food.name : null,
+                      food.brand,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </span>
                 </span>
                 <span className="shrink-0 text-[11.5px] tabular-nums text-ink-muted">

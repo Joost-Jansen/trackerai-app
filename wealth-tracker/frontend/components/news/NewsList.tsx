@@ -34,35 +34,23 @@ export function NewsTag({ label }: { label: NewsLabel }) {
 // `sentiment && …` guard below drew the separator with nothing after it — every
 // almost-neutral article ended on a stray "·".
 function sentimentHint(score: number): React.ReactNode {
-  if (score >= 0.15)
-    return <span style={{ color: "var(--text-gain)" }}>{tr("↑ positive")}</span>;
-  if (score <= -0.15)
-    return <span style={{ color: "var(--text-loss)" }}>{tr("↓ negative")}</span>;
+  if (score >= 0.15) return <span style={{ color: "var(--text-gain)" }}>{tr("↑ positive")}</span>;
+  if (score <= -0.15) return <span style={{ color: "var(--text-loss)" }}>{tr("↓ negative")}</span>;
   return null;
 }
 
-export default function NewsList({
-  items,
-  showSummary = false,
-}: {
-  items: NewsItem[];
-  showSummary?: boolean;
-}) {
+export default function NewsList({ items, showSummary = false }: { items: NewsItem[]; showSummary?: boolean }) {
   return (
     <div className="grid xl:grid-cols-2 xl:gap-x-12">
       {items.map((item, i) => {
-        const sentiment =
-          typeof item.sentiment === "number" ? sentimentHint(item.sentiment) : null;
+        const sentiment = typeof item.sentiment === "number" ? sentimentHint(item.sentiment) : null;
         const subject = item.holding ?? item.ticker;
         // Some feeds put the headline once more in the summary field. The same sentence
         // twice one below the other is not a summary but noise, so we leave it out —
         // normalising on letters, because the repeat often only differs in punctuation
         // and the publisher's suffix.
         const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]+/g, "");
-        const summary =
-          item.summary && !norm(item.summary).startsWith(norm(item.title).slice(0, 60))
-            ? item.summary
-            : null;
+        const summary = item.summary && !norm(item.summary).startsWith(norm(item.title).slice(0, 60)) ? item.summary : null;
         return (
           <article
             key={item.id}
@@ -83,11 +71,7 @@ export default function NewsList({
               )}
             </h3>
 
-            {showSummary && summary && (
-              <p className="line-clamp-3 max-w-measure text-[14px] leading-relaxed text-ink-muted">
-                {summary}
-              </p>
-            )}
+            {showSummary && summary && <p className="line-clamp-3 max-w-measure text-[14px] leading-relaxed text-ink-muted">{summary}</p>}
 
             <div className="flex flex-wrap items-center gap-x-1.5 text-[11.5px] text-ink-muted">
               {subject && <span className="text-text">{subject}</span>}

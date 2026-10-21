@@ -59,13 +59,16 @@ export default function PlanPage() {
   if (!q.data) return <p className="text-sm text-ink-muted">{t.plan.loadFailed}</p>;
 
   const warn = !q.data.persistent && (
-    <p className="rounded border border-border bg-[var(--surface-sunken)] px-3 py-2 text-[12.5px] text-ink-muted">
-      {t.plan.noDatabase}
-    </p>
+    <p className="rounded border border-border bg-[var(--surface-sunken)] px-3 py-2 text-[12.5px] text-ink-muted">{t.plan.noDatabase}</p>
   );
 
   if (mode === "import") {
-    return <div className="flex flex-col gap-4">{warn}<PlanImporter onDone={saved} onCancel={() => go("view")} onEditor={() => go("new")} /></div>;
+    return (
+      <div className="flex flex-col gap-4">
+        {warn}
+        <PlanImporter onDone={saved} onCancel={() => go("view")} onEditor={() => go("new")} />
+      </div>
+    );
   }
   if (mode === "new" || (mode === "edit" && plan)) {
     return (
@@ -93,8 +96,12 @@ export default function PlanPage() {
             body={t.plan.emptyBody}
             action={
               <div className="mt-2 flex flex-wrap justify-center gap-2">
-                <Button size="sm" variant="primary" onClick={() => go("new")}>{t.plan.create}</Button>
-                <Button size="sm" variant="ghost" onClick={() => go("import")}>{t.plan.paste}</Button>
+                <Button size="sm" variant="primary" onClick={() => go("new")}>
+                  {t.plan.create}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => go("import")}>
+                  {t.plan.paste}
+                </Button>
               </div>
             }
           />
@@ -126,9 +133,7 @@ export default function PlanPage() {
         <VolumeChart weeks={weeks} today={today} raceDate={race.date} />
       </div>
 
-      {pastCount > 0 && pastCount === weeks.length && (
-        <p className="text-[13px] text-ink-muted">{t.plan.allPast}</p>
-      )}
+      {pastCount > 0 && pastCount === weeks.length && <p className="text-[13px] text-ink-muted">{t.plan.allPast}</p>}
       {link.isError && <p className="text-[12.5px] text-loss">{errorText(link.error, t, t.common.saveFailed)}</p>}
       <div className="flex flex-col gap-3">
         {weeks.map((w, i) => (

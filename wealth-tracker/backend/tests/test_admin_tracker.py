@@ -37,8 +37,10 @@ def _bank(folder, *days):
         database.init_db(conn)
         conn.execute("INSERT INTO accounts (kind, provider, name, created_at) VALUES ('bank', 'ing', 'Betaal', '2026-01-01')")
         for i, d in enumerate(days):
-            conn.execute("INSERT INTO bank_transactions (account_id, date, amount, name, dedup_hash) VALUES (1, ?, 10, 'Shop', ?)",
-                         (d.isoformat(), f"{folder}-{i}"))
+            conn.execute(
+                "INSERT INTO bank_transactions (account_id, date, amount, name, dedup_hash) VALUES (1, ?, 10, 'Shop', ?)",
+                (d.isoformat(), f"{folder}-{i}"),
+            )
         conn.commit()
 
 
@@ -95,8 +97,13 @@ def test_the_overview_has_betas_measure_and_accounts(admin):
     by_id = {a["account_id"]: a for a in body["accounts"]}
     assert set(by_id) == {_account_id("alice"), _account_id("bob")}
     bob = by_id[_account_id("bob")]
-    assert bob == {"account_id": _account_id("bob"), "betas": ["money"], "count": 2, "last_at": date.today().isoformat(),
-                   "disk_bytes": _db_size("bob")}
+    assert bob == {
+        "account_id": _account_id("bob"),
+        "betas": ["money"],
+        "count": 2,
+        "last_at": date.today().isoformat(),
+        "disk_bytes": _db_size("bob"),
+    }
     assert bob["disk_bytes"] > 0 and body["disk_bytes_total"] == bob["disk_bytes"]
     # alice has no bank transactions (no database even): zero, and no date or bytes
     alice = by_id[_account_id("alice")]
@@ -187,8 +194,21 @@ def test_an_account_that_left_wealth_tracker_is_404(admin, _accounts):
 
 # --- feedback in the shared shape ----------------------------------------------------
 
-FIELDS = {"id", "app", "kind", "message", "page", "context", "status", "reply", "created_at", "updated_at",
-          "account_id", "username", "has_screenshot"}
+FIELDS = {
+    "id",
+    "app",
+    "kind",
+    "message",
+    "page",
+    "context",
+    "status",
+    "reply",
+    "created_at",
+    "updated_at",
+    "account_id",
+    "username",
+    "has_screenshot",
+}
 
 
 def test_feedback_items_have_the_shared_shape(admin):

@@ -39,9 +39,8 @@ import sqlite3
 from datetime import date, datetime, timedelta
 
 from domain import db
-from domain.money import debt_schedule
 from domain.i18n import tr
-
+from domain.money import debt_schedule
 
 # `debt` belongs here too: a debt is an account with a negative balance, and
 # net worth is the sum of everything.
@@ -70,6 +69,7 @@ class AccountUnknown(Exception):
 # ---------------------------------------------------------------------------
 # Normalising and checking
 # ---------------------------------------------------------------------------
+
 
 def normalise_iban(iban: str | None) -> str | None:
     """Spaces out, capitals in — or None when nothing is there.
@@ -104,7 +104,7 @@ def _verify_date(date: str) -> str:
 
 def _verify_choice(name: str, value: str, allowed: tuple[str, ...]) -> str:
     if value not in allowed:
-        raise ValueError(tr("Unknown {0}: {1}. Choose from: {2}", name, repr(value), ', '.join(allowed)))
+        raise ValueError(tr("Unknown {0}: {1}. Choose from: {2}", name, repr(value), ", ".join(allowed)))
     return value
 
 
@@ -117,6 +117,7 @@ def _exists(conn: sqlite3.Connection, account_id: int) -> bool:
 # ---------------------------------------------------------------------------
 # Accounts
 # ---------------------------------------------------------------------------
+
 
 def make_bank_account(
     conn: sqlite3.Connection,
@@ -146,8 +147,7 @@ def make_bank_account(
                 (kind, provider, name, iban, currency, external_id, active, created_at)
             VALUES (?, ?, ?, ?, ?, ?, 1, ?)
             """,
-            (kind, provider, name, iban, currency, external_id,
-             datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+            (kind, provider, name, iban, currency, external_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
         )
     except db.IntegrityError as e:
         # The only UNIQUE on this table is the IBAN.
@@ -158,11 +158,7 @@ def make_bank_account(
 
 def load_accounts(conn: sqlite3.Connection, *, only_active: bool = False) -> list[dict]:
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT * FROM accounts"
-        + (" WHERE active = 1" if only_active else "")
-        + " ORDER BY name ASC"
-    )
+    cursor.execute("SELECT * FROM accounts" + (" WHERE active = 1" if only_active else "") + " ORDER BY name ASC")
     return [dict(row) for row in cursor.fetchall()]
 
 
@@ -197,8 +193,7 @@ def search_on_external_id(conn: sqlite3.Connection, provider: str, external_id: 
     if not external_id:
         return None
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM accounts WHERE provider = ? AND external_id = ?",
-                   (provider, external_id))
+    cursor.execute("SELECT * FROM accounts WHERE provider = ? AND external_id = ?", (provider, external_id))
     row = cursor.fetchone()
     return dict(row) if row else None
 
@@ -215,9 +210,7 @@ def update_account(conn: sqlite3.Connection, account_id: int, **fields) -> None:
 
     unknown = set(fields) - set(UPDATABLE_FIELDS)
     if unknown:
-        raise ValueError(
-            tr("Unknown field: {0}. Fields that can be updated: {1}", ', '.join(sorted(unknown)), ', '.join(UPDATABLE_FIELDS))
-        )
+        raise ValueError(tr("Unknown field: {0}. Fields that can be updated: {1}", ", ".join(sorted(unknown)), ", ".join(UPDATABLE_FIELDS)))
 
     if "kind" in fields:
         _verify_choice("kind", fields["kind"], KINDS)
@@ -261,6 +254,7 @@ def delete_account(conn: sqlite3.Connection, account_id: int) -> None:
 # ---------------------------------------------------------------------------
 # Balances
 # ---------------------------------------------------------------------------
+
 
 def set_balance(
     conn: sqlite3.Connection,
@@ -319,10 +313,7 @@ def set_balances(
     if account is None:
         raise AccountUnknown(tr("Account {0} does not exist.", account_id))
     debt = account["kind"] == "debt"
-    rows = [
-        (account_id, _verify_date(date), -abs(float(balance)) if debt else float(balance), source)
-        for date, balance in balances
-    ]
+    rows = [(account_id, _verify_date(date), -abs(float(balance)) if debt else float(balance), source) for date, balance in balances]
     conn.cursor().executemany(
         """
         INSERT INTO account_balances (account_id, date, balance, source)
@@ -352,8 +343,7 @@ def save_entries(conn: sqlite3.Connection, account_id: int, entries: list[dict])
         INSERT OR IGNORE INTO account_entries (account_id, date, amount, description, key)
         VALUES (?, ?, ?, ?, ?)
         """,
-        [(account_id, _verify_date(m["date"]), float(m["amount"]), m.get("description"),
-          f"{account_id}|{m['key']}") for m in entries],
+        [(account_id, _verify_date(m["date"]), float(m["amount"]), m.get("description"), f"{account_id}|{m['key']}") for m in entries],
     )
     conn.commit()
     return conn.total_changes - before
@@ -379,8 +369,7 @@ def delete_balance(conn: sqlite3.Connection, account_id: int, date: str) -> bool
     """
     _verify_date(date)
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM account_balances WHERE account_id = ? AND date = ?",
-                   (account_id, date))
+    cursor.execute("DELETE FROM account_balances WHERE account_id = ? AND date = ?", (account_id, date))
     conn.commit()
     return cursor.rowcount > 0
 
@@ -394,13 +383,14 @@ def move_balance(conn: sqlite3.Connection, account_id: int, start: str, dest: st
     """
     _verify_date(start)
     _verify_date(dest)
-    row = conn.execute("SELECT balance, source FROM account_balances WHERE account_id = ? AND date = ?",
-                       (account_id, start)).fetchone()
+    row = conn.execute("SELECT balance, source FROM account_balances WHERE account_id = ? AND date = ?", (account_id, start)).fetchone()
     if row is None:
         return False
     if start != dest:
-        conn.execute("INSERT OR IGNORE INTO account_balances (account_id, date, balance, source) VALUES (?, ?, ?, ?)",
-                     (account_id, dest, row[0], row[1]))
+        conn.execute(
+            "INSERT OR IGNORE INTO account_balances (account_id, date, balance, source) VALUES (?, ?, ?, ?)",
+            (account_id, dest, row[0], row[1]),
+        )
         conn.execute("DELETE FROM account_balances WHERE account_id = ? AND date = ?", (account_id, start))
     conn.commit()
     return True
@@ -552,8 +542,7 @@ def transfers_from_elsewhere(conn: sqlite3.Connection, account: dict) -> list[tu
         terms.append("UPPER(REPLACE(COALESCE(counterparty_iban, ''), ' ', '')) = ?")
         params.append(iban)
     if number:
-        terms.append("UPPER(COALESCE(counterparty_iban, '') || ' ' || COALESCE(name, '') || ' ' "
-                           "|| COALESCE(description, '')) LIKE ?")
+        terms.append("UPPER(COALESCE(counterparty_iban, '') || ' ' || COALESCE(name, '') || ' ' || COALESCE(description, '')) LIKE ?")
         params.append(f"%{number}%")
     rows = conn.execute(
         f"SELECT date, amount, name, description, counterparty_iban FROM bank_transactions "
@@ -585,8 +574,7 @@ def _with_transfers_from_elsewhere(conn: sqlite3.Connection, account_id: int, po
     These points carry source "transfer".
     """
     account = load_account(conn, account_id)
-    if (not points or not account or account["kind"] not in WALK_THROUGH_VIA_TRANSFERS
-            or not _moves_along_with_transfers(conn, account_id)):
+    if not points or not account or account["kind"] not in WALK_THROUGH_VIA_TRANSFERS or not _moves_along_with_transfers(conn, account_id):
         return points
     final = points[-1]["date"]
     per_day: dict[str, float] = {}
@@ -607,8 +595,7 @@ def _from_own_transactions(conn: sqlite3.Connection, account_id: int, measuremen
     """The balances from the measurements and the own transactions; see balances_for_series."""
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT date, SUM(amount) AS summed FROM bank_transactions "
-        "WHERE account_id = ? GROUP BY date ORDER BY date",
+        "SELECT date, SUM(amount) AS summed FROM bank_transactions WHERE account_id = ? GROUP BY date ORDER BY date",
         (account_id,),
     )
     # Spending is positive, so an expense lowers the balance.
@@ -630,10 +617,7 @@ def _from_own_transactions(conn: sqlite3.Connection, account_id: int, measuremen
         running += m
         points[d] = anchor["balance"] + running - through_anchor
     points.setdefault(anchor["date"], anchor["balance"])
-    return [
-        {"date": d, "balance": round(v, 2), "source": "derived"}
-        for d, v in sorted(points.items())
-    ]
+    return [{"date": d, "balance": round(v, 2), "source": "derived"} for d, v in sorted(points.items())]
 
 
 def balance_on(conn: sqlite3.Connection, account_id: int, date: str) -> float:
@@ -665,8 +649,7 @@ PENDING_DAYS = 3
 _MAX_LOOKUP = 16
 
 
-def pending_at_measurement(conn: sqlite3.Connection, account_id: int, date: str,
-                        difference: float) -> dict | None:
+def pending_at_measurement(conn: sqlite3.Connection, account_id: int, date: str, difference: float) -> dict | None:
     """Bookings shortly *after* `date` that explain the difference exactly.
 
     Your bank takes a card payment off your balance straight away (ING only gives
@@ -688,8 +671,7 @@ def pending_at_measurement(conn: sqlite3.Connection, account_id: int, date: str,
         return None
     final = (datetime.strptime(date, "%Y-%m-%d").date() + timedelta(days=PENDING_DAYS)).isoformat()
     rows = conn.execute(
-        "SELECT date, amount FROM bank_transactions WHERE account_id = ? AND date > ? AND date <= ? "
-        "ORDER BY date, id",
+        "SELECT date, amount FROM bank_transactions WHERE account_id = ? AND date > ? AND date <= ? ORDER BY date, id",
         (account_id, date, final),
     ).fetchall()
     bookings = [(r[0], round(float(r[1]) * 100)) for r in rows]
@@ -707,8 +689,7 @@ def pending_at_measurement(conn: sqlite3.Connection, account_id: int, date: str,
     return None
 
 
-def during_the_day(conn: sqlite3.Connection, account_id: int, date: str,
-                   difference: float) -> dict | None:
+def during_the_day(conn: sqlite3.Connection, account_id: int, date: str, difference: float) -> dict | None:
     """Bookings of that same day that were not in yet when it was fetched.
 
     A fetched balance is a snapshot: at eight in the morning that afternoon's
@@ -724,8 +705,10 @@ def during_the_day(conn: sqlite3.Connection, account_id: int, date: str,
     target = round(difference * 100)
     if target == 0:
         return None
-    bookings = [round(float(r[0]) * 100) for r in conn.execute(
-        "SELECT amount FROM bank_transactions WHERE account_id = ? AND date = ?", (account_id, date))]
+    bookings = [
+        round(float(r[0]) * 100)
+        for r in conn.execute("SELECT amount FROM bank_transactions WHERE account_id = ? AND date = ?", (account_id, date))
+    ]
     if not bookings or len(bookings) > _MAX_LOOKUP:
         return None
     for n in range(1, len(bookings) + 1):
@@ -738,13 +721,16 @@ def during_the_day(conn: sqlite3.Connection, account_id: int, date: str,
 def _explained(conn: sqlite3.Connection, account_id: int, date: str, difference: float, source: str) -> bool:
     # During the day only for a fetched balance: what you entered yourself has no
     # time, and there "shifted by a day" (fits_on_day) is the better explanation.
-    return (abs(difference) <= 0.011
-            or (source == "sync" and during_the_day(conn, account_id, date, difference) is not None)
-            or pending_at_measurement(conn, account_id, date, difference) is not None)
+    return (
+        abs(difference) <= 0.011
+        or (source == "sync" and during_the_day(conn, account_id, date, difference) is not None)
+        or pending_at_measurement(conn, account_id, date, difference) is not None
+    )
 
 
-def anchor_difference(conn: sqlite3.Connection, account_id: int, anchor: str,
-                   differences: list[tuple[str, float, str]], *, present_day: date | None = None) -> float:
+def anchor_difference(
+    conn: sqlite3.Connection, account_id: int, anchor: str, differences: list[tuple[str, float, str]], *, present_day: date | None = None
+) -> float:
     """What is in the last balance and not yet in the transactions.
 
     The series calculates back from the last balance. If the bank had already
@@ -793,8 +779,7 @@ def fits_on_day(series: list[dict], date: str, balance: float, end: str) -> str 
     return None
 
 
-def _duplicate_between(conn: sqlite3.Connection, account_id: int, start: str, end: str,
-                   difference: float) -> dict | None:
+def _duplicate_between(conn: sqlite3.Connection, account_id: int, start: str, end: str, difference: float) -> dict | None:
     """A transaction that appears more than once and explains the difference exactly."""
     target = round(-difference * 100)
     for r in conn.execute(
@@ -808,8 +793,9 @@ def _duplicate_between(conn: sqlite3.Connection, account_id: int, start: str, en
     return None
 
 
-def explain_deviation(conn: sqlite3.Connection, account_id: int, series: list[dict], measurement: dict,
-                      calculated: float, anchor: str, occupied: set[str]) -> dict:
+def explain_deviation(
+    conn: sqlite3.Connection, account_id: int, series: list[dict], measurement: dict, calculated: float, anchor: str, occupied: set[str]
+) -> dict:
     """The most likely reason a balance does not match, from certain to vague.
 
     pending      bookings shortly after explain it exactly: they were already in
@@ -832,8 +818,7 @@ def explain_deviation(conn: sqlite3.Connection, account_id: int, series: list[di
         return duplicate
     # Measured lower than calculated: more came in in between than the
     # transactions show (or there is one debit too many).
-    return {"kind": "missing", "direction": "credits" if difference < 0 else "debits",
-            "amount": abs(difference)}
+    return {"kind": "missing", "direction": "credits" if difference < 0 else "debits", "amount": abs(difference)}
 
 
 def restore_pending(conn: sqlite3.Connection, account_id: int) -> int:
@@ -858,8 +843,12 @@ def restore_pending(conn: sqlite3.Connection, account_id: int) -> int:
     calculated_on = {m["date"]: round(value_on(series, m["date"], dates), 2) for m in prior}
     # What is already pending in the last balance is not in the transactions yet:
     # without this every corrected balance would miss that payment.
-    delta = anchor_difference(conn, account_id, measurements[-1]["date"],
-                           [(m["date"], round(m["balance"] - calculated_on[m["date"]], 2), m["source"]) for m in prior])
+    delta = anchor_difference(
+        conn,
+        account_id,
+        measurements[-1]["date"],
+        [(m["date"], round(m["balance"] - calculated_on[m["date"]], 2), m["source"]) for m in prior],
+    )
     restored = 0
     for m in prior:
         if m["source"] != "sync":

@@ -30,7 +30,10 @@ function natural(block: HTMLElement): number {
     const last = card.lastElementChild as HTMLElement | null;
     const cs = getComputedStyle(card);
     const h = last
-      ? last.getBoundingClientRect().bottom - card.getBoundingClientRect().top + parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth)
+      ? last.getBoundingClientRect().bottom -
+        card.getBoundingClientRect().top +
+        parseFloat(cs.paddingBottom) +
+        parseFloat(cs.borderBottomWidth)
       : card.offsetHeight;
     total += h + (i ? GAP : 0);
   });

@@ -7,17 +7,24 @@
 import { COUNTS_AS, type CountsAs } from "@/lib/counts-as";
 import { tr } from "@/lib/i18n";
 
-export default function CountsFilter({ value, onChange }: {
-  value: CountsAs[]; onChange: (value: CountsAs[]) => void;
-}) {
+export default function CountsFilter({ value, onChange }: { value: CountsAs[]; onChange: (value: CountsAs[]) => void }) {
   const chosen = new Set(value);
-  const toggle = (code: CountsAs) =>
-    onChange(COUNTS_AS.map((k) => k.code).filter((c) => (c === code ? !chosen.has(c) : chosen.has(c))));
+  const toggle = (code: CountsAs) => onChange(COUNTS_AS.map((k) => k.code).filter((c) => (c === code ? !chosen.has(c) : chosen.has(c))));
 
   const pill = (key: string, label: string, title: string | undefined, active: boolean, onClick: () => void) => (
-    <button key={key} type="button" aria-pressed={active} onClick={onClick} title={title}
+    <button
+      key={key}
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      title={title}
       className="rounded-full border px-3 py-1.5 text-xs transition-colors"
-      style={{ borderColor: active ? "var(--text-primary)" : "var(--rule)", background: active ? "var(--surface-inset)" : "transparent", fontWeight: active ? 600 : 400 }}>
+      style={{
+        borderColor: active ? "var(--text-primary)" : "var(--rule)",
+        background: active ? "var(--surface-inset)" : "transparent",
+        fontWeight: active ? 600 : 400,
+      }}
+    >
       {label}
     </button>
   );

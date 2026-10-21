@@ -51,6 +51,15 @@ def fitness_series(activities: list[dict], rhr: float, max_by_sport: dict, end: 
         x = load.get(day, 0.0)
         ctl += (x - ctl) / CTL_DAYS
         atl += (x - atl) / ATL_DAYS
-        rows.append({"date": day.isoformat(), "load": round(x, 1), "ctl": round(ctl, 1), "atl": round(atl, 1), "tsb": round(tsb, 1), "form_pct": pct})
+        rows.append(
+            {
+                "date": day.isoformat(),
+                "load": round(x, 1),
+                "ctl": round(ctl, 1),
+                "atl": round(atl, 1),
+                "tsb": round(tsb, 1),
+                "form_pct": pct,
+            }
+        )
         day += timedelta(days=1)
     return rows

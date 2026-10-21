@@ -22,9 +22,17 @@ import { tr } from "@/lib/i18n";
  * The month of the month cards, in the bar next to the periods: ‹ This month ›.
  * A month other than the current one is marked, with a × back to this month.
  */
-export function MonthPicker({ choices, value, monthWord, onChange }: {
+export function MonthPicker({
+  choices,
+  value,
+  monthWord,
+  onChange,
+}: {
   /** Ascending; the last is the current month. */
-  choices: Month[]; value: string; monthWord: string; onChange: (key: string) => void;
+  choices: Month[];
+  value: string;
+  monthWord: string;
+  onChange: (key: string) => void;
 }) {
   const current = choices[choices.length - 1]?.key ?? "";
   const found = choices.findIndex((m) => m.key === value);
@@ -35,26 +43,66 @@ export function MonthPicker({ choices, value, monthWord, onChange }: {
   return (
     <span className="month-picker flex shrink-0 items-center gap-0.5 rounded-full py-0.5 pl-2.5 pr-1" data-picked={picked}>
       <span className="mr-1 text-[11px] text-ink-muted">{tr("Month")}</span>
-      <button type="button" className={step} disabled={k <= 0} onClick={() => go(choices[k - 1].key)}
-        aria-label={tr("Previous {0}", monthWord)} title={tr("Previous {0}", monthWord)}>‹</button>
-      <select aria-label={tr("Month of the month cards")} value={choices[k]?.key ?? ""} onChange={(e) => go(e.target.value)}
+      <button
+        type="button"
+        className={step}
+        disabled={k <= 0}
+        onClick={() => go(choices[k - 1].key)}
+        aria-label={tr("Previous {0}", monthWord)}
+        title={tr("Previous {0}", monthWord)}
+      >
+        ‹
+      </button>
+      <select
+        aria-label={tr("Month of the month cards")}
+        value={choices[k]?.key ?? ""}
+        onChange={(e) => go(e.target.value)}
         title={choices[k] ? `${fmtDayMonthYear(choices[k].start)} – ${fmtDayMonthYear(choices[k].end)}` : undefined}
-        className="month-picker__select cursor-pointer appearance-none bg-transparent px-0.5 text-center text-xs font-medium">
+        className="month-picker__select cursor-pointer appearance-none bg-transparent px-0.5 text-center text-xs font-medium"
+      >
         {[...choices].reverse().map((m) => (
-          <option key={m.key} value={m.key}>{m.key === current ? tr("This {0}", monthWord) : monthName(m.key)}</option>
+          <option key={m.key} value={m.key}>
+            {m.key === current ? tr("This {0}", monthWord) : monthName(m.key)}
+          </option>
         ))}
       </select>
-      <button type="button" className={step} disabled={!picked} onClick={() => go(choices[k + 1].key)}
-        aria-label={tr("Next {0}", monthWord)} title={tr("Next {0}", monthWord)}>›</button>
-      {picked && <button type="button" className={step} onClick={() => go(current)}
-        aria-label={tr("Back to this {0}", monthWord)} title={tr("Back to this {0}", monthWord)}>×</button>}
+      <button
+        type="button"
+        className={step}
+        disabled={!picked}
+        onClick={() => go(choices[k + 1].key)}
+        aria-label={tr("Next {0}", monthWord)}
+        title={tr("Next {0}", monthWord)}
+      >
+        ›
+      </button>
+      {picked && (
+        <button
+          type="button"
+          className={step}
+          onClick={() => go(current)}
+          aria-label={tr("Back to this {0}", monthWord)}
+          title={tr("Back to this {0}", monthWord)}
+        >
+          ×
+        </button>
+      )}
     </span>
   );
 }
 
 /** The period stays visible; other filters are reachable within the same fixed bar. */
-export function PeriodsBar({ f, accounts, children, onClear, month }: {
-  f: SpendingFilters; accounts: Account[]; children: ReactNode; onClear?: () => void;
+export function PeriodsBar({
+  f,
+  accounts,
+  children,
+  onClear,
+  month,
+}: {
+  f: SpendingFilters;
+  accounts: Account[];
+  children: ReactNode;
+  onClear?: () => void;
   /** Next to the periods: the month of the month cards (MonthPicker). */
   month?: ReactNode;
 }) {
@@ -63,17 +111,26 @@ export function PeriodsBar({ f, accounts, children, onClear, month }: {
   const button = useRef<HTMLButtonElement>(null);
   const bar = useRef<HTMLDivElement>(null);
   const pointer = useRef<string | null>(null);
-  const count = Number(Boolean(f.account)) + f.categories.length + f.counts.length +
-    Number(f.direction !== "all") + Number(Boolean(f.search));
+  const count =
+    Number(Boolean(f.account)) + f.categories.length + f.counts.length + Number(f.direction !== "all") + Number(Boolean(f.search));
   const accountName = f.account.startsWith("bank:")
     ? tr("All {0} accounts", f.account.slice(5).toUpperCase())
-    : accounts.find((r) => String(r.id) === f.account)?.name ?? tr("Account");
+    : (accounts.find((r) => String(r.id) === f.account)?.name ?? tr("Account"));
   const selection = [
-    ...(f.timeline.period === "Custom" ? [{ label: `${fmtDayMonthYear(f.timeline.window.from)} – ${fmtDayMonthYear(f.timeline.window.to)}`, away: () => f.fetchAway("period") }] : []),
+    ...(f.timeline.period === "Custom"
+      ? [
+          {
+            label: `${fmtDayMonthYear(f.timeline.window.from)} – ${fmtDayMonthYear(f.timeline.window.to)}`,
+            away: () => f.fetchAway("period"),
+          },
+        ]
+      : []),
     ...(f.account ? [{ label: accountName, away: () => f.fetchAway("account") }] : []),
     ...f.categories.map((c) => ({ label: c === "Onbekend" ? tr("Still to categorise") : c, away: () => f.fetchAway("category", c) })),
     ...f.counts.map((c) => ({ label: tr("Counts as: {0}", countsLabel(c)), away: () => f.fetchAway("counts", c) })),
-    ...(f.direction !== "all" ? [{ label: f.direction === "in" ? tr("Received") : tr("Spending"), away: () => f.fetchAway("direction") }] : []),
+    ...(f.direction !== "all"
+      ? [{ label: f.direction === "in" ? tr("Received") : tr("Spending"), away: () => f.fetchAway("direction") }]
+      : []),
     ...(f.search ? [{ label: tr("Search: {0}", f.search), away: () => f.fetchAway("search") }] : []),
   ];
   useEffect(() => {
@@ -85,46 +142,111 @@ export function PeriodsBar({ f, accounts, children, onClear, month }: {
     return () => document.removeEventListener("pointerdown", closeOutside);
   }, [open]);
 
-  return <div ref={bar} className="time-filterbar sticky top-[60px] z-20 min-w-0"
-    onPointerEnter={(e) => { if (e.pointerType === "mouse") setOpen(true); }}
-    onPointerLeave={(e) => { if (e.pointerType === "mouse") setOpen(false); }}
-    onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}
-    onKeyDown={(e) => {
-      if (e.key === "Enter" || e.key === " ") pointer.current = null;
-      if (e.key === "Escape") { setOpen(false); button.current?.focus(); }
-    }}>
-    <div className="flex min-w-0 items-center justify-between gap-3" style={{ borderBottom: "1px solid var(--rule)" }}>
-      <div className="flex min-w-0 items-center gap-2 overflow-x-auto no-scrollbar py-2">
-        <Tabs items={periodTabs(PERIODS)} value={f.timeline.period} onChange={f.timeline.choose}
-          variant="quiet" ariaLabel={tr("Period of Spending")} className="shrink-0 whitespace-nowrap" />
-        {month && <><span className="mx-1 h-5 shrink-0 border-l" style={{ borderColor: "var(--rule)" }} aria-hidden />{month}</>}
-        {selection.length > 0 && <span className="mx-1 h-5 shrink-0 border-l" style={{ borderColor: "var(--rule)" }} aria-hidden />}
-        {selection.map((item, i) => <button key={`${item.label}-${i}`} type="button" onClick={item.away}
-          title={tr("Remove filter {0}", item.label)} aria-label={tr("Remove filter {0}", item.label)}
-          className="time-filterbar__chip max-w-48 shrink-0 rounded-full border px-2.5 py-1 text-xs">
-          <span className="truncate">{item.label}</span><span aria-hidden className="shrink-0">×</span>
-        </button>)}
+  return (
+    <div
+      ref={bar}
+      className="time-filterbar sticky top-[60px] z-20 min-w-0"
+      onPointerEnter={(e) => {
+        if (e.pointerType === "mouse") setOpen(true);
+      }}
+      onPointerLeave={(e) => {
+        if (e.pointerType === "mouse") setOpen(false);
+      }}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") pointer.current = null;
+        if (e.key === "Escape") {
+          setOpen(false);
+          button.current?.focus();
+        }
+      }}
+    >
+      <div className="flex min-w-0 items-center justify-between gap-3" style={{ borderBottom: "1px solid var(--rule)" }}>
+        <div className="flex min-w-0 items-center gap-2 overflow-x-auto no-scrollbar py-2">
+          <Tabs
+            items={periodTabs(PERIODS)}
+            value={f.timeline.period}
+            onChange={f.timeline.choose}
+            variant="quiet"
+            ariaLabel={tr("Period of Spending")}
+            className="shrink-0 whitespace-nowrap"
+          />
+          {month && (
+            <>
+              <span className="mx-1 h-5 shrink-0 border-l" style={{ borderColor: "var(--rule)" }} aria-hidden />
+              {month}
+            </>
+          )}
+          {selection.length > 0 && <span className="mx-1 h-5 shrink-0 border-l" style={{ borderColor: "var(--rule)" }} aria-hidden />}
+          {selection.map((item, i) => (
+            <button
+              key={`${item.label}-${i}`}
+              type="button"
+              onClick={item.away}
+              title={tr("Remove filter {0}", item.label)}
+              aria-label={tr("Remove filter {0}", item.label)}
+              className="time-filterbar__chip max-w-48 shrink-0 rounded-full border px-2.5 py-1 text-xs"
+            >
+              <span className="truncate">{item.label}</span>
+              <span aria-hidden className="shrink-0">
+                ×
+              </span>
+            </button>
+          ))}
+        </div>
+        <button
+          ref={button}
+          type="button"
+          aria-controls={panelId}
+          aria-expanded={open}
+          onPointerDown={(e) => {
+            pointer.current = e.pointerType;
+          }}
+          onClick={() => setOpen((v) => (pointer.current === "mouse" ? true : !v))}
+          className="time-filterbar__button shrink-0 rounded-md px-3 py-2 text-xs font-medium text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2"
+          data-open={open}
+        >
+          Filters{count > 0 ? ` · ${count}` : ""} <span aria-hidden>{open ? "▴" : "▾"}</span>
+        </button>
       </div>
-      <button ref={button} type="button" aria-controls={panelId} aria-expanded={open}
-        onPointerDown={(e) => { pointer.current = e.pointerType; }}
-        onClick={() => setOpen((v) => pointer.current === "mouse" ? true : !v)}
-        className="time-filterbar__button shrink-0 rounded-md px-3 py-2 text-xs font-medium text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2"
-        data-open={open}>
-        Filters{count > 0 ? ` · ${count}` : ""} <span aria-hidden>{open ? "▴" : "▾"}</span>
-      </button>
-    </div>
-    <div id={panelId} inert={!open} data-open={open} className="time-filterbar__panel" role="region" aria-label={tr("Filters for Spending")}>
-      <div className="mb-3 flex items-center justify-between gap-3 border-b pb-2" style={{ borderColor: "var(--rule)" }}>
-        <span className="text-xs font-semibold uppercase tracking-wide">Filters</span>
-        {f.active && <button type="button" onClick={onClear ?? f.clear} className="text-xs text-ink-muted underline underline-offset-4">{tr("Clear filters")}</button>}
+      <div
+        id={panelId}
+        inert={!open}
+        data-open={open}
+        className="time-filterbar__panel"
+        role="region"
+        aria-label={tr("Filters for Spending")}
+      >
+        <div className="mb-3 flex items-center justify-between gap-3 border-b pb-2" style={{ borderColor: "var(--rule)" }}>
+          <span className="text-xs font-semibold uppercase tracking-wide">Filters</span>
+          {f.active && (
+            <button type="button" onClick={onClear ?? f.clear} className="text-xs text-ink-muted underline underline-offset-4">
+              {tr("Clear filters")}
+            </button>
+          )}
+        </div>
+        {children}
       </div>
-      {children}
     </div>
-  </div>;
+  );
 }
 
-export default function FilterBlock({ f, first, last, accounts, categories, lookup = false, periods = true }: {
-  f: SpendingFilters; first: string; last: string; accounts: Account[]; categories: Category[];
+export default function FilterBlock({
+  f,
+  first,
+  last,
+  accounts,
+  categories,
+  lookup = false,
+  periods = true,
+}: {
+  f: SpendingFilters;
+  first: string;
+  last: string;
+  accounts: Account[];
+  categories: Category[];
   /** Also direction and search term: for the transaction list. */
   lookup?: boolean;
   periods?: boolean;
@@ -132,7 +254,9 @@ export default function FilterBlock({ f, first, last, accounts, categories, look
   // The search field types locally and only writes to the address bar after a
   // short pause: a new URL on every keystroke makes the cursor jump.
   const [text, setText] = useState(f.search);
-  useEffect(() => { setText(f.search); }, [f.search]);
+  useEffect(() => {
+    setText(f.search);
+  }, [f.search]);
   useEffect(() => {
     if (text === f.search) return;
     const t = setTimeout(() => f.setSearch(text), 250);
@@ -147,8 +271,13 @@ export default function FilterBlock({ f, first, last, accounts, categories, look
       {lookup && <CountsFilter value={f.counts} onChange={f.setCounts} />}
       {lookup && (
         <div className="flex flex-wrap items-end gap-3 pb-3">
-          <Input label={tr("Search")} placeholder={tr("Name, description or category")} value={text}
-            onChange={(e) => setText(e.target.value)} className="min-w-[14rem]" />
+          <Input
+            label={tr("Search")}
+            placeholder={tr("Name, description or category")}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            className="min-w-[14rem]"
+          />
           <Select label={tr("Direction")} value={f.direction} onChange={(e) => f.setDirection(e.target.value as Direction)}>
             <option value="all">{tr("In and out")}</option>
             <option value="out">{tr("Only out (spending)")}</option>
@@ -173,34 +302,50 @@ export function ActiveFilters({ f, accounts }: { f: SpendingFilters; accounts: A
   const chips: { label: string; away: () => void }[] = [];
   if (f.timeline.period !== DEFAULT_PERIOD) {
     chips.push({
-      label: f.timeline.period === "Custom"
-        ? `${fmtDayMonthYear(f.timeline.window.from)} – ${fmtDayMonthYear(f.timeline.window.to)}`
-        : tr("period {0}", f.timeline.period),
+      label:
+        f.timeline.period === "Custom"
+          ? `${fmtDayMonthYear(f.timeline.window.from)} – ${fmtDayMonthYear(f.timeline.window.to)}`
+          : tr("period {0}", f.timeline.period),
       away: () => f.fetchAway("period"),
     });
   }
   if (f.account) chips.push({ label: name(f.account), away: () => f.fetchAway("account") });
-  f.categories.forEach((c) => chips.push({ label: c === "Onbekend" ? tr("still to categorise") : c, away: () => f.fetchAway("category", c) }));
+  f.categories.forEach((c) =>
+    chips.push({ label: c === "Onbekend" ? tr("still to categorise") : c, away: () => f.fetchAway("category", c) }),
+  );
   f.counts.forEach((c) => chips.push({ label: tr("Counts as: {0}", countsLabel(c)), away: () => f.fetchAway("counts", c) }));
-  if (f.direction !== "all") chips.push({ label: f.direction === "in" ? tr("only in") : tr("only out"), away: () => f.fetchAway("direction") });
+  if (f.direction !== "all")
+    chips.push({ label: f.direction === "in" ? tr("only in") : tr("only out"), away: () => f.fetchAway("direction") });
   if (f.search) chips.push({ label: `“${f.search}”`, away: () => f.fetchAway("search") });
   if (chips.length === 0 && !f.via) return null;
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md px-3 py-2 text-xs" style={{ background: "var(--surface-inset)" }}>
       {f.via === "overview" && (
-        <Link href="/spending" className="mr-1 font-semibold underline underline-offset-4">{tr("← Back to Overview")}</Link>
+        <Link href="/spending" className="mr-1 font-semibold underline underline-offset-4">
+          {tr("← Back to Overview")}
+        </Link>
       )}
       <span className="text-ink-muted">{f.via === "overview" ? tr("From Overview:") : tr("Filtered on:")}</span>
       {chips.map((c) => (
-        <button key={c.label} type="button" onClick={c.away} aria-label={tr("Clear filter {0}", c.label)}
+        <button
+          key={c.label}
+          type="button"
+          onClick={c.away}
+          aria-label={tr("Clear filter {0}", c.label)}
           className="rounded-full border px-2.5 py-1 transition-colors hover:bg-surface-2"
-          style={{ borderColor: "var(--rule)", background: "var(--surface-card)" }}>
-          {c.label} <span aria-hidden className="text-ink-muted">✕</span>
+          style={{ borderColor: "var(--rule)", background: "var(--surface-card)" }}
+        >
+          {c.label}{" "}
+          <span aria-hidden className="text-ink-muted">
+            ✕
+          </span>
         </button>
       ))}
       {chips.length > 1 && (
-        <button type="button" onClick={f.clear} className="text-ink-muted underline underline-offset-4">{tr("Clear all")}</button>
+        <button type="button" onClick={f.clear} className="text-ink-muted underline underline-offset-4">
+          {tr("Clear all")}
+        </button>
       )}
     </div>
   );

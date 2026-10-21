@@ -18,14 +18,14 @@ The password is read from the terminal (hidden). For scripting you may also
 pipe it in:  echo 'secret' | python scripts/manage_users.py add bob
 """
 
+import getpass
 import os
 import re
-import sys
-import getpass
 import secrets
+import sys
 
-import yaml
 import bcrypt
+import yaml
 
 # bcrypt directly, not streamlit_authenticator's Hasher. This script was the last
 # thing importing it, and through it the whole of Streamlit, for one call. A
@@ -37,6 +37,7 @@ _BCRYPT_ROUNDS = 12
 
 def _hash(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=_BCRYPT_ROUNDS)).decode("utf-8")
+
 
 _HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # the repo root, where auth_config.yaml lives
 # The same variable as backend/app/core/config.py, so on a host with the file on
@@ -63,12 +64,12 @@ def _canonical(users: dict, username: str) -> str | None:
 
 def _load() -> dict:
     if os.path.exists(_CONFIG_PATH):
-        with open(_CONFIG_PATH, "r", encoding="utf-8") as f:
+        with open(_CONFIG_PATH, encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
     return {
         "cookie": {
             "name": "stock_tracker_auth",
-            "key": secrets.token_hex(16),   # random secret that signs the login cookie
+            "key": secrets.token_hex(16),  # random secret that signs the login cookie
             "expiry_days": 14,
         },
         "credentials": {"usernames": {}},
@@ -78,7 +79,7 @@ def _load() -> dict:
 def _save(cfg: dict) -> None:
     with open(_CONFIG_PATH, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
-    os.chmod(_CONFIG_PATH, 0o600)   # only the owner may read the hashes/cookie key
+    os.chmod(_CONFIG_PATH, 0o600)  # only the owner may read the hashes/cookie key
 
 
 def _read_password() -> str | None:
@@ -125,8 +126,8 @@ def main() -> None:
             if not stored:
                 print(f"'{username}' does not exist.")
                 return
-            username = stored   # change the password of the account that exists,
-                                # not of a new one differing only in capitals
+            username = stored  # change the password of the account that exists,
+            # not of a new one differing only in capitals
 
         password = _read_password()
         if not password:
@@ -187,8 +188,7 @@ def main() -> None:
             del users[stored]
             _save(cfg)
             print(f"Removed account '{stored}'.")
-            print(f"Its data directory (data/users/{stored}/) is left in place — "
-                  f"delete or archive it by hand once you are sure.")
+            print(f"Its data directory (data/users/{stored}/) is left in place — delete or archive it by hand once you are sure.")
         else:
             print(f"'{username}' does not exist.")
         return

@@ -58,8 +58,9 @@ def test_who_already_has_data_is_on_their_way(client):
     _login(client)
     r = client.post("/api/accounts", json={"kind": "bank", "provider": "manual", "name": "Bank"})
     rid = r.json()["account"]["id"]
-    client.post("/api/bank-transactions", json={"account_id": rid, "date": "2026-05-01", "amount": 10,
-                                               "direction": "expense", "name": "Winkel"})
+    client.post(
+        "/api/bank-transactions", json={"account_id": rid, "date": "2026-05-01", "amount": 10, "direction": "expense", "name": "Winkel"}
+    )
     r = client.get("/api/onboarding").json()
     assert r["done"] is True and r["choice"] == "money"
     assert r["status"]["money"]["without_balance"] == ["Bank"]

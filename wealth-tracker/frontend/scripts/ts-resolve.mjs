@@ -29,7 +29,11 @@ export async function resolve(specifier, context, next) {
   let base = null;
   if (specifier.startsWith("@/")) base = path.join(ROOT, specifier.slice(2));
   else if (specifier.startsWith("@trackerai/ui/")) base = sharedPath(`./${specifier.slice("@trackerai/ui/".length)}`);
-  else if ((specifier.startsWith("./") || specifier.startsWith("../")) && context.parentURL?.startsWith("file:") && !path.extname(specifier))
+  else if (
+    (specifier.startsWith("./") || specifier.startsWith("../")) &&
+    context.parentURL?.startsWith("file:") &&
+    !path.extname(specifier)
+  )
     base = path.resolve(path.dirname(fileURLToPath(context.parentURL)), specifier);
   if (base) {
     for (const candidate of [base, `${base}.ts`, `${base}.tsx`, path.join(base, "index.ts")]) {

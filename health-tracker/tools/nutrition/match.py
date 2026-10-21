@@ -67,5 +67,9 @@ def draft(s: db.Scope, answer: dict) -> dict:
         it.update({"grams_ai": it["grams"], "grams_source": "ai"})
         if mine and it["confidence"] < MEMORY_BELOW:
             it.update({"grams": mine["grams"], "grams_source": "memory"})  # the AI estimate stays as the range
-    return {"items": items, "hidden_extras": extras, "moment_guess": answer.get("moment_guess"),
-            "reference_object": answer.get("reference_object")}
+    return {
+        "items": items,
+        "hidden_extras": extras,
+        "moment_guess": answer.get("moment_guess"),
+        "reference_object": answer.get("reference_object"),
+    }

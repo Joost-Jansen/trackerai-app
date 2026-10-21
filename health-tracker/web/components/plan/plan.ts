@@ -62,14 +62,31 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((parseIso(to).getTime() - parseIso(from).getTime()) / 86_400_000);
 }
 
-export const isValidIso = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(parseIso(s).getTime()) && isoLocal(parseIso(s)) === s;
+export const isValidIso = (s: string) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(parseIso(s).getTime()) && isoLocal(parseIso(s)) === s;
 
 /** "28 sep – 4 okt" / "28 Sep – 4 Oct" */
 export function fmtWeekRange(monday: string, f: Format): string {
   return `${f.dayMonth(monday)} – ${f.dayMonth(addDays(monday, 6))}`;
 }
 
-const MONTHS: Record<string, number> = { jan: 1, feb: 2, mrt: 3, mar: 3, apr: 4, mei: 5, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, okt: 10, oct: 10, nov: 11, dec: 12 };
+const MONTHS: Record<string, number> = {
+  jan: 1,
+  feb: 2,
+  mrt: 3,
+  mar: 3,
+  apr: 4,
+  mei: 5,
+  may: 5,
+  jun: 6,
+  jul: 7,
+  aug: 8,
+  sep: 9,
+  okt: 10,
+  oct: 10,
+  nov: 11,
+  dec: 12,
+};
 
 /** Date from free text: 2026-10-18, 18-10-2026, 18/10 or 18 okt (2026). */
 export function findDate(text: string, year: number): { iso: string; match: string } | null {
@@ -91,7 +108,12 @@ export function splitRace(race: string | null | undefined, year = new Date().get
   if (!text) return { name: "", date: null };
   const found = findDate(text, year);
   if (!found || !isValidIso(found.iso)) return { name: text, date: null };
-  const name = text.replace(found.match, "").replace(/\s*[,·–-]\s*$/, "").replace(/^\s*[,·–-]\s*/, "").replace(/\s{2,}/g, " ").trim();
+  const name = text
+    .replace(found.match, "")
+    .replace(/\s*[,·–-]\s*$/, "")
+    .replace(/^\s*[,·–-]\s*/, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
   return { name, date: found.iso };
 }
 
@@ -128,7 +150,11 @@ export function buildWeeks(sessions: PlanSession[], planWeeks: PlanWeek[] = []):
   for (let monday = first; monday <= last; monday = addDays(monday, 7)) {
     const days = Array.from({ length: 7 }, (_, i) => {
       const date = addDays(monday, i);
-      return { date, sessions: sorted.filter((s) => s.date === date), outside: date < sorted[0].date || date > sorted[sorted.length - 1].date };
+      return {
+        date,
+        sessions: sorted.filter((s) => s.date === date),
+        outside: date < sorted[0].date || date > sorted[sorted.length - 1].date,
+      };
     });
     const own = days.flatMap((d) => d.sessions);
     const api = planWeeks.find((w) => w.week === monday)?.sports;

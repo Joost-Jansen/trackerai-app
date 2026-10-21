@@ -77,7 +77,11 @@ export const SITE_NAV: NavGroup[] = [
       { id: "labelling", label: tr("To label"), href: "/spending/labelling", icon: "inbox", beta: MONEY },
       { id: "categories", label: tr("Categories"), href: "/categories", icon: "tag", beta: MONEY },
       {
-        id: "accounts", label: tr("Accounts"), href: "/accounts", icon: "wallet", beta: MONEY,
+        id: "accounts",
+        label: tr("Accounts"),
+        href: "/accounts",
+        icon: "wallet",
+        beta: MONEY,
         tabs: [
           { id: "accounts", label: tr("Accounts"), href: "/accounts" },
           { id: "connect", label: tr("Bank connection"), href: "/accounts/connect" },
@@ -215,7 +219,10 @@ export function findItem(groups: NavGroup[], pathname: string): NavItem | null {
   for (const item of items) {
     const paths = [item.href, ...(item.tabs?.map((t) => t.href) ?? [])].map((p) => `${p}/`);
     for (const p of [...paths, ...(item.extraPaths ?? [])]) {
-      if (pathname.startsWith(p) && p.length > bestLen) { best = item; bestLen = p.length; }
+      if (pathname.startsWith(p) && p.length > bestLen) {
+        best = item;
+        bestLen = p.length;
+      }
     }
   }
   return best;
@@ -226,9 +233,5 @@ export function findTab(item: NavItem | null, pathname: string): NavTab | null {
   if (!item?.tabs) return null;
   const exact = item.tabs.find((t) => t.href === pathname);
   if (exact) return exact;
-  return (
-    [...item.tabs]
-      .sort((a, b) => b.href.length - a.href.length)
-      .find((t) => pathname.startsWith(`${t.href}/`)) ?? null
-  );
+  return [...item.tabs].sort((a, b) => b.href.length - a.href.length).find((t) => pathname.startsWith(`${t.href}/`)) ?? null;
 }

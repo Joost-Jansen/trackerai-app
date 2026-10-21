@@ -18,7 +18,7 @@ reads and answers the same list through MCP (routers/mcp.py).
 
 import base64
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
 
@@ -84,7 +84,7 @@ def send(
     message = message.strip()
     if not message:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, tr("Write what is wrong or what you would like."))
-    since = (datetime.now(timezone.utc) - timedelta(days=1)).replace(microsecond=0).isoformat()
+    since = (datetime.now(UTC) - timedelta(days=1)).replace(microsecond=0).isoformat()
     if feedback_store.count_since(user.username, since) >= PER_DAY:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, tr("That is a lot of feedback for one day; try again tomorrow."))
     shot, media = _screenshot(screenshot)
@@ -124,7 +124,7 @@ def answer(
     user: CurrentUser = Depends(require_admin),
 ):
     if status_ is not None and status_ not in feedback_store.STATUSES:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, tr("Status is one of {0}.", ', '.join(feedback_store.STATUSES)))
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, tr("Status is one of {0}.", ", ".join(feedback_store.STATUSES)))
     if not feedback_store.update(feedback_id, status=status_, reply=reply):
         raise HTTPException(status.HTTP_404_NOT_FOUND, tr("Feedback not found."))
     return feedback_store.get(feedback_id)

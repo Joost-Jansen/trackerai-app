@@ -8,16 +8,15 @@ it is, the account is found or created by IBAN, and uploading the same file
 twice changes nothing.
 """
 
-ING_HEADER = ('"Date","Name / Description","Account","Counterparty","Code",'
-           '"Debit/credit","Amount (EUR)","Transaction type","Notifications"')
+ING_HEADER = '"Date","Name / Description","Account","Counterparty","Code","Debit/credit","Amount (EUR)","Transaction type","Notifications"'
 BUNQ_HEADER = '"Date","Interest Date","Amount","Account","Counterparty","Name","Description"'
 
-ING_SALARY = ('"20260220","WERKGEVER B.V.","NL00INGB0000000001","NL02ABNA0123456789",'
-               '"OV","Credit","2500,00","Transfer","Name: WERKGEVER Description: Salaris"')
-ING_PIN = ('"20260219","SUPERMARKT","NL00INGB0000000001","","BA","Debit","42,50",'
-           '"Payment terminal","Card sequence no.: 001"')
-BUNQ_RENT = ('"2026-01-02","2026-01-02","-1.250,00","NL00BUNQ0000000002",'
-             '"NL11RABO0123456789","VERHUURDER","Huur januari"')
+ING_SALARY = (
+    '"20260220","WERKGEVER B.V.","NL00INGB0000000001","NL02ABNA0123456789",'
+    '"OV","Credit","2500,00","Transfer","Name: WERKGEVER Description: Salaris"'
+)
+ING_PIN = '"20260219","SUPERMARKT","NL00INGB0000000001","","BA","Debit","42,50","Payment terminal","Card sequence no.: 001"'
+BUNQ_RENT = '"2026-01-02","2026-01-02","-1.250,00","NL00BUNQ0000000002","NL11RABO0123456789","VERHUURDER","Huur januari"'
 
 
 def _login(client, user="alice", pw="alicepw"):
@@ -39,6 +38,7 @@ def _import(client, content: bytes, name: str = "export.csv"):
 # Auth
 # ---------------------------------------------------------------------------
 
+
 def test_importing_requires_a_session(client):
     assert _import(client, _csv(ING_HEADER, ING_PIN)).status_code == 401
 
@@ -46,6 +46,7 @@ def test_importing_requires_a_session(client):
 # ---------------------------------------------------------------------------
 # The happy path
 # ---------------------------------------------------------------------------
+
 
 def test_an_ing_export_creates_the_account_and_imports(client):
     """The user does not say which bank it is; the file says so itself."""
@@ -98,6 +99,7 @@ def test_a_second_account_from_another_bank_is_added_alongside(client):
 # The same file once more
 # ---------------------------------------------------------------------------
 
+
 def test_the_same_file_twice_changes_nothing(client):
     """Bank exports overlap; that must not give duplicate amounts."""
     _login(client)
@@ -125,6 +127,7 @@ def test_an_overlapping_export_adds_only_what_is_new(client):
 # What can go wrong
 # ---------------------------------------------------------------------------
 
+
 def test_an_unknown_file_gives_422_with_its_columns(client):
     """422 and not 500: the user picked the wrong file, that can be fixed."""
     _login(client)
@@ -150,8 +153,7 @@ def test_an_export_without_rows_is_not_an_error(client):
 def test_unreadable_rows_do_not_cost_the_whole_file(client):
     """The same lesson as with DeGiro: one odd row threw away 124 good ones."""
     _login(client)
-    broken = ('"nogeenszo","WINKEL","NL00INGB0000000001","","BA","Debit","5,00",'
-             '"Payment terminal","x"')
+    broken = '"nogeenszo","WINKEL","NL00INGB0000000001","","BA","Debit","5,00","Payment terminal","x"'
     body = _import(client, _csv(ING_HEADER, ING_SALARY, broken, ING_PIN)).json()
 
     assert body["saved"] == 2
@@ -162,8 +164,7 @@ def test_unreadable_rows_do_not_cost_the_whole_file(client):
 def test_an_export_with_two_accounts_in_it_is_refused(client):
     """One file belongs to one account; otherwise we guess which."""
     _login(client)
-    other = ('"20260219","WINKEL","NL91ABNA0417164300","","BA","Debit","5,00",'
-              '"Payment terminal","x"')
+    other = '"20260219","WINKEL","NL91ABNA0417164300","","BA","Debit","5,00","Payment terminal","x"'
     resp = _import(client, _csv(ING_HEADER, ING_PIN, other))
     assert resp.status_code == 422
     assert "rekening" in resp.json()["detail"].lower()
@@ -172,6 +173,7 @@ def test_an_export_with_two_accounts_in_it_is_refused(client):
 # ---------------------------------------------------------------------------
 # Separation between users
 # ---------------------------------------------------------------------------
+
 
 def test_bob_does_not_see_alices_import(client):
     _login(client, "alice", "alicepw")
@@ -196,6 +198,7 @@ def test_bob_can_import_the_same_export(client):
 # Labelled straight away
 # ---------------------------------------------------------------------------
 
+
 def test_importing_labels_at_once(client):
     """Without this a fresh import counts in no total until you click "Label new" —
     and then an empty month looks like a frugal one.
@@ -214,8 +217,7 @@ def test_a_second_import_labels_only_what_is_new(client):
     _login(client)
     _import(client, _csv(ING_HEADER, ING_PIN))
     row_id = client.get("/api/bank-transactions").json()["transactions"][0]["id"]
-    client.put(f"/api/bank-transactions/{row_id}/category",
-               json={"category": "Cadeaus & goede doelen"})
+    client.put(f"/api/bank-transactions/{row_id}/category", json={"category": "Cadeaus & goede doelen"})
 
     body = _import(client, _csv(ING_HEADER, ING_PIN, ING_SALARY)).json()
     assert body["labelled"] == 1

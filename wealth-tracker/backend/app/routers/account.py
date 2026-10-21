@@ -24,7 +24,11 @@ router = APIRouter(prefix="/api/account", tags=["account"])
 def export(user: CurrentUser = Depends(get_current_user)):
     data = account_data.export_zip(user.username)
     name = f"{user.username}-export-{datetime.now():%Y-%m-%d}.zip"
-    return Response(data, media_type="application/zip", headers={
-        "Content-Disposition": f'attachment; filename="{name}"',
-        "Cache-Control": "no-store",
-    })
+    return Response(
+        data,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{name}"',
+            "Cache-Control": "no-store",
+        },
+    )

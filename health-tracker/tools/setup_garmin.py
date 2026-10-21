@@ -7,8 +7,8 @@ Run it yourself in a terminal (it asks for your password and MFA code):
 Your password is only sent to Garmin; it is not stored. Re-run when the sync reports a Garmin login error.
 """
 
-import os
 import getpass
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -22,8 +22,13 @@ PROJECT = os.environ.get("RAILWAY_PROJECT_ID", "")  # your Railway project id
 
 def set_railway(name: str, value: str) -> None:
     subprocess.run(["railway", "link", "-p", PROJECT, "-e", "production", "-s", "sync"], check=True, stdout=subprocess.DEVNULL)
-    subprocess.run(["railway", "variable", "set", name, "--stdin", "-s", "sync", "-e", "production", "--skip-deploys"],
-                   input=value, text=True, check=True, stdout=subprocess.DEVNULL)
+    subprocess.run(
+        ["railway", "variable", "set", name, "--stdin", "-s", "sync", "-e", "production", "--skip-deploys"],
+        input=value,
+        text=True,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
     print(f"{name} gezet op Railway-service sync")
 
 

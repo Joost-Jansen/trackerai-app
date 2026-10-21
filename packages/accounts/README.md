@@ -71,14 +71,15 @@ Deleting an account deletes its rows.
 ```python
 from trackerai_accounts import install, make_router, open_accounts
 
-accounts = open_accounts()                      # ACCOUNTS_* from the environment
-install(app)                                    # AccountError -> {detail, code, params}
+accounts = open_accounts()  # ACCOUNTS_* from the environment
+install(app)  # AccountError -> {detail, code, params}
 router, sessions = make_router(accounts, "health", client_ip=my_client_ip)
-app.include_router(router)                      # before the app's own routes
+app.include_router(router)  # before the app's own routes
 
-def current_user(s = Depends(sessions.ready)):  # the app's own user for this account
+
+def current_user(s=Depends(sessions.ready)):  # the app's own user for this account
     key = accounts.local_key(s.id, "health")
-    if key is None:                             # first visit: create the app's user, remember its key
+    if key is None:  # first visit: create the app's user, remember its key
         key = create_local_user(s.account)
         accounts.set_local_key(s.id, "health", key)
     ...

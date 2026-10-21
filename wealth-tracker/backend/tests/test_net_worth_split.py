@@ -12,16 +12,14 @@ from domain.money.net_worth import split, split_per_month
 
 
 def _p(d, *, investments=0.0, bank=0.0, debt=0.0, held=0.0, portfolio=None, invested=None, dividends=None):
-    p = {"d": d, "investments": investments, "bank": bank, "debt": debt, "held": held,
-         "net": investments + bank + debt}
+    p = {"d": d, "investments": investments, "bank": bank, "debt": debt, "held": held, "net": investments + bank + debt}
     if portfolio is not None:
         p |= {"portfolio": portfolio, "portfolio_invested": invested, "portfolio_dividends": dividends or 0.0}
     return p
 
 
 def _f(d, saved=0.0, to_investments=0.0, others=0.0, unlabelled=0.0, bank_flow=0.0):
-    return {"d": d, "saved": saved, "to_investments": to_investments, "others": others,
-            "unlabelled": unlabelled, "bank_flow": bank_flow}
+    return {"d": d, "saved": saved, "to_investments": to_investments, "others": others, "unlabelled": unlabelled, "bank_flow": bank_flow}
 
 
 def _adds_up(s):
@@ -47,16 +45,18 @@ def test_money_back_from_broker_under_another_label_is_no_market_result():
     # own account: only the price change of the holdings is market.
     start = _p("2026-01-31", investments=10000, bank=2000, portfolio=10000, invested=8000)
     end = _p("2026-02-28", investments=10300, bank=2000, portfolio=10300, invested=8000)
-    flows = [_f("2026-01-01"), _f("2026-02-03", to_investments=1000, bank_flow=-1000),
-             _f("2026-02-20", bank_flow=1000)]
+    flows = [_f("2026-01-01"), _f("2026-02-03", to_investments=1000, bank_flow=-1000), _f("2026-02-20", bank_flow=1000)]
     s = split(start, end, flows)
     assert s["market"] == pytest.approx(300)
     assert s["bank"] == pytest.approx(0)
     _adds_up(s)
     # Without the holdings' own figures it falls back to the labels, and gets it wrong
     # in exactly this case: that is why the holdings come first.
-    old = split({k: v for k, v in start.items() if not k.startswith("portfolio")},
-                {k: v for k, v in end.items() if not k.startswith("portfolio")}, flows)
+    old = split(
+        {k: v for k, v in start.items() if not k.startswith("portfolio")},
+        {k: v for k, v in end.items() if not k.startswith("portfolio")},
+        flows,
+    )
     assert old["market"] == pytest.approx(-700)
     _adds_up(old)
 
@@ -100,7 +100,7 @@ def test_saved_unlabelled_and_corrections():
     s = split(start, end, flows)
     assert s["saved"] == pytest.approx(600)
     assert s["detail"]["unlabelled"] == pytest.approx(-50)
-    assert s["detail"]["corrections"] == pytest.approx(100)   # balance went up more than the transactions say
+    assert s["detail"]["corrections"] == pytest.approx(100)  # balance went up more than the transactions say
     _adds_up(s)
 
 
@@ -117,15 +117,24 @@ def test_before_the_bank_data_there_is_no_split():
 
 
 def test_per_month_runs_from_month_end_to_month_end():
-    points = [_p(d, bank=b) for d, b in [("2026-01-30", 100), ("2026-01-31", 110), ("2026-02-01", 120),
-                                           ("2026-02-28", 150), ("2026-03-01", 160), ("2026-03-02", 170)]]
+    points = [
+        _p(d, bank=b)
+        for d, b in [
+            ("2026-01-30", 100),
+            ("2026-01-31", 110),
+            ("2026-02-01", 120),
+            ("2026-02-28", 150),
+            ("2026-03-01", 160),
+            ("2026-03-02", 170),
+        ]
+    ]
     flows = [_f("2026-01-01")]
     rows = split_per_month(points, flows, lambda d: d[:7])
     assert [r["month"] for r in rows] == ["2026-01", "2026-02", "2026-03"]
     assert rows[0]["split"] is None
     assert (rows[1]["from"], rows[1]["to"]) == ("2026-01-31", "2026-02-28")
     assert rows[1]["split"]["change"] == pytest.approx(40) and not rows[1]["partial"]
-    assert rows[2]["split"]["change"] == pytest.approx(20) and rows[2]["partial"]   # still running
+    assert rows[2]["split"]["change"] == pytest.approx(20) and rows[2]["partial"]  # still running
 
     cut = split_per_month(points, flows, lambda d: d[:7], until="2026-02-01")
     assert [r["month"] for r in cut] == ["2026-01", "2026-02"]
@@ -137,8 +146,7 @@ def test_bank_reads_as_listed_transactions_corrections_and_the_rest():
     # has balances: it comes back as a correction, not as a transaction.
     start = _p("2026-01-31", bank=1000)
     end = _p("2026-02-28", bank=960)
-    flows = [_f("2026-01-01") | {"bank_tx": 0.0},
-             _f("2026-02-05", bank_flow=-440) | {"bank_tx": -40.0}]
+    flows = [_f("2026-01-01") | {"bank_tx": 0.0}, _f("2026-02-05", bank_flow=-440) | {"bank_tx": -40.0}]
     s = split(start, end, flows)
     d = s["detail"]
     assert d["listed"] == pytest.approx(-40)

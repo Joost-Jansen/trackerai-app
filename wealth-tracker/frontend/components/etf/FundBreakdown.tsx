@@ -91,7 +91,9 @@ export default function FundBreakdown({ isin, exchange }: { isin: string; exchan
   if (b.source === null) {
     return (
       <Section label={tr("What's in it")} className="mt-14">
-        <p className="max-w-measure text-[13px] leading-relaxed text-ink-muted">{tr("The issuer of this fund doesn't publish a position list the app can read, so what's in it can't be shown here.")}</p>
+        <p className="max-w-measure text-[13px] leading-relaxed text-ink-muted">
+          {tr("The issuer of this fund doesn't publish a position list the app can read, so what's in it can't be shown here.")}
+        </p>
       </Section>
     );
   }
@@ -104,11 +106,15 @@ export default function FundBreakdown({ isin, exchange }: { isin: string; exchan
   return (
     <Section
       label={tr("What's in it")}
-      meta={
-        <>{trx("{0} positions · {1}", <span className="num">{b.num_holdings}</span>, sourceLine(b))}</>
-      }
+      meta={<>{trx("{0} positions · {1}", <span className="num">{b.num_holdings}</span>, sourceLine(b))}</>}
       info={
-        <>{trx("The weights come from the file the fund provider publishes itself, the same source the Allocation tab is made from.{0}{1}The percentages are the fund's. The amount next to it is your part: the value of this position times that weight.", <br />, <br />)}</>
+        <>
+          {trx(
+            "The weights come from the file the fund provider publishes itself, the same source the Allocation tab is made from.{0}{1}The percentages are the fund's. The amount next to it is your part: the value of this position times that weight.",
+            <br />,
+            <br />,
+          )}
+        </>
       }
       className="mt-14"
     >
@@ -126,10 +132,7 @@ export default function FundBreakdown({ isin, exchange }: { isin: string; exchan
           </div>
           <HBars rows={holdingRows(shown)} colour="var(--chart-1)" scale="total" total={100} />
           {rest.length > 0 && (
-            <Disclosure
-              label={tr("Show the next {0} of {1}", rest.length, b.num_holdings)}
-              labelOpen={tr("Hide those ten")}
-            >
+            <Disclosure label={tr("Show the next {0} of {1}", rest.length, b.num_holdings)} labelOpen={tr("Hide those ten")}>
               <HBars rows={holdingRows(rest)} colour="var(--chart-1)" scale="total" total={100} />
             </Disclosure>
           )}
@@ -144,15 +147,16 @@ export default function FundBreakdown({ isin, exchange }: { isin: string; exchan
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <h3 className="text-[13px] font-medium">{tr("Countries")}</h3>
             <span className="text-xs text-ink-muted">
-              <span className="num">{b.num_countries}</span>{" "}
-              {b.num_countries === 1 ? tr("country") : tr("countries")}
+              <span className="num">{b.num_countries}</span> {b.num_countries === 1 ? tr("country") : tr("countries")}
             </span>
           </div>
           <HBars rows={sliceRows(countries)} colour="var(--chart-5)" scale="total" total={100} />
           {foldedCountries > 0 && (
             // Never cut off silently — the same rule HBars itself applies. It cannot say it
             // here, because those countries are not in the rows it got.
-            <p className="mt-2.5 border-t border-border pt-2 text-[11px] text-ink-muted">{trx("{0} smaller countries not shown", <span className="num">{foldedCountries}</span>)}</p>
+            <p className="mt-2.5 border-t border-border pt-2 text-[11px] text-ink-muted">
+              {trx("{0} smaller countries not shown", <span className="num">{foldedCountries}</span>)}
+            </p>
           )}
         </div>
       </div>

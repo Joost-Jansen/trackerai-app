@@ -33,7 +33,9 @@ RACE_MIN = 180  # over three hours counts as a race day
 HARD_SHARE = 0.25  # an activity with this share of its zone time in Z4-Z5 (or twice this in Z3-Z5) was hard work
 NOT_TRAINING = {"walking", "steps", "rest"}  # daily movement: not part of the load that sets the target
 # A session's kind that means hard work (same spirit as api/dashboard.py RACE_KIND: whole words, Dutch and English).
-HARD_KIND = re.compile(r"\b(interval\w*|tempo\w*|drempel\w*|threshold|fartlek|heuvel\w*|hill\w*|vo2\w*|sprint\w*|race|wedstrijd|marathon\w*)\b", re.I)
+HARD_KIND = re.compile(
+    r"\b(interval\w*|tempo\w*|drempel\w*|threshold|fartlek|heuvel\w*|hill\w*|vo2\w*|sprint\w*|race|wedstrijd|marathon\w*)\b", re.I
+)
 RACE_KIND = re.compile(r"\b(wedstrijd|race|marathon|triathlon)\b(?!\s*-?\s*(tempo|pace))", re.I)
 # Minutes per km when a planned session has a distance and no duration, and the user has no history in that sport.
 DEFAULT_MIN_PER_KM = {"run": 6.0, "bike": 2.4, "swim": 25.0, "hiking": 12.0}
@@ -64,7 +66,10 @@ def _activity_load(a: dict) -> dict:
         "minutes": round((a.get("moving_time_s") or 0) / 60),
         "hard": high >= HARD_SHARE or mid >= 2 * HARD_SHARE,
         "race": bool(a.get("race")),
-        "sport": a["sport"], "distance_km": a.get("distance_km"), "name": a.get("name"), "done": True,
+        "sport": a["sport"],
+        "distance_km": a.get("distance_km"),
+        "name": a.get("name"),
+        "done": True,
     }
 
 
@@ -79,7 +84,10 @@ def _session_load(s: dict, paces: dict[str, float]) -> dict:
         "minutes": round(minutes or 0),
         "hard": top >= 3 or bool(HARD_KIND.search(kind)),
         "race": bool(RACE_KIND.search(kind)),
-        "sport": s["sport"], "distance_km": s.get("distance_km"), "kind": s.get("kind"), "done": False,
+        "sport": s["sport"],
+        "distance_km": s.get("distance_km"),
+        "kind": s.get("kind"),
+        "done": False,
     }
 
 
@@ -106,8 +114,11 @@ def day_loads(day: date, today: date, activities: list[dict], sessions: list[dic
     done = [_activity_load(a) for a in activities if _day(a) == iso] if day <= today else []
     planned = []
     if day >= today:
-        planned = [_session_load(s, paces) for s in sessions
-                   if s["date"] == iso and s["sport"] != "rest" and not (day == today and s.get("status") == "done")]
+        planned = [
+            _session_load(s, paces)
+            for s in sessions
+            if s["date"] == iso and s["sport"] != "rest" and not (day == today and s.get("status") == "done")
+        ]
     return done + planned
 
 
@@ -115,8 +126,9 @@ def heavier(a: str, b: str) -> str:
     return a if ORDER.index(a) >= ORDER.index(b) else b
 
 
-def for_day(day: date, today: date, activities: list[dict], sessions: list[dict], weight_kg: float | None,
-            paces: dict[str, float] | None = None) -> dict:
+def for_day(
+    day: date, today: date, activities: list[dict], sessions: list[dict], weight_kg: float | None, paces: dict[str, float] | None = None
+) -> dict:
     """The targets of one day: its type, why, and the carbohydrate and protein range in g/kg and (with a weight) in g.
     `tomorrow` describes the next day's type and main session when it raises today's target. `paces`: pace_by_sport,
     when the caller asks for many days."""

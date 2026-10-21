@@ -92,7 +92,11 @@ def check(pattern: str) -> None:
     except re.error as e:
         raise ValueError(tr("Unusable pattern: {0}", e)) from e
     if _nested_repeat(parsed):
-        raise ValueError(tr("This pattern repeats a group that repeats itself, which can take very long. Write it without the nesting, e.g. 'ALBERT HEIJN|JUMBO'."))
+        raise ValueError(
+            tr(
+                "This pattern repeats a group that repeats itself, which can take very long. Write it without the nesting, e.g. 'ALBERT HEIJN|JUMBO'."
+            )
+        )
 
 
 @functools.lru_cache(maxsize=2048)

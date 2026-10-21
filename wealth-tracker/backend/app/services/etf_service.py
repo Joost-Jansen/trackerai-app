@@ -16,8 +16,7 @@ same number is.
 import sqlite3
 
 from domain import database
-from domain.portfolio import etf_holdings
-from domain.portfolio import issuer_holdings
+from domain.portfolio import etf_holdings, issuer_holdings
 
 # The label normalisers get_portfolio_breakdown runs its own holdings through,
 # borrowed rather than re-implemented: fund_breakdown below aggregates the same
@@ -48,9 +47,7 @@ def _positions_fingerprint(positions: list[dict]) -> str:
     import hashlib
     import json
 
-    relevant = sorted(
-        (p["isin"], p.get("ticker"), p.get("current_value")) for p in positions
-    )
+    relevant = sorted((p["isin"], p.get("ticker"), p.get("current_value")) for p in positions)
     blob = json.dumps(relevant, default=str)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
 
@@ -85,6 +82,7 @@ def _bond_fingerprint(conn: sqlite3.Connection) -> str:
     categories = database.load_asset_categories(conn)
     bonds = sorted(i for i, c in categories.items() if c in database.BOND_CATEGORIES)
     import hashlib
+
     return hashlib.sha256(",".join(bonds).encode("utf-8")).hexdigest()[:8]
 
 
@@ -96,7 +94,12 @@ def get_breakdown(conn: sqlite3.Connection, positions: list[dict]) -> dict:
 
     def fetch():
         (
-            sector, region, continent, coverage, excluded_pct, region_all,
+            sector,
+            region,
+            continent,
+            coverage,
+            excluded_pct,
+            region_all,
         ) = etf_holdings.get_portfolio_breakdown(conn, positions)
         return {
             "sector_totals": sector,
@@ -118,9 +121,7 @@ def get_exposure(conn: sqlite3.Connection, positions: list[dict]) -> dict:
     key = f"etf:exposure:{_positions_fingerprint(positions)}:{_bond_fingerprint(conn)}"
 
     def fetch():
-        stock_list, stock_coverage, etf_sources = etf_holdings.get_stock_exposure(
-            conn, positions
-        )
+        stock_list, stock_coverage, etf_sources = etf_holdings.get_stock_exposure(conn, positions)
         return {
             "stock_list": stock_list,
             "stock_coverage": stock_coverage,
@@ -137,13 +138,19 @@ def fund_breakdown_unavailable() -> dict:
     can read. The frontend then has one thing to check (`source`) rather than
     having to tell an absent field from an empty one.
     """
-    return {"source": None, "quality": None, "num_holdings": 0, "top10_pct": None,
-            "holdings": [], "sectors": [], "countries": [], "num_countries": 0}
+    return {
+        "source": None,
+        "quality": None,
+        "num_holdings": 0,
+        "top10_pct": None,
+        "holdings": [],
+        "sectors": [],
+        "countries": [],
+        "num_countries": 0,
+    }
 
 
-def fund_breakdown(
-    conn: sqlite3.Connection, isin: str, name: str, value: float | None
-) -> dict:
+def fund_breakdown(conn: sqlite3.Connection, isin: str, name: str, value: float | None) -> dict:
     """What one fund holds: its biggest positions, its sectors, its countries.
 
     The same issuer file get_portfolio_breakdown reads, aggregated over one fund
@@ -189,9 +196,13 @@ def fund_breakdown(
         key = (_norm_stock_key(h.get("name") or h.get("symbol") or ""), country)
         row = rows.get(key)
         if row is None:
-            rows[key] = {"name": h.get("name") or h.get("symbol"),
-                         "symbol": h.get("symbol"), "pct": pct,
-                         "sector": sector, "country": country}
+            rows[key] = {
+                "name": h.get("name") or h.get("symbol"),
+                "symbol": h.get("symbol"),
+                "pct": pct,
+                "sector": sector,
+                "country": country,
+            }
         else:
             row["pct"] += pct
 
@@ -251,10 +262,7 @@ def diversification_quality(coverage: list[dict]) -> dict:
             # above decides which of a fund's two sources is the worse, this
             # decides which bucket that lands in, and missing from either one put
             # a directly-held share in "none".
-            "exact" if worst in ("exact", "manual", "stock")
-            else "proxy" if worst == "proxy"
-            else "est" if worst is True
-            else "none"
+            "exact" if worst in ("exact", "manual", "stock") else "proxy" if worst == "proxy" else "est" if worst is True else "none"
         )
         buckets[key].append(c)
 
@@ -286,10 +294,7 @@ def exposure_quality(etf_sources: list[dict]) -> dict:
                 "pct": sum(s["value"] for s in group) / total * 100,
                 "tickers": [s["ticker"] for s in group],
             }
-            for kind, group in (
-                (k, [s for s in etf_sources if s["quality"] == k])
-                for k in ("exact", "proxy", "approx", "none")
-            )
+            for kind, group in ((k, [s for s in etf_sources if s["quality"] == k]) for k in ("exact", "proxy", "approx", "none"))
             if group
         ],
     }

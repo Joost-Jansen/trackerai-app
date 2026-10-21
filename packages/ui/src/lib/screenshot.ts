@@ -8,15 +8,17 @@ const TIMEOUT_MS = 8000;
 /** SVG shapes styled from CSS (fill: none on a chart line) come out as black fills unless the style is inline. */
 function pinSvgStyles(): () => void {
   const undo: (() => void)[] = [];
-  document.querySelectorAll<SVGElement>("svg path, svg line, svg polyline, svg polygon, svg rect, svg circle, svg ellipse, svg text").forEach((el) => {
-    const cs = getComputedStyle(el);
-    const before = { fill: el.style.fill, stroke: el.style.stroke, strokeWidth: el.style.strokeWidth, opacity: el.style.opacity };
-    el.style.fill = cs.fill;
-    el.style.stroke = cs.stroke;
-    el.style.strokeWidth = cs.strokeWidth;
-    el.style.opacity = cs.opacity;
-    undo.push(() => Object.assign(el.style, before));
-  });
+  document
+    .querySelectorAll<SVGElement>("svg path, svg line, svg polyline, svg polygon, svg rect, svg circle, svg ellipse, svg text")
+    .forEach((el) => {
+      const cs = getComputedStyle(el);
+      const before = { fill: el.style.fill, stroke: el.style.stroke, strokeWidth: el.style.strokeWidth, opacity: el.style.opacity };
+      el.style.fill = cs.fill;
+      el.style.stroke = cs.stroke;
+      el.style.strokeWidth = cs.strokeWidth;
+      el.style.opacity = cs.opacity;
+      undo.push(() => Object.assign(el.style, before));
+    });
   return () => undo.forEach((f) => f());
 }
 

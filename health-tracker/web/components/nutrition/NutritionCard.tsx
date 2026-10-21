@@ -22,7 +22,9 @@ export default function NutritionCard({ block }: { block: NutritionBlock }) {
   const f = useFormat();
   const [adding, setAdding] = useState(false);
   const add = (
-    <Button size="sm" variant="secondary" onClick={() => setAdding(true)} icon={<PlusIcon width={14} height={14} />}>{t.today.add}</Button>
+    <Button size="sm" variant="secondary" onClick={() => setAdding(true)} icon={<PlusIcon width={14} height={14} />}>
+      {t.today.add}
+    </Button>
   );
   return (
     <Card title={t.today.title} action={add}>
@@ -36,14 +38,18 @@ export default function NutritionCard({ block }: { block: NutritionBlock }) {
           <TargetBars totals={block.totals} perKg={block.per_kg} targets={block.targets} />
           <ContextLine context={block.context} />
           <ul className="flex flex-col">
-            {block.meals.slice(-STRIP).map((m) => <MealRow key={m.id} meal={m} compact />)}
+            {block.meals.slice(-STRIP).map((m) => (
+              <MealRow key={m.id} meal={m} compact />
+            ))}
           </ul>
           <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-[12px] tabular-nums text-ink-muted">
             <span>
               <span className="text-[var(--text-primary)]">{t.kcal(f.num(block.totals.energy_kcal))}</span>
               {block.burn_kcal != null && <> · {t.burn(f.num(block.burn_kcal))}</>}
             </span>
-            <Link href="/nutrition/" className="font-medium text-[var(--text-primary)] underline underline-offset-4">{t.today.all}</Link>
+            <Link href="/nutrition/" className="font-medium text-[var(--text-primary)] underline underline-offset-4">
+              {t.today.all}
+            </Link>
           </p>
         </div>
       )}

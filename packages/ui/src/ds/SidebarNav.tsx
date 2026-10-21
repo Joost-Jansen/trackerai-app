@@ -108,7 +108,9 @@ function NavList({
                 {Glyph && <Glyph className="ds-navitem__icon" />}
                 <span>{item.label}</span>
                 {badges?.[item.id] ? (
-                  <span className="ds-navitem__trail"><span className="ds-badge ds-badge--quiet">{badges[item.id]}</span></span>
+                  <span className="ds-navitem__trail">
+                    <span className="ds-badge ds-badge--quiet">{badges[item.id]}</span>
+                  </span>
                 ) : null}
               </Link>
             );
@@ -177,7 +179,7 @@ export default function SidebarNav({
         return;
       }
       if (e.key !== "Tab" || !panel.current) return;
-      const focusables = panel.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])');
+      const focusables = panel.current.querySelectorAll<HTMLElement>("a[href], button:not([disabled])");
       if (focusables.length === 0) return;
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
@@ -290,10 +292,7 @@ export default function SidebarNav({
   return (
     <>
       {/* Wide screen: the panel is simply there, over the full height. */}
-      <nav
-        aria-label={tr("Main navigation")}
-        className="ds-sidebar ds-sidebar--ink sticky top-0 hidden h-screen lg:flex"
-      >
+      <nav aria-label={tr("Main navigation")} className="ds-sidebar ds-sidebar--ink sticky top-0 hidden h-screen lg:flex">
         <Wordmark logo={logo} name={name} href={homeHref} />
         <NavList groups={groups} activeId={activeId} badges={badges} />
         {footer && <div className="mt-auto">{footer}</div>}
@@ -303,9 +302,7 @@ export default function SidebarNav({
           can pick it up. */}
       <div
         ref={drawer}
-        className={`ds-navdrawer lg:hidden${open ? " ds-navdrawer--open" : ""}${
-          drag === null ? "" : " ds-navdrawer--dragging"
-        }`}
+        className={`ds-navdrawer lg:hidden${open ? " ds-navdrawer--open" : ""}${drag === null ? "" : " ds-navdrawer--dragging"}`}
       >
         <div className="ds-navdrawer__scrim" onClick={onClose} aria-hidden style={styleAt(drag, "scrim")} />
         <nav
@@ -353,5 +350,11 @@ function Wordmark({ logo, name, href }: { logo: React.ReactNode; name: string; h
     </>
   );
   // A plain <a>: the homepage is usually another site (trackerai.nl).
-  return href ? <a href={href} className="ds-sidebar__brand">{inner}</a> : <div className="ds-sidebar__brand">{inner}</div>;
+  return href ? (
+    <a href={href} className="ds-sidebar__brand">
+      {inner}
+    </a>
+  ) : (
+    <div className="ds-sidebar__brand">{inner}</div>
+  );
 }

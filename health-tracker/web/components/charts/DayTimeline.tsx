@@ -55,7 +55,9 @@ function nearest(points: [number, number][], m: number): number | null {
     if (points[mid][0] < m) lo = mid + 1;
     else hi = mid;
   }
-  const best = [lo - 1, lo].filter((i) => i >= 0 && i < points.length).sort((a, b) => Math.abs(points[a][0] - m) - Math.abs(points[b][0] - m))[0];
+  const best = [lo - 1, lo]
+    .filter((i) => i >= 0 && i < points.length)
+    .sort((a, b) => Math.abs(points[a][0] - m) - Math.abs(points[b][0] - m))[0];
   return best != null && Math.abs(points[best][0] - m) <= NEAR_MIN ? points[best][1] : null;
 }
 
@@ -145,8 +147,11 @@ export default function DayTimeline({
       {shownMarks.length > 0 && (
         <div className="relative h-4 text-[11px] text-ink-muted" style={{ width: plotW }}>
           {shownMarks.map((k) => (
-            <span key={k.minute} className="absolute top-0 whitespace-nowrap tabular-nums"
-              style={x(k.minute) > plotW * 0.6 ? { right: plotW - x(k.minute) } : { left: x(k.minute) }}>
+            <span
+              key={k.minute}
+              className="absolute top-0 whitespace-nowrap tabular-nums"
+              style={x(k.minute) > plotW * 0.6 ? { right: plotW - x(k.minute) } : { left: x(k.minute) }}
+            >
               {k.label}
             </span>
           ))}
@@ -202,25 +207,49 @@ export default function DayTimeline({
                 <span aria-hidden className="inline-block h-[3px] w-3 rounded-full" style={{ background: p.colour }} />
                 {p.label}
               </span>
-              <span className="tabular-nums">{hover != null ? (hv != null ? p.format(hv) : "–") : rangeLabel(p.format(dataLo), p.format(dataHi))}</span>
+              <span className="tabular-nums">
+                {hover != null ? (hv != null ? p.format(hv) : "–") : rangeLabel(p.format(dataLo), p.format(dataHi))}
+              </span>
             </div>
             <svg width={w} height={PANEL_H} className="block overflow-visible" role="img" aria-label={p.label}>
               {bands.map((b, i) => (
                 <rect key={i} x={x(b.start)} width={x(b.end) - x(b.start)} y={0} height={PANEL_H} fill="var(--chart-band)" />
               ))}
               {shownMarks.map((k) => (
-                <line key={k.minute} x1={x(k.minute)} x2={x(k.minute)} y1={0} y2={PANEL_H} stroke="var(--macro-alcohol)" strokeWidth={1} strokeDasharray="3 3" />
+                <line
+                  key={k.minute}
+                  x1={x(k.minute)}
+                  x2={x(k.minute)}
+                  y1={0}
+                  y2={PANEL_H}
+                  stroke="var(--macro-alcohol)"
+                  strokeWidth={1}
+                  strokeDasharray="3 3"
+                />
               ))}
               <g className="ds-chart__grid">
                 <line x1="0" x2={plotW} y1={y(hi)} y2={y(hi)} />
                 <line x1="0" x2={plotW} y1={y(lo)} y2={y(lo)} />
               </g>
               <g className="ds-chart__axis">
-                <text x={plotW + 6} y={y(hi) + 4}>{hi}</text>
-                <text x={plotW + 6} y={y(lo)}>{lo}</text>
+                <text x={plotW + 6} y={y(hi) + 4}>
+                  {hi}
+                </text>
+                <text x={plotW + 6} y={y(lo)}>
+                  {lo}
+                </text>
               </g>
               {p.reference != null && (
-                <line x1="0" x2={plotW} y1={y(p.reference)} y2={y(p.reference)} stroke="var(--chart-2)" strokeWidth="1" strokeDasharray="4 4" opacity={0.7} />
+                <line
+                  x1="0"
+                  x2={plotW}
+                  y1={y(p.reference)}
+                  y2={y(p.reference)}
+                  stroke="var(--chart-2)"
+                  strokeWidth="1"
+                  strokeDasharray="4 4"
+                  opacity={0.7}
+                />
               )}
               <path className="ds-chart__line" d={d} stroke={p.colour} strokeWidth={1.4} />
               {hover != null && <line className="ds-chart__cursor" x1={x(hover)} x2={x(hover)} y1={0} y2={PANEL_H} />}
@@ -245,7 +274,11 @@ export default function DayTimeline({
         <div
           className="ds-chart__tip"
           aria-live="polite"
-          style={{ left: x(hover) + (x(hover) > plotW / 2 ? -12 : 12), top: sleep ? STRIP + 26 : 22, transform: x(hover) > plotW / 2 ? "translateX(-100%)" : "none" }}
+          style={{
+            left: x(hover) + (x(hover) > plotW / 2 ? -12 : 12),
+            top: sleep ? STRIP + 26 : 22,
+            transform: x(hover) > plotW / 2 ? "translateX(-100%)" : "none",
+          }}
         >
           <div className="font-semibold">
             {clock(hover)}

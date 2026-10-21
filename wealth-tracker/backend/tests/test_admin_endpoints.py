@@ -78,9 +78,18 @@ def test_the_old_panel_routes_are_gone(admin_client):
 def test_open_mode_lets_anyone_register_without_a_code(admin_client):
     _login(admin_client, "alice", "alicepw")
     _set_mode(admin_client, "open")
-    assert admin_client.post("/api/auth/register", json={
-        "username": "carol", "email": "carol@example.org", "name": "Carol", "password": "carol" + "-pw-2026",
-    }).status_code == 200
+    assert (
+        admin_client.post(
+            "/api/auth/register",
+            json={
+                "username": "carol",
+                "email": "carol@example.org",
+                "name": "Carol",
+                "password": "carol" + "-pw-2026",
+            },
+        ).status_code
+        == 200
+    )
 
 
 def test_invite_mode_requires_the_code(admin_client):
@@ -88,20 +97,49 @@ def test_invite_mode_requires_the_code(admin_client):
     _set_mode(admin_client, "invite")
     code = admin_client.post(f"{ADMIN}/invites", json={"days": 7, "apps": ["wealth"]}).json()["code"]
 
-    assert admin_client.post("/api/auth/register", json={
-        "username": "carol", "email": "carol@example.org", "name": "Carol", "password": "carol" + "-pw-2026", "invite_code": code,
-    }).status_code == 200
-    assert admin_client.post("/api/auth/register", json={
-        "username": "dave", "email": "dave@example.org", "name": "Dave", "password": "dave" + "-pw-2026", "invite_code": "wrong",
-    }).status_code == 403
+    assert (
+        admin_client.post(
+            "/api/auth/register",
+            json={
+                "username": "carol",
+                "email": "carol@example.org",
+                "name": "Carol",
+                "password": "carol" + "-pw-2026",
+                "invite_code": code,
+            },
+        ).status_code
+        == 200
+    )
+    assert (
+        admin_client.post(
+            "/api/auth/register",
+            json={
+                "username": "dave",
+                "email": "dave@example.org",
+                "name": "Dave",
+                "password": "dave" + "-pw-2026",
+                "invite_code": "wrong",
+            },
+        ).status_code
+        == 403
+    )
 
 
 def test_closed_mode_rejects_registration(admin_client):
     _login(admin_client, "alice", "alicepw")
     _set_mode(admin_client, "closed")
-    assert admin_client.post("/api/auth/register", json={
-        "username": "carol", "email": "carol@example.org", "name": "Carol", "password": "carol" + "-pw-2026",
-    }).status_code == 403
+    assert (
+        admin_client.post(
+            "/api/auth/register",
+            json={
+                "username": "carol",
+                "email": "carol@example.org",
+                "name": "Carol",
+                "password": "carol" + "-pw-2026",
+            },
+        ).status_code
+        == 403
+    )
 
 
 def test_registration_status_is_public_and_hides_the_code(admin_client, client):
@@ -109,8 +147,14 @@ def test_registration_status_is_public_and_hides_the_code(admin_client, client):
     _set_mode(admin_client, "invite")
     # A brand-new (anonymous) client can read the mode, and never an invitation code.
     body = client.get("/api/auth/registration-status").json()
-    assert body == {"mode": "invite", "first_user": False, "session_days": 30, "email_codes": False,
-                    "front_door_url": None, "tracker_urls": {"health": None, "wealth": None}}
+    assert body == {
+        "mode": "invite",
+        "first_user": False,
+        "session_days": 30,
+        "email_codes": False,
+        "front_door_url": None,
+        "tracker_urls": {"health": None, "wealth": None},
+    }
 
 
 # --- suspend ---------------------------------------------------------------
@@ -123,6 +167,7 @@ def test_suspend_blocks_login_and_an_active_session(admin_client):
     acts on `admin_client`.
     """
     from fastapi.testclient import TestClient
+
     from app.main import app
 
     bob = TestClient(app, headers={"Origin": "http://testserver"})
@@ -178,7 +223,12 @@ def test_beta_features_grant_and_revoke(admin_client):
     _bob_moves_over(admin_client)
     bob_id = _account_id(admin_client, "bob")
 
-    assert admin_client.patch(f"/api/admin/tracker/betas/{bob_id}", json={"feature": "rebalancing", "enabled": True}).json()["betas"].count("rebalancing") == 1
+    assert (
+        admin_client.patch(f"/api/admin/tracker/betas/{bob_id}", json={"feature": "rebalancing", "enabled": True})
+        .json()["betas"]
+        .count("rebalancing")
+        == 1
+    )
     _login(admin_client, "bob", "bobpw")
     assert admin_client.get("/api/rebalancing/allocation").status_code == 200
 
@@ -198,24 +248,49 @@ def test_signup_on_wealth_tracker_gets_money_at_once(admin_client):
     """wealth-tracker is all Money: an account made there must not land on empty pages."""
     _login(admin_client, "alice", "alicepw")
     _set_mode(admin_client, "open")
-    assert admin_client.post("/api/auth/register", json={
-        "username": "carol", "email": "carol@example.org", "name": "Carol", "password": "carol" + "-pw-2026", "app": "money",
-    }).status_code == 200
+    assert (
+        admin_client.post(
+            "/api/auth/register",
+            json={
+                "username": "carol",
+                "email": "carol@example.org",
+                "name": "Carol",
+                "password": "carol" + "-pw-2026",
+                "app": "money",
+            },
+        ).status_code
+        == 200
+    )
     assert "money" in admin_client.get("/api/auth/me").json()["beta_features"]
 
-    assert admin_client.post("/api/auth/register", json={
-        "username": "dave", "email": "dave@example.org", "name": "Dave", "password": "dave" + "-pw-2026",
-    }).status_code == 200
+    assert (
+        admin_client.post(
+            "/api/auth/register",
+            json={
+                "username": "dave",
+                "email": "dave@example.org",
+                "name": "Dave",
+                "password": "dave" + "-pw-2026",
+            },
+        ).status_code
+        == 200
+    )
     assert "money" not in admin_client.get("/api/auth/me").json()["beta_features"]
 
 
 def test_password_policy_errors_carry_a_code(admin_client, client):
     _login(admin_client, "alice", "alicepw")
     _set_mode(admin_client, "open")
-    r = client.post("/api/auth/register", json={"username": "erin", "email": "erin@example.org", "name": "Erin", "password": "iloveyou12"},
-                    headers={"X-Locale": "en"})
+    r = client.post(
+        "/api/auth/register",
+        json={"username": "erin", "email": "erin@example.org", "name": "Erin", "password": "iloveyou12"},
+        headers={"X-Locale": "en"},
+    )
     assert r.status_code == 422 and r.json()["code"] == "password_too_common"
     assert "common" in r.json()["detail"]
-    r = client.post("/api/auth/register", json={"username": "erin", "email": "erin@example.org", "name": "Erin", "password": "kort"},
-                    headers={"X-Locale": "nl"})
+    r = client.post(
+        "/api/auth/register",
+        json={"username": "erin", "email": "erin@example.org", "name": "Erin", "password": "kort"},
+        headers={"X-Locale": "nl"},
+    )
     assert r.json()["detail"] == "Kies een wachtwoord van minstens 10 tekens."

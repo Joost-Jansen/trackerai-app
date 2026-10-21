@@ -7,9 +7,9 @@ router that needs portfolio data (dashboard, details, benchmarks, ...).
 import sqlite3
 from dataclasses import dataclass, field
 
+from app.services import venue_price_service
 from domain import database
 from domain.portfolio import positions as portfolio
-from app.services import venue_price_service
 
 
 @dataclass
@@ -40,7 +40,12 @@ def load_portfolio(conn: sqlite3.Connection) -> PortfolioBundle:
     positions = portfolio.calculate_positions(transactions, prices)
     summary = portfolio.calculate_portfolio_summary(positions, transactions, dividends)
     return PortfolioBundle(
-        prices=prices, transactions=transactions, dividends=dividends,
-        dividends_by_isin=dividends_by_isin, positions=positions, summary=summary,
-        venue_prices=venue_prices, yahoo_prices=yahoo_prices,
+        prices=prices,
+        transactions=transactions,
+        dividends=dividends,
+        dividends_by_isin=dividends_by_isin,
+        positions=positions,
+        summary=summary,
+        venue_prices=venue_prices,
+        yahoo_prices=yahoo_prices,
     )

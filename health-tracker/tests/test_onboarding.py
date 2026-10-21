@@ -29,7 +29,10 @@ def admin(app):
 def anna(app, admin):
     admin.patch("/api/trackerai/admin/registration", json={"registration": "open"})
     c = TestClient(app)
-    assert c.post("/api/register", json={"username": "anna", "email": "anna@example.org", "password": ANNA_PW, "consent": True}).status_code == 200
+    assert (
+        c.post("/api/register", json={"username": "anna", "email": "anna@example.org", "password": ANNA_PW, "consent": True}).status_code
+        == 200
+    )
     c.get("/api/me")  # the first visit makes health-tracker's own user
     return c
 
@@ -74,9 +77,20 @@ def test_steps_follow_the_users_data(app, anna, engine):  # noqa: F811
     assert r["steps"]["garmin"] and not r["steps"]["sync"]
     assert r["status"]["garmin"]["connected_at"] == "2026-10-03 10:00"
 
-    db.upsert_activity(s, {"start_utc": "2026-09-30T06:00:00Z", "start_local": "2026-09-30T08:00:00", "sport": "run",
-                           "name": "Rondje", "distance_km": 8.0, "moving_time_s": 2800, "avg_hr": 145, "max_hr": 181,
-                           "sources": {"garmin": {"id": 7, "raw": {}}}})
+    db.upsert_activity(
+        s,
+        {
+            "start_utc": "2026-09-30T06:00:00Z",
+            "start_local": "2026-09-30T08:00:00",
+            "sport": "run",
+            "name": "Rondje",
+            "distance_km": 8.0,
+            "moving_time_s": 2800,
+            "avg_hr": 145,
+            "max_hr": 181,
+            "sources": {"garmin": {"id": 7, "raw": {}}},
+        },
+    )
     db.set_setting(s, "sync_state", {"last_sync_local": "2026-10-03 10:05"})
     app.state.stores.get(anna_id).invalidate()
     r = anna.get("/api/onboarding").json()
@@ -148,6 +162,8 @@ def test_agent_token_sees_its_own_user(app, anna):
 def test_dutch_page_ids_stored_before_schema_3_still_count(engine, anna):  # noqa: F811
     # The schema 3 migration renames them (tests/test_multiuser_db.py); reading converts any that are left.
     me = anna.get("/api/me").json()
-    db.set_setting(db.Scope(engine, me["id"]), "onboarding", {"done": True, "visited": ["dashboard", "trends", "rondjes", "historie", "routes"]})
+    db.set_setting(
+        db.Scope(engine, me["id"]), "onboarding", {"done": True, "visited": ["dashboard", "trends", "rondjes", "historie", "routes"]}
+    )
     r = anna.get("/api/onboarding").json()
     assert r["visited"] == ["dashboard", "trends", "routes", "history"] and r["steps"]["explore"] is True

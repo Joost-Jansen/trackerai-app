@@ -1,17 +1,16 @@
 """Two-step login by email: a code mailed at login, as an alternative to the authenticator app."""
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import update
+from test_accounts import PASSWORD, config, enable_totp, make_app, register
 
 from trackerai_accounts import Accounts, connect
 from trackerai_accounts.mail import Outbox
 from trackerai_accounts.store import email_codes
-
-from test_accounts import PASSWORD, config, enable_totp, make_app, register
 
 
 @pytest.fixture
@@ -83,7 +82,7 @@ def test_a_code_expires_and_a_new_one_replaces_the_old(health, outbox, accounts)
     if first != second:
         assert c.post("/api/auth/login", json=login(totp=first)).json()["code"] == "totp_invalid"
     with accounts.engine.begin() as conn:
-        conn.execute(update(email_codes).values(expires_at=datetime.now(timezone.utc) - timedelta(minutes=1)))
+        conn.execute(update(email_codes).values(expires_at=datetime.now(UTC) - timedelta(minutes=1)))
     assert c.post("/api/auth/login", json=login(totp=second)).json()["code"] == "totp_invalid"
 
 
@@ -113,8 +112,13 @@ def test_with_the_app_too_the_page_offers_a_mail(health, outbox, accounts):
     r = health.post("/api/account/email", json={"email": "anna@example.org", "password": PASSWORD})
     assert r.json()["code"] == "totp_required"  # adding a second way asks for the first
     from test_accounts import code_for
-    assert health.post("/api/account/email", json={"email": "anna@example.org", "password": PASSWORD,
-                                                    "code": code_for(accounts, "anna", 30)}).status_code == 200
+
+    assert (
+        health.post(
+            "/api/account/email", json={"email": "anna@example.org", "password": PASSWORD, "code": code_for(accounts, "anna", 30)}
+        ).status_code
+        == 200
+    )
     assert health.post("/api/account/email/confirm", json={"code": last_code(outbox)}).status_code == 200
     c = TestClient(health.app, base_url="https://health.example")
     r = c.post("/api/auth/login", json=login())

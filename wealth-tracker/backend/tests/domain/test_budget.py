@@ -8,11 +8,8 @@ this tests the behaviour and not the current layout of the default categories.
 
 import pytest
 
-from domain.money import bank_transactions
-from domain.money import budget
-from domain.money import categorization
 from domain import database
-from domain.money import accounts
+from domain.money import accounts, bank_transactions, budget, categorization
 
 
 @pytest.fixture(autouse=True)
@@ -52,8 +49,7 @@ def account(conn):
 
 
 def _expense(conn, account, date, amount, category):
-    tid = bank_transactions.add_manually(conn, account_id=account, date=date,
-                                             amount=amount, name="Winkel 1 BV", description="")
+    tid = bank_transactions.add_manually(conn, account_id=account, date=date, amount=amount, name="Winkel 1 BV", description="")
     bank_transactions.set_category_manual(conn, tid, category)
 
 
@@ -62,6 +58,7 @@ def _month_full(conn, account, month, per_category: dict[str, float]):
     complete (coverage runs from the first to the last transaction).
     """
     import calendar
+
     year, m = (int(x) for x in month.split("-"))
     last = calendar.monthrange(year, m)[1]
     items = list(per_category.items())
@@ -77,6 +74,7 @@ def _month_full(conn, account, month, per_category: dict[str, float]):
 # ---------------------------------------------------------------------------
 # Setting
 # ---------------------------------------------------------------------------
+
 
 def test_set_a_budget_and_remove_it_again(conn, groups):
     group_name = next(iter(groups))
@@ -116,6 +114,7 @@ def test_only_spending_groups(conn):
 # ---------------------------------------------------------------------------
 # The overview
 # ---------------------------------------------------------------------------
+
 
 def test_actual_per_group_per_month(conn, groups, account):
     (g1, cats1), (g2, cats2) = list(groups.items())[:2]
@@ -199,6 +198,7 @@ def test_without_data_an_empty_overview(conn):
 
 def test_the_current_month_is_included_even_without_spending(conn, groups, account):
     from datetime import date
+
     cats = next(iter(groups.values()))
     _month_full(conn, account, "2026-01", {cats[0]: 50.0})
     o = budget.overview(conn, present_day=date(2026, 2, 1))
@@ -209,6 +209,7 @@ def test_the_current_month_is_included_even_without_spending(conn, groups, accou
 
 def test_an_old_export_gets_no_empty_current_month(conn, groups, account):
     from datetime import date
+
     cats = next(iter(groups.values()))
     _month_full(conn, account, "2026-01", {cats[0]: 50.0})
     assert budget.overview(conn, present_day=date(2026, 5, 10))["months"] == ["2026-01"]
@@ -232,13 +233,13 @@ def test_without_a_refund_no_refunded(conn, groups, account):
 
 
 def _is_fixed(conn, account, date, amount, category, name):
-    tid = bank_transactions.add_manually(conn, account_id=account, date=date,
-                                             amount=amount, name=name, description="")
+    tid = bank_transactions.add_manually(conn, account_id=account, date=date, amount=amount, name=name, description="")
     bank_transactions.set_category_manual(conn, tid, category)
 
 
 def test_expected_counts_a_fixed_cost_on_its_own_day(conn, groups, account):
     from datetime import date
+
     (g1, cats1), (g2, _) = list(groups.items())[:2]
     # Rent on the first of every month: a fixed cost in g1.
     for month in ("05", "06", "07", "08"):
@@ -257,6 +258,7 @@ def test_expected_counts_a_fixed_cost_on_its_own_day(conn, groups, account):
 
 def test_a_fixed_cost_later_in_the_month_is_not_expected_yet(conn, groups, account):
     from datetime import date
+
     group_name, cats = next(iter(groups.items()))
     for month in ("05", "06", "07", "08"):
         _is_fixed(conn, account, f"2026-{month}-20", 50.0, cats[0], "Sportschool")

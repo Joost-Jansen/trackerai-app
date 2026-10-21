@@ -40,14 +40,25 @@ _FORWARD_DAYS = 365
 
 #: Short month names for API clients; the app formats the month number itself.
 _MONTH_ABBR = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 ]
 
 
 # ---------------------------------------------------------------------------
 # Normalisation
 # ---------------------------------------------------------------------------
+
 
 def _clean(dividends: list[dict]) -> list[dict]:
     """Payments with a usable date and net amount, ascending.
@@ -61,15 +72,17 @@ def _clean(dividends: list[dict]) -> list[dict]:
         date = (d.get("date") or "")[:10]
         if len(date) != 10 or d.get("net_eur") is None:
             continue
-        out.append({
-            "date": date,
-            "isin": d.get("isin") or "",
-            "name": d.get("name") or "",
-            "gross_eur": float(d.get("gross_eur") or 0.0),
-            "tax_eur": float(d.get("tax_eur") or 0.0),
-            "net_eur": float(d["net_eur"]),
-            "currency": d.get("currency_original") or "EUR",
-        })
+        out.append(
+            {
+                "date": date,
+                "isin": d.get("isin") or "",
+                "name": d.get("name") or "",
+                "gross_eur": float(d.get("gross_eur") or 0.0),
+                "tax_eur": float(d.get("tax_eur") or 0.0),
+                "net_eur": float(d["net_eur"]),
+                "currency": d.get("currency_original") or "EUR",
+            }
+        )
     out.sort(key=lambda p: p["date"])
     return out
 
@@ -80,7 +93,9 @@ def _between(payments: list[dict], lo: str, hi: str) -> float:
 
 
 def ttm_on_current_holding(
-    payments: list[dict], positions: list[dict], transactions: list[dict] | None,
+    payments: list[dict],
+    positions: list[dict],
+    transactions: list[dict] | None,
     today: datetime.date,
 ) -> dict[str, float | None]:
     """{isin: the last twelve months of dividend, restated per the shares held now}
@@ -108,7 +123,7 @@ def ttm_on_current_holding(
     for position in positions:
         isin = position["isin"]
         if isin not in traded:
-            continue   # no share history to scale by; the raw total is all there is
+            continue  # no share history to scale by; the raw total is all there is
         shares_now = position.get("shares_held") or 0.0
         if shares_now <= 0:
             continue
@@ -142,8 +157,8 @@ def _pct(part: float, whole: float) -> float | None:
 # Aggregations
 # ---------------------------------------------------------------------------
 
-def by_year(payments: list[dict], expected_rest_of_year: float,
-            today: datetime.date) -> list[dict]:
+
+def by_year(payments: list[dict], expected_rest_of_year: float, today: datetime.date) -> list[dict]:
     """One row per calendar year, ascending, with gross/tax/net.
 
     The running year also carries `expected` — what the forecast still has
@@ -155,9 +170,16 @@ def by_year(payments: list[dict], expected_rest_of_year: float,
     buckets: dict[str, dict] = {}
     for p in payments:
         year = p["date"][:4]
-        row = buckets.setdefault(year, {
-            "year": year, "gross": 0.0, "tax": 0.0, "net": 0.0, "payments": 0,
-        })
+        row = buckets.setdefault(
+            year,
+            {
+                "year": year,
+                "gross": 0.0,
+                "tax": 0.0,
+                "net": 0.0,
+                "payments": 0,
+            },
+        )
         row["gross"] += p["gross_eur"]
         row["tax"] += p["tax_eur"]
         row["net"] += p["net_eur"]
@@ -165,27 +187,35 @@ def by_year(payments: list[dict], expected_rest_of_year: float,
 
     this_year = str(today.year)
     if expected_rest_of_year > 0:
-        buckets.setdefault(this_year, {
-            "year": this_year, "gross": 0.0, "tax": 0.0, "net": 0.0, "payments": 0,
-        })
+        buckets.setdefault(
+            this_year,
+            {
+                "year": this_year,
+                "gross": 0.0,
+                "tax": 0.0,
+                "net": 0.0,
+                "payments": 0,
+            },
+        )
 
     rows = []
     for year in sorted(buckets):
         row = buckets[year]
-        rows.append({
-            "year": row["year"],
-            "gross": round(row["gross"], 2),
-            "tax": round(row["tax"], 2),
-            "net": round(row["net"], 2),
-            "payments": row["payments"],
-            "expected": round(expected_rest_of_year, 2) if row["year"] == this_year else 0.0,
-            "partial": row["year"] == this_year,
-        })
+        rows.append(
+            {
+                "year": row["year"],
+                "gross": round(row["gross"], 2),
+                "tax": round(row["tax"], 2),
+                "net": round(row["net"], 2),
+                "payments": row["payments"],
+                "expected": round(expected_rest_of_year, 2) if row["year"] == this_year else 0.0,
+                "partial": row["year"] == this_year,
+            }
+        )
     return rows
 
 
-def by_month(payments: list[dict], forecast: list[dict],
-             today: datetime.date, months_back: int = 24) -> list[dict]:
+def by_month(payments: list[dict], forecast: list[dict], today: datetime.date, months_back: int = 24) -> list[dict]:
     """A continuous monthly series: received behind, expected ahead.
 
     Continuous matters. A bar chart built only from the months that *had* a
@@ -213,15 +243,17 @@ def by_month(payments: list[dict], forecast: list[dict],
     rows = []
     month = start
     while month <= end:
-        rows.append({
-            "month": month,
-            "net": round(received.get(month, 0.0), 2),
-            # The running month has both: what already landed, and what the
-            # schedule still expects. Stacking them keeps the bar comparable to
-            # its neighbours instead of reading as a collapse.
-            "expected": round(expected.get(month, 0.0), 2),
-            "future": month > f"{today.year:04d}-{today.month:02d}",
-        })
+        rows.append(
+            {
+                "month": month,
+                "net": round(received.get(month, 0.0), 2),
+                # The running month has both: what already landed, and what the
+                # schedule still expects. Stacking them keeps the bar comparable to
+                # its neighbours instead of reading as a collapse.
+                "expected": round(expected.get(month, 0.0), 2),
+                "future": month > f"{today.year:04d}-{today.month:02d}",
+            }
+        )
         month = _add_months(month, 1)
     return rows
 
@@ -285,9 +317,13 @@ def cumulative(payments: list[dict], today: datetime.date) -> list[dict]:
     return points
 
 
-def by_stock(payments: list[dict], positions: list[dict], upcoming: list[dict],
-             today: datetime.date,
-             ttm_scaled: dict[str, float | None] | None = None) -> list[dict]:
+def by_stock(
+    payments: list[dict],
+    positions: list[dict],
+    upcoming: list[dict],
+    today: datetime.date,
+    ttm_scaled: dict[str, float | None] | None = None,
+) -> list[dict]:
     """One row per ISIN that has ever paid, biggest all-time payer first.
 
     Sold holdings stay in the list — €300 of dividend from a position you no
@@ -304,11 +340,20 @@ def by_stock(payments: list[dict], positions: list[dict], upcoming: list[dict],
     rows: dict[str, dict] = {}
     dates_by_isin: dict[str, list[datetime.date]] = {}
     for p in payments:
-        row = rows.setdefault(p["isin"], {
-            "isin": p["isin"], "name": p["name"],
-            "gross": 0.0, "tax": 0.0, "net": 0.0, "ttm_net": 0.0,
-            "payments": 0, "first": p["date"], "last": p["date"],
-        })
+        row = rows.setdefault(
+            p["isin"],
+            {
+                "isin": p["isin"],
+                "name": p["name"],
+                "gross": 0.0,
+                "tax": 0.0,
+                "net": 0.0,
+                "ttm_net": 0.0,
+                "payments": 0,
+                "first": p["date"],
+                "last": p["date"],
+            },
+        )
         row["gross"] += p["gross_eur"]
         row["tax"] += p["tax_eur"]
         row["net"] += p["net_eur"]
@@ -318,9 +363,7 @@ def by_stock(payments: list[dict], positions: list[dict], upcoming: list[dict],
             row["name"] = p["name"]
         if p["date"] > ttm_start:
             row["ttm_net"] += p["net_eur"]
-        dates_by_isin.setdefault(p["isin"], []).append(
-            datetime.date.fromisoformat(p["date"])
-        )
+        dates_by_isin.setdefault(p["isin"], []).append(datetime.date.fromisoformat(p["date"]))
 
     grand = sum(r["net"] for r in rows.values())
     ttm_scaled = ttm_scaled if ttm_scaled is not None else {}
@@ -336,54 +379,62 @@ def by_stock(payments: list[dict], positions: list[dict], upcoming: list[dict],
         ttm_for_yield = ttm_scaled.get(isin, row["ttm_net"]) if position else None
         cadence = dashboard_service.detect_cadence(sorted(set(dates_by_isin[isin])))
         nxt = next_by_isin.get(isin)
-        out.append({
-            "isin": isin,
-            "name": row["name"] or (position or {}).get("name") or isin,
-            "held": position is not None,
-            "gross": round(row["gross"], 2),
-            "tax": round(row["tax"], 2),
-            "net": round(row["net"], 2),
-            "ttm_net": round(row["ttm_net"], 2),
-            "payments": row["payments"],
-            "first": row["first"],
-            "last": row["last"],
-            "share_pct": _pct(row["net"], grand),
-            # detect_cadence only recognises one rhythm. An interim/final payer
-            # (NN Group: ~aug and ~jun) has two, and its median gap matches
-            # none of them — the forecast catches it with its own alternating
-            # detector, so borrow the label from there rather than leaving the
-            # row blank while the agenda above it says "semi-annual".
-            "cadence": cadence[2] if cadence else (nxt or {}).get("cadence"),
-            # Yield on what this position cost, over the last twelve months.
-            # Only for holdings still open: a sold position has no cost basis
-            # left to divide by.
-            "yield_on_cost_pct": (
-                _pct(ttm_for_yield, invested) if ttm_for_yield is not None else None
-            ),
-            "invested": round(invested, 2) if invested else None,
-            "next": {
-                # `date` is only ever shown for an "official" entry — for a
-                # estimate it is schedule arithmetic and the month + part beside
-                # it are the honest reading. Carried anyway so the UI does not
-                # have to reach back into `upcoming` for the one case that has
-                # a real calendar day.
-                "date": nxt["date"],
-                "month": nxt["month"],
-                "part": nxt["part"],
-                "expected_eur": nxt["expected_eur"],
-                "source": nxt["source"],
-                "cadence": nxt["cadence"],
-            } if nxt else None,
-        })
+        out.append(
+            {
+                "isin": isin,
+                "name": row["name"] or (position or {}).get("name") or isin,
+                "held": position is not None,
+                "gross": round(row["gross"], 2),
+                "tax": round(row["tax"], 2),
+                "net": round(row["net"], 2),
+                "ttm_net": round(row["ttm_net"], 2),
+                "payments": row["payments"],
+                "first": row["first"],
+                "last": row["last"],
+                "share_pct": _pct(row["net"], grand),
+                # detect_cadence only recognises one rhythm. An interim/final payer
+                # (NN Group: ~aug and ~jun) has two, and its median gap matches
+                # none of them — the forecast catches it with its own alternating
+                # detector, so borrow the label from there rather than leaving the
+                # row blank while the agenda above it says "semi-annual".
+                "cadence": cadence[2] if cadence else (nxt or {}).get("cadence"),
+                # Yield on what this position cost, over the last twelve months.
+                # Only for holdings still open: a sold position has no cost basis
+                # left to divide by.
+                "yield_on_cost_pct": (_pct(ttm_for_yield, invested) if ttm_for_yield is not None else None),
+                "invested": round(invested, 2) if invested else None,
+                "next": {
+                    # `date` is only ever shown for an "official" entry — for a
+                    # estimate it is schedule arithmetic and the month + part beside
+                    # it are the honest reading. Carried anyway so the UI does not
+                    # have to reach back into `upcoming` for the one case that has
+                    # a real calendar day.
+                    "date": nxt["date"],
+                    "month": nxt["month"],
+                    "part": nxt["part"],
+                    "expected_eur": nxt["expected_eur"],
+                    "source": nxt["source"],
+                    "cadence": nxt["cadence"],
+                }
+                if nxt
+                else None,
+            }
+        )
 
     out.sort(key=lambda r: r["net"], reverse=True)
     return out
 
 
-def totals(payments: list[dict], positions: list[dict], by_year_rows: list[dict],
-           forward: dict, expected_rest_of_year: float, today: datetime.date,
-           ttm_scaled: dict[str, float | None] | None = None,
-           summary: dict | None = None) -> dict:
+def totals(
+    payments: list[dict],
+    positions: list[dict],
+    by_year_rows: list[dict],
+    forward: dict,
+    expected_rest_of_year: float,
+    today: datetime.date,
+    ttm_scaled: dict[str, float | None] | None = None,
+    summary: dict | None = None,
+) -> dict:
     """The figures at the top of the tab.
 
     Two windows, and they answer different questions:
@@ -408,13 +459,8 @@ def totals(payments: list[dict], positions: list[dict], by_year_rows: list[dict]
     this_year = sum(p["net_eur"] for p in payments if p["date"][:4] == str(today.year))
     # Same stretch of last year, so "more than last year" compares January-to-now
     # with January-to-now and not with a whole finished year.
-    last_year_ytd = sum(
-        p["net_eur"] for p in payments
-        if p["date"][:4] == str(today.year - 1) and p["date"][5:] <= today.isoformat()[5:]
-    )
-    last_year_full = sum(
-        p["net_eur"] for p in payments if p["date"][:4] == str(today.year - 1)
-    )
+    last_year_ytd = sum(p["net_eur"] for p in payments if p["date"][:4] == str(today.year - 1) and p["date"][5:] <= today.isoformat()[5:])
+    last_year_full = sum(p["net_eur"] for p in payments if p["date"][:4] == str(today.year - 1))
 
     invested = sum(p.get("total_invested") or 0.0 for p in positions)
     # A position with no usable price contributes nothing to `value` but its
@@ -437,16 +483,15 @@ def totals(payments: list[dict], positions: list[dict], by_year_rows: list[dict]
     ttm_scaled = ttm_scaled if ttm_scaled is not None else {}
     held_isins = {p["isin"] for p in positions}
     if ttm_scaled:
-        parts = [ttm_scaled.get(i, _between([p for p in payments if p["isin"] == i],
-                                            ttm_start, today.isoformat()))
-                 for i in held_isins]
+        parts = [ttm_scaled.get(i, _between([p for p in payments if p["isin"] == i], ttm_start, today.isoformat())) for i in held_isins]
         ttm_for_yield = None if any(v is None for v in parts) else sum(parts)
     else:
         ttm_for_yield = ttm
 
     best = max(
         ({"month": m, "net": round(v, 2)} for m, v in _month_totals(payments).items()),
-        key=lambda r: r["net"], default=None,
+        key=lambda r: r["net"],
+        default=None,
     )
 
     # Dividends as a share of what the portfolio has made in total. Only when
@@ -482,9 +527,7 @@ def totals(payments: list[dict], positions: list[dict], by_year_rows: list[dict]
         "forward_12m_net": round(forward_12m, 2),
         "forward_monthly_avg": round(forward_12m / 12.0, 2),
         "yield_on_cost_pct": _pct(ttm_for_yield, invested) if ttm_for_yield is not None else None,
-        "yield_on_value_pct": _pct(ttm_for_yield, value) if (
-            ttm_for_yield is not None and value is not None
-        ) else None,
+        "yield_on_value_pct": _pct(ttm_for_yield, value) if (ttm_for_yield is not None and value is not None) else None,
         "forward_yield_on_cost_pct": _pct(forward_12m, invested),
         "share_of_profit_pct": _pct(net, profit) if profit and profit > 0 else None,
         "best_month": best,
@@ -505,9 +548,15 @@ def _month_totals(payments: list[dict]) -> dict[str, float]:
 # Entry point
 # ---------------------------------------------------------------------------
 
-def build(positions: list[dict], transactions: list[dict], dividends: list[dict],
-          outlook: dict, today: datetime.date | None = None,
-          summary: dict | None = None) -> dict:
+
+def build(
+    positions: list[dict],
+    transactions: list[dict],
+    dividends: list[dict],
+    outlook: dict,
+    today: datetime.date | None = None,
+    summary: dict | None = None,
+) -> dict:
     """Everything the Dividend tab draws.
 
     `outlook` is the dashboard's own six-month forecast, already merged with
@@ -529,7 +578,11 @@ def build(positions: list[dict], transactions: list[dict], dividends: list[dict]
     rest_of_year = outlook.get("rest_of_year_eur", 0.0) or 0.0
 
     forward_schedule = dashboard_service.forecast_dividends(
-        positions, dividends, transactions, today=today, horizon_days=_FORWARD_DAYS,
+        positions,
+        dividends,
+        transactions,
+        today=today,
+        horizon_days=_FORWARD_DAYS,
     )["upcoming"]
     forward = {
         "total": sum(e["expected_eur"] or 0.0 for e in forward_schedule),
@@ -543,8 +596,7 @@ def build(positions: list[dict], transactions: list[dict], dividends: list[dict]
 
     year_rows = by_year(payments, rest_of_year, today)
     return {
-        "totals": totals(payments, positions, year_rows, forward, rest_of_year, today,
-                         ttm_scaled=ttm_scaled, summary=summary),
+        "totals": totals(payments, positions, year_rows, forward, rest_of_year, today, ttm_scaled=ttm_scaled, summary=summary),
         "by_year": year_rows,
         "by_month": by_month(payments, forward_schedule, today),
         "seasonality": seasonality(payments),
@@ -552,8 +604,7 @@ def build(positions: list[dict], transactions: list[dict], dividends: list[dict]
         "by_stock": by_stock(payments, positions, upcoming, today, ttm_scaled=ttm_scaled),
         "upcoming": upcoming,
         "payments": [
-            {**p, "gross_eur": round(p["gross_eur"], 2),
-             "tax_eur": round(p["tax_eur"], 2), "net_eur": round(p["net_eur"], 2)}
+            {**p, "gross_eur": round(p["gross_eur"], 2), "tax_eur": round(p["tax_eur"], 2), "net_eur": round(p["net_eur"], 2)}
             for p in reversed(payments)
         ],
     }

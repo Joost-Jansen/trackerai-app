@@ -22,8 +22,7 @@ from urllib.parse import urlsplit
 
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 _DEFAULT_PORTS = {"http": 80, "https": 443}
-BODY = json.dumps({"detail": "This request did not come from this site and was refused.", "code": "csrf_origin",
-                   "params": {}}).encode()
+BODY = json.dumps({"detail": "This request did not come from this site and was refused.", "code": "csrf_origin", "params": {}}).encode()
 
 
 def normalise_origin(value: str | None) -> str | None:
@@ -95,6 +94,11 @@ class OriginCheckMiddleware:
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers") or []}
         if self.allowed_request(scope.get("method", "GET"), scope.get("path", ""), headers):
             return await self.app(scope, receive, send)
-        await send({"type": "http.response.start", "status": 403,
-                    "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(BODY)).encode())]})
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 403,
+                "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(BODY)).encode())],
+            }
+        )
         await send({"type": "http.response.body", "body": BODY})

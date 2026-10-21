@@ -10,10 +10,8 @@ left alone after that.
 
 import pytest
 
-from domain.money import bank_transactions
-from domain.money import categorization
 from domain import database
-from domain.money import accounts
+from domain.money import accounts, bank_transactions, categorization
 
 
 @pytest.fixture(autouse=True)
@@ -31,8 +29,7 @@ def conn():
 
 
 def _rules(conn) -> set[tuple]:
-    return {(r["field"], r["pattern"], r["direction"], r["category"])
-            for r in categorization.load_rules(conn, only_active=False)}
+    return {(r["field"], r["pattern"], r["direction"], r["category"]) for r in categorization.load_rules(conn, only_active=False)}
 
 
 def _new_in_2() -> set[tuple]:
@@ -42,8 +39,7 @@ def _new_in_2() -> set[tuple]:
 def _if_version_1(conn):
     """A user from before version 2: without the version 2 rules, without a version."""
     for field, pattern, direction, category in _new_in_2():
-        conn.execute("DELETE FROM rules WHERE field=? AND pattern=? AND direction=? AND category=?",
-                     (field, pattern, direction, category))
+        conn.execute("DELETE FROM rules WHERE field=? AND pattern=? AND direction=? AND category=?", (field, pattern, direction, category))
     conn.execute("DELETE FROM settings WHERE key = 'default_rules_version'")
     conn.commit()
 
@@ -81,8 +77,7 @@ def test_a_rule_thrown_away_afterwards_stays_away(conn):
     categorization.seed(conn)
     _if_version_1(conn)
     categorization.seed(conn)
-    payday = next(r for r in categorization.load_rules(conn, only_active=False)
-                  if r["pattern"] == "BUNQ PAYDAY")
+    payday = next(r for r in categorization.load_rules(conn, only_active=False) if r["pattern"] == "BUNQ PAYDAY")
     categorization.delete_rule(conn, payday["id"])
     categorization.seed(conn)
     assert not any(r["pattern"] == "BUNQ PAYDAY" for r in categorization.load_rules(conn, only_active=False))
@@ -91,11 +86,9 @@ def test_a_rule_thrown_away_afterwards_stays_away(conn):
 def test_an_own_rule_that_was_already_there_is_not_added_twice(conn):
     categorization.seed(conn)
     _if_version_1(conn)
-    categorization.make_rule(conn, priority=40, field="T", pattern="BUNQ PAYDAY", direction="C",
-                             category="Overige inkomsten")
+    categorization.make_rule(conn, priority=40, field="T", pattern="BUNQ PAYDAY", direction="C", category="Overige inkomsten")
     categorization.seed(conn)
-    assert sum(1 for r in categorization.load_rules(conn, only_active=False)
-               if r["pattern"] == "BUNQ PAYDAY") == 1
+    assert sum(1 for r in categorization.load_rules(conn, only_active=False) if r["pattern"] == "BUNQ PAYDAY") == 1
 
 
 def test_what_was_unknown_is_recognised_at_once(conn):
@@ -103,8 +96,9 @@ def test_what_was_unknown_is_recognised_at_once(conn):
     categorization.seed(conn)
     _if_version_1(conn)
     rid = accounts.make_bank_account(conn, kind="bank", provider="bunq", name="bunq")
-    tid = bank_transactions.add_manually(conn, account_id=rid, date="2026-04-17", amount=-2.08,
-                                             name="bunq", description="bunq Payday 2026-04-17 EUR")
+    tid = bank_transactions.add_manually(
+        conn, account_id=rid, date="2026-04-17", amount=-2.08, name="bunq", description="bunq Payday 2026-04-17 EUR"
+    )
     categorization.relabel(conn)
     assert next(r for r in bank_transactions.load(conn) if r["id"] == tid)["category"] == categorization.UNKNOWN
 
@@ -136,11 +130,11 @@ def test_exclude_counts_neither_as_income_nor_as_spending(conn):
     or spending.
     """
     from domain.money import net_worth
+
     categorization.seed(conn)
     rid = accounts.make_bank_account(conn, kind="bank", provider="manual", name="Bank")
     for amount in (-500.0, 500.0):
-        tid = bank_transactions.add_manually(conn, account_id=rid, date="2026-03-10",
-                                                 amount=amount, name="A. VOORBEELD")
+        tid = bank_transactions.add_manually(conn, account_id=rid, date="2026-03-10", amount=amount, name="A. VOORBEELD")
         bank_transactions.set_category_manual(conn, tid, "Niet meetellen")
     march = next(m for m in net_worth.per_month(conn) if m["month"] == "2026-03")
     assert march["spending"] == 0 and march["income"] == 0
@@ -149,8 +143,9 @@ def test_exclude_counts_neither_as_income_nor_as_spending(conn):
 def test_bunq_payday_is_interest(conn):
     categorization.seed(conn)
     rid = accounts.make_bank_account(conn, kind="bank", provider="bunq", name="bunq")
-    tid = bank_transactions.add_manually(conn, account_id=rid, date="2026-04-17", amount=-2.08,
-                                             name="bunq", description="bunq Payday 2026-04-17 EUR")
+    tid = bank_transactions.add_manually(
+        conn, account_id=rid, date="2026-04-17", amount=-2.08, name="bunq", description="bunq Payday 2026-04-17 EUR"
+    )
     categorization.relabel(conn)
     row = next(r for r in bank_transactions.load(conn) if r["id"] == tid)
     assert row["category"] == "Overige inkomsten" and row["type"] == "INCOME"
@@ -171,8 +166,9 @@ def test_holiday_its_own_group_and_leisure_under_food(conn):
 
     categorization.seed(conn)
     assert _group(conn, "Vakantie") == "Vakantie"
-    assert {_group(conn, n) for n in ("Lunch werk", "Cafe & uitgaan", "Uit eten & bezorgen", "Uitjes & evenementen")} \
-        == {"Eten & vrije tijd"}
+    assert {_group(conn, n) for n in ("Lunch werk", "Cafe & uitgaan", "Uit eten & bezorgen", "Uitjes & evenementen")} == {
+        "Eten & vrije tijd"
+    }
     assert _group(conn, "Sport & hobby") == "Mijn sport", "wat je zelf verplaatste blijft"
 
 
@@ -199,8 +195,11 @@ def test_from_version_5_in_one_go_to_the_latest_layout(conn):
     conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('default_rules_version', '5')")
     conn.commit()
     categorization.seed(conn)
-    assert (_group(conn, "Sport & hobby"), _group(conn, "Vakantie"), _group(conn, "Uitjes & evenementen")) \
-        == ("Shoppen", "Vakantie", "Eten & vrije tijd")
+    assert (_group(conn, "Sport & hobby"), _group(conn, "Vakantie"), _group(conn, "Uitjes & evenementen")) == (
+        "Shoppen",
+        "Vakantie",
+        "Eten & vrije tijd",
+    )
 
 
 def test_a_budget_on_an_old_main_category_moves_along(conn):

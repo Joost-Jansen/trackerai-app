@@ -36,7 +36,12 @@ def test_cross_site_writes_are_refused(client):  # noqa: F811
 def test_public_origins_are_allowed(engine, tmp_path):  # noqa: F811
     c = TestClient(create_app(engine=engine, settings=make_settings(public_origins=("https://health.example.org",))))
     login(c)
-    assert c.post("/api/entries", json={"kind": "log", "title": "t", "body": "b"}, headers={"Origin": "https://health.example.org"}).status_code == 200
+    assert (
+        c.post(
+            "/api/entries", json={"kind": "log", "title": "t", "body": "b"}, headers={"Origin": "https://health.example.org"}
+        ).status_code
+        == 200
+    )
 
 
 def test_oversized_json_body_is_refused_before_it_is_read(client):  # noqa: F811
@@ -62,7 +67,10 @@ def test_overlong_fields_are_a_422_not_a_database_error(client):  # noqa: F811
     login(client)
     assert client.post("/api/entries", json={"kind": "log", "title": "t" * 201, "body": "b"}).status_code == 422
     assert client.post("/api/plans", json={"title": "t" * 201, "sessions": []}).status_code == 422
-    assert client.post("/api/plans", json={"title": "ok", "sessions": [{"date": "2026-10-04", "sport": "run", "kind": "k" * 61}]}).status_code == 422
+    assert (
+        client.post("/api/plans", json={"title": "ok", "sessions": [{"date": "2026-10-04", "sport": "run", "kind": "k" * 61}]}).status_code
+        == 422
+    )
 
 
 def test_garmin_logins_through_the_server_are_limited(engine, tmp_path):  # noqa: F811

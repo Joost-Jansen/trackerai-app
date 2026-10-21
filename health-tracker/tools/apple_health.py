@@ -38,9 +38,10 @@ import zipfile
 from array import array
 from calendar import timegm
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
-from typing import IO, Callable
+from datetime import UTC, date, datetime, timedelta, timezone
+from typing import IO
 from xml.parsers import expat
 
 from tools.sports import apple_sport
@@ -113,7 +114,7 @@ def parse_time(text: str) -> tuple[int, int]:
 
 
 def local_day(utc: int, offset: int) -> str:
-    return datetime.fromtimestamp(utc + offset, timezone.utc).strftime("%Y-%m-%d")
+    return datetime.fromtimestamp(utc + offset, UTC).strftime("%Y-%m-%d")
 
 
 def local_minute(utc: int, offset: int, day: str) -> int:
@@ -123,7 +124,7 @@ def local_minute(utc: int, offset: int, day: str) -> int:
 
 
 def _local_clock(utc: int, offset: int) -> str:
-    return datetime.fromtimestamp(utc + offset, timezone.utc).strftime("%Y-%m-%dT%H:%M")
+    return datetime.fromtimestamp(utc + offset, UTC).strftime("%Y-%m-%dT%H:%M")
 
 
 def _num(text) -> float | None:
@@ -212,8 +213,14 @@ class Export:
 
 
 def _export_member(z: zipfile.ZipFile) -> zipfile.ZipInfo:
-    xmls = [i for i in z.infolist() if i.filename.lower().endswith(".xml") and "cda" not in i.filename.lower().rsplit("/", 1)[-1]
-            and "/workout-routes/" not in i.filename and "/electrocardiograms/" not in i.filename]
+    xmls = [
+        i
+        for i in z.infolist()
+        if i.filename.lower().endswith(".xml")
+        and "cda" not in i.filename.lower().rsplit("/", 1)[-1]
+        and "/workout-routes/" not in i.filename
+        and "/electrocardiograms/" not in i.filename
+    ]
     if not xmls:
         raise NotAnExport("no export.xml in the zip")
     return max(xmls, key=lambda i: i.file_size)
@@ -593,7 +600,11 @@ def intraday_days(x: Export, wellness: dict[str, dict] | None = None, days: int 
                     stages[-1][1] = max(stages[-1][1], mb)
                 elif mb > ma:
                     stages.append([ma, mb, STAGE_LEVEL[s]])
-            row["sleep"] = {"start": local_minute(night.start, night.offset, day), "end": local_minute(night.end, night.offset, day), "stages": stages}
+            row["sleep"] = {
+                "start": local_minute(night.start, night.offset, day),
+                "end": local_minute(night.end, night.offset, day),
+                "stages": stages,
+            }
         if row:
             row["source"] = "apple"
             out[day] = row
@@ -678,8 +689,8 @@ def workout_record(w: dict, x: Export, filename: str | None = None) -> dict | No
     label = {"run": "Running", "ride": "Cycling", "swim": "Swimming"}.get(sport, sport.replace("_", " ").capitalize())
     device = a.get("sourceName") or "Apple Health"
     record = {
-        "start_utc": datetime.fromtimestamp(start, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "start_local": datetime.fromtimestamp(start + offset, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
+        "start_utc": datetime.fromtimestamp(start, UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "start_local": datetime.fromtimestamp(start + offset, UTC).strftime("%Y-%m-%dT%H:%M:%S"),
         "sport": sport,
         "name": f"Apple Watch {label}" if "watch" in device.lower() else f"Apple Health {label}",
         "distance_km": round(km, 2) if km else None,

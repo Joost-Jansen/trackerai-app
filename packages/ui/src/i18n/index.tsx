@@ -27,7 +27,7 @@ export const useUiLocale = (): Locale => useContext(LocaleContext);
 
 /** The text in the given language, with {0}, {1}… filled in. */
 export function translate(locale: Locale, english: string, ...args: unknown[]): string {
-  const s = locale === "nl" ? nl[english] ?? english : english;
+  const s = locale === "nl" ? (nl[english] ?? english) : english;
   return args.length ? s.replace(/\{(\d+)\}/g, (m, i) => (Number(i) < args.length ? String(args[Number(i)]) : m)) : s;
 }
 

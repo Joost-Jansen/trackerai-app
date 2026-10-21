@@ -20,15 +20,12 @@ import sqlite3
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, UploadFile, status
 
-from domain.money import bank_transactions
-from domain.money import shared_costs
-from domain.money import categorization
-from domain import database
-from domain.money import accounts
+from app.core.errors import CodedError
 from app.deps import CurrentUser, get_current_user, get_db, require_money
 from app.services import bank_service, upload_store
-from app.core.errors import CodedError
+from domain import database
 from domain.i18n import tr
+from domain.money import accounts, bank_transactions, categorization, shared_costs
 
 router = APIRouter(tags=["bank_transactions"], dependencies=[Depends(require_money)])
 
@@ -107,9 +104,11 @@ def items(
     if shared_shares:
         # Only for screens that add up spending; the list of transactions itself
         # shows what really happened on the account.
-        derived = [r for r in shared_costs.own_share_rows(conn)
-                   if (account_id is None or r["account_id"] == account_id)
-                   and (not start or r["date"] >= start) and (not end or r["date"] <= end)]
+        derived = [
+            r
+            for r in shared_costs.own_share_rows(conn)
+            if (account_id is None or r["account_id"] == account_id) and (not start or r["date"] >= start) and (not end or r["date"] <= end)
+        ]
         transactions = sorted(transactions + derived, key=lambda r: r["date"])
     # Outside the period filter: so an empty period can say there *are*
     # transactions, and when the latest one is from.
@@ -144,8 +143,9 @@ def add(
     if direction not in ("expense", "income"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, tr("Choose expense or income."))
     if amount is None or amount <= 0:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST,
-                            tr("Enter an amount greater than zero; whether it came in or went out you choose separately."))
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, tr("Enter an amount greater than zero; whether it came in or went out you choose separately.")
+        )
 
     categorization.seed(conn)
     if category is not None and category not in {c["name"] for c in categorization.load_categories(conn)}:
@@ -153,9 +153,12 @@ def add(
 
     try:
         transaction_id = bank_transactions.add_manually(
-            conn, account_id=account_id, date=date,
+            conn,
+            account_id=account_id,
+            date=date,
             amount=amount if direction == "expense" else -amount,
-            name=name, description=description,
+            name=name,
+            description=description,
         )
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
@@ -198,8 +201,7 @@ def remove(
     try:
         away = bank_transactions.delete_manual(conn, transaction_id)
     except bank_transactions.NotManual as e:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST,
-                            tr("{0} An imported one comes back with the next import anyway.", e)) from e
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, tr("{0} An imported one comes back with the next import anyway.", e)) from e
     if not away:
         raise HTTPException(status.HTTP_404_NOT_FOUND, tr("This transaction does not exist."))
     return {"ok": True}

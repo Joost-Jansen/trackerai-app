@@ -49,18 +49,22 @@ def _price(symbol, unit_price):
 # The class from a name
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("name, share_class", [
-    ("VANGUARD FTSE ALL-WORLD UCITS ETF USD DIS", "dist"),
-    ("ISHARES STOXX EUROPE 600 UCITS (DE) EUR (DIST)", "dist"),
-    ("Vanguard FTSE All-World UCITS ETF USD Distributing", "dist"),
-    ("ISHARES CORE S&P 500 UCITS ETF USD (ACC)", "acc"),
-    ("Vanguard FTSE All-World UCITS ETF USD Accumulation", "acc"),
-    ("Vanguard FTSE All-World UCITS ETF", None),
-    ("APPLE INC", None),
-    ("ASML HOLDING", None),
-    ("", None),
-    (None, None),
-])
+
+@pytest.mark.parametrize(
+    "name, share_class",
+    [
+        ("VANGUARD FTSE ALL-WORLD UCITS ETF USD DIS", "dist"),
+        ("ISHARES STOXX EUROPE 600 UCITS (DE) EUR (DIST)", "dist"),
+        ("Vanguard FTSE All-World UCITS ETF USD Distributing", "dist"),
+        ("ISHARES CORE S&P 500 UCITS ETF USD (ACC)", "acc"),
+        ("Vanguard FTSE All-World UCITS ETF USD Accumulation", "acc"),
+        ("Vanguard FTSE All-World UCITS ETF", None),
+        ("APPLE INC", None),
+        ("ASML HOLDING", None),
+        ("", None),
+        (None, None),
+    ],
+)
 def test_the_class_is_in_the_name(name, share_class):
     assert portfolio._share_class(name) == share_class
 
@@ -95,8 +99,10 @@ def test_a_dist_position_does_not_get_the_acc_class(conn, monkeypatch):
 
 
 def test_an_acc_position_does_not_get_the_dist_class(conn, monkeypatch):
-    names = {"VWCE.DE": "Vanguard FTSE All-World UCITS ETF USD Accumulation",
-             "VGWL.DE": "Vanguard FTSE All-World UCITS ETF USD Distributing"}
+    names = {
+        "VWCE.DE": "Vanguard FTSE All-World UCITS ETF USD Accumulation",
+        "VGWL.DE": "Vanguard FTSE All-World UCITS ETF USD Distributing",
+    }
     _search_stubs(monkeypatch, [("VGWL.DE", "GER"), ("VWCE.DE", "GER")])
     monkeypatch.setattr(portfolio, "_yahoo_long_name", lambda c, s: names.get(s))
     result = portfolio.fetch_price_for_isin(conn, "IE00BK5BQT80", "VANGUARD FTSE ALL-WORLD UCITS ETF USD ACC")
@@ -118,8 +124,10 @@ def test_a_name_without_a_class_is_not_held_back(conn, monkeypatch):
 
 def test_a_share_costs_no_extra_lookups(conn, monkeypatch):
     """Only a name with a class asks Yahoo for the candidate's name."""
+
     def not_ask(*a, **k):
         raise AssertionError("naam opgevraagd voor een positie zonder klasse")
+
     monkeypatch.setattr(portfolio, "_search_candidates", lambda q, **k: [("ASML.AS", "AMS")])
     monkeypatch.setattr(portfolio, "_fetch_by_ticker", lambda s: _price(s, 600.0))
     monkeypatch.setattr(portfolio, "_yahoo_long_name", not_ask)
@@ -129,6 +137,7 @@ def test_a_share_costs_no_extra_lookups(conn, monkeypatch):
 # ---------------------------------------------------------------------------
 # OpenFIGI
 # ---------------------------------------------------------------------------
+
 
 class _Answer:
     def __init__(self, status, data=None, headers=None):
@@ -142,6 +151,7 @@ class _Answer:
 
 class _Server:
     """Returns the answers in order and remembers what was asked."""
+
     def __init__(self, *answers):
         self.answers = list(answers)
         self.requests = []

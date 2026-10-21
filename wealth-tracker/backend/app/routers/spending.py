@@ -9,10 +9,10 @@ import sqlite3
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from app.deps import CurrentUser, get_current_user, get_db, require_money
 from domain import preferences
 from domain.i18n import tr
 from domain.money import fixed_costs, shared_costs
-from app.deps import CurrentUser, get_current_user, get_db, require_money
 
 router = APIRouter(prefix="/api/spending", tags=["spending"], dependencies=[Depends(require_money)])
 
@@ -40,7 +40,7 @@ def fixed_admin(
 
 class Choice(BaseModel):
     name: str
-    is_fixed: bool | None   # None: leave it to the detection again
+    is_fixed: bool | None  # None: leave it to the detection again
 
 
 @router.put("/fixed-costs/choice")
@@ -58,7 +58,7 @@ def fixed_choice(
 
 
 class SharedCosts(BaseModel):
-    category: str | None   # None: your share counts nowhere
+    category: str | None  # None: your share counts nowhere
 
 
 @router.get("/shared-costs")

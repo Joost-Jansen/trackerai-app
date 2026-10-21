@@ -5,9 +5,9 @@ the FIT SDK.
 """
 
 import struct
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
-FIT_EPOCH = datetime(1989, 12, 31, tzinfo=timezone.utc)
+FIT_EPOCH = datetime(1989, 12, 31, tzinfo=UTC)
 SEMI = 2**31 / 180
 _CRC = [0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401, 0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400]
 # base types: (code, struct format)
@@ -52,22 +52,47 @@ class FitWriter:
         return data + struct.pack("<H", crc(data))
 
 
-def bike_ride(start: datetime, seconds: int = 600, manufacturer: int = 32, lat: float = 52.09, lon: float = 5.12,
-              hr: int = 140, local_offset_s: int = 7200) -> bytes:
+def bike_ride(
+    start: datetime,
+    seconds: int = 600,
+    manufacturer: int = 32,
+    lat: float = 52.09,
+    lon: float = 5.12,
+    hr: int = 140,
+    local_offset_s: int = 7200,
+) -> bytes:
     """A ride of `seconds` seconds, one record every 10 s heading north at 8 m/s. Manufacturer 32 is Wahoo."""
     w = FitWriter()
     t0 = fit_time(start)
     w.message(0, [(0, ENUM, 4), (1, UINT16, manufacturer), (4, UINT32, t0)])
     for i in range(0, seconds + 1, 10):
-        w.message(20, [
-            (253, UINT32, t0 + i), (0, SINT32, round((lat + i * 8 / 111_000) * SEMI)), (1, SINT32, round(lon * SEMI)),
-            (3, UINT8, hr), (5, UINT32, i * 8 * 100), (6, UINT16, 8000), (7, UINT16, 200),
-        ])
+        w.message(
+            20,
+            [
+                (253, UINT32, t0 + i),
+                (0, SINT32, round((lat + i * 8 / 111_000) * SEMI)),
+                (1, SINT32, round(lon * SEMI)),
+                (3, UINT8, hr),
+                (5, UINT32, i * 8 * 100),
+                (6, UINT16, 8000),
+                (7, UINT16, 200),
+            ],
+        )
     end = t0 + seconds
-    w.message(18, [
-        (253, UINT32, end), (2, UINT32, t0), (5, ENUM, 2), (6, ENUM, 0),
-        (7, UINT32, seconds * 1000), (8, UINT32, seconds * 1000), (9, UINT32, seconds * 8 * 100),
-        (16, UINT8, hr), (17, UINT8, hr + 20), (22, UINT16, 35),
-    ])
+    w.message(
+        18,
+        [
+            (253, UINT32, end),
+            (2, UINT32, t0),
+            (5, ENUM, 2),
+            (6, ENUM, 0),
+            (7, UINT32, seconds * 1000),
+            (8, UINT32, seconds * 1000),
+            (9, UINT32, seconds * 8 * 100),
+            (16, UINT8, hr),
+            (17, UINT8, hr + 20),
+            (22, UINT16, 35),
+        ],
+    )
     w.message(34, [(253, UINT32, end), (5, UINT32, end + local_offset_s)])
     return w.bytes()

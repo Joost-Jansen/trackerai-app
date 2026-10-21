@@ -7,10 +7,9 @@ import ssl
 
 import pytest
 from fastapi.testclient import TestClient
-
-from trackerai_accounts import Accounts, Config, connect
-from trackerai_accounts import mail
 from test_accounts import PASSWORD, config, make_app, register
+
+from trackerai_accounts import Accounts, Config, connect, mail
 
 
 @pytest.fixture
@@ -53,8 +52,10 @@ def test_resend_delivery_preserves_dutch_text_and_verifies_tls(tmp_path, transpo
     assert connection.request_options["headers"]["Authorization"] == "Bearer test-only-key"
     assert connection.request_options["headers"]["Content-Type"] == "application/json"
     assert json.loads(connection.request_options["body"]) == {
-        "from": "trackerai <login@example.org>", "to": ["anna@example.org"],
-        "subject": "Je inlogcode", "text": "Hij werkt één keer: 123456",
+        "from": "trackerai <login@example.org>",
+        "to": ["anna@example.org"],
+        "subject": "Je inlogcode",
+        "text": "Hij werkt één keer: 123456",
     }
     assert connection.closed
 
@@ -64,7 +65,8 @@ def test_provider_rejections_do_not_redirect_retry_or_expose_message(tmp_path, t
     transport.status = status
     with pytest.raises(RuntimeError, match="^Email provider rejected the message$"):
         mail.mailer_for(api_config(tmp_path, smtp_host="smtp.example.org", smtp_from="login@example.org")).send(
-            "anna@example.org", "Secret", "123456")
+            "anna@example.org", "Secret", "123456"
+        )
     assert len(transport.instances) == 1 and transport.instances[0].closed
 
 
@@ -97,9 +99,11 @@ def test_accounts_can_confirm_email_and_log_in_using_resend(tmp_path, transport)
     assert client.get("/api/auth/registration-status").json()["email_codes"] is True
     assert register(client).status_code == 200
     assert client.post("/api/account/email", json={"email": "anna@example.org", "password": PASSWORD}).status_code == 200
+
     def code():
         payload = json.loads(transport.instances[-1].request_options["body"])
         return re.search(r"\b(\d{6})\b", payload["text"]).group(1)
+
     assert client.post("/api/account/email/confirm", json={"code": code()}).json()["two_step"] is True
     fresh = TestClient(app, base_url="https://health.example")
     assert fresh.post("/api/auth/login", json={"username": "anna", "password": PASSWORD}).json()["code"] == "email_code_sent"

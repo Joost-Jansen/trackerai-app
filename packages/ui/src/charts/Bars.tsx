@@ -57,13 +57,7 @@ function fill(colour: string, estimate?: boolean): React.CSSProperties {
 }
 
 function Swatch({ colour, estimate }: { colour: string; estimate?: boolean }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="inline-block h-2.5 w-2.5 flex-none rounded-[3px]"
-      style={fill(colour, estimate)}
-    />
-  );
+  return <span aria-hidden="true" className="inline-block h-2.5 w-2.5 flex-none rounded-[3px]" style={fill(colour, estimate)} />;
 }
 
 export default function Bars({
@@ -120,9 +114,7 @@ export default function Bars({
         {shown ? (
           <>
             <span className="text-[13px] font-semibold">{shown.title ?? shown.label}</span>
-            <span className="num text-[13px] font-semibold">
-              {format(totals[active!])}
-            </span>
+            <span className="num text-[13px] font-semibold">{format(totals[active!])}</span>
             {shown.note && <span className="text-xs text-ink-muted">{shown.note}</span>}
           </>
         ) : (
@@ -189,9 +181,7 @@ export default function Bars({
               {/* An empty month has no bar and so no hit area. This
                   sliver of nothing keeps it pointable and shows that it is
                   empty rather than missing. */}
-              {total <= 0 && (
-                <span aria-hidden="true" className="block h-[2px] w-full bg-border-strong" />
-              )}
+              {total <= 0 && <span aria-hidden="true" className="block h-[2px] w-full bg-border-strong" />}
             </button>
           );
         })}

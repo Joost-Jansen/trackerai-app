@@ -29,7 +29,8 @@ const STATUS: Record<Status, string> = { new: tr("New"), planned: tr("Planned"),
 const KIND = { bug: tr("Broken"), idea: tr("Idea") };
 // The API reports "wealth"; older answers said "stock" or "money" (lib/app.ts).
 const SITE = { wealth: "wealth-tracker", stock: "wealth-tracker", money: "wealth-tracker" };
-const when = (iso: string) => new Date(iso).toLocaleString(intlLocale, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const when = (iso: string) =>
+  new Date(iso).toLocaleString(intlLocale, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 function Header({ f }: { f: Item }) {
   return (
@@ -45,7 +46,14 @@ function Header({ f }: { f: Item }) {
 
 function ScreenshotLink({ id }: { id: number }) {
   return (
-    <a className="self-start text-[12.5px] underline underline-offset-2" href={`/api/feedback/${id}/screenshot`} target="_blank" rel="noreferrer">{tr("Screenshot")}</a>
+    <a
+      className="self-start text-[12.5px] underline underline-offset-2"
+      href={`/api/feedback/${id}/screenshot`}
+      target="_blank"
+      rel="noreferrer"
+    >
+      {tr("Screenshot")}
+    </a>
   );
 }
 
@@ -54,7 +62,14 @@ function My() {
   const [open, setOpen] = useState(false);
   const items = q.data?.feedback;
   return (
-    <Card title={tr("Your feedback")} action={<Button size="sm" variant="primary" onClick={() => setOpen(true)}>{tr("New feedback")}</Button>}>
+    <Card
+      title={tr("Your feedback")}
+      action={
+        <Button size="sm" variant="primary" onClick={() => setOpen(true)}>
+          {tr("New feedback")}
+        </Button>
+      }
+    >
       {!items ? (
         <p className="text-sm text-ink-muted">{tr("Loading…")}</p>
       ) : items.length === 0 ? (
@@ -68,7 +83,7 @@ function My() {
               {f.has_screenshot && <ScreenshotLink id={f.id} />}
               {f.reply && (
                 <p className="whitespace-pre-wrap rounded px-3 py-2 text-[13px]" style={{ background: "var(--surface-sunken)" }}>
-                  <span className="font-medium">{tr("Reply:")}{" "}</span>
+                  <span className="font-medium">{tr("Reply:")} </span>
                   {f.reply}
                 </p>
               )}

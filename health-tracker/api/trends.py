@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import date, timedelta
 from statistics import mean
-from typing import Callable
 
 from api.dashboard import max_by_sport, resting_hr, sync_day
 from api.readiness import baseline, normal_resting_hr
@@ -120,7 +120,17 @@ def vo2max(activities: list[dict], wellness: dict | None = None) -> list[dict]:
     return [{"date": d, "value": v} for d, v in sorted(by_day.items())]
 
 
-RECOVERY_KEYS = ("resting_hr", "sleep_h", "body_battery_high", "stress_avg", "hrv", "sleep_resp", "sleep_stress", "bb_charged_sleep", "spo2_avg")
+RECOVERY_KEYS = (
+    "resting_hr",
+    "sleep_h",
+    "body_battery_high",
+    "stress_avg",
+    "hrv",
+    "sleep_resp",
+    "sleep_stress",
+    "bb_charged_sleep",
+    "spo2_avg",
+)
 NORMAL_DAYS = 60  # the user's normal of a recovery value: the median of the last 60 days, as on Today
 
 
@@ -183,11 +193,18 @@ def sleep_stages(wellness: dict) -> list[dict]:
     out = []
     for day in sorted(wellness):
         w = wellness[day] or {}
-        row = {stage: w.get(key) if isinstance(w.get(key), (int, float)) and w.get(key) > 0 else 0 for stage, key in SLEEP_STAGE_KEYS.items()}
+        row = {
+            stage: w.get(key) if isinstance(w.get(key), (int, float)) and w.get(key) > 0 else 0 for stage, key in SLEEP_STAGE_KEYS.items()
+        }
         # Nights synced before light sleep was stored have only the total, deep and REM; Garmin's sleep time is
         # deep + light + REM, so light is the rest. Awake stays unknown (0) for those nights.
         total = w.get("sleep_h")
-        if "light_sleep_h" not in w and row["deep"] + row["rem"] > 0 and isinstance(total, (int, float)) and total > row["deep"] + row["rem"]:
+        if (
+            "light_sleep_h" not in w
+            and row["deep"] + row["rem"] > 0
+            and isinstance(total, (int, float))
+            and total > row["deep"] + row["rem"]
+        ):
             row["light"] = total - row["deep"] - row["rem"]
         if row["deep"] + row["light"] + row["rem"] > 0:
             out.append({"date": day[:10], **{k: round(v, 2) for k, v in row.items()}})
@@ -232,7 +249,16 @@ def recent_records(recs: dict, today: date, days: int = RECENT_RECORD_DAYS) -> l
         rows = recs.get(key) or []
         if len(rows) >= 2 and rows[-1]["date"] >= since:
             last = rows[-1]
-            out.append({"key": key, "date": last["date"], "seconds": last["seconds"], "previous_seconds": rows[-2]["seconds"], "activity_id": last["activity_id"], "source": last["source"]})
+            out.append(
+                {
+                    "key": key,
+                    "date": last["date"],
+                    "seconds": last["seconds"],
+                    "previous_seconds": rows[-2]["seconds"],
+                    "activity_id": last["activity_id"],
+                    "source": last["source"],
+                }
+            )
     return out
 
 
@@ -299,7 +325,15 @@ def efforts(activities: list[dict], since: str) -> list[dict]:
             if raw.get(field):
                 out.append({"date": a["start_local"][:10], "km": km, "seconds": raw[field], "activity_id": a["id"], "source": "split"})
         if a["id"] in race_ids and a.get("moving_time_s"):
-            out.append({"date": a["start_local"][:10], "km": a["distance_km"], "seconds": a["moving_time_s"], "activity_id": a["id"], "source": "race"})
+            out.append(
+                {
+                    "date": a["start_local"][:10],
+                    "km": a["distance_km"],
+                    "seconds": a["moving_time_s"],
+                    "activity_id": a["id"],
+                    "source": "race",
+                }
+            )
     return out
 
 
@@ -307,7 +341,9 @@ def _predict(pool: list[dict], km: float) -> dict | None:
     usable = [e for e in pool if e["km"] >= min(km, 5.0) * 0.99] or pool
     if not usable:
         return None
-    longest = max(e["km"] for e in usable if e["km"] <= km * 1.01) if any(e["km"] <= km * 1.01 for e in usable) else min(e["km"] for e in usable)
+    longest = (
+        max(e["km"] for e in usable if e["km"] <= km * 1.01) if any(e["km"] <= km * 1.01 for e in usable) else min(e["km"] for e in usable)
+    )
     base = min((e for e in usable if abs(e["km"] - longest) < 0.3), key=lambda e: riegel(e["seconds"], e["km"], km))
     secs = riegel(base["seconds"], base["km"], km)
     return {"seconds": round(secs), "pace_s_per_km": round(secs / km), "from": base}
@@ -417,7 +453,14 @@ def longest_runs(activities: list[dict]) -> list[dict]:
     for s in run_sessions(activities):
         wk = week_of(s["start_local"])
         if wk not in weeks or s["distance_km"] > weeks[wk]["km"]:
-            weeks[wk] = {"week": wk, "date": s["start_local"][:10], "km": round(s["distance_km"], 2), "seconds": s["moving_time_s"], "parts": s["parts"], "activity_id": ids[s["start_local"]]}
+            weeks[wk] = {
+                "week": wk,
+                "date": s["start_local"][:10],
+                "km": round(s["distance_km"], 2),
+                "seconds": s["moving_time_s"],
+                "parts": s["parts"],
+                "activity_id": ids[s["start_local"]],
+            }
     return [weeks[k] for k in sorted(weeks)]
 
 
@@ -442,7 +485,14 @@ def sport_performance(activities: list[dict]) -> dict:
         acts = [a for a in activities if a["sport"] == sport and (a.get("distance_km") or 0) > 0 and (a.get("moving_time_s") or 0) > 0]
         if not acts:
             continue
-        item = lambda a, key, value: {"key": key, "value": round(value, 2), "date": a["start_local"][:10], "km": round(a["distance_km"], 2), "seconds": a["moving_time_s"], "activity_id": a["id"]}
+        item = lambda a, key, value: {
+            "key": key,
+            "value": round(value, 2),
+            "date": a["start_local"][:10],
+            "km": round(a["distance_km"], 2),
+            "seconds": a["moving_time_s"],
+            "activity_id": a["id"],
+        }
         longest = max(acts, key=lambda a: a["distance_km"])
         bests = [item(longest, "longest", longest["distance_km"])]
         for km in minimums:
@@ -460,8 +510,19 @@ def sport_performance(activities: list[dict]) -> dict:
         order = sorted(weeks)
         out[sport] = {
             "bests": bests,
-            "longest": [{"week": k, "km": round(weeks[k]["longest"]["distance_km"], 2), "date": weeks[k]["longest"]["start_local"][:10], "activity_id": weeks[k]["longest"]["id"]} for k in order],
-            "speed": [{"week": k, "value": round(_speed(sport, {"distance_km": weeks[k]["km"], "moving_time_s": weeks[k]["s"]}), 2)} for k in order],
+            "longest": [
+                {
+                    "week": k,
+                    "km": round(weeks[k]["longest"]["distance_km"], 2),
+                    "date": weeks[k]["longest"]["start_local"][:10],
+                    "activity_id": weeks[k]["longest"]["id"],
+                }
+                for k in order
+            ],
+            "speed": [
+                {"week": k, "value": round(_speed(sport, {"distance_km": weeks[k]["km"], "moving_time_s": weeks[k]["s"]}), 2)}
+                for k in order
+            ],
         }
     return out
 
@@ -497,7 +558,9 @@ def _run_km(activities: list[dict], start: date, end: date) -> float:
     return sum(a.get("distance_km") or 0 for a in activities if a["sport"] == "run" and lo <= a["start_local"][:10] < hi)
 
 
-def insights(form: list[dict], weekly: list[dict], activities: list[dict], today: date, goal: dict | None = None, recent: list[dict] | None = None) -> list[dict]:
+def insights(
+    form: list[dict], weekly: list[dict], activities: list[dict], today: date, goal: dict | None = None, recent: list[dict] | None = None
+) -> list[dict]:
     """Short, data-backed remarks about load and intensity: {level: goed|let_op|info, code, params}. The page words
     each code (web/lib/texts.ts); numbers stay numbers. Goal-based remarks only when the user has a goal."""
     out = []
@@ -506,7 +569,15 @@ def insights(form: list[dict], weekly: list[dict], activities: list[dict], today
         out.append({"level": level, "code": code, "params": params})
 
     for r in recent or []:
-        add("good", "record_set", key=r["key"], seconds=r["seconds"], previous_seconds=r["previous_seconds"], date=r["date"], activity_id=r["activity_id"])
+        add(
+            "good",
+            "record_set",
+            key=r["key"],
+            seconds=r["seconds"],
+            previous_seconds=r["previous_seconds"],
+            date=r["date"],
+            activity_id=r["activity_id"],
+        )
     if len(form) >= 8:
         now, week_ago = form[-1], form[-8]
         ramp = now["ctl"] - week_ago["ctl"]
@@ -536,12 +607,26 @@ def insights(form: list[dict], weekly: list[dict], activities: list[dict], today
     if goal and goal.get("seconds"):
         p = _predict(efforts(activities, (today - timedelta(days=180)).isoformat()), goal["km"])
         if p:
-            add("info", "goal_prediction", goal_km=goal["km"], goal_seconds=goal["seconds"], predicted_seconds=p["seconds"], from_km=p["from"]["km"], from_date=p["from"]["date"])
+            add(
+                "info",
+                "goal_prediction",
+                goal_km=goal["km"],
+                goal_seconds=goal["seconds"],
+                predicted_seconds=p["seconds"],
+                from_km=p["from"]["km"],
+                from_date=p["from"]["date"],
+            )
     # running volume: the four whole weeks before this week (Europe/Amsterdam, `today`), and this week so far
     monday = date.fromisoformat(week_of(today.isoformat()))
     avg = _run_km(activities, monday - timedelta(weeks=4), monday) / 4
     if avg:
-        add("info", "run_volume", avg_km=round(avg, 1), week_km=round(_run_km(activities, monday, today + timedelta(days=1)), 1), week_start=monday.isoformat())
+        add(
+            "info",
+            "run_volume",
+            avg_km=round(avg, 1),
+            week_km=round(_run_km(activities, monday, today + timedelta(days=1)), 1),
+            week_start=monday.isoformat(),
+        )
     return out
 
 
@@ -560,7 +645,9 @@ def build_trends(
     day, as on the dashboard (api/dashboard.py build_dashboard), because the days since are unknown, not rest days."""
     synced = sync_day(last_sync)
     stopped = synced is not None and synced < today - timedelta(days=1)
-    form = fitness_series(activities, resting_hr(wellness, today, rhr_fallback), max_by_sport(zones, activities), end=synced if stopped else today)
+    form = fitness_series(
+        activities, resting_hr(wellness, today, rhr_fallback), max_by_sport(zones, activities), end=synced if stopped else today
+    )
     weekly = weekly_volume(activities)
     flags = hr_flags(activities, streams_fn)
     recs = records(activities)
@@ -578,7 +665,10 @@ def build_trends(
         "recovery_weekly": recovery_weekly(wellness),
         "recovery_daily": recovery_daily(wellness),
         "sleep_stages": sleep_stages(wellness),
-        "recovery_normals": {**recovery_normals(wellness, today), "resting_hr": normal_resting_hr(wellness, today + timedelta(days=1), rhr_fallback)[0]},
+        "recovery_normals": {
+            **recovery_normals(wellness, today),
+            "resting_hr": normal_resting_hr(wellness, today + timedelta(days=1), rhr_fallback)[0],
+        },
         "records": recs,
         "recent_records": recent,
         "races": races(activities),

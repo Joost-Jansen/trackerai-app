@@ -13,7 +13,7 @@ root (see conftest.py) also redirects the audit log, keeping runs isolated.
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 from domain import database  # repo-root module, see app/__init__.py for the sys.path setup
 
@@ -25,7 +25,7 @@ def _audit_path() -> str:
 def log(actor: str, action: str, target: str | None = None, detail: str | None = None) -> None:
     """Record one admin action. Best-effort: auditing must never break the action."""
     entry = {
-        "ts": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "ts": datetime.now(UTC).replace(microsecond=0).isoformat(),
         "actor": actor,
         "action": action,
         "target": target,
@@ -44,7 +44,7 @@ def tail(n: int = 100) -> list[dict]:
     path = _audit_path()
     if not os.path.exists(path):
         return []
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         lines = f.readlines()
     entries = []
     for line in lines[-n:]:

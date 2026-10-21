@@ -6,8 +6,8 @@ Pure functions over plain data so they work on the file store and on tools/db.py
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from statistics import mean
-from typing import Callable
 
 from api.dashboard import summary
 from tools.zones import zone_for
@@ -32,7 +32,13 @@ def _raw(a: dict) -> dict:
     return ((a.get("sources") or {}).get("garmin") or {}).get("raw") or {}
 
 
-def list_activities(activities: list[dict], sport: str | None = None, start: str | None = None, end: str | None = None, hr_flags: dict[str, list[str]] | None = None) -> list[dict]:
+def list_activities(
+    activities: list[dict],
+    sport: str | None = None,
+    start: str | None = None,
+    end: str | None = None,
+    hr_flags: dict[str, list[str]] | None = None,
+) -> list[dict]:
     """Summaries, newest first. `hr_flags` (api/trends.py hr_flags): runs with an implausible wrist heart rate get
     their reason codes as `hr_flags`."""
     out = []
@@ -161,7 +167,9 @@ def same_day(activity: dict, activities: list[dict]) -> list[dict]:
     ]
 
 
-def activity_detail(activity_id: str, activities: list[dict], streams_fn: StreamsFn, zones: dict, routes: list[dict] | None = None) -> dict | None:
+def activity_detail(
+    activity_id: str, activities: list[dict], streams_fn: StreamsFn, zones: dict, routes: list[dict] | None = None
+) -> dict | None:
     by_id = {a["id"]: a for a in activities}
     a = by_id.get(activity_id)
     if a is None:
@@ -189,7 +197,12 @@ def activity_detail(activity_id: str, activities: list[dict], streams_fn: Stream
     route = route_of(a, routes or [])
     out["route"] = None
     if route:
-        out["route"] = {"id": route["id"], "name": route.get("name"), "distance_km": route.get("distance_km"), "history": route_history(route, activities)}
+        out["route"] = {
+            "id": route["id"],
+            "name": route.get("name"),
+            "distance_km": route.get("distance_km"),
+            "history": route_history(route, activities),
+        }
 
     ordered = sorted(activities, key=lambda x: x["start_local"])
     i = ordered.index(a)
@@ -208,4 +221,3 @@ def heatmap(activities: list[dict], streams_fn: StreamsFn, sport: str | None = "
             continue
         tracks.append([[round(latlng[i][0], 5), round(latlng[i][1], 5)] for i in _pick(len(latlng), limit)])
     return {"tracks": tracks}
-

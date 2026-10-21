@@ -45,12 +45,9 @@ import sqlite3
 from collections import Counter, defaultdict
 from datetime import date
 
-from domain.money import bank_transactions
-from domain.money import accounts
 from domain import preferences
 from domain.i18n import tr
-from domain.money import safe_regex
-
+from domain.money import accounts, bank_transactions, safe_regex
 
 UNKNOWN = "Onbekend"
 
@@ -97,6 +94,7 @@ def _without_reversals(entries: list[dict]) -> list[dict]:
     everything (+X) and withdrawing exactly that amount (−X). Per account, only
     amount and date.
     """
+
     def day(m):
         return date.fromisoformat(m["date"])
 
@@ -112,16 +110,26 @@ def _without_reversals(entries: list[dict]) -> list[dict]:
         for a in group_name:
             if a["id"] in away:
                 continue
-            back = next((b for b in group_name
-                          if b["id"] not in away and b["id"] != a["id"]
-                          and (b["amount"] > 0) != (a["amount"] > 0)
-                          and 0 <= (day(b) - day(a)).days <= REVERSAL_DAYS), None)
+            back = next(
+                (
+                    b
+                    for b in group_name
+                    if b["id"] not in away
+                    and b["id"] != a["id"]
+                    and (b["amount"] > 0) != (a["amount"] > 0)
+                    and 0 <= (day(b) - day(a)).days <= REVERSAL_DAYS
+                ),
+                None,
+            )
             if back is None:
                 continue
-            again = any(c["id"] not in away and c["id"] not in (a["id"], back["id"])
-                          and (c["amount"] > 0) == (a["amount"] > 0)
-                          and abs((day(c) - day(back)).days) <= REVERSAL_DAYS
-                          for c in group_name)
+            again = any(
+                c["id"] not in away
+                and c["id"] not in (a["id"], back["id"])
+                and (c["amount"] > 0) == (a["amount"] > 0)
+                and abs((day(c) - day(back)).days) <= REVERSAL_DAYS
+                for c in group_name
+            )
             if again:
                 away.update((a["id"], back["id"]))
     return [m for m in entries if m["id"] not in away]
@@ -164,6 +172,7 @@ def reversals(conn: sqlite3.Connection, rows: list[dict]) -> dict[int, str]:
         off[row["id"]] = INVESTMENT_CATEGORY if best["kind"] == "broker" else OWN_ACCOUNT_CATEGORY
     return off
 
+
 # A name that matches this is a company, so not a person.
 _COMPANY = re.compile(
     r"\b(B\.?V|N\.?V|LTD|GMBH|LLC|INC|SA|AB|AG|VIA|BANK|GROEP|SERVICES|STICHTING"
@@ -198,68 +207,68 @@ GIFTS = "Giften & schenkingen"
 # Words by which a gift, donation or inheritance can be recognised, in the name
 # or the description. "Erven X" is how a notary pays out an inheritance; a
 # tax-free gift from parents is often called exactly that.
-_GIFT_PATTERN = 'SCHENKING|BELASTINGVRIJ|ERFENIS|NALATENSCHAP|\\bERVEN\\b'
+_GIFT_PATTERN = "SCHENKING|BELASTINGVRIJ|ERFENIS|NALATENSCHAP|\\bERVEN\\b"
 STUDENT_FINANCE = "Studiefinanciering"
 
 DEFAULT_CATEGORIES = [
-    ('Inkomsten', 'Salaris', 'INCOME'),
-    ('Inkomsten', 'Belasting & toeslagen', 'INCOME'),
-    ('Inkomsten', 'Verkoop tweedehands', 'INCOME'),
-    ('Inkomsten', 'Overige inkomsten', 'INCOME'),
+    ("Inkomsten", "Salaris", "INCOME"),
+    ("Inkomsten", "Belasting & toeslagen", "INCOME"),
+    ("Inkomsten", "Verkoop tweedehands", "INCOME"),
+    ("Inkomsten", "Overige inkomsten", "INCOME"),
     # A gift, donation or inheritance: yours, but not earned. As internal it does
     # not count as income (your savings rate stays about what you earn yourself),
     # and in your net worth it simply does — it is on your account.
-    ('Inkomsten', GIFTS, 'INTERNAL'),
+    ("Inkomsten", GIFTS, "INTERNAL"),
     # Student finance is a loan: it is a debt in your net worth and is not earned.
     # Internal for the same reason as a gift.
-    ('Inkomsten', STUDENT_FINANCE, 'INTERNAL'),
-    ('Wonen', 'Huur', 'EXPENSE'),
+    ("Inkomsten", STUDENT_FINANCE, "INTERNAL"),
+    ("Wonen", "Huur", "EXPENSE"),
     # EXPENSE in the original. Money coming in with a minus sign in a spending
     # total makes that total useless: it can go negative. This is what it is —
     # income.
-    ('Wonen', 'Huur ontvangen huisgenoten', 'INCOME'),
-    ('Wonen', 'Energie & water', 'EXPENSE'),
-    ('Wonen', 'Internet & telefoon', 'EXPENSE'),
-    ('Wonen', 'Huis & onderhoud', 'EXPENSE'),
-    ('Verzekering & zorg', 'Verzekeringen', 'EXPENSE'),
-    ('Verzekering & zorg', 'Zorgkosten', 'EXPENSE'),
-    ('Verzekering & zorg', 'Belasting betaald', 'EXPENSE'),
-    ('Abonnementen', 'Sport abonnement', 'EXPENSE'),
-    ('Abonnementen', 'Media & software', 'EXPENSE'),
-    ('Abonnementen', 'Bankkosten', 'EXPENSE'),
-    ('Abonnementen', 'Overige abonnementen', 'EXPENSE'),
-    ('Boodschappen', 'Supermarkt', 'EXPENSE'),
-    ('Boodschappen', 'Drogisterij', 'EXPENSE'),
+    ("Wonen", "Huur ontvangen huisgenoten", "INCOME"),
+    ("Wonen", "Energie & water", "EXPENSE"),
+    ("Wonen", "Internet & telefoon", "EXPENSE"),
+    ("Wonen", "Huis & onderhoud", "EXPENSE"),
+    ("Verzekering & zorg", "Verzekeringen", "EXPENSE"),
+    ("Verzekering & zorg", "Zorgkosten", "EXPENSE"),
+    ("Verzekering & zorg", "Belasting betaald", "EXPENSE"),
+    ("Abonnementen", "Sport abonnement", "EXPENSE"),
+    ("Abonnementen", "Media & software", "EXPENSE"),
+    ("Abonnementen", "Bankkosten", "EXPENSE"),
+    ("Abonnementen", "Overige abonnementen", "EXPENSE"),
+    ("Boodschappen", "Supermarkt", "EXPENSE"),
+    ("Boodschappen", "Drogisterij", "EXPENSE"),
     # Food, going out and outings belong together; holiday is large and irregular
     # enough for a group of its own; sport and hobby is something you buy, like
     # clothing. See GROUPS_SINCE.
-    ('Eten & vrije tijd', 'Lunch werk', 'EXPENSE'),
-    ('Eten & vrije tijd', 'Cafe & uitgaan', 'EXPENSE'),
-    ('Eten & vrije tijd', 'Uit eten & bezorgen', 'EXPENSE'),
-    ('Eten & vrije tijd', 'Uitjes & evenementen', 'EXPENSE'),
-    ('Vervoer', 'Openbaar vervoer', 'EXPENSE'),
-    ('Vervoer', 'Deelvervoer & taxi', 'EXPENSE'),
-    ('Vervoer', 'Fiets', 'EXPENSE'),
-    ('Vakantie', 'Vakantie', 'EXPENSE'),
-    ('Shoppen', 'Kleding & schoenen', 'EXPENSE'),
-    ('Shoppen', 'Sport & hobby', 'EXPENSE'),
-    ('Shoppen', 'Wonen & interieur', 'EXPENSE'),
-    ('Shoppen', 'Elektronica & online', 'EXPENSE'),
-    ('Shoppen', 'Persoonlijke verzorging', 'EXPENSE'),
-    ('Shoppen', 'Cadeaus & goede doelen', 'EXPENSE'),
-    ('Vrienden & delen', 'Betaald aan vrienden', 'EXPENSE'),
+    ("Eten & vrije tijd", "Lunch werk", "EXPENSE"),
+    ("Eten & vrije tijd", "Cafe & uitgaan", "EXPENSE"),
+    ("Eten & vrije tijd", "Uit eten & bezorgen", "EXPENSE"),
+    ("Eten & vrije tijd", "Uitjes & evenementen", "EXPENSE"),
+    ("Vervoer", "Openbaar vervoer", "EXPENSE"),
+    ("Vervoer", "Deelvervoer & taxi", "EXPENSE"),
+    ("Vervoer", "Fiets", "EXPENSE"),
+    ("Vakantie", "Vakantie", "EXPENSE"),
+    ("Shoppen", "Kleding & schoenen", "EXPENSE"),
+    ("Shoppen", "Sport & hobby", "EXPENSE"),
+    ("Shoppen", "Wonen & interieur", "EXPENSE"),
+    ("Shoppen", "Elektronica & online", "EXPENSE"),
+    ("Shoppen", "Persoonlijke verzorging", "EXPENSE"),
+    ("Shoppen", "Cadeaus & goede doelen", "EXPENSE"),
+    ("Vrienden & delen", "Betaald aan vrienden", "EXPENSE"),
     # Likewise.
-    ('Vrienden & delen', 'Ontvangen van vrienden', 'INCOME'),
-    ('Intern', 'Naar spaarrekening', 'INTERNAL'),
-    ('Intern', 'Naar beleggen', 'INTERNAL'),
-    ('Intern', 'Creditcard aflossing', 'INTERNAL'),
-    ('Intern', 'Eigen rekeningen', 'INTERNAL'),
-    ('Intern', 'Contant opnemen', 'INTERNAL'),
+    ("Vrienden & delen", "Ontvangen van vrienden", "INCOME"),
+    ("Intern", "Naar spaarrekening", "INTERNAL"),
+    ("Intern", "Naar beleggen", "INTERNAL"),
+    ("Intern", "Creditcard aflossing", "INTERNAL"),
+    ("Intern", "Eigen rekeningen", "INTERNAL"),
+    ("Intern", "Contant opnemen", "INTERNAL"),
     # Money that passes through your hands but is not yours: you hold it for
     # friends, you advance something and get it back. No income and no spending; as
     # internal it counts in no total at all.
-    ('Intern', 'Niet meetellen', 'INTERNAL'),
-    ('Onbekend', 'Onbekend', 'EXPENSE'),
+    ("Intern", "Niet meetellen", "INTERNAL"),
+    ("Onbekend", "Onbekend", "EXPENSE"),
 ]
 
 # The default rules: shop chains, transport companies, insurers and general
@@ -270,74 +279,110 @@ DEFAULT_CATEGORIES = [
 #
 # Own accounts are not here either: they come from your accounts, see label().
 DEFAULT_RULES = [
-    (10, 'N', 'ORANJE SPAARREKENING|SPAARREKENING|TOP-UP VIA BUNQ|BUNQ SAVINGS', '', 'Naar spaarrekening'),
-    (10, 'N', 'FLATEX|DEGIRO|COINBASE|BITVAVO|MEESMAN|BRAND NEW DAY', '', 'Naar beleggen'),
+    (10, "N", "ORANJE SPAARREKENING|SPAARREKENING|TOP-UP VIA BUNQ|BUNQ SAVINGS", "", "Naar spaarrekening"),
+    (10, "N", "FLATEX|DEGIRO|COINBASE|BITVAVO|MEESMAN|BRAND NEW DAY", "", "Naar beleggen"),
     # "ING Bank N.V. Creditcards": that is what paying off your own credit card is called.
-    (10, 'N', '^CREDITCARD$|INCASSO (ING )?CREDITCARD|BETALING NAAR CREDITCARD| CREDITCARDS?$', '', 'Creditcard aflossing'),
-    (10, 'N', 'GELDMAAT|ATM ', '', 'Contant opnemen'),
+    (10, "N", "^CREDITCARD$|INCASSO (ING )?CREDITCARD|BETALING NAAR CREDITCARD| CREDITCARDS?$", "", "Creditcard aflossing"),
+    (10, "N", "GELDMAAT|ATM ", "", "Contant opnemen"),
     # Before salary and before "received from friends": a gift from your parents
     # comes from a person, and would otherwise count as income.
-    (14, 'A', _GIFT_PATTERN, 'C', GIFTS),
-    (15, 'N', 'RANDSTAD|YOUNG CAPITAL|SALARY', 'C', 'Salaris'),
+    (14, "A", _GIFT_PATTERN, "C", GIFTS),
+    (15, "N", "RANDSTAD|YOUNG CAPITAL|SALARY", "C", "Salaris"),
     # Who the employer is differs per person; that it is salary is in the
     # description, and those words are the same for everyone.
-    (15, 'T', 'SALARIS|SALARY|\\bWAGE\\b|LOONSTROOK|VAKANTIEGELD|HOLIDAY ALLOWANCE', 'C', 'Salaris'),
-    (15, 'N', 'BELASTINGDIENST|TOESLAGEN|GEM BELASTINGEN|WATERSCHAP', 'C', 'Belasting & toeslagen'),
-    (15, 'N', 'VINTED|SELLHELP|SELLPY|MARKTPLAATS|MANGOPAY', 'C', 'Verkoop tweedehands'),
+    (15, "T", "SALARIS|SALARY|\\bWAGE\\b|LOONSTROOK|VAKANTIEGELD|HOLIDAY ALLOWANCE", "C", "Salaris"),
+    (15, "N", "BELASTINGDIENST|TOESLAGEN|GEM BELASTINGEN|WATERSCHAP", "C", "Belasting & toeslagen"),
+    (15, "N", "VINTED|SELLHELP|SELLPY|MARKTPLAATS|MANGOPAY", "C", "Verkoop tweedehands"),
     # "Interest" is what the English ING savings export calls the interest.
-    (16, 'N', 'ING PUNTEN|POSTCODE LOTERIJ|RENTE|^INTEREST$', 'C', 'Overige inkomsten'),
+    (16, "N", "ING PUNTEN|POSTCODE LOTERIJ|RENTE|^INTEREST$", "C", "Overige inkomsten"),
     # bunq pays interest weekly as "bunq Payday", from bunq itself.
-    (16, 'T', 'BUNQ PAYDAY', 'C', 'Overige inkomsten'),
-    (20, 'T', 'HUUR|DEEL HUUR|VASTE LASTEN', 'D', 'Huur'),
-    (20, 'T', 'HUUR|VASTE LASTEN|GAS WATER LICHT', 'C', 'Huur ontvangen huisgenoten'),
-    (21, 'N', 'GREENCHOICE|VATTENFALL|ENECO|ENGIE|WATERNET|VITENS|OXXIO|BUDGET ENERGIE', '', 'Energie & water'),
-    (21, 'N', 'ZIGGO|KPN|VODAFONE|T-MOBILE|ODIDO|MOBIEL\\.NL|WEBSEND|LEBARA|SIMYO', '', 'Internet & telefoon'),
-    (21, 'N', 'ALLESTEGENONGEDIERTE|LOODGIETER|VVE', '', 'Huis & onderhoud'),
-    (22, 'N', 'LEMONADE|VINKVINK|ZILVEREN KRUIS|FBTO|CENTRAAL BEHEER|UNIVE|ACHMEA|INSHARED|DITZO|NN |AEGON', '', 'Verzekeringen'),
-    (22, 'N', 'HUIDKLINIEK|TANDART|APOTHEEK|HUISARTS|FYSIO|ZORG(?!VERZ)|CZ |MENZIS|SPECSAVERS', '', 'Zorgkosten'),
-    (23, 'N', 'SPORTCITY|BASIC.?FIT|FIT FOR FREE|CLASSPASS|TRAINMORE|ZWEMBAD', '', 'Sport abonnement'),
-    (23, 'N', 'NETFLIX|SPOTIFY|APPLE\\.COM|APPLE MEDIA|GOOGLE|DISNEY|VIAPLAY|HBO|YOUTUBE|ADOBE|OPENAI|ANTHROPIC', '', 'Media & software'),
-    (23, 'N', 'KOSTEN ORANJEPAKKET|KOSTEN .*PAKKET|BANKKOSTEN', '', 'Bankkosten'),
-    (24, 'N', 'RODE KRUIS|UNICEF|GREENPEACE|ARTSEN ZONDER|WNF|GOEDE DOEL|POSTCODE LOTERIJ', 'D', 'Cadeaus & goede doelen'),
-    (30, 'N', 'ALBERT HEIJN|\\bAH \\b|AH TO GO|DIRK|JUMBO|LIDL|ALDI|PLUS |VOMAR|SPAR |COOP|EKOPLAZA|SUPERMAR|MARQT|PICNIC|CRISP', '', 'Supermarkt'),
-    (30, 'N', 'KRUIDVAT|ETOS|TREKPLEISTER|DA DROGIST|HOLLAND & BARRETT|IHERB', '', 'Drogisterij'),
-    (35, 'N', 'SODEXO|ALBRON|COMPASS GROUP', '', 'Lunch werk'),
-    (36, 'N', 'CAFE|CAFÉ|BAR |PUB|BIER|BROUWERI|KARAOKE|TABAC|CLUB|DISCO', '', 'Cafe & uitgaan'),
-    (37, 'N', 'UBER ?\\* ?EATS|THUISBEZORGD|DELIVEROO|DOMINO|NEW YORK PIZZA|FEBO|SMULLERS|SUSHI|RESTAURANT|EETCAFE|BAKKER|KIOSK|HMS HOST|DALLMAYR|PORTABELLA|EPICERIE|BROODJE|LUNCH|POKE|WOK|GRILL|SNACK|KEBAB|SHOARMA', '', 'Uit eten & bezorgen'),
-    (40, 'N', 'NS GROEP|NS REIZIGERS|GVB|RET |CONNEXXION|ARRIVA|OV-CHIPKAART|TRANSDEV|9292|FLIXBUS|BLABLA', '', 'Openbaar vervoer'),
-    (40, 'N', 'BREEZE|FELYX|CHECK NETHERLANDS|GO SHARING|UBER|BOLT\\.EU|TAXI|GREENWHEELS|MYWHEELS|SIXT|SNAPPCAR', '', 'Deelvervoer & taxi'),
-    (40, 'N', 'SWAPFIETS|FIETS|BIKE|DECATHLON.*FIETS', '', 'Fiets'),
-    (45, 'N', 'LOWLANDS|PARADISO|MELKWEG|TICKETMASTER|EVENTIM|PATHE|CINEMA|MUSEUM|THEATER|FESTIVAL|VIDEOTHEEK|TICKET|ZIGGO DOME|AFAS|JAARBEURS|ESCAPE|BOWL|PADEL|GOC\\*', '', 'Uitjes & evenementen'),
-    (46, 'N', 'DECATHLON|RUNNERSWORLD|INTERSPORT|PERRY|SPORT ?', '', 'Sport & hobby'),
-    (47, 'N', 'TRAVELBASE|BOOKING\\.COM|AIRBNB|RYANAIR|TRANSAVIA|KLM|EASYJET|SKI|HOSTEL|HOTEL|CAMPING|SUNWEB|TUI|CORENDON', '', 'Vakantie'),
-    (47, 'N', ' FRA$| ESP$| ITA$| DEU$| BEL$| AUT$| PRT$| GRC$| LUX$| GBR$| USA$| CHE$| POL$| HRV$| SWE$| DNK$| NOR$', '', 'Vakantie'),
-    (50, 'N', 'ZALANDO|UNIQLO|WEEKDAY|H&M|ABOUT YOU|URBAN OUTFITTERS|END\\. CLOTHING|OMODA|ZARA|C&A|PRIMARK|MONKI|ARKET|COS |NIKE|ADIDAS|SNIPES|FOOT ?LOCKER|VAN HAREN|SCOTCH|LEVI|ALIPAY|SHEIN|TEMU', '', 'Kleding & schoenen'),
-    (50, 'N', 'GAMMA|IKEA|ACTION|PRAXIS|HORNBACH|KARWEI|BLOKKER|HEMA|XENOS|LEEN BAKKER|JYSK|CASA |FLYING TIGER|KWANTUM', '', 'Wonen & interieur'),
-    (50, 'N', 'COOLBLUE|BOL\\.COM|MEDIAMARKT|AMAZON|APPLE STORE|COOLBLUE|COMPUTER|COMPUTERLAND|COMPU|ALTERNATE|COMPUTER', '', 'Elektronica & online'),
-    (50, 'N', 'TREATWELL|KAPSALO|KAPPER|BARBER|NAGELS|SALON|TABAKS|TABAK', '', 'Persoonlijke verzorging'),
-    (51, 'N', 'POSTNL|POSTZEGEL|BLOEM|GALL|SLIJTERIJ', '', 'Cadeaus & goede doelen'),
-    (15, 'N', 'BELASTINGDIENST|TOESLAGEN|GEM BELASTINGEN|WATERSCHAP|GEMEENTE', 'D', 'Belasting betaald'),
-    (48, 'N', 'AUCHAN|CARREFOUR|INTERMARCHE|LE VIVIER|LECLERC|SPAR ES|MERCADONA', '', 'Vakantie'),
-    (49, 'N', 'ANWB|KETTINGENENARMBANDEN|LUCARDI|PANDORA|JUWELIER', '', 'Cadeaus & goede doelen'),
-    (49, 'N', 'TWEEWIELERS|RIJWIEL|BIKESHOP', '', 'Fiets'),
-    (49, 'N', 'BELSIMPEL|GOMIBO|KLARNA|AMAC', '', 'Elektronica & online'),
-    (49, 'N', 'VERS SHOP|VERSMARKT|SLAGERIJ|TOKO', '', 'Supermarkt'),
-    (49, 'N', 'MASSAGE|SAUNA|SPA ', '', 'Persoonlijke verzorging'),
-    (49, 'N', 'SPORTFONDSEN|ZWEMSCHOOL|TRIATHLON|RUN |LOOP', '', 'Sport & hobby'),
-    (52, 'N', 'VINTED|MANGOPAY|SELLPY|SELLHELP', 'D', 'Kleding & schoenen'),
-    (49, 'N', 'BOL\\.?COM|FONQ|ALLEKABELS|COOLBLUE|AMAC|MEDIAMARKT', '', 'Elektronica & online'),
-    (49, 'N', 'OVPAY|OV-?PAY|NS STATION', '', 'Openbaar vervoer'),
-    (49, 'N', 'MCDONALD|BURGER KING|KFC|SUBWAY|COFFEECOMPANY|STARBUCKS|COFFEE|BAGELS|LA PLACE|VAPIANO', '', 'Uit eten & bezorgen'),
-    (49, 'N', 'TIVOLI|VREDENBURG|PARADISO|DOELEN|CARRE|CONCERT|MUZIEK', '', 'Uitjes & evenementen'),
-    (49, 'N', 'KEURSLAGER|SLAGER|BAKKERIJ|GROENTE|KAAS', '', 'Supermarkt'),
-    (49, 'N', 'FASHION ID|NOO\\.MA|SNIPES|ZALANDO|OTRIUM|WEHKAMP', '', 'Kleding & schoenen'),
-    (49, 'N', 'TOBACCO|COFFEESHOP', '', 'Persoonlijke verzorging'),
-    (80, 'T', 'TIKKIE|BETAALVERZOEK|VERZOEK|SPLIT', 'D', 'Betaald aan vrienden'),
-    (80, 'T', 'TIKKIE|BETAALVERZOEK|VERZOEK|SPLIT', 'C', 'Ontvangen van vrienden'),
-    (90, 'N', '^(HR|MW|DHR|MEVR)[. ]|^[A-Z]\\.[A-Z]?\\.? ?[A-Z]|VIA TIKKIE', 'D', 'Betaald aan vrienden'),
-    (90, 'N', '^(HR|MW|DHR|MEVR)[. ]|^[A-Z]\\.[A-Z]?\\.? ?[A-Z]|VIA TIKKIE', 'C', 'Ontvangen van vrienden'),
-    (95, 'P', 'PERSON', 'D', 'Betaald aan vrienden'),
-    (95, 'P', 'PERSON', 'C', 'Ontvangen van vrienden'),
+    (16, "T", "BUNQ PAYDAY", "C", "Overige inkomsten"),
+    (20, "T", "HUUR|DEEL HUUR|VASTE LASTEN", "D", "Huur"),
+    (20, "T", "HUUR|VASTE LASTEN|GAS WATER LICHT", "C", "Huur ontvangen huisgenoten"),
+    (21, "N", "GREENCHOICE|VATTENFALL|ENECO|ENGIE|WATERNET|VITENS|OXXIO|BUDGET ENERGIE", "", "Energie & water"),
+    (21, "N", "ZIGGO|KPN|VODAFONE|T-MOBILE|ODIDO|MOBIEL\\.NL|WEBSEND|LEBARA|SIMYO", "", "Internet & telefoon"),
+    (21, "N", "ALLESTEGENONGEDIERTE|LOODGIETER|VVE", "", "Huis & onderhoud"),
+    (22, "N", "LEMONADE|VINKVINK|ZILVEREN KRUIS|FBTO|CENTRAAL BEHEER|UNIVE|ACHMEA|INSHARED|DITZO|NN |AEGON", "", "Verzekeringen"),
+    (22, "N", "HUIDKLINIEK|TANDART|APOTHEEK|HUISARTS|FYSIO|ZORG(?!VERZ)|CZ |MENZIS|SPECSAVERS", "", "Zorgkosten"),
+    (23, "N", "SPORTCITY|BASIC.?FIT|FIT FOR FREE|CLASSPASS|TRAINMORE|ZWEMBAD", "", "Sport abonnement"),
+    (23, "N", "NETFLIX|SPOTIFY|APPLE\\.COM|APPLE MEDIA|GOOGLE|DISNEY|VIAPLAY|HBO|YOUTUBE|ADOBE|OPENAI|ANTHROPIC", "", "Media & software"),
+    (23, "N", "KOSTEN ORANJEPAKKET|KOSTEN .*PAKKET|BANKKOSTEN", "", "Bankkosten"),
+    (24, "N", "RODE KRUIS|UNICEF|GREENPEACE|ARTSEN ZONDER|WNF|GOEDE DOEL|POSTCODE LOTERIJ", "D", "Cadeaus & goede doelen"),
+    (
+        30,
+        "N",
+        "ALBERT HEIJN|\\bAH \\b|AH TO GO|DIRK|JUMBO|LIDL|ALDI|PLUS |VOMAR|SPAR |COOP|EKOPLAZA|SUPERMAR|MARQT|PICNIC|CRISP",
+        "",
+        "Supermarkt",
+    ),
+    (30, "N", "KRUIDVAT|ETOS|TREKPLEISTER|DA DROGIST|HOLLAND & BARRETT|IHERB", "", "Drogisterij"),
+    (35, "N", "SODEXO|ALBRON|COMPASS GROUP", "", "Lunch werk"),
+    (36, "N", "CAFE|CAFÉ|BAR |PUB|BIER|BROUWERI|KARAOKE|TABAC|CLUB|DISCO", "", "Cafe & uitgaan"),
+    (
+        37,
+        "N",
+        "UBER ?\\* ?EATS|THUISBEZORGD|DELIVEROO|DOMINO|NEW YORK PIZZA|FEBO|SMULLERS|SUSHI|RESTAURANT|EETCAFE|BAKKER|KIOSK|HMS HOST|DALLMAYR|PORTABELLA|EPICERIE|BROODJE|LUNCH|POKE|WOK|GRILL|SNACK|KEBAB|SHOARMA",
+        "",
+        "Uit eten & bezorgen",
+    ),
+    (40, "N", "NS GROEP|NS REIZIGERS|GVB|RET |CONNEXXION|ARRIVA|OV-CHIPKAART|TRANSDEV|9292|FLIXBUS|BLABLA", "", "Openbaar vervoer"),
+    (40, "N", "BREEZE|FELYX|CHECK NETHERLANDS|GO SHARING|UBER|BOLT\\.EU|TAXI|GREENWHEELS|MYWHEELS|SIXT|SNAPPCAR", "", "Deelvervoer & taxi"),
+    (40, "N", "SWAPFIETS|FIETS|BIKE|DECATHLON.*FIETS", "", "Fiets"),
+    (
+        45,
+        "N",
+        "LOWLANDS|PARADISO|MELKWEG|TICKETMASTER|EVENTIM|PATHE|CINEMA|MUSEUM|THEATER|FESTIVAL|VIDEOTHEEK|TICKET|ZIGGO DOME|AFAS|JAARBEURS|ESCAPE|BOWL|PADEL|GOC\\*",
+        "",
+        "Uitjes & evenementen",
+    ),
+    (46, "N", "DECATHLON|RUNNERSWORLD|INTERSPORT|PERRY|SPORT ?", "", "Sport & hobby"),
+    (47, "N", "TRAVELBASE|BOOKING\\.COM|AIRBNB|RYANAIR|TRANSAVIA|KLM|EASYJET|SKI|HOSTEL|HOTEL|CAMPING|SUNWEB|TUI|CORENDON", "", "Vakantie"),
+    (47, "N", " FRA$| ESP$| ITA$| DEU$| BEL$| AUT$| PRT$| GRC$| LUX$| GBR$| USA$| CHE$| POL$| HRV$| SWE$| DNK$| NOR$", "", "Vakantie"),
+    (
+        50,
+        "N",
+        "ZALANDO|UNIQLO|WEEKDAY|H&M|ABOUT YOU|URBAN OUTFITTERS|END\\. CLOTHING|OMODA|ZARA|C&A|PRIMARK|MONKI|ARKET|COS |NIKE|ADIDAS|SNIPES|FOOT ?LOCKER|VAN HAREN|SCOTCH|LEVI|ALIPAY|SHEIN|TEMU",
+        "",
+        "Kleding & schoenen",
+    ),
+    (
+        50,
+        "N",
+        "GAMMA|IKEA|ACTION|PRAXIS|HORNBACH|KARWEI|BLOKKER|HEMA|XENOS|LEEN BAKKER|JYSK|CASA |FLYING TIGER|KWANTUM",
+        "",
+        "Wonen & interieur",
+    ),
+    (
+        50,
+        "N",
+        "COOLBLUE|BOL\\.COM|MEDIAMARKT|AMAZON|APPLE STORE|COOLBLUE|COMPUTER|COMPUTERLAND|COMPU|ALTERNATE|COMPUTER",
+        "",
+        "Elektronica & online",
+    ),
+    (50, "N", "TREATWELL|KAPSALO|KAPPER|BARBER|NAGELS|SALON|TABAKS|TABAK", "", "Persoonlijke verzorging"),
+    (51, "N", "POSTNL|POSTZEGEL|BLOEM|GALL|SLIJTERIJ", "", "Cadeaus & goede doelen"),
+    (15, "N", "BELASTINGDIENST|TOESLAGEN|GEM BELASTINGEN|WATERSCHAP|GEMEENTE", "D", "Belasting betaald"),
+    (48, "N", "AUCHAN|CARREFOUR|INTERMARCHE|LE VIVIER|LECLERC|SPAR ES|MERCADONA", "", "Vakantie"),
+    (49, "N", "ANWB|KETTINGENENARMBANDEN|LUCARDI|PANDORA|JUWELIER", "", "Cadeaus & goede doelen"),
+    (49, "N", "TWEEWIELERS|RIJWIEL|BIKESHOP", "", "Fiets"),
+    (49, "N", "BELSIMPEL|GOMIBO|KLARNA|AMAC", "", "Elektronica & online"),
+    (49, "N", "VERS SHOP|VERSMARKT|SLAGERIJ|TOKO", "", "Supermarkt"),
+    (49, "N", "MASSAGE|SAUNA|SPA ", "", "Persoonlijke verzorging"),
+    (49, "N", "SPORTFONDSEN|ZWEMSCHOOL|TRIATHLON|RUN |LOOP", "", "Sport & hobby"),
+    (52, "N", "VINTED|MANGOPAY|SELLPY|SELLHELP", "D", "Kleding & schoenen"),
+    (49, "N", "BOL\\.?COM|FONQ|ALLEKABELS|COOLBLUE|AMAC|MEDIAMARKT", "", "Elektronica & online"),
+    (49, "N", "OVPAY|OV-?PAY|NS STATION", "", "Openbaar vervoer"),
+    (49, "N", "MCDONALD|BURGER KING|KFC|SUBWAY|COFFEECOMPANY|STARBUCKS|COFFEE|BAGELS|LA PLACE|VAPIANO", "", "Uit eten & bezorgen"),
+    (49, "N", "TIVOLI|VREDENBURG|PARADISO|DOELEN|CARRE|CONCERT|MUZIEK", "", "Uitjes & evenementen"),
+    (49, "N", "KEURSLAGER|SLAGER|BAKKERIJ|GROENTE|KAAS", "", "Supermarkt"),
+    (49, "N", "FASHION ID|NOO\\.MA|SNIPES|ZALANDO|OTRIUM|WEHKAMP", "", "Kleding & schoenen"),
+    (49, "N", "TOBACCO|COFFEESHOP", "", "Persoonlijke verzorging"),
+    (80, "T", "TIKKIE|BETAALVERZOEK|VERZOEK|SPLIT", "D", "Betaald aan vrienden"),
+    (80, "T", "TIKKIE|BETAALVERZOEK|VERZOEK|SPLIT", "C", "Ontvangen van vrienden"),
+    (90, "N", "^(HR|MW|DHR|MEVR)[. ]|^[A-Z]\\.[A-Z]?\\.? ?[A-Z]|VIA TIKKIE", "D", "Betaald aan vrienden"),
+    (90, "N", "^(HR|MW|DHR|MEVR)[. ]|^[A-Z]\\.[A-Z]?\\.? ?[A-Z]|VIA TIKKIE", "C", "Ontvangen van vrienden"),
+    (95, "P", "PERSON", "D", "Betaald aan vrienden"),
+    (95, "P", "PERSON", "C", "Ontvangen van vrienden"),
 ]
 
 # Version 5: what the money was for, when the description says so.
@@ -350,67 +395,141 @@ DEFAULT_RULES = [
 # you get back lands in the same category, with a minus sign: your share of the
 # hotel is what you paid minus what friends paid you back.
 _TARGETS = [
-    (69, 'T', '\\bKADO|\\bCADEAU|\\bVERJAARDAG|\\bSINTERKLAAS|\\bSINT\\b|\\bKERSTCADEAU|\\bKERSTPAKKET|\\bBLOEMEN', '', 'Cadeaus & goede doelen'),
-    (70, 'T', '\\bVAKANTIE|\\bHOTEL|\\bHOSTEL|AIRBNB|\\bCAMPING|WINTERSPORT|\\bSKI(EN|REIS|PAS|TRIP)?\\b|\\bZEIL|\\bVLUCHT|VLIEGTICKET|\\bFLIGHTS?\\b|\\bCHALET|\\bHUISJE\\b|WEEKENDJE|ROADTRIP|\\bREISJE|\\bLUSTRUM', '', 'Vakantie'),
-    (71, 'T', '\\bDRANK|\\bDRINKS?\\b|\\bBIER|\\bBORREL|\\bKROEG|\\bWIJN(TJE)?S?\\b|\\bSHOTS?\\b|\\bFEEST|\\bUITGAAN|\\bRONDJE', '', 'Cafe & uitgaan'),
-    (72, 'T', '\\bETEN\\b|\\bETENTJE|\\bAVONDETEN|\\bDINER|\\bDINNER|\\bLUNCH|\\bPIZZA|\\bSUSHI|\\bBURGER|\\bRESTAURANT|\\bBBQ\\b|\\bBARBECUE|\\bONTBIJT|\\bBRUNCH|\\bTAKEAWAY|\\bFRIET|\\bSHOARMA|\\bKEBAB|\\bDONER|\\bMAALTIJD', '', 'Uit eten & bezorgen'),
-    (72, 'T', '\\bTICKETS?\\b|\\bKAARTJES?\\b|\\bFESTIVAL|\\bCONCERT|\\bBIOS(COOP)?\\b|\\bMUSEUM|\\bTHEATER|\\bVOORSTELLING|\\bESCAPE ?ROOM|\\bBOWLEN|\\bKARTEN|\\bPADEL|\\bLASERGAME', '', 'Uitjes & evenementen'),
-    (73, 'T', '\\bKLEDING|\\bKLEREN|\\bSCHOENEN|\\bSNEAKERS|\\bJAS(JE)?\\b|\\bTRUI|\\bBROEK|\\bT-?SHIRT|\\bJURK|\\bOUTFIT|\\bKOSTUUM', '', 'Kleding & schoenen'),
-    (73, 'T', '\\bBOODSCHAPPEN|\\bSUPERMARKT', '', 'Supermarkt'),
-    (74, 'T', '\\bSPORT|\\bVOETBAL|\\bTENNIS|\\bHOCKEY|\\bZWEMMEN|\\bKLIMMEN|\\bBOULDER|\\bSQUASH', '', 'Sport & hobby'),
-    (74, 'T', '\\bOV\\b|\\bTREIN|\\bTRAM\\b|\\bMETRO\\b|\\bOV-?CHIP', '', 'Openbaar vervoer'),
-    (75, 'T', '\\bUBERS?\\b|\\bTAXI|\\bBOLT\\b', '', 'Deelvervoer & taxi'),
+    (
+        69,
+        "T",
+        "\\bKADO|\\bCADEAU|\\bVERJAARDAG|\\bSINTERKLAAS|\\bSINT\\b|\\bKERSTCADEAU|\\bKERSTPAKKET|\\bBLOEMEN",
+        "",
+        "Cadeaus & goede doelen",
+    ),
+    (
+        70,
+        "T",
+        "\\bVAKANTIE|\\bHOTEL|\\bHOSTEL|AIRBNB|\\bCAMPING|WINTERSPORT|\\bSKI(EN|REIS|PAS|TRIP)?\\b|\\bZEIL|\\bVLUCHT|VLIEGTICKET|\\bFLIGHTS?\\b|\\bCHALET|\\bHUISJE\\b|WEEKENDJE|ROADTRIP|\\bREISJE|\\bLUSTRUM",
+        "",
+        "Vakantie",
+    ),
+    (
+        71,
+        "T",
+        "\\bDRANK|\\bDRINKS?\\b|\\bBIER|\\bBORREL|\\bKROEG|\\bWIJN(TJE)?S?\\b|\\bSHOTS?\\b|\\bFEEST|\\bUITGAAN|\\bRONDJE",
+        "",
+        "Cafe & uitgaan",
+    ),
+    (
+        72,
+        "T",
+        "\\bETEN\\b|\\bETENTJE|\\bAVONDETEN|\\bDINER|\\bDINNER|\\bLUNCH|\\bPIZZA|\\bSUSHI|\\bBURGER|\\bRESTAURANT|\\bBBQ\\b|\\bBARBECUE|\\bONTBIJT|\\bBRUNCH|\\bTAKEAWAY|\\bFRIET|\\bSHOARMA|\\bKEBAB|\\bDONER|\\bMAALTIJD",
+        "",
+        "Uit eten & bezorgen",
+    ),
+    (
+        72,
+        "T",
+        "\\bTICKETS?\\b|\\bKAARTJES?\\b|\\bFESTIVAL|\\bCONCERT|\\bBIOS(COOP)?\\b|\\bMUSEUM|\\bTHEATER|\\bVOORSTELLING|\\bESCAPE ?ROOM|\\bBOWLEN|\\bKARTEN|\\bPADEL|\\bLASERGAME",
+        "",
+        "Uitjes & evenementen",
+    ),
+    (
+        73,
+        "T",
+        "\\bKLEDING|\\bKLEREN|\\bSCHOENEN|\\bSNEAKERS|\\bJAS(JE)?\\b|\\bTRUI|\\bBROEK|\\bT-?SHIRT|\\bJURK|\\bOUTFIT|\\bKOSTUUM",
+        "",
+        "Kleding & schoenen",
+    ),
+    (73, "T", "\\bBOODSCHAPPEN|\\bSUPERMARKT", "", "Supermarkt"),
+    (74, "T", "\\bSPORT|\\bVOETBAL|\\bTENNIS|\\bHOCKEY|\\bZWEMMEN|\\bKLIMMEN|\\bBOULDER|\\bSQUASH", "", "Sport & hobby"),
+    (74, "T", "\\bOV\\b|\\bTREIN|\\bTRAM\\b|\\bMETRO\\b|\\bOV-?CHIP", "", "Openbaar vervoer"),
+    (75, "T", "\\bUBERS?\\b|\\bTAXI|\\bBOLT\\b", "", "Deelvervoer & taxi"),
 ]
 
 # Country codes with which ING ends a card payment abroad, besides the European
 # ones in the holiday rule above. Without Ireland, Malta and Cyprus: Revolut and
 # many online services invoice from there.
-_COUNTRIES = ('IDN|THA|VNM|KHM|LAO|MYS|SGP|PHL|IND|LKA|NPL|JPN|KOR|CHN|HKG|TWN|AUS|NZL|CAN|MEX'
-           '|BRA|ARG|PER|COL|CHL|CRI|CUB|DOM|ZAF|MAR|EGY|TUN|TUR|ISR|JOR|ARE|QAT|ISL|FIN'
-           '|CZE|SVK|SVN|HUN|ROU|BGR|SRB|MNE|ALB|MKD|BIH|EST|LVA|LTU|UKR|GEO|TZA|KEN|MDV')
+_COUNTRIES = (
+    "IDN|THA|VNM|KHM|LAO|MYS|SGP|PHL|IND|LKA|NPL|JPN|KOR|CHN|HKG|TWN|AUS|NZL|CAN|MEX"
+    "|BRA|ARG|PER|COL|CHL|CRI|CUB|DOM|ZAF|MAR|EGY|TUN|TUR|ISR|JOR|ARE|QAT|ISL|FIN"
+    "|CZE|SVK|SVN|HUN|ROU|BGR|SRB|MNE|ALB|MKD|BIH|EST|LVA|LTU|UKR|GEO|TZA|KEN|MDV"
+)
 
 _NEW_IN_5 = _TARGETS + [
     # A transfer to your own savings account is in your name ("Hr J de Vries"), and
     # the savings rule above only looks at the name. The description does say it:
     # "To Oranje spaarrekening D12345678".
-    (10, 'T', 'ORANJE SPAARREKENING|\\b(TO|FROM|NAAR|VAN) (\\w+ )?SPAARREKENING', '', 'Naar spaarrekening'),
-    (10, 'N', 'KRAKEN|PAYWARD|BITONIC|\\bBLOX\\b|\\bFINST\\b|TRADE REPUBLIC|SCALABLE CAPITAL|\\bBUX\\b', '', 'Naar beleggen'),
-    (10, 'A', 'TRANSFER TO CREDIT ?CARD|CREDIT CARD MORE', '', 'Creditcard aflossing'),
-    (10, 'N', 'ING DEPOSIT|CASH DEPOSIT|STORTING CONTANT', '', 'Contant opnemen'),
-    (15, 'T', 'LOONSLIP|LOONSPECIFICATIE|SALARISSTROOK|PAYSLIP', 'C', 'Salaris'),
-    (15, 'N', '^DUO\\b|DIENST UITVOERING ONDERWIJS', 'C', STUDENT_FINANCE),
-    (15, 'T', 'STUDENT_FINANCE', 'C', STUDENT_FINANCE),
+    (10, "T", "ORANJE SPAARREKENING|\\b(TO|FROM|NAAR|VAN) (\\w+ )?SPAARREKENING", "", "Naar spaarrekening"),
+    (10, "N", "KRAKEN|PAYWARD|BITONIC|\\bBLOX\\b|\\bFINST\\b|TRADE REPUBLIC|SCALABLE CAPITAL|\\bBUX\\b", "", "Naar beleggen"),
+    (10, "A", "TRANSFER TO CREDIT ?CARD|CREDIT CARD MORE", "", "Creditcard aflossing"),
+    (10, "N", "ING DEPOSIT|CASH DEPOSIT|STORTING CONTANT", "", "Contant opnemen"),
+    (15, "T", "LOONSLIP|LOONSPECIFICATIE|SALARISSTROOK|PAYSLIP", "C", "Salaris"),
+    (15, "N", "^DUO\\b|DIENST UITVOERING ONDERWIJS", "C", STUDENT_FINANCE),
+    (15, "T", "STUDENT_FINANCE", "C", STUDENT_FINANCE),
     # Not the word "cashback" in the description: at ING that is also what a normal
     # refund at the till is called, and that belongs with the shop.
-    (16, 'N', 'CASHBACK', 'C', 'Overige inkomsten'),
-    (16, 'T', 'GEFELICITEERD.*TERUGGEW', 'C', 'Overige inkomsten'),
-    (21, 'N', 'EVIDES|DUNEA|BRABANT WATER|\\bPWN\\b|\\bWML\\b|WATERBEDRIJF|ESSENT|ENERGIEDIRECT|UNITED CONSUMERS|FRANK ENERGIE|TIBBER|ZONNEPLAN|VANDEBRON|ENERGYZERO|PURE ENERGIE', '', 'Energie & water'),
-    (23, 'N', 'RSG GROUP|MCFIT|GOLD.?S GYM|JOHN REED|ANYTIME FITNESS|FITNESS|SPORTSCHOOL|\\bGYM\\b', '', 'Sport abonnement'),
-    (23, 'N', '^APPLE$|VIDEOLAND|STUDEERSNEL|NPO PLUS|STORYTEL|AUDIBLE|MICROSOFT|DROPBOX|PATREON', '', 'Media & software'),
-    (23, 'N', 'RENTSLAM|KAMERNET|PARARIUS|HUURWONINGEN', '', 'Overige abonnementen'),
-    (30, 'N', '\\bFLINK\\b|GETIR|GORILLAS|\\bZAPP\\b', '', 'Supermarkt'),
-    (35, 'N', 'BEDRIJFSREST|CIRFOOD|ELSENDOORN|EUREST|KANTINE', '', 'Lunch werk'),
+    (16, "N", "CASHBACK", "C", "Overige inkomsten"),
+    (16, "T", "GEFELICITEERD.*TERUGGEW", "C", "Overige inkomsten"),
+    (
+        21,
+        "N",
+        "EVIDES|DUNEA|BRABANT WATER|\\bPWN\\b|\\bWML\\b|WATERBEDRIJF|ESSENT|ENERGIEDIRECT|UNITED CONSUMERS|FRANK ENERGIE|TIBBER|ZONNEPLAN|VANDEBRON|ENERGYZERO|PURE ENERGIE",
+        "",
+        "Energie & water",
+    ),
+    (23, "N", "RSG GROUP|MCFIT|GOLD.?S GYM|JOHN REED|ANYTIME FITNESS|FITNESS|SPORTSCHOOL|\\bGYM\\b", "", "Sport abonnement"),
+    (23, "N", "^APPLE$|VIDEOLAND|STUDEERSNEL|NPO PLUS|STORYTEL|AUDIBLE|MICROSOFT|DROPBOX|PATREON", "", "Media & software"),
+    (23, "N", "RENTSLAM|KAMERNET|PARARIUS|HUURWONINGEN", "", "Overige abonnementen"),
+    (30, "N", "\\bFLINK\\b|GETIR|GORILLAS|\\bZAPP\\b", "", "Supermarkt"),
+    (35, "N", "BEDRIJFSREST|CIRFOOD|ELSENDOORN|EUREST|KANTINE", "", "Lunch werk"),
     # Coffee and snack machines paid in Son en Breugel. After the shops: there is
     # an IKEA there too.
-    (55, 'N', 'SON EN BREUG|\\bSON NLD$', '', 'Lunch werk'),
-    (36, 'N', 'SOCIETEIT|SOCIËTEIT|STUDENTEN ?SOC|STUDENTENVERENIGING|STUDENTENCORPS|DISPUUT|NACHTCLUB', '', 'Cafe & uitgaan'),
-    (37, 'N', 'TAKEAWAY|JUST EAT|HMS ?HOST|\\bRELAY\\b|DONER|GELATO|IJSSALON|FOODHALL|FOOD HALL|BAGEL|FALAFEL|RAMEN|TACO|BURRITO', '', 'Uit eten & bezorgen'),
-    (40, 'N', '^NSR |NS ?AUTOMAAT|NS INTERNATIONAL|QBUZZ|\\bEBS\\b|\\bHTM\\b|KEOLIS|\\bRNET\\b|EUROSTAR|THALYS', '', 'Openbaar vervoer'),
-    (40, 'N', 'GO ?SHARING|DONKEY REPUBLIC|\\bLIME\\b|\\bTIER\\b|\\bDOTT\\b|GRAB\\*|GOJEK|\\bLYFT\\b|CABIFY|FREE ?NOW', '', 'Deelvervoer & taxi'),
-    (45, 'N', 'PAYLOGIC|DEKMANTEL|WETICKET|WEEZEVENT|YOURTICKETPROVIDER|EVENTBRITE|TICKETSWAP|SEE ?TICKETS|GROUPON', '', 'Uitjes & evenementen'),
-    (46, 'N', 'SQUASH|KLIMHAL|BOULDER|TENNIS|HOCKEY|GOLF', '', 'Sport & hobby'),
-    (47, 'N', 'KIWI\\.COM|SKYSCANNER|EXPEDIA|HOTELS\\.COM|AGODA|VUELING|WIZZ|LUFTHANSA|EUROWINGS|HOSTELWORLD|GETYOURGUIDE|VIATOR', '', 'Vakantie'),
-    (47, 'N', f' ({_COUNTRIES})$', '', 'Vakantie'),
+    (55, "N", "SON EN BREUG|\\bSON NLD$", "", "Lunch werk"),
+    (36, "N", "SOCIETEIT|SOCIËTEIT|STUDENTEN ?SOC|STUDENTENVERENIGING|STUDENTENCORPS|DISPUUT|NACHTCLUB", "", "Cafe & uitgaan"),
+    (
+        37,
+        "N",
+        "TAKEAWAY|JUST EAT|HMS ?HOST|\\bRELAY\\b|DONER|GELATO|IJSSALON|FOODHALL|FOOD HALL|BAGEL|FALAFEL|RAMEN|TACO|BURRITO",
+        "",
+        "Uit eten & bezorgen",
+    ),
+    (40, "N", "^NSR |NS ?AUTOMAAT|NS INTERNATIONAL|QBUZZ|\\bEBS\\b|\\bHTM\\b|KEOLIS|\\bRNET\\b|EUROSTAR|THALYS", "", "Openbaar vervoer"),
+    (
+        40,
+        "N",
+        "GO ?SHARING|DONKEY REPUBLIC|\\bLIME\\b|\\bTIER\\b|\\bDOTT\\b|GRAB\\*|GOJEK|\\bLYFT\\b|CABIFY|FREE ?NOW",
+        "",
+        "Deelvervoer & taxi",
+    ),
+    (
+        45,
+        "N",
+        "PAYLOGIC|DEKMANTEL|WETICKET|WEEZEVENT|YOURTICKETPROVIDER|EVENTBRITE|TICKETSWAP|SEE ?TICKETS|GROUPON",
+        "",
+        "Uitjes & evenementen",
+    ),
+    (46, "N", "SQUASH|KLIMHAL|BOULDER|TENNIS|HOCKEY|GOLF", "", "Sport & hobby"),
+    (
+        47,
+        "N",
+        "KIWI\\.COM|SKYSCANNER|EXPEDIA|HOTELS\\.COM|AGODA|VUELING|WIZZ|LUFTHANSA|EUROWINGS|HOSTELWORLD|GETYOURGUIDE|VIATOR",
+        "",
+        "Vakantie",
+    ),
+    (47, "N", f" ({_COUNTRIES})$", "", "Vakantie"),
     # For a payment in a foreign currency bunq puts the rate in the description:
     # "120000.00 IDR, 1 IDR = 0.00005 EUR". Not dollars: those are often online.
-    (48, 'T', '\\d ((?!EUR|USD)[A-Z]{3}), 1 \\1 = ', '', 'Vakantie'),
-    (50, 'N', 'CARHARTT|\\bH ?& ?M\\b|\\bH +M \\d|BIJENKORF|ASOS|NAPAPIJRI|FRESHCOTTON|BLUE TOMATO|TRENDHIM|ABOUT ?YOU|PULL ?& ?BEAR|BERSHKA|\\bMANGO\\b|NORTH FACE|PATAGONIA|REEBOK|\\bPUMA\\b|NEW BALANCE|ABERCROMBIE|HOLLISTER|TOMMY HILFIGER|RALPH LAUREN|G-STAR|SUITSUPPLY|JACK ?& ?JONES|WE FASHION|ZEEMAN|THE STING|\\bBEVER\\b|JD SPORTS|SEVENSTORE|STRADIVARIUS|MASSIMO DUTTI', '', 'Kleding & schoenen'),
-    (50, 'N', '\\bG2A\\b|STEAM|PLAYSTATION|NINTENDO|XBOX|ALIEXPRESS|\\bETSY\\b|\\bEBAY\\b', '', 'Elektronica & online'),
-    (50, 'N', 'ALLTRICKS|BIKE ?TOTAAL', '', 'Fiets'),
+    (48, "T", "\\d ((?!EUR|USD)[A-Z]{3}), 1 \\1 = ", "", "Vakantie"),
+    (
+        50,
+        "N",
+        "CARHARTT|\\bH ?& ?M\\b|\\bH +M \\d|BIJENKORF|ASOS|NAPAPIJRI|FRESHCOTTON|BLUE TOMATO|TRENDHIM|ABOUT ?YOU|PULL ?& ?BEAR|BERSHKA|\\bMANGO\\b|NORTH FACE|PATAGONIA|REEBOK|\\bPUMA\\b|NEW BALANCE|ABERCROMBIE|HOLLISTER|TOMMY HILFIGER|RALPH LAUREN|G-STAR|SUITSUPPLY|JACK ?& ?JONES|WE FASHION|ZEEMAN|THE STING|\\bBEVER\\b|JD SPORTS|SEVENSTORE|STRADIVARIUS|MASSIMO DUTTI",
+        "",
+        "Kleding & schoenen",
+    ),
+    (50, "N", "\\bG2A\\b|STEAM|PLAYSTATION|NINTENDO|XBOX|ALIEXPRESS|\\bETSY\\b|\\bEBAY\\b", "", "Elektronica & online"),
+    (50, "N", "ALLTRICKS|BIKE ?TOTAAL", "", "Fiets"),
     # An old Tikkie: "ABN AMRO Bank NV", with the friend who was paid and their IBAN
     # only in the description, after two long reference numbers.
-    (80, 'A', 'ABN AMRO BANK N\\.?V\\.?.*\\b\\d{12} \\d{16}\\b', 'D', 'Betaald aan vrienden'),
-    (80, 'A', 'ABN AMRO BANK N\\.?V\\.?.*\\b\\d{12} \\d{16}\\b', 'C', 'Ontvangen van vrienden'),
+    (80, "A", "ABN AMRO BANK N\\.?V\\.?.*\\b\\d{12} \\d{16}\\b", "D", "Betaald aan vrienden"),
+    (80, "A", "ABN AMRO BANK N\\.?V\\.?.*\\b\\d{12} \\d{16}\\b", "C", "Ontvangen van vrienden"),
 ]
 DEFAULT_RULES += _NEW_IN_5
 
@@ -428,29 +547,29 @@ DEFAULT_RULES_VERSION = 7
 # moved to another group yourself stays there.
 GROUPS_SINCE = {
     6: [
-        ('Lunch werk', 'Eten & drinken', 'Eten & vrije tijd'),
-        ('Cafe & uitgaan', 'Eten & drinken', 'Eten & vrije tijd'),
-        ('Uit eten & bezorgen', 'Eten & drinken', 'Eten & vrije tijd'),
-        ('Uitjes & evenementen', 'Vrije tijd', 'Eten & vrije tijd'),
-        ('Sport & hobby', 'Vrije tijd', 'Eten & vrije tijd'),
-        ('Vakantie', 'Vrije tijd', 'Vakantie'),
+        ("Lunch werk", "Eten & drinken", "Eten & vrije tijd"),
+        ("Cafe & uitgaan", "Eten & drinken", "Eten & vrije tijd"),
+        ("Uit eten & bezorgen", "Eten & drinken", "Eten & vrije tijd"),
+        ("Uitjes & evenementen", "Vrije tijd", "Eten & vrije tijd"),
+        ("Sport & hobby", "Vrije tijd", "Eten & vrije tijd"),
+        ("Vakantie", "Vrije tijd", "Vakantie"),
     ],
-    7: [('Sport & hobby', 'Eten & vrije tijd', 'Shoppen')],
+    7: [("Sport & hobby", "Eten & vrije tijd", "Shoppen")],
 }
 # Categories that were added later, same agreement: once, by name.
 CATEGORIES_SINCE = {
-    3: [('Intern', 'Niet meetellen', 'INTERNAL')],
-    4: [('Inkomsten', GIFTS, 'INTERNAL')],
-    5: [('Inkomsten', STUDENT_FINANCE, 'INTERNAL')],
+    3: [("Intern", "Niet meetellen", "INTERNAL")],
+    4: [("Inkomsten", GIFTS, "INTERNAL")],
+    5: [("Inkomsten", STUDENT_FINANCE, "INTERNAL")],
 }
 RULES_SINCE = {
     5: _NEW_IN_5,
-    4: [(14, 'A', _GIFT_PATTERN, 'C', GIFTS)],
+    4: [(14, "A", _GIFT_PATTERN, "C", GIFTS)],
     2: [
-        (10, 'N', ' CREDITCARDS?$', '', 'Creditcard aflossing'),
-        (15, 'T', 'SALARIS|SALARY|\\bWAGE\\b|LOONSTROOK|VAKANTIEGELD|HOLIDAY ALLOWANCE', 'C', 'Salaris'),
-        (16, 'N', '^INTEREST$', 'C', 'Overige inkomsten'),
-        (16, 'T', 'BUNQ PAYDAY', 'C', 'Overige inkomsten'),
+        (10, "N", " CREDITCARDS?$", "", "Creditcard aflossing"),
+        (15, "T", "SALARIS|SALARY|\\bWAGE\\b|LOONSTROOK|VAKANTIEGELD|HOLIDAY ALLOWANCE", "C", "Salaris"),
+        (16, "N", "^INTEREST$", "C", "Overige inkomsten"),
+        (16, "T", "BUNQ PAYDAY", "C", "Overige inkomsten"),
     ],
 }
 _VERSION_KEY = "default_rules_version"
@@ -466,8 +585,7 @@ def _read_version(conn: sqlite3.Connection) -> int:
 
 
 def _set_version(conn: sqlite3.Connection, version: int) -> None:
-    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
-                 (_VERSION_KEY, str(version)))
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (_VERSION_KEY, str(version)))
 
 
 def _update_default_rules(conn: sqlite3.Connection) -> int:
@@ -477,8 +595,7 @@ def _update_default_rules(conn: sqlite3.Connection) -> int:
     version = _read_version(conn)
     if version >= DEFAULT_RULES_VERSION:
         return 0
-    existing = {(r["field"], r["pattern"], r["direction"], r["category"])
-                for r in load_rules(conn, only_active=False)}
+    existing = {(r["field"], r["pattern"], r["direction"], r["category"]) for r in load_rules(conn, only_active=False)}
     # If you gave a default category another name, a new default rule points to
     # your name, not to one that no longer exists.
     renamed = _renamed(conn)
@@ -498,11 +615,13 @@ def _update_default_rules(conn: sqlite3.Connection) -> int:
         for group_name, name, type_ in CATEGORIES_SINCE.get(v, []):
             if name not in existing_categories:
                 sort_order += 1
-                conn.execute("INSERT INTO categories (group_name, name, type, sort_order) VALUES (?, ?, ?, ?)",
-                             (group_name, name, type_, sort_order))
+                conn.execute(
+                    "INSERT INTO categories (group_name, name, type, sort_order) VALUES (?, ?, ?, ?)", (group_name, name, type_, sort_order)
+                )
         for name, old_group, new_group in GROUPS_SINCE.get(v, []):
-            conn.execute("UPDATE categories SET group_name = ? WHERE name = ? AND group_name = ?",
-                         (new_group, renamed.get(name, name), old_group))
+            conn.execute(
+                "UPDATE categories SET group_name = ? WHERE name = ? AND group_name = ?", (new_group, renamed.get(name, name), old_group)
+            )
     _budgets_after_move(conn)
     clean_up_rules(conn)
     _set_version(conn, DEFAULT_RULES_VERSION)
@@ -521,8 +640,7 @@ def clean_up_rules(conn: sqlite3.Connection) -> int:
       first (by priority) stays, and an active one goes before a disabled one.
     """
     away, seen = [], set()
-    for r in sorted(load_rules(conn, only_active=False),
-                    key=lambda r: (not r["active"], r["priority"], r["id"])):
+    for r in sorted(load_rules(conn, only_active=False), key=lambda r: (not r["active"], r["priority"], r["id"])):
         key = (r["field"], r["pattern"], r["direction"], r["category"])
         if r["category"] == UNKNOWN or key in seen:
             away.append((r["id"],))
@@ -532,16 +650,13 @@ def clean_up_rules(conn: sqlite3.Connection) -> int:
     return len(away)
 
 
-DEFAULT_CATEGORIES_IF_DICTS = [
-    {"group_name": g, "name": n, "type": t, "sort_order": i}
-    for i, (g, n, t) in enumerate(DEFAULT_CATEGORIES)
-]
-
+DEFAULT_CATEGORIES_IF_DICTS = [{"group_name": g, "name": n, "type": t, "sort_order": i} for i, (g, n, t) in enumerate(DEFAULT_CATEGORIES)]
 
 
 # ---------------------------------------------------------------------------
 # Seeding and managing
 # ---------------------------------------------------------------------------
+
 
 def seed(conn: sqlite3.Connection) -> tuple[int, int]:
     """Sets up the default taxonomy and rules, but only if there is nothing yet.
@@ -565,8 +680,7 @@ def seed(conn: sqlite3.Connection) -> tuple[int, int]:
     rules = 0
     if cursor.fetchone()["n"] == 0:
         cursor.executemany(
-            "INSERT INTO rules (priority, field, pattern, direction, category) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO rules (priority, field, pattern, direction, category) VALUES (?, ?, ?, ?, ?)",
             list(DEFAULT_RULES),
         )
         rules = len(DEFAULT_RULES)
@@ -585,9 +699,10 @@ def seed(conn: sqlite3.Connection) -> tuple[int, int]:
 
     # Without an API key on the server no AI labels, also not from before: they fall
     # back right away to what the rules find (relabel goes over them).
-    if not os.environ.get("ANTHROPIC_API_KEY") and conn.execute(
-        "SELECT 1 FROM bank_transactions WHERE category_source = 'ai' LIMIT 1"
-    ).fetchone():
+    if (
+        not os.environ.get("ANTHROPIC_API_KEY")
+        and conn.execute("SELECT 1 FROM bank_transactions WHERE category_source = 'ai' LIMIT 1").fetchone()
+    ):
         relabel(conn)
 
     conn.commit()
@@ -598,25 +713,27 @@ def load_categories(conn: sqlite3.Connection) -> list[dict]:
     """In order. `is_fixed`: the app itself relies on that name; see FIXED_CATEGORIES."""
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM categories ORDER BY sort_order ASC, name ASC")
-    return [dict(row) | {"is_fixed": row["name"] in FIXED_CATEGORIES,
-                         "type_locked": row["name"] in TYPE_LOCKED,
-                         "role": role_of(row["name"], row["type"])} for row in cursor.fetchall()]
+    return [
+        dict(row)
+        | {
+            "is_fixed": row["name"] in FIXED_CATEGORIES,
+            "type_locked": row["name"] in TYPE_LOCKED,
+            "role": role_of(row["name"], row["type"]),
+        }
+        for row in cursor.fetchall()
+    ]
 
 
 def load_rules(conn: sqlite3.Connection, *, only_active: bool = True) -> list[dict]:
     """Rules by priority; the first that matches wins."""
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT * FROM rules"
-        + (" WHERE active = 1" if only_active else "")
-        + " ORDER BY priority ASC, id ASC"
-    )
+    cursor.execute("SELECT * FROM rules" + (" WHERE active = 1" if only_active else "") + " ORDER BY priority ASC, id ASC")
     return [dict(row) for row in cursor.fetchall()]
 
 
 def make_category(conn: sqlite3.Connection, *, group_name: str, name: str, type: str) -> int:
     if type not in TYPES:
-        raise ValueError(tr("Unknown type: {0}. Choose from: {1}", repr(type), ', '.join(TYPES)))
+        raise ValueError(tr("Unknown type: {0}. Choose from: {1}", repr(type), ", ".join(TYPES)))
     name = (name or "").strip()
     if not name:
         raise ValueError(tr("A category must have a name."))
@@ -631,10 +748,9 @@ def make_category(conn: sqlite3.Connection, *, group_name: str, name: str, type:
     return cursor.lastrowid
 
 
-def make_rule(conn: sqlite3.Connection, *, priority: int, field: str, pattern: str,
-               direction: str, category: str) -> int:
+def make_rule(conn: sqlite3.Connection, *, priority: int, field: str, pattern: str, direction: str, category: str) -> int:
     if field not in FIELDS:
-        raise ValueError(tr("Unknown field: {0}. Choose from: {1}", repr(field), ', '.join(FIELDS)))
+        raise ValueError(tr("Unknown field: {0}. Choose from: {1}", repr(field), ", ".join(FIELDS)))
     if direction not in DIRECTIONS:
         raise ValueError(tr("Unknown direction: {0}", repr(direction)))
     # A broken pattern would otherwise only fall over when relabelling, and then it
@@ -677,8 +793,7 @@ def _reorder(conn: sqlite3.Connection) -> None:
     for r in rows:
         first.setdefault(r["group_name"], len(first))
     ordered = sorted(rows, key=lambda r: (first[r["group_name"]], r["sort_order"], r["id"]))
-    conn.executemany("UPDATE categories SET sort_order = ? WHERE id = ?",
-                     [(i, r["id"]) for i, r in enumerate(ordered)])
+    conn.executemany("UPDATE categories SET sort_order = ? WHERE id = ?", [(i, r["id"]) for i, r in enumerate(ordered)])
 
 
 def _with_budget(conn: sqlite3.Connection, old: str, new: str) -> None:
@@ -690,8 +805,11 @@ def _with_budget(conn: sqlite3.Connection, old: str, new: str) -> None:
     row = conn.execute("SELECT amount FROM budgets WHERE group_name = ?", (old,)).fetchone()
     if row is None:
         return
-    conn.execute("INSERT INTO budgets (group_name, amount) VALUES (?, ?) "
-                 "ON CONFLICT(group_name) DO UPDATE SET amount = budgets.amount + excluded.amount", (new, row["amount"]))
+    conn.execute(
+        "INSERT INTO budgets (group_name, amount) VALUES (?, ?) "
+        "ON CONFLICT(group_name) DO UPDATE SET amount = budgets.amount + excluded.amount",
+        (new, row["amount"]),
+    )
     conn.execute("DELETE FROM budgets WHERE group_name = ?", (old,))
 
 
@@ -770,8 +888,7 @@ def move_category(conn: sqlite3.Connection, category_id: int, group_name: str) -
         raise KeyError(category_id)
     if row["name"] == UNKNOWN:
         raise ValueError(tr("Onbekend stays where it is."))
-    last = conn.execute("SELECT MAX(sort_order) FROM categories WHERE group_name = ? AND id != ?",
-                           (group_name, category_id)).fetchone()[0]
+    last = conn.execute("SELECT MAX(sort_order) FROM categories WHERE group_name = ? AND id != ?", (group_name, category_id)).fetchone()[0]
     if last is None:
         conn.execute("UPDATE categories SET group_name = ? WHERE id = ?", (group_name, category_id))
     else:
@@ -833,8 +950,7 @@ def rename_category(conn: sqlite3.Connection, category_id: int, name: str) -> st
     # Remember it, also in a chain (A → B → C), for later default rules.
     renamed = {k: (name if v == old else v) for k, v in _renamed(conn).items()}
     renamed.setdefault(old, name)
-    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
-                 (_RENAMED_KEY, json.dumps(renamed, ensure_ascii=False)))
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (_RENAMED_KEY, json.dumps(renamed, ensure_ascii=False)))
     conn.commit()
     return name
 
@@ -874,8 +990,7 @@ def own_numbers(conn: sqlite3.Connection) -> dict[int, set[str]]:
     """
     off = {}
     for r in conn.execute("SELECT id, iban, external_id FROM accounts"):
-        candidates = (accounts.normalise_iban(r["iban"]),
-                      re.sub(r"\s+", "", r["external_id"] or "").upper())
+        candidates = (accounts.normalise_iban(r["iban"]), re.sub(r"\s+", "", r["external_id"] or "").upper())
         off[r["id"]] = {n for n in candidates if n and len(n) >= 8}
     return off
 
@@ -902,20 +1017,36 @@ def names_own_account(description: str | None, numbers: set[str]) -> bool:
 FRIENDS = ("Betaald aan vrienden", "Ontvangen van vrienden")
 # Names the app itself relies on — the salary month, money between your own
 # accounts, exclude, friends, gifts. These keep their names.
-FIXED_CATEGORIES = frozenset({
-    UNKNOWN, "Salaris", OWN_ACCOUNT_CATEGORY, "Naar spaarrekening", INVESTMENT_CATEGORY,
-    "Creditcard aflossing", EXCLUDE, GIFTS, STUDENT_FINANCE, *FRIENDS,
-})
+FIXED_CATEGORIES = frozenset(
+    {
+        UNKNOWN,
+        "Salaris",
+        OWN_ACCOUNT_CATEGORY,
+        "Naar spaarrekening",
+        INVESTMENT_CATEGORY,
+        "Creditcard aflossing",
+        EXCLUDE,
+        GIFTS,
+        STUDENT_FINANCE,
+        *FRIENDS,
+    }
+)
 # Categories whose *type* the app relies on, not only their name: money between
 # your own accounts and to investments must stay internal, salary must stay
 # income (the salary month looks for it), Onbekend is what has no category.
 # Every other category's type is the user's to choose (set_type). That includes
 # Creditcard aflossing: without the card's own purchases in the app, the
 # repayment is the only trace of that spending, so it may count as spending.
-TYPE_LOCKED = frozenset({
-    UNKNOWN, "Salaris", OWN_ACCOUNT_CATEGORY, "Naar spaarrekening", INVESTMENT_CATEGORY,
-    EXCLUDE,
-})
+TYPE_LOCKED = frozenset(
+    {
+        UNKNOWN,
+        "Salaris",
+        OWN_ACCOUNT_CATEGORY,
+        "Naar spaarrekening",
+        INVESTMENT_CATEGORY,
+        EXCLUDE,
+    }
+)
 TYPES = ("EXPENSE", "INCOME", "INTERNAL")
 # How certain a suggestion from Claude must be to take it over; ai_labelling.py.
 AI_THRESHOLD = 0.8
@@ -949,8 +1080,7 @@ def learned(conn: sqlite3.Connection) -> dict[str, tuple[str, int, int]]:
     own labels.
     """
     tellers: dict = defaultdict(lambda: defaultdict(int))
-    for r in conn.execute("SELECT name, counterparty_iban, category_manual FROM bank_transactions "
-                          "WHERE category_manual IS NOT NULL"):
+    for r in conn.execute("SELECT name, counterparty_iban, category_manual FROM bank_transactions WHERE category_manual IS NOT NULL"):
         if r["category_manual"] in _NOT_LEARN:
             continue
         for key in learn_keys(r["name"], r["counterparty_iban"]):
@@ -980,8 +1110,10 @@ def from_learned(learnt: dict, *, name: str | None, counterparty_iban: str | Non
 
 
 # Words that are in every transfer and say nothing about what for.
-_NOISE = re.compile(r"\b(NAME|DESCRIPTION|NAAM|OMSCHRIJVING|IBAN|BIC|TIKKIE|ID|VIA|VAN|AAN|BETALING|"
-                   r"BETAALVERZOEK|VALUE|DATE|TIME|DATUM|KENMERK|REFERENTIE|EUR|HR|MW|DHR|MEVR)\b")
+_NOISE = re.compile(
+    r"\b(NAME|DESCRIPTION|NAAM|OMSCHRIJVING|IBAN|BIC|TIKKIE|ID|VIA|VAN|AAN|BETALING|"
+    r"BETAALVERZOEK|VALUE|DATE|TIME|DATUM|KENMERK|REFERENTIE|EUR|HR|MW|DHR|MEVR)\b"
+)
 
 
 def has_target_text(name: str | None, description: str | None) -> bool:
@@ -1009,18 +1141,23 @@ def ai_suggestions(conn: sqlite3.Connection) -> dict[int, str]:
     # Nothing internal: saving, own accounts and "exclude" follow from your accounts
     # or are your choice, not something a model can see. And never an income
     # category on an expense (also not from earlier rounds).
-    return {r["transaction_id"]: r["category"] for r in conn.execute(
-        "SELECT a.transaction_id, a.category FROM ai_suggestions a "
-        "JOIN categories c ON c.name = a.category "
-        "JOIN bank_transactions t ON t.id = a.transaction_id "
-        "WHERE a.confidence >= ? AND a.category != ? AND c.type != 'INTERNAL' "
-        "AND NOT (c.type = 'INCOME' AND t.amount > 0)",
-        (AI_THRESHOLD, UNKNOWN))}
+    return {
+        r["transaction_id"]: r["category"]
+        for r in conn.execute(
+            "SELECT a.transaction_id, a.category FROM ai_suggestions a "
+            "JOIN categories c ON c.name = a.category "
+            "JOIN bank_transactions t ON t.id = a.transaction_id "
+            "WHERE a.confidence >= ? AND a.category != ? AND c.type != 'INTERNAL' "
+            "AND NOT (c.type = 'INCOME' AND t.amount > 0)",
+            (AI_THRESHOLD, UNKNOWN),
+        )
+    }
 
 
 # ---------------------------------------------------------------------------
 # Labelling
 # ---------------------------------------------------------------------------
+
 
 def is_person(name: str) -> bool:
     """Does this look like a person and not like a company?
@@ -1035,9 +1172,7 @@ def is_person(name: str) -> bool:
     if _COMPANY.search(text):
         return False
     words = [w for w in re.split(r"[ .]+", text) if w]
-    return 2 <= len(words) <= 4 and all(
-        re.fullmatch(r"[A-Z'À-Ü-]+", w) for w in words
-    )
+    return 2 <= len(words) <= 4 and all(re.fullmatch(r"[A-Z'À-Ü-]+", w) for w in words)
 
 
 def _search(rules, *, name, memo, direction):
@@ -1242,13 +1377,11 @@ def relabel(conn: sqlite3.Connection, *, everything: bool = False) -> dict:
             # A transfer from your other bunq account in the name "J. de Vries" was first
             # "received from friends" — income — and stayed that, even after you uploaded
             # that account, because it already had a category.
-            or (row["counterparty_iban"] in ibans
-                and row["category_auto"] != OWN_ACCOUNT_CATEGORY)
+            or (row["counterparty_iban"] in ibans and row["category_auto"] != OWN_ACCOUNT_CATEGORY)
             # Or a transfer whose other side has become known since.
             or (row["id"] in against and row["category_auto"] != against[row["id"]])
             # Or one that names an account you added since.
-            or (row["category_auto"] != OWN_ACCOUNT_CATEGORY
-                and names_own_account(row["description"], other))
+            or (row["category_auto"] != OWN_ACCOUNT_CATEGORY and names_own_account(row["description"], other))
             # What was on friends by guess, or was learned or suggested: a new own label or
             # a disabled Claude can change it.
             or row["category_auto"] in FRIENDS
@@ -1291,8 +1424,7 @@ def relabel(conn: sqlite3.Connection, *, everything: bool = False) -> dict:
     # after an import it reported "0.5% coverage" for a history that was eighty
     # percent labelled. A category you set yourself counts as labelled.
     total, unknown = conn.execute(
-        "SELECT COUNT(*), COALESCE(SUM(COALESCE(category_manual, category_auto, ?) = ?), 0) "
-        "FROM bank_transactions",
+        "SELECT COUNT(*), COALESCE(SUM(COALESCE(category_manual, category_auto, ?) = ?), 0) FROM bank_transactions",
         (UNKNOWN, UNKNOWN),
     ).fetchone()
     coverage = ((total - unknown) / total * 100) if total else 0.0

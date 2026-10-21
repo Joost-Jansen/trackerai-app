@@ -16,20 +16,19 @@ import argparse
 import json
 import os
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from tools import db, store
+from tools import db, store, wahoo
 from tools.derive import derive
 from tools.fit import read_fit_streams
-from tools.secretbox import WrongKey, decrypt, default_key, encrypt
-from tools import wahoo
-from tools.sports import garmin_sport
 from tools.intraday import intraday_from_garmin, night_summary
+from tools.secretbox import WrongKey, decrypt, default_key, encrypt
+from tools.sports import garmin_sport
 from tools.store import from_garmin, from_strava, garmin_summary, wellness_from_garmin
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -207,9 +206,9 @@ def sync_strava(target, client, state: dict, since: date | None = None) -> int:
     s = state.setdefault("strava", {})
     if "last_start_epoch" not in s:
         start = since or date.today() - timedelta(days=DEFAULT_BACKFILL_DAYS)
-        s["last_start_epoch"] = int(datetime(start.year, start.month, start.day, tzinfo=timezone.utc).timestamp())
+        s["last_start_epoch"] = int(datetime(start.year, start.month, start.day, tzinfo=UTC).timestamp())
     elif since:
-        s["last_start_epoch"] = min(s["last_start_epoch"], int(datetime(since.year, since.month, since.day, tzinfo=timezone.utc).timestamp()))
+        s["last_start_epoch"] = min(s["last_start_epoch"], int(datetime(since.year, since.month, since.day, tzinfo=UTC).timestamp()))
 
     activities = sorted(client.list_activities(s["last_start_epoch"]), key=lambda a: a["start_date"])
     for activity in activities:
@@ -291,6 +290,7 @@ class GarminClient:
         """The day's series (heart rate, stress with Body Battery, respiration, SpO2; shapes in
         tools/intraday.py) and the sleep window and stages of that morning (get_sleep_data, reused from wellness()
         for the same day). Four calls; Body Battery comes with the stress response."""
+
         def get(name, fn):
             return fetch_metric(self.stats, name, lambda d: self._call(fn, d), day)
 
@@ -320,7 +320,9 @@ def garmin_gear(g: dict, stats: dict, used: list | None) -> dict:
     return {
         "uuid": g["uuid"],
         "kind": GARMIN_GEAR_KINDS.get((g.get("gearTypeName") or "").lower(), "other"),
-        "name": name, "brand": brand, "model": model,
+        "name": name,
+        "brand": brand,
+        "model": model,
         "status": "retired" if (g.get("gearStatusName") or "").lower() == "retired" else "active",
         "date_begin": (g.get("dateBegin") or "")[:10] or None,
         "date_end": (g.get("dateEnd") or "")[:10] or None,
@@ -347,7 +349,7 @@ def multisport_legs(client, activity: dict) -> list[dict]:
 
 
 def _leg_window(leg: dict) -> tuple[datetime, datetime]:
-    start = datetime.fromisoformat(leg["startTimeGMT"].replace(" ", "T")).replace(tzinfo=timezone.utc)
+    start = datetime.fromisoformat(leg["startTimeGMT"].replace(" ", "T")).replace(tzinfo=UTC)
     return start, start + timedelta(seconds=leg.get("elapsedDuration") or leg.get("duration") or 0)
 
 
@@ -355,8 +357,9 @@ def _no_progress(step: str, done: int | None = None, total: int | None = None) -
     pass
 
 
-def sync_garmin(target, client, state: dict, today: date, since: date | None = None, read_streams=read_fit_streams,
-                progress=_no_progress) -> int:
+def sync_garmin(
+    target, client, state: dict, today: date, since: date | None = None, read_streams=read_fit_streams, progress=_no_progress
+) -> int:
     """`progress(step, done, total)` reports how far it is, for the Connections page."""
     sink = as_sink(target)
     g = state.setdefault("garmin", {})
@@ -448,8 +451,9 @@ class _NoGarmin(Exception):
     pass
 
 
-def _sync_wahoo_part(s: db.Scope, key: str, stored: str, state: dict, today: date, since: date | None, factory=None,
-                     progress=_no_progress) -> bool:
+def _sync_wahoo_part(
+    s: db.Scope, key: str, stored: str, state: dict, today: date, since: date | None, factory=None, progress=_no_progress
+) -> bool:
     """The Wahoo half of a user's sync. False when it failed. Access revoked at Wahoo ends the connection and removes
     what came in through it, as the privacy statement promises."""
     creds = wahoo.credentials()
@@ -486,8 +490,17 @@ def end_wahoo(s: db.Scope) -> dict:
     return db.remove_source(s, wahoo.SOURCE)
 
 
-def run_db_sync(s: db.Scope, key: str, env_tokens: str | None, client_factory=None, today: date | None = None,
-                read_streams=read_fit_streams, since: date | None = None, wahoo_factory=None, progress=_no_progress) -> int:
+def run_db_sync(
+    s: db.Scope,
+    key: str,
+    env_tokens: str | None,
+    client_factory=None,
+    today: date | None = None,
+    read_streams=read_fit_streams,
+    since: date | None = None,
+    wahoo_factory=None,
+    progress=_no_progress,
+) -> int:
     """One user: Garmin -> database, then derived data. `s` is that user's Scope. Tokens: the encrypted copy in the
     database wins over GARMINTOKENS, because Garmin rotates the refresh token and only the database copy is kept up to date.
     GARMINTOKENS (env) is only offered for the first admin (the account that existed before multi-user)."""
@@ -582,7 +595,9 @@ def main(argv=None) -> int:
     parser.add_argument("--since", type=date.fromisoformat, help="backfill vanaf deze datum (YYYY-MM-DD)")
     parser.add_argument("--source", choices=["all", "strava", "garmin"], default="all")
     parser.add_argument("--root", type=Path, default=ROOT)
-    parser.add_argument("--files", action="store_true", help="schrijf naar de bestanden in data/ (oude modus) ook als DATABASE_URL gezet is")
+    parser.add_argument(
+        "--files", action="store_true", help="schrijf naar de bestanden in data/ (oude modus) ook als DATABASE_URL gezet is"
+    )
     args = parser.parse_args(argv)
 
     if os.environ.get("DATABASE_URL") and not args.files:

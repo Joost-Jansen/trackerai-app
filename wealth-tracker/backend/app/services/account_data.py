@@ -23,7 +23,7 @@ import json
 import os
 import sqlite3
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 from app.core import audit, auth_store, feedback_store
 from domain import database
@@ -51,8 +51,7 @@ def _jsonable(value):
 
 
 def _tables(conn: sqlite3.Connection) -> list[str]:
-    return [r[0] for r in conn.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")]
+    return [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")]
 
 
 def _rows(conn: sqlite3.Connection, table: str) -> tuple[list[str], list[list]]:
@@ -60,10 +59,7 @@ def _rows(conn: sqlite3.Connection, table: str) -> tuple[list[str], list[list]]:
     columns = [d[0] for d in cur.description]
     rows = []
     for row in cur.fetchall():
-        rows.append([
-            "[withheld]" if (table, col) in _WITHHELD and row[i] is not None else row[i]
-            for i, col in enumerate(columns)
-        ])
+        rows.append(["[withheld]" if (table, col) in _WITHHELD and row[i] is not None else row[i] for i, col in enumerate(columns)])
     return columns, rows
 
 
@@ -83,16 +79,19 @@ def _account(username: str) -> dict:
 
 def export_zip(username: str) -> bytes:
     buf = io.BytesIO()
-    now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    now = datetime.now(UTC).replace(microsecond=0).isoformat()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr("README.txt", (
-            f"Export of account '{username}', made {now}.\n"
-            "database/: every table of your database, as CSV and as JSON.\n"
-            "account.json: your account (no password or token hashes).\n"
-            "feedback.json and feedback/: what you sent as feedback.\n"
-            "uploads/: imported files that are still stored (normally none: they are deleted after import).\n"
-            "Withheld: the encrypted bank key and bank session (secrets, useless elsewhere).\n"
-        ))
+        zf.writestr(
+            "README.txt",
+            (
+                f"Export of account '{username}', made {now}.\n"
+                "database/: every table of your database, as CSV and as JSON.\n"
+                "account.json: your account (no password or token hashes).\n"
+                "feedback.json and feedback/: what you sent as feedback.\n"
+                "uploads/: imported files that are still stored (normally none: they are deleted after import).\n"
+                "Withheld: the encrypted bank key and bank session (secrets, useless elsewhere).\n"
+            ),
+        )
         zf.writestr("account.json", json.dumps(_account(username), indent=2, ensure_ascii=False))
 
         if database.has_data(username):
@@ -105,8 +104,10 @@ def export_zip(username: str) -> bytes:
                     writer.writerow(columns)
                     writer.writerows([[csv_safe(v) for v in r] for r in rows])
                     zf.writestr(f"database/{table}.csv", text.getvalue())
-                    zf.writestr(f"database/{table}.json", json.dumps(
-                        [{c: _jsonable(v) for c, v in zip(columns, r)} for r in rows], indent=1, ensure_ascii=False))
+                    zf.writestr(
+                        f"database/{table}.json",
+                        json.dumps([{c: _jsonable(v) for c, v in zip(columns, r)} for r in rows], indent=1, ensure_ascii=False),
+                    )
             finally:
                 conn.close()
 

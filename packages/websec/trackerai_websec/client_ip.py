@@ -12,13 +12,13 @@ socket peer is the client.
 from __future__ import annotations
 
 import ipaddress
-from typing import Iterable
+from collections.abc import Iterable
 
 Network = ipaddress.IPv4Network | ipaddress.IPv6Network
 
 
 def trusted_networks(env_value: str | None) -> list[Network]:
-    """"10.0.0.0/8, 172.18.0.2" -> networks. Raises ValueError for an entry that is not an IP or CIDR (a typo must
+    """ "10.0.0.0/8, 172.18.0.2" -> networks. Raises ValueError for an entry that is not an IP or CIDR (a typo must
     not silently trust nothing, or everything)."""
     out: list[Network] = []
     for part in (env_value or "").replace(";", ",").split(","):

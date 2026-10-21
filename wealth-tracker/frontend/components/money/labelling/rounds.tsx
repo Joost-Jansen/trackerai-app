@@ -34,8 +34,14 @@ export type RoundState<T> = {
 export function useRounds<V, T>(url: string, read: (v: V) => Round<T>, onDone: () => void): RoundState<T> {
   const qc = useQueryClient();
   const empty = {
-    busy: false, finished: false, completed: 0, total: 0, rounds: 0,
-    feed: [] as T[], error: null as string | null, tally: {} as Record<string, number>,
+    busy: false,
+    finished: false,
+    completed: 0,
+    total: 0,
+    rounds: 0,
+    feed: [] as T[],
+    error: null as string | null,
+    tally: {} as Record<string, number>,
   };
   const [s, setS] = useState(empty);
   const round = useMutation({
@@ -48,8 +54,14 @@ export function useRounds<V, T>(url: string, read: (v: V) => Round<T>, onDone: (
         const tally = { ...o.tally };
         for (const [k, n] of Object.entries(r.tally ?? {})) tally[k] = (tally[k] ?? 0) + n;
         return {
-          ...o, completed: o.completed + r.count, rounds: o.rounds + 1, feed: [...r.items, ...o.feed].slice(0, 12),
-          error: r.error ?? null, tally, busy: !final, finished: automatically && !r.error,
+          ...o,
+          completed: o.completed + r.count,
+          rounds: o.rounds + 1,
+          feed: [...r.items, ...o.feed].slice(0, 12),
+          error: r.error ?? null,
+          tally,
+          busy: !final,
+          finished: automatically && !r.error,
         };
       });
       // In between the counters and the queue; the rest only when everything is done.
@@ -75,8 +87,20 @@ export function useRounds<V, T>(url: string, read: (v: V) => Round<T>, onDone: (
 }
 
 /** What a series of rounds does: a bar, what just happened, and a summary when it is done. */
-export function Progress<T>({ r, step, title, unit, rule, summary }: {
-  r: RoundState<T>; step?: string; title: string; unit: string; rule: (item: T) => ReactNode; summary: ReactNode;
+export function Progress<T>({
+  r,
+  step,
+  title,
+  unit,
+  rule,
+  summary,
+}: {
+  r: RoundState<T>;
+  step?: string;
+  title: string;
+  unit: string;
+  rule: (item: T) => ReactNode;
+  summary: ReactNode;
 }) {
   if (!r.busy && !r.finished && !r.error && r.rounds === 0) return null;
   const pct = r.finished ? 100 : Math.min(100, Math.round((r.completed / Math.max(r.total, 1)) * 100));
@@ -85,21 +109,29 @@ export function Progress<T>({ r, step, title, unit, rule, summary }: {
     <div className="flex flex-col gap-2 text-xs" role="status" aria-live="polite">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex items-center gap-2 text-[12.5px] font-medium">
-          {r.busy && <span aria-hidden className="inline-block h-2 w-2 animate-pulse rounded-full" style={{ background: "var(--brand)" }} />}
+          {r.busy && (
+            <span aria-hidden className="inline-block h-2 w-2 animate-pulse rounded-full" style={{ background: "var(--brand)" }} />
+          )}
           {step && <span className="text-ink-muted">{step} ·</span>} {header}
         </span>
         <span className="num text-ink-muted">{trx("{0} of {1} {2}", Math.min(r.completed, r.total), r.total, unit)}</span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "var(--rule)" }}>
-        <div className="h-full rounded-full transition-[width] duration-500"
-          style={{ width: `${pct}%`, background: r.error ? "var(--text-loss)" : "var(--brand)" }} />
+        <div
+          className="h-full rounded-full transition-[width] duration-500"
+          style={{ width: `${pct}%`, background: r.error ? "var(--text-loss)" : "var(--brand)" }}
+        />
       </div>
       {r.busy && r.feed.length === 0 && (
         <p className="text-ink-muted">{tr("The first round is running; in a few seconds you'll see here what Claude is doing.")}</p>
       )}
       {r.feed.length > 0 && (
         <ul className="flex max-h-40 flex-col gap-0.5 overflow-y-auto">
-          {r.feed.map((item, i) => <li key={`${r.rounds}-${i}`} className="truncate">{rule(item)}</li>)}
+          {r.feed.map((item, i) => (
+            <li key={`${r.rounds}-${i}`} className="truncate">
+              {rule(item)}
+            </li>
+          ))}
         </ul>
       )}
       {!r.busy && !r.error && <p>{summary}</p>}
@@ -114,9 +146,15 @@ export function aiRule(i: AiItem): ReactNode {
   if (i.category === "Onbekend") return <span className="text-ink-muted">{trx("– {0}: doesn't know", i.name)}</span>;
   return (
     <span>
-      <span aria-hidden style={{ color: i.applied ? "var(--text-gain)" : undefined }}>{i.applied ? "✓" : "?"}</span>{" "}
+      <span aria-hidden style={{ color: i.applied ? "var(--text-gain)" : undefined }}>
+        {i.applied ? "✓" : "?"}
+      </span>{" "}
       {i.name} → <b>{i.category}</b>{" "}
-      <span className="num text-ink-muted">· {pct(i.confidence)}{i.reason ? ` · ${i.reason}` : ""}{i.applied ? "" : tr(" · unsure, in the queue")}</span>
+      <span className="num text-ink-muted">
+        · {pct(i.confidence)}
+        {i.reason ? ` · ${i.reason}` : ""}
+        {i.applied ? "" : tr(" · unsure, in the queue")}
+      </span>
     </span>
   );
 }
@@ -125,7 +163,10 @@ export function checkRule(i: CheckItem): ReactNode {
   return (
     <span>
       <span aria-hidden>≠</span> {i.name} <span className="num text-ink-muted">({i.count}×)</span>: {i.now} → <b>{i.suggestion}</b>{" "}
-      <span className="num text-ink-muted">· {pct(i.confidence)}{i.reason ? ` · ${i.reason}` : ""}</span>
+      <span className="num text-ink-muted">
+        · {pct(i.confidence)}
+        {i.reason ? ` · ${i.reason}` : ""}
+      </span>
     </span>
   );
 }

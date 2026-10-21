@@ -25,7 +25,10 @@ export default function LoginPage() {
   // Codes by email: where the code went (masked), and whether the account can get one instead of the app's.
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [canEmail, setCanEmail] = useState(false);
-  const config = useQuery({ queryKey: ["auth-config"], queryFn: () => api.get<{ registration: string; first_user: boolean; session_days?: number }>("/api/auth/config") });
+  const config = useQuery({
+    queryKey: ["auth-config"],
+    queryFn: () => api.get<{ registration: string; first_user: boolean; session_days?: number }>("/api/auth/config"),
+  });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -75,27 +78,75 @@ export default function LoginPage() {
         </div>
         {totp === null ? (
           <div className="flex flex-col gap-4">
-            <Input id="login-username" name="username" type="text" autoComplete="username" label={t.auth.username}
-              value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
-            <Input id="login-password" name="password" type="password" autoComplete="current-password" label={t.auth.password}
-              value={password} onChange={(e) => setPassword(e.target.value)} error={error ?? undefined} />
-            <Checkbox checked={remember} onChange={setRemember} className="items-start text-[12.5px] leading-relaxed text-ink-muted"
-              label={<span><span className="text-[var(--text-primary)]">{t.auth.stayLoggedIn(config.data?.session_days ?? 30)}</span><br />{t.auth.stayLoggedInHint}</span>} />
+            <Input
+              id="login-username"
+              name="username"
+              type="text"
+              autoComplete="username"
+              label={t.auth.username}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoFocus
+            />
+            <Input
+              id="login-password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              label={t.auth.password}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              error={error ?? undefined}
+            />
+            <Checkbox
+              checked={remember}
+              onChange={setRemember}
+              className="items-start text-[12.5px] leading-relaxed text-ink-muted"
+              label={
+                <span>
+                  <span className="text-[var(--text-primary)]">{t.auth.stayLoggedIn(config.data?.session_days ?? 30)}</span>
+                  <br />
+                  {t.auth.stayLoggedInHint}
+                </span>
+              }
+            />
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            <Input id="login-totp" name="totp" type="text" inputMode="numeric" autoComplete="one-time-code"
-              label={sentTo !== null ? t.auth.emailCode : t.auth.totp} hint={sentTo !== null ? t.auth.emailCodeHint(sentTo) : t.auth.totpHint}
-              value={totp} onChange={(e) => setTotp(e.target.value)} error={error ?? undefined} autoFocus />
+            <Input
+              id="login-totp"
+              name="totp"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              label={sentTo !== null ? t.auth.emailCode : t.auth.totp}
+              hint={sentTo !== null ? t.auth.emailCodeHint(sentTo) : t.auth.totpHint}
+              value={totp}
+              onChange={(e) => setTotp(e.target.value)}
+              error={error ?? undefined}
+              autoFocus
+            />
             <div className="flex flex-wrap items-center gap-4">
-              <button type="button" className="text-[12.5px] text-ink-muted underline underline-offset-2"
-                onClick={() => { setTotp(null); setError(null); setSentTo(null); setCanEmail(false); }}>{t.auth.totpBack}</button>
+              <button
+                type="button"
+                className="text-[12.5px] text-ink-muted underline underline-offset-2"
+                onClick={() => {
+                  setTotp(null);
+                  setError(null);
+                  setSentTo(null);
+                  setCanEmail(false);
+                }}
+              >
+                {t.auth.totpBack}
+              </button>
               {(canEmail || sentTo !== null) && (
                 <button type="button" className="text-[12.5px] text-ink-muted underline underline-offset-2" onClick={mailCode}>
                   {sentTo !== null ? t.auth.emailAgain : t.auth.emailInstead}
                 </button>
               )}
-              <Link href="/two-step/" className="text-[12.5px] text-ink-muted underline underline-offset-2">{t.auth.twoStepHelp}</Link>
+              <Link href="/two-step/" className="text-[12.5px] text-ink-muted underline underline-offset-2">
+                {t.auth.twoStepHelp}
+              </Link>
             </div>
           </div>
         )}
@@ -105,12 +156,16 @@ export default function LoginPage() {
         {config.data && config.data.registration !== "closed" && (
           <p className="text-[12.5px] text-ink-muted">
             {config.data.first_user ? t.auth.noAccountsYet : t.auth.noAccount}{" "}
-            <Link href="/register/" className="underline underline-offset-2">{config.data.first_user ? t.auth.createFirst : t.auth.createAccount}</Link>
+            <Link href="/register/" className="underline underline-offset-2">
+              {config.data.first_user ? t.auth.createFirst : t.auth.createAccount}
+            </Link>
           </p>
         )}
         <div className="flex flex-wrap items-center gap-4">
           <LanguageSwitch />
-          <Link href="/privacy/" className="text-[12.5px] text-ink-muted underline underline-offset-2">{t.auth.privacy}</Link>
+          <Link href="/privacy/" className="text-[12.5px] text-ink-muted underline underline-offset-2">
+            {t.auth.privacy}
+          </Link>
         </div>
       </form>
     </main>

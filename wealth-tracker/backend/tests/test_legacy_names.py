@@ -74,15 +74,30 @@ def test_an_old_database_is_renamed_in_place():
     database.init_db(conn)
 
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type IN ('table', 'view')")}
-    assert {"accounts", "account_balances", "bank_transactions", "categories", "bank_consents", "budgets", "bank_transactions_typed"} <= tables
+    assert {
+        "accounts",
+        "account_balances",
+        "bank_transactions",
+        "categories",
+        "bank_consents",
+        "budgets",
+        "bank_transactions_typed",
+    } <= tables
     assert not tables & {"rekeningen", "rekening_saldi", "bank_transacties", "categorieen", "bank_transacties_getypeerd"}
 
     assert [(a["name"], a["kind"], a["provider"]) for a in accounts.load_accounts(conn)] == [
-        ("Betaalrekening", "bank", "ing"), ("Portemonnee", "cash", "manual"), ("Studieschuld", "debt", "manual")]
+        ("Betaalrekening", "bank", "ing"),
+        ("Portemonnee", "cash", "manual"),
+        ("Studieschuld", "debt", "manual"),
+    ]
     assert conn.execute("SELECT source FROM account_balances").fetchone()[0] == "manual"
-    rows = conn.execute("SELECT name, source, category_source, group_name, type_effective FROM bank_transactions_typed ORDER BY id").fetchall()
-    assert [tuple(r) for r in rows] == [("ALBERT HEIJN", "import", "rule", "Boodschappen", "EXPENSE"),
-                                        ("Bakker", "manual", "learned", "Boodschappen", "EXPENSE")]
+    rows = conn.execute(
+        "SELECT name, source, category_source, group_name, type_effective FROM bank_transactions_typed ORDER BY id"
+    ).fetchall()
+    assert [tuple(r) for r in rows] == [
+        ("ALBERT HEIJN", "import", "rule", "Boodschappen", "EXPENSE"),
+        ("Bakker", "manual", "learned", "Boodschappen", "EXPENSE"),
+    ]
     assert conn.execute("SELECT type FROM categories WHERE name = 'Salaris'").fetchone()[0] == "INCOME"
     assert conn.execute("SELECT status FROM bank_consents").fetchone()[0] == "active"
     assert conn.execute("SELECT group_name, amount FROM budgets").fetchone()[:] == ("Boodschappen", 400)
@@ -105,8 +120,11 @@ def test_migrating_twice_changes_nothing():
 
 def test_an_old_beta_flag_reads_under_its_new_name(tmp_path, monkeypatch):
     path = tmp_path / "auth_config.yaml"
-    path.write_text(yaml.safe_dump({"credentials": {"usernames": {"anna": {}, "bob": {}}},
-                                    "beta": {"geldzaken": ["anna"], "money": ["bob"], "returns": ["anna"]}}))
+    path.write_text(
+        yaml.safe_dump(
+            {"credentials": {"usernames": {"anna": {}, "bob": {}}}, "beta": {"geldzaken": ["anna"], "money": ["bob"], "returns": ["anna"]}}
+        )
+    )
     monkeypatch.setattr(config, "AUTH_CONFIG_PATH", str(path))
     assert auth_store.load_config()["beta"] == {"money": ["bob", "anna"], "returns": ["anna"]}
     assert auth_store.has_beta("anna", "money")
@@ -144,8 +162,11 @@ def test_requests_that_open_an_old_database_together_do_not_trip_over_each_other
 
 def test_an_old_token_scope_reads_under_its_new_name(tmp_path, monkeypatch):
     path = tmp_path / "auth_config.yaml"
-    path.write_text(yaml.safe_dump({"credentials": {"usernames": {"anna": {"agent_tokens": [
-        {"id": "a", "scope": "lezen"}, {"id": "b", "scope": "bijhouden"}]}}}}))
+    path.write_text(
+        yaml.safe_dump(
+            {"credentials": {"usernames": {"anna": {"agent_tokens": [{"id": "a", "scope": "lezen"}, {"id": "b", "scope": "bijhouden"}]}}}}
+        )
+    )
     monkeypatch.setattr(config, "AUTH_CONFIG_PATH", str(path))
     tokens = auth_store.load_config()["credentials"]["usernames"]["anna"]["agent_tokens"]
     assert [t["scope"] for t in tokens] == ["read", "write"]

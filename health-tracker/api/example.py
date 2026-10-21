@@ -18,9 +18,9 @@ from __future__ import annotations
 import os
 import tempfile
 import threading
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
-from typing import Callable
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -41,8 +41,19 @@ HOME = (52.0590, 5.8270)
 
 # Data routes that read from the example account in example mode (prefixes). Everything else stays the caller's own.
 EXAMPLE_PATHS = (
-    "/api/dashboard", "/api/activities", "/api/heatmap", "/api/trends", "/api/plans", "/api/docs", "/api/entries",
-    "/api/context", "/api/routes", "/api/zones", "/api/wellness", "/api/settings/zones", "/api/settings/profile",
+    "/api/dashboard",
+    "/api/activities",
+    "/api/heatmap",
+    "/api/trends",
+    "/api/plans",
+    "/api/docs",
+    "/api/entries",
+    "/api/context",
+    "/api/routes",
+    "/api/zones",
+    "/api/wellness",
+    "/api/settings/zones",
+    "/api/settings/profile",
     "/api/settings/resting-hr",
 )
 # Routes that ignore the header completely (no example data, no refusal).

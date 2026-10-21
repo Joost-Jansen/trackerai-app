@@ -64,24 +64,47 @@ function Steps({ rows, window: w, colour }: { rows: RecordRowPlus[]; window: Dat
   const hr = hover != null ? inside[hover] : null;
   return (
     <div className="relative" onPointerMove={pick} onPointerDown={pick} onPointerLeave={(e) => e.pointerType === "mouse" && setHover(null)}>
-    <svg width="100%" height={H} className="block overflow-visible" role="img" aria-label={TR.improved(inside.length)}>
-      <line x1="0%" x2="100%" y1={H - 0.5} y2={H - 0.5} stroke="var(--border-hairline)" strokeWidth="1" />
-      {segs.map((s, i) => (
-        <line key={i} x1={`${s.x1}%`} x2={`${s.x2}%`} y1={s.y1} y2={s.y2} stroke={colour} strokeWidth="1.75" strokeLinecap="round" opacity={inside.length ? 1 : 0.55} />
-      ))}
-      {inside.map((r) => (
-        <circle key={r.date + r.activity_id} cx={`${x(r.date)}%`} cy={y(r.seconds)} r={r === hr ? 5 : 3.5} fill={colour} stroke="var(--surface-card)" strokeWidth="1.5" />
-      ))}
-    </svg>
-    {hr && (
-      <div
-        className="ds-chart__tip"
-        aria-live="polite"
-        style={{ left: `calc(${x(hr.date)}% ${x(hr.date) > 50 ? "- 10px" : "+ 10px"})`, top: -6, transform: x(hr.date) > 50 ? "translate(-100%, -100%)" : "translateY(-100%)", zIndex: 20 }}
-      >
-        <span className="font-semibold">{fmtClock(hr.seconds)}</span> <span className="opacity-80">· {fmtDay(hr.date)}</span>
-      </div>
-    )}
+      <svg width="100%" height={H} className="block overflow-visible" role="img" aria-label={TR.improved(inside.length)}>
+        <line x1="0%" x2="100%" y1={H - 0.5} y2={H - 0.5} stroke="var(--border-hairline)" strokeWidth="1" />
+        {segs.map((s, i) => (
+          <line
+            key={i}
+            x1={`${s.x1}%`}
+            x2={`${s.x2}%`}
+            y1={s.y1}
+            y2={s.y2}
+            stroke={colour}
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            opacity={inside.length ? 1 : 0.55}
+          />
+        ))}
+        {inside.map((r) => (
+          <circle
+            key={r.date + r.activity_id}
+            cx={`${x(r.date)}%`}
+            cy={y(r.seconds)}
+            r={r === hr ? 5 : 3.5}
+            fill={colour}
+            stroke="var(--surface-card)"
+            strokeWidth="1.5"
+          />
+        ))}
+      </svg>
+      {hr && (
+        <div
+          className="ds-chart__tip"
+          aria-live="polite"
+          style={{
+            left: `calc(${x(hr.date)}% ${x(hr.date) > 50 ? "- 10px" : "+ 10px"})`,
+            top: -6,
+            transform: x(hr.date) > 50 ? "translate(-100%, -100%)" : "translateY(-100%)",
+            zIndex: 20,
+          }}
+        >
+          <span className="font-semibold">{fmtClock(hr.seconds)}</span> <span className="opacity-80">· {fmtDay(hr.date)}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -109,8 +132,15 @@ export default function RecordTable({
         <div className="mb-3 flex flex-col gap-1">
           {recent.map((r) => (
             <p key={r.key} className="flex items-center gap-2 text-[13px]">
-              <span className="rounded-full px-1.5 py-px text-[10.5px] font-semibold" style={{ background: "var(--zone-2)", color: "var(--surface-card)" }}>{TR.pr}</span>
-              <Link className="underline-offset-2 hover:underline" href={href(r.activity_id)}>{TR.prNotice(TR.name[r.key], fmtDay(r.date))}</Link>
+              <span
+                className="rounded-full px-1.5 py-px text-[10.5px] font-semibold"
+                style={{ background: "var(--zone-2)", color: "var(--surface-card)" }}
+              >
+                {TR.pr}
+              </span>
+              <Link className="underline-offset-2 hover:underline" href={href(r.activity_id)}>
+                {TR.prNotice(TR.name[r.key], fmtDay(r.date))}
+              </Link>
             </p>
           ))}
         </div>
@@ -128,19 +158,32 @@ export default function RecordTable({
         const inside = rows.filter((r) => r.date >= w.from && r.date <= w.to).length;
         const before = [...rows].reverse().find((r) => r.date < w.from);
         return (
-          <div key={k} className="grid grid-cols-[1fr_auto_auto] items-baseline gap-x-3 gap-y-1.5 border-t border-border py-2.5 text-[13px] tabular-nums sm:grid-cols-[7.5rem_5.5rem_4.5rem_7rem_1fr] sm:items-center">
+          <div
+            key={k}
+            className="grid grid-cols-[1fr_auto_auto] items-baseline gap-x-3 gap-y-1.5 border-t border-border py-2.5 text-[13px] tabular-nums sm:grid-cols-[7.5rem_5.5rem_4.5rem_7rem_1fr] sm:items-center"
+          >
             <span>{LABEL[k]}</span>
             <span className="flex items-center gap-1.5 font-medium">
               {best ? fmtClock(best.seconds) : "–"}
               {fresh.has(k) && (
-                <span title={TR.prTitle(recentDays)} className="rounded-full px-1.5 py-px text-[10.5px] font-semibold" style={{ background: "var(--zone-2)", color: "var(--surface-card)" }}>
+                <span
+                  title={TR.prTitle(recentDays)}
+                  className="rounded-full px-1.5 py-px text-[10.5px] font-semibold"
+                  style={{ background: "var(--zone-2)", color: "var(--surface-card)" }}
+                >
                   {TR.pr}
                 </span>
               )}
             </span>
             <span className="hidden text-ink-muted sm:inline">{best ? `${fmtClock(best.seconds / KM[k])}/km` : "–"}</span>
             <span className="text-right sm:text-left">
-              {best ? <Link className="underline underline-offset-2" href={href(best.activity_id)}>{fmtDay(best.date)}</Link> : "–"}
+              {best ? (
+                <Link className="underline underline-offset-2" href={href(best.activity_id)}>
+                  {fmtDay(best.date)}
+                </Link>
+              ) : (
+                "–"
+              )}
             </span>
             <div className="col-span-3 sm:col-span-1">
               {rows.length > 0 && <Steps rows={rows} window={w} colour={colours[k]} />}

@@ -35,8 +35,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 from fastapi import APIRouter, Body, Depends, Request, Response
 from pydantic import BaseModel
@@ -177,8 +177,9 @@ class Sessions:
         if not s:
             raise AccountError(401, "not_logged_in")
         if session.due_for_renewal(s.claims, self.accounts.config):  # sliding: renewed while in use
-            session.issue(response, self.accounts.config, s.id, s.account["session_version"] or 0, s.claims.get("auth"),
-                          session.remembered(s.claims))
+            session.issue(
+                response, self.accounts.config, s.id, s.account["session_version"] or 0, s.claims.get("auth"), session.remembered(s.claims)
+            )
         return s
 
     def ready(self, request: Request, response: Response) -> Session:
@@ -190,10 +191,15 @@ class Sessions:
         return s
 
 
-def make_router(accounts: Accounts, app: str | None, client_ip: Callable[[Request], str] = _client_ip,
-                guards: Guards | None = None, aliases: dict[str, str] | None = None,
-                after_leave: Callable[[], None] | None = None,
-                before_login: Callable[[str, str], None] | None = None) -> tuple[APIRouter, Sessions]:
+def make_router(
+    accounts: Accounts,
+    app: str | None,
+    client_ip: Callable[[Request], str] = _client_ip,
+    guards: Guards | None = None,
+    aliases: dict[str, str] | None = None,
+    after_leave: Callable[[], None] | None = None,
+    before_login: Callable[[str, str], None] | None = None,
+) -> tuple[APIRouter, Sessions]:
     """The routes for `app` ("health" or "wealth": where someone registers, and the app they get). `app=None` is the
     front door's own API (trackerai-api): a sign-up must name its trackers (`apps`), and there is no OAuth issuer for
     agents, which is each app's own. `aliases` answers
@@ -221,9 +227,14 @@ def make_router(accounts: Accounts, app: str | None, client_ip: Callable[[Reques
 
     @r.get("/api/auth/registration-status")
     def registration_status():
-        return {"mode": accounts.registration_mode(), "first_user": accounts.count() == 0,
-                "session_days": accounts.config.session_days, "email_codes": bool(accounts.mailer),
-                "front_door_url": accounts.config.front_door_url, "tracker_urls": accounts.config.tracker_urls}
+        return {
+            "mode": accounts.registration_mode(),
+            "first_user": accounts.count() == 0,
+            "session_days": accounts.config.session_days,
+            "email_codes": bool(accounts.mailer),
+            "front_door_url": accounts.config.front_door_url,
+            "tracker_urls": accounts.config.tracker_urls,
+        }
 
     @r.post("/api/auth/login")
     def login(creds: Credentials, request: Request, response: Response):
@@ -235,9 +246,13 @@ def make_router(accounts: Accounts, app: str | None, client_ip: Callable[[Reques
             before_login(name, creds.password)
         device = request.cookies.get(session.DEVICE_COOKIE)
         try:
-            account = accounts.login(name, creds.password, creds.totp,
-                                     trusted_device=lambda a: session.device_trusted(device, accounts.config, a),
-                                     send_email=creds.send_email)
+            account = accounts.login(
+                name,
+                creds.password,
+                creds.totp,
+                trusted_device=lambda a: session.device_trusted(device, accounts.config, a),
+                send_email=creds.send_email,
+            )
         except AccountError as e:
             if e.code in ("bad_credentials", "totp_invalid"):
                 guards.login_name.hit(name)
@@ -260,13 +275,26 @@ def make_router(accounts: Accounts, app: str | None, client_ip: Callable[[Reques
         ip = client_ip(request)
         if not guards.register_ip.hit(ip):  # every attempt counts: also guessing invite codes
             raise too_many(guards.register_ip, ip)
-        account = accounts.register(body.username, body.password, body.app or app, display_name=body.display_name or body.name,
-                                    invite=body.invite or body.invite_code, locale=body.locale, consent=body.consent,
-                                    email=body.email, apps=body.apps)
+        account = accounts.register(
+            body.username,
+            body.password,
+            body.app or app,
+            display_name=body.display_name or body.name,
+            invite=body.invite or body.invite_code,
+            locale=body.locale,
+            consent=body.consent,
+            email=body.email,
+            apps=body.apps,
+        )
         fresh_session(response, account)
         v = accounts.view(account)
-        return {"ok": True, "username": account["username"], "is_admin": v["is_admin"], "totp_setup_required": v["totp_setup_required"],
-                "email_verify_required": v["email_verify_required"]}
+        return {
+            "ok": True,
+            "username": account["username"],
+            "is_admin": v["is_admin"],
+            "totp_setup_required": v["totp_setup_required"],
+            "email_verify_required": v["email_verify_required"],
+        }
 
     # --- the account -----------------------------------------------------------------------------------------------
 
@@ -287,8 +315,14 @@ def make_router(accounts: Accounts, app: str | None, client_ip: Callable[[Reques
     @r.get("/api/account/totp")
     def totp_status(s: Session = Depends(sessions.current)):
         v = accounts.view(s.account, s.apps)
-        return {"enabled": v["totp_enabled"], "required": v["totp_required"], "backup_codes_left": v["totp_backup_codes_left"],
-                "email_codes": v["email_codes"], "email": v["email"], "email_available": bool(accounts.mailer)}
+        return {
+            "enabled": v["totp_enabled"],
+            "required": v["totp_required"],
+            "backup_codes_left": v["totp_backup_codes_left"],
+            "email_codes": v["email_codes"],
+            "email": v["email"],
+            "email_available": bool(accounts.mailer),
+        }
 
     @r.post("/api/account/totp/setup")
     def totp_setup(s: Session = Depends(sessions.current)):
@@ -302,8 +336,12 @@ def make_router(accounts: Accounts, app: str | None, client_ip: Callable[[Reques
 
     @r.post("/api/account/totp/disable")
     def totp_disable(body: Reauth, response: Response, s: Session = Depends(sessions.current)):
-        fresh_session(response, accounts.totp_disable(s.id, body.password, body.code or body.totp or ""), s.claims.get("auth"),
-                      session.remembered(s.claims))
+        fresh_session(
+            response,
+            accounts.totp_disable(s.id, body.password, body.code or body.totp or ""),
+            s.claims.get("auth"),
+            session.remembered(s.claims),
+        )
         return {"ok": True}
 
     @r.post("/api/account/totp/backup-codes")
@@ -398,9 +436,16 @@ def make_router(accounts: Accounts, app: str | None, client_ip: Callable[[Reques
 
     @r.get("/api/admin/registration")
     def admin_registration(a: Session = Depends(admin)):
-        return {"registration": accounts.registration_mode(), "invites": accounts.list_invites(), "audit": accounts.list_audit(),
-                "settings": {"require_totp": accounts.config.require_totp, "email": bool(accounts.mailer),
-                             "session_days": accounts.config.session_days}}
+        return {
+            "registration": accounts.registration_mode(),
+            "invites": accounts.list_invites(),
+            "audit": accounts.list_audit(),
+            "settings": {
+                "require_totp": accounts.config.require_totp,
+                "email": bool(accounts.mailer),
+                "session_days": accounts.config.session_days,
+            },
+        }
 
     @r.patch("/api/admin/registration")
     def admin_registration_update(body: Mode, a: Session = Depends(admin)):
@@ -419,13 +464,13 @@ def make_router(accounts: Accounts, app: str | None, client_ip: Callable[[Reques
     # The admin routes once more under /api/trackerai/admin: an app may answer some /api/admin paths itself (wealth-
     # tracker's invites), and the admin page on the front door needs the shared ones.
     for route in [x for x in r.routes if getattr(x, "path", "").startswith("/api/admin/")]:
-        r.add_api_route("/api/trackerai" + route.path[len("/api"):], route.endpoint, methods=list(route.methods),
-                        include_in_schema=False)
+        r.add_api_route("/api/trackerai" + route.path[len("/api") :], route.endpoint, methods=list(route.methods), include_in_schema=False)
 
     for old, new in (aliases or {}).items():
         for route in [x for x in r.routes if getattr(x, "path", None) == new]:
             r.add_api_route(old, route.endpoint, methods=list(route.methods), include_in_schema=False)
     if app is not None:
         from trackerai_accounts.oauth import make_router as oauth_router
+
         r.include_router(oauth_router(accounts, sessions, app, client_ip))
     return r, sessions

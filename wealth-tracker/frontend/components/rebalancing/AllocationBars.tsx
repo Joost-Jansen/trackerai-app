@@ -55,23 +55,15 @@ export default function AllocationBars({ rows }: { rows: AllocationRow[] }) {
               <span className="text-[13px] font-semibold">
                 {row.label}
                 {row.currentEur != null && (
-                  <span className="ml-1.5 num text-[11.5px] font-normal text-ink-muted">
-                    {fmtEuro(row.currentEur)}
-                  </span>
+                  <span className="ml-1.5 num text-[11.5px] font-normal text-ink-muted">{fmtEuro(row.currentEur)}</span>
                 )}
               </span>
-              <span className="num flex-none text-[15px] font-semibold">
-                {fmtEu(row.currentPct, { decimals: 1, suffix: "%" })}
-              </span>
+              <span className="num flex-none text-[15px] font-semibold">{fmtEu(row.currentPct, { decimals: 1, suffix: "%" })}</span>
             </div>
 
             {/* The bar itself adds nothing for a screen reader: every number
                 in it is shown as text above and below it. */}
-            <div
-              aria-hidden="true"
-              className="relative mt-1.5 h-2 rounded-full"
-              style={{ background: "var(--surface-inset)" }}
-            >
+            <div aria-hidden="true" className="relative mt-1.5 h-2 rounded-full" style={{ background: "var(--surface-inset)" }}>
               <div
                 className="absolute inset-y-0 left-0 rounded-full"
                 style={{ width: `${clampPct(row.currentPct)}%`, background: tone.bar }}
@@ -89,7 +81,9 @@ export default function AllocationBars({ rows }: { rows: AllocationRow[] }) {
               {onTarget ? (
                 <span className={tone.text}>{tr("on target")}</span>
               ) : (
-                <span className={`num ${tone.text}`}>{trx("{0} pp {1} target", fmtEu(deviation, { decimals: 1, plus: true }), deviation > 0 ? "above" : "under")}</span>
+                <span className={`num ${tone.text}`}>
+                  {trx("{0} pp {1} target", fmtEu(deviation, { decimals: 1, plus: true }), deviation > 0 ? "above" : "under")}
+                </span>
               )}
               <span className="num flex-none text-ink-muted">{trx("target {0}", fmtEu(row.targetPct, { decimals: 0, suffix: "%" }))}</span>
             </div>
@@ -113,10 +107,7 @@ export function DeviationLegend() {
         ] as const
       ).map(([status, text]) => (
         <span key={status} className="inline-flex items-center gap-1.5">
-          <span
-            className="h-2 w-2 flex-none rounded-full"
-            style={{ background: TONE[status].bar }}
-          />
+          <span className="h-2 w-2 flex-none rounded-full" style={{ background: TONE[status].bar }} />
           {text}
         </span>
       ))}

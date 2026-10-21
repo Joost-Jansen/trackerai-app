@@ -9,12 +9,8 @@ the call is replaced by a fake that says what the test wants.
 
 import pytest
 
-from domain.money import ai_labelling
-from domain.money import bank_transactions
-from domain.money import categorization
-from domain import database
-from domain.money import accounts
-from domain import preferences
+from domain import database, preferences
+from domain.money import accounts, ai_labelling, bank_transactions, categorization
 
 
 @pytest.fixture(autouse=True)
@@ -42,11 +38,25 @@ _counter = iter(range(1, 10_000))
 
 def _tx(conn, rid, name, description="", amount=10.0, iban=None):
     n = next(_counter)
-    bank_transactions.save(conn, rid, [{
-        "date": f"2026-03-{n % 28 + 1:02d}", "interest_date": None, "amount": amount, "currency": "EUR",
-        "name": name, "counterparty_iban": iban, "description": description, "code": None, "kind": None,
-        "dedup_hash": f"tx{n}", "raw": {},
-    }])
+    bank_transactions.save(
+        conn,
+        rid,
+        [
+            {
+                "date": f"2026-03-{n % 28 + 1:02d}",
+                "interest_date": None,
+                "amount": amount,
+                "currency": "EUR",
+                "name": name,
+                "counterparty_iban": iban,
+                "description": description,
+                "code": None,
+                "kind": None,
+                "dedup_hash": f"tx{n}",
+                "raw": {},
+            }
+        ],
+    )
     return conn.execute("SELECT MAX(id) FROM bank_transactions").fetchone()[0]
 
 
@@ -57,6 +67,7 @@ def _row(conn, tid):
 # ---------------------------------------------------------------------------
 # Learning from your own labels
 # ---------------------------------------------------------------------------
+
 
 def test_an_own_label_teaches_the_rest_of_that_counterparty(conn, rid):
     first, second = _tx(conn, rid, "Sissi's"), _tx(conn, rid, "Sissi's")
@@ -109,6 +120,7 @@ def test_exclude_is_one_off_and_does_not_teach(conn, rid):
 # Claude
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def claude(conn, monkeypatch):
     """Claude may help, and answers what the test puts in `answers`."""
@@ -118,8 +130,7 @@ def claude(conn, monkeypatch):
 
     def _ask(items, categories, **_):
         fake["asked"].extend(i["id"] for i in items)
-        return [{"id": i["id"], "category": c, "confidence": z}
-                for i in items if (c_z := fake["answers"].get(i["id"])) for c, z in [c_z]]
+        return [{"id": i["id"], "category": c, "confidence": z} for i in items if (c_z := fake["answers"].get(i["id"])) for c, z in [c_z]]
 
     monkeypatch.setattr(ai_labelling, "_ask_claude", _ask)
     return fake
@@ -131,7 +142,7 @@ def test_without_key_or_consent_nothing_goes_out(conn, monkeypatch):
         ai_labelling.analyse(conn)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
     with pytest.raises(ai_labelling.AiError):
-        ai_labelling.analyse(conn)   # not turned on yet
+        ai_labelling.analyse(conn)  # not turned on yet
 
 
 def test_claude_labels_what_is_open_when_it_is_sure(conn, rid, claude):
@@ -194,6 +205,7 @@ def test_numbers_are_removed_before_sending():
 # Check everything
 # ---------------------------------------------------------------------------
 
+
 def _supermarket_that_food_is(conn, rid, claude, n=3):
     ids = [_tx(conn, rid, "ALBERT HEIJN 1234") for _ in range(n)]
     categorization.relabel(conn)
@@ -225,8 +237,7 @@ def test_the_suggestion_as_a_rule_also_applies_to_what_is_still_coming(conn, rid
     _supermarket_that_food_is(conn, rid, claude)
     [a] = ai_labelling.deviations(conn)
     ai_labelling.decision(conn, ids=a["ids"], choice="suggestion", category=a["suggestion"], rule=True)
-    assert all(_row(conn, i)["category"] == "Uit eten & bezorgen" and _row(conn, i)["category_manual"] is None
-               for i in a["ids"])
+    assert all(_row(conn, i)["category"] == "Uit eten & bezorgen" and _row(conn, i)["category_manual"] is None for i in a["ids"])
     assert ai_labelling.deviations(conn) == []
     new = _tx(conn, rid, "ALBERT HEIJN 1234")
     categorization.relabel(conn)
@@ -237,8 +248,7 @@ def test_the_original_is_right_leaves_everything(conn, rid, claude):
     _supermarket_that_food_is(conn, rid, claude)
     [a] = ai_labelling.deviations(conn)
     ai_labelling.decision(conn, ids=a["ids"], choice="original")
-    assert all(_row(conn, i)["category"] == "Supermarkt" and _row(conn, i)["category_manual"] is None
-               for i in a["ids"])
+    assert all(_row(conn, i)["category"] == "Supermarkt" and _row(conn, i)["category_manual"] is None for i in a["ids"])
     assert ai_labelling.deviations(conn) == []
 
 
@@ -280,11 +290,14 @@ def test_a_tikkie_without_a_target_is_not_guessed(conn, rid, claude):
     assert _row(conn, tid)["category"] == "Betaald aan vrienden"
 
 
-@pytest.mark.parametrize("name, description, expected", [
-    ("GH DEKKER CJ", "Name: GH DEKKER CJ Description: Betaling van GH DEKKER CJ IBAN: NL55ABNA0123456789", False),
-    ("de Groot via Tikkie", "Name: de Groot via Tikkie Description: 001000000070 0031012345678901", False),
-    ("Hr T Mulder", "Name: Hr T Mulder Description: Tapas IBAN: NL07INGB0001234567", True),
-])
+@pytest.mark.parametrize(
+    "name, description, expected",
+    [
+        ("GH DEKKER CJ", "Name: GH DEKKER CJ Description: Betaling van GH DEKKER CJ IBAN: NL55ABNA0123456789", False),
+        ("de Groot via Tikkie", "Name: de Groot via Tikkie Description: 001000000070 0031012345678901", False),
+        ("Hr T Mulder", "Name: Hr T Mulder Description: Tapas IBAN: NL07INGB0001234567", True),
+    ],
+)
 def test_target_text(name, description, expected):
     assert categorization.has_target_text(name, description) is expected
 
@@ -292,6 +305,7 @@ def test_target_text(name, description, expected):
 # ---------------------------------------------------------------------------
 # Regelvoorstellen
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def patterns(claude, monkeypatch):
@@ -336,7 +350,7 @@ def test_a_too_broad_pattern_falls_back_to_the_name(conn, rid, patterns):
     _tiofli(conn, rid)
     otherwise = _tx(conn, rid, "Sissis 1 AMSTERDAM NLD")
     bank_transactions.set_category_manual(conn, otherwise, "Uit eten & bezorgen")
-    patterns["make"] = lambda group_name: "AMSTERDAM"       # also finds Sissis: clashes with your own label
+    patterns["make"] = lambda group_name: "AMSTERDAM"  # also finds Sissis: clashes with your own label
     ai_labelling.make_rule_suggestions(conn)
     [v] = ai_labelling.rule_suggestions(conn)
     assert v["pattern"] == "TIOFLI.*AMSTERDAM" and v["clashes"] == 0
@@ -386,9 +400,14 @@ def test_a_check_round_names_what_it_found(conn, rid, claude):
     claude["answers"] = {i: ("Uit eten & bezorgen", 0.9) for i in ids}
     v = ai_labelling.verify(conn)
     assert v["deviating"] == 1
-    assert v["items"][0] | {"confidence": 0} == {"name": "ALBERT HEIJN 1234", "now": "Supermarkt",
-                                                "suggestion": "Uit eten & bezorgen", "confidence": 0, "count": 2,
-                                                "reason": None}
+    assert v["items"][0] | {"confidence": 0} == {
+        "name": "ALBERT HEIJN 1234",
+        "now": "Supermarkt",
+        "suggestion": "Uit eten & bezorgen",
+        "confidence": 0,
+        "count": 2,
+        "reason": None,
+    }
 
 
 def test_not_right_removes_the_label_and_does_not_ask_again(conn, rid, claude):
@@ -431,7 +450,7 @@ def test_review_again_but_not_what_you_rejected(conn, rid, claude):
 def test_thorough_reviews_what_haiku_did_not_know_with_more_context(conn, rid, claude, monkeypatch):
     ids = [_tx(conn, rid, "Zaak Diep 9", f"bon {i}", amount=10.0 + i) for i in range(3)]
     categorization.relabel(conn)
-    ai_labelling.analyse(conn)                       # Haiku does not know
+    ai_labelling.analyse(conn)  # Haiku does not know
     status = ai_labelling.status(conn)
     assert (status["to_ask"], status["again"], status["thorough"]) == (0, 0, 1)
 

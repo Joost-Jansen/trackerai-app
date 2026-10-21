@@ -44,13 +44,7 @@ export const EXPOSURE_LABELS: Labels = {
   none: { icon: "✕", text: tr("No holdings data"), colour: "text-loss" },
 };
 
-export default function QualityStrip({
-  buckets,
-  labels,
-}: {
-  buckets: QualityBucket[];
-  labels: Labels;
-}) {
+export default function QualityStrip({ buckets, labels }: { buckets: QualityBucket[]; labels: Labels }) {
   if (!buckets.length) return null;
 
   // No more "Data quality:" prefix: both places are now in a card that already says
@@ -76,9 +70,7 @@ export default function QualityStrip({
               {bucket.kind !== "none" && ` · ${fmtEu(bucket.pct, { decimals: 0 })}%`}
             </b>
             {label.suffix && <span className="text-text/50"> {label.suffix}</span>}
-            {!label.suffix && bucket.tickers.length > 0 && (
-              <span className="text-text/50"> – {bucket.tickers.join(", ")}</span>
-            )}
+            {!label.suffix && bucket.tickers.length > 0 && <span className="text-text/50"> – {bucket.tickers.join(", ")}</span>}
           </span>
         );
       })}

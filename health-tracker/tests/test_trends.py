@@ -1,7 +1,6 @@
 from datetime import date
 
 from api.trends import (
-    sleep_stages,
     build_trends,
     goal_from_plan,
     hr_flags,
@@ -14,6 +13,7 @@ from api.trends import (
     recovery_daily,
     recovery_normals,
     recovery_weekly,
+    sleep_stages,
     standalone_runs,
     vo2max,
     weekly_volume,
@@ -83,16 +83,20 @@ NEW_NONE = {"sleep_resp": None, "sleep_stress": None, "bb_charged_sleep": None, 
 
 def test_recovery_weekly_averages():
     out = recovery_weekly({"2026-09-28": {"resting_hr": 48, "sleep_h": 6.0}, "2026-09-29": {"resting_hr": 50}})
-    assert out == [{"week": "2026-09-28", "resting_hr": 49.0, "sleep_h": 6.0, "body_battery_high": None, "stress_avg": None, "hrv": None, **NEW_NONE}]
+    assert out == [
+        {"week": "2026-09-28", "resting_hr": 49.0, "sleep_h": 6.0, "body_battery_high": None, "stress_avg": None, "hrv": None, **NEW_NONE}
+    ]
 
 
 def test_sleep_stages_per_night_skip_days_without_stages():
-    out = sleep_stages({
-        "2026-10-05": {"sleep_h": 7.6, "deep_sleep_h": 1.8, "light_sleep_h": 4.0, "rem_sleep_h": 1.7, "awake_h": 0.7},
-        "2026-10-04": {"steps": 9000},  # no night: left out
-        "2026-10-03": {"deep_sleep_h": 1.5, "light_sleep_h": 4.5},  # no REM or awake recorded: 0
-        "2026-09-14": {"sleep_h": 6.7, "deep_sleep_h": 0.8, "rem_sleep_h": 0.7},  # synced before light was stored
-    })
+    out = sleep_stages(
+        {
+            "2026-10-05": {"sleep_h": 7.6, "deep_sleep_h": 1.8, "light_sleep_h": 4.0, "rem_sleep_h": 1.7, "awake_h": 0.7},
+            "2026-10-04": {"steps": 9000},  # no night: left out
+            "2026-10-03": {"deep_sleep_h": 1.5, "light_sleep_h": 4.5},  # no REM or awake recorded: 0
+            "2026-09-14": {"sleep_h": 6.7, "deep_sleep_h": 0.8, "rem_sleep_h": 0.7},  # synced before light was stored
+        }
+    )
     assert out == [
         {"date": "2026-09-14", "deep": 0.8, "light": 5.2, "rem": 0.7, "awake": 0},  # light = total - deep - REM
         {"date": "2026-10-03", "deep": 1.5, "light": 4.5, "rem": 0, "awake": 0},
@@ -140,7 +144,7 @@ def test_predictions_use_riegel_from_longest_recent_effort():
     acts = [hard_run("h", "2026-09-27T11:30:00", km=21.0975, secs=6000), act("s", "2026-09-01T08:00:00", raw={"fastestSplit_5000": 1260})]
     p = predictions(acts, date(2026, 9, 30))
     assert p["42k"]["from"]["activity_id"] == "h"
-    assert p["42k"]["seconds"] == round(6000 * 2 ** 1.06)
+    assert p["42k"]["seconds"] == round(6000 * 2**1.06)
     assert p["5k"]["seconds"] == 1260 and p["5k"]["from"]["source"] == "split"
     assert predictions(acts, date(2027, 9, 30)) == {}  # nothing in the last 180 days
 
@@ -192,7 +196,10 @@ def test_recent_records_only_improvements_in_the_last_two_weeks():
 
 
 def test_record_insight_for_a_recent_record():
-    acts = [act("a", "2026-06-01T08:00:00", raw={"fastestSplit_5000": 1500}), act("b", "2026-09-25T08:00:00", raw={"fastestSplit_5000": 1450})]
+    acts = [
+        act("a", "2026-06-01T08:00:00", raw={"fastestSplit_5000": 1500}),
+        act("b", "2026-09-25T08:00:00", raw={"fastestSplit_5000": 1450}),
+    ]
     out = by_code(build_trends(acts, {}, ZONES, lambda aid: None, date(2026, 9, 30))["insights"])
     assert out["record_set"]["params"] == {"key": "5k", "seconds": 1450, "previous_seconds": 1500, "date": "2026-09-25", "activity_id": "b"}
 

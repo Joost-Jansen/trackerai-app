@@ -12,26 +12,44 @@ import { PAGES, type Onboarding, type StepId } from "@/lib/onboarding";
 const FIRST_SYNC_DAYS = 365;
 
 export function A({ href, children, onClick }: { href: string; children: React.ReactNode; onClick?: () => void }) {
-  return <Link href={href} onClick={onClick} className="underline underline-offset-4">{children}</Link>;
+  return (
+    <Link href={href} onClick={onClick} className="underline underline-offset-4">
+      {children}
+    </Link>
+  );
 }
 
 /** A check mark: green when done, a dot when still to do. */
 export function Check({ done, size = 20 }: { done: boolean; size?: number }) {
   return (
-    <span aria-hidden className="grid flex-none place-items-center rounded-full text-[11px] font-semibold"
+    <span
+      aria-hidden
+      className="grid flex-none place-items-center rounded-full text-[11px] font-semibold"
       style={{
-        width: size, height: size,
+        width: size,
+        height: size,
         background: done ? "var(--pos)" : "var(--surface-inset)",
         color: done ? "var(--surface-card)" : "var(--text-faint)",
-      }}>
+      }}
+    >
       {done ? "✓" : "·"}
     </span>
   );
 }
 
 /** One row of a checklist. */
-export function CheckRow({ done, title, optional, children, action }: {
-  done: boolean; title: string; optional?: boolean; children?: React.ReactNode; action?: React.ReactNode;
+export function CheckRow({
+  done,
+  title,
+  optional,
+  children,
+  action,
+}: {
+  done: boolean;
+  title: string;
+  optional?: boolean;
+  children?: React.ReactNode;
+  action?: React.ReactNode;
 }) {
   const t = useT();
   return (
@@ -63,7 +81,8 @@ export function stepSummary(id: StepId, o: Onboarding, t: Messages, f: Format): 
     case "garmin":
       if (o.device === "apple") {
         if (st.apple.running) return s.appleRunning;
-        if (st.apple.imported) return s.appleDone(st.apple.workouts ?? 0, st.apple.days ?? 0, st.apple.imported_at ? f.day(st.apple.imported_at) : null);
+        if (st.apple.imported)
+          return s.appleDone(st.apple.workouts ?? 0, st.apple.days ?? 0, st.apple.imported_at ? f.day(st.apple.imported_at) : null);
         return st.apple.failed ? s.appleFailed : s.appleTodo;
       }
       return st.garmin.connected ? s.garminConnected(st.garmin.connected_at ? f.day(st.garmin.connected_at) : null) : s.garminTodo;
@@ -84,9 +103,20 @@ export function stepSummary(id: StepId, o: Onboarding, t: Messages, f: Format): 
       return o.steps.profile ? s.profileDone(st.profile.filled.map((k) => s.facts[k] ?? k)) : s.profileTodo;
     case "explore": {
       const left = PAGES.filter((p) => p.id !== "dashboard" && !o.visited.includes(p.id));
-      return left.length === 0
-        ? s.exploreDone
-        : <>{s.exploreLeft}{left.map((p, i) => <span key={p.id}>{i > 0 && ", "}<A href={p.href}>{t.onboarding.pages[p.id].label}</A></span>)}.</>;
+      return left.length === 0 ? (
+        s.exploreDone
+      ) : (
+        <>
+          {s.exploreLeft}
+          {left.map((p, i) => (
+            <span key={p.id}>
+              {i > 0 && ", "}
+              <A href={p.href}>{t.onboarding.pages[p.id].label}</A>
+            </span>
+          ))}
+          .
+        </>
+      );
     }
     case "agent":
       return o.steps.agent ? s.agentDone(st.agents.tokens) : s.agentTodo;
@@ -118,7 +148,11 @@ export function stepExplain(id: StepId, o: Onboarding | null, t: Messages): { in
     case "explore":
       return {
         intro: ex.explore,
-        bullets: PAGES.map((p) => <><b>{t.onboarding.pages[p.id].label}</b>: {t.onboarding.pages[p.id].text}</>),
+        bullets: PAGES.map((p) => (
+          <>
+            <b>{t.onboarding.pages[p.id].label}</b>: {t.onboarding.pages[p.id].text}
+          </>
+        )),
       };
     case "agent":
       return ex.agent;

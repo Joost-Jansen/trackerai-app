@@ -1,15 +1,15 @@
 """The shared trackerai account in wealth-tracker (core/accounts.py): old logins move over on first use, an account
 from another tracker joins, deleting reaches the data folder, and a wealth admin manages only wealth's own accounts."""
 
-import time
 import os
+import time
 
 import yaml
 from fastapi.testclient import TestClient
 
 from app.core import auth_store, config
-from trackerai_accounts import totp
 from domain import database
+from trackerai_accounts import totp
 
 
 def _login(client, user="alice", pw="alicepw", code=None):
@@ -35,7 +35,10 @@ def test_two_step_login_moves_along(client, _accounts):
     secret = totp.new_secret()
     with auth_store._locked_update() as cfg:
         cfg["credentials"]["usernames"]["alice"]["totp"] = {
-            "enabled": True, "secret": auth_store._encrypt_secret(secret), "backup_codes": []}
+            "enabled": True,
+            "secret": auth_store._encrypt_secret(secret),
+            "backup_codes": [],
+        }
     r = _login(client)
     assert r.status_code == 401 and r.json()["code"] == "totp_required"
     assert _login(client, code=totp.code_at(secret, time.time() + 30)).status_code == 200
@@ -56,7 +59,9 @@ def test_an_account_from_another_tracker_joins(client, _accounts):
 
 
 def test_signing_up_waits_while_no_login_has_moved(client):
-    r = _client(client).post("/api/auth/register", json={"username": "zoe", "email": "zoe@example.org", "name": "Zoe", "password": "zoe-pw-2026-x"})
+    r = _client(client).post(
+        "/api/auth/register", json={"username": "zoe", "email": "zoe@example.org", "name": "Zoe", "password": "zoe-pw-2026-x"}
+    )
     assert r.status_code == 403 and r.json()["code"] == "registration_closed"
 
 

@@ -41,10 +41,8 @@ import sqlite3
 from collections import defaultdict
 from datetime import date
 
-from domain.money import month_periods
-from domain.money import accounts
 from domain.i18n import tr
-
+from domain.money import accounts, month_periods
 
 # Which kind of account ends up on which stack.
 INVESTMENT_KINDS = ("broker",)
@@ -89,7 +87,7 @@ def _money_from_others(conn: sqlite3.Connection, account_ids: set[int]) -> tuple
     who received 2,000 euros from friends stands at −2,000. series() counts only
     the negative part of it, as debt: see there for why.
     """
-    from domain.money import categorization   # here and not at the top: categorization leans on modules that use net_worth
+    from domain.money import categorization  # here and not at the top: categorization leans on modules that use net_worth
 
     if not account_ids:
         return [], []
@@ -151,11 +149,18 @@ def series(conn: sqlite3.Connection, investment_points: list[dict]) -> dict:
     cursor = conn.cursor()
     cursor.execute("SELECT DISTINCT account_id FROM bank_transactions")
     with_transactions = {r["account_id"] for r in cursor.fetchall()}
-    without_balance = sorted(r["name"] for r in active
-                          if r["id"] in with_transactions and not all_balances.get(r["id"]))
+    without_balance = sorted(r["name"] for r in active if r["id"] in with_transactions and not all_balances.get(r["id"]))
 
-    empty = {"points": [], "from_date": None, "measurements": 0, "now": None, "change": None,
-            "without_balance": without_balance, "deviating_balances": [], "pending_in_last": []}
+    empty = {
+        "points": [],
+        "from_date": None,
+        "measurements": 0,
+        "now": None,
+        "change": None,
+        "without_balance": without_balance,
+        "deviating_balances": [],
+        "pending_in_last": [],
+    }
     balances = {r["id"]: accounts.balances_for_series(conn, r["id"]) for r in take_part}
     deviating_balances, pending_in_last = [], []
     for r in take_part:
@@ -169,25 +174,41 @@ def series(conn: sqlite3.Connection, investment_points: list[dict]) -> dict:
         calculated_on = {m["date"]: round(accounts.value_on(series_balances, m["date"]), 2) for m in measurements}
         # A payment that is already in the last balance but not booked yet shifts every
         # earlier balance by the same amount: one report, not one per balance.
-        delta = accounts.anchor_difference(conn, r["id"], anchor, [
-            (m["date"], round(m["balance"] - calculated_on[m["date"]], 2), m["source"]) for m in measurements])
+        delta = accounts.anchor_difference(
+            conn, r["id"], anchor, [(m["date"], round(m["balance"] - calculated_on[m["date"]], 2), m["source"]) for m in measurements]
+        )
         if delta:
-            pending_in_last.append({"account": r["name"], "account_id": r["id"], "date": anchor,
-                                        "amount": abs(delta), "direction": "debits" if delta > 0 else "credits"})
+            pending_in_last.append(
+                {
+                    "account": r["name"],
+                    "account_id": r["id"],
+                    "date": anchor,
+                    "amount": abs(delta),
+                    "direction": "debits" if delta > 0 else "credits",
+                }
+            )
         for measurement in measurements:
             calculated = round(calculated_on[measurement["date"]] + delta, 2)
             difference = round(measurement["balance"] - calculated, 2)
             # Fetched before some of that day's bookings: simply right.
-            if abs(difference) > 0.011 and not (measurement["source"] == "sync"
-                                              and accounts.during_the_day(conn, r["id"], measurement["date"], difference)):
-                deviating_balances.append({
-                    "account": r["name"], "account_id": r["id"], "date": measurement["date"],
-                    "measured": measurement["balance"], "calculated": calculated, "source": measurement["source"],
-                    # The balance from which the app calculates back: the last measurement.
-                    "anchor": anchor,
-                    "explanation": accounts.explain_deviation(conn, r["id"], series_balances, measurement,
-                                                           calculated, anchor, occupied),
-                })
+            if abs(difference) > 0.011 and not (
+                measurement["source"] == "sync" and accounts.during_the_day(conn, r["id"], measurement["date"], difference)
+            ):
+                deviating_balances.append(
+                    {
+                        "account": r["name"],
+                        "account_id": r["id"],
+                        "date": measurement["date"],
+                        "measured": measurement["balance"],
+                        "calculated": calculated,
+                        "source": measurement["source"],
+                        # The balance from which the app calculates back: the last measurement.
+                        "anchor": anchor,
+                        "explanation": accounts.explain_deviation(
+                            conn, r["id"], series_balances, measurement, calculated, anchor, occupied
+                        ),
+                    }
+                )
     dates = {r["id"]: [m["date"] for m in balances[r["id"]]] for r in take_part}
     # Dots only on your own measurements. A balance from a statement or from your
     # transactions is not a measurement but a continuous series, and hundreds of
@@ -213,9 +234,7 @@ def series(conn: sqlite3.Connection, investment_points: list[dict]) -> dict:
     # the market on the portfolio itself: the change in value minus what was put
     # in, plus dividend. Money moved between the bank and the broker then never
     # looks like a gain or a loss, however the bank transfer was labelled.
-    put_in = {p["d"]: (p.get("invested") or 0.0,
-                       (p.get("value_divs") or p["value"]) - p["value"])
-              for p in investment_points}
+    put_in = {p["d"]: (p.get("invested") or 0.0, (p.get("value_divs") or p["value"]) - p["value"]) for p in investment_points}
 
     def put_in_on(d: str) -> tuple[float, float]:
         i = bisect.bisect_right(trading_days, d)
@@ -250,25 +269,27 @@ def series(conn: sqlite3.Connection, investment_points: list[dict]) -> dict:
         held = round(min(0.0, from_others_on(d)), 2)
         stacks["debt"] += held
         invested, dividends = put_in_on(d)
-        points.append({
-            "d": d,
-            "portfolio": round(portfolio, 2),
-            # Cumulative: buys minus sells, and dividend received. Only their
-            # change over a period means something.
-            "portfolio_invested": round(invested, 2),
-            "portfolio_dividends": round(dividends, 2),
-            "investments_external": round(external, 2),
-            "investments": round(stacks["investments"], 2),
-            "bank": round(stacks["bank"], 2),
-            "debt": round(stacks["debt"], 2),
-            "net": round(sum(stacks.values()), 2),
-            # How much of the debt is money of others that you still hold (zero or
-            # negative). Already included in debt above.
-            "held": held,
-            # A measured point is harder than a point in between, and the chart must be able
-            # to show that difference.
-            "measured": d in measurement_days,
-        })
+        points.append(
+            {
+                "d": d,
+                "portfolio": round(portfolio, 2),
+                # Cumulative: buys minus sells, and dividend received. Only their
+                # change over a period means something.
+                "portfolio_invested": round(invested, 2),
+                "portfolio_dividends": round(dividends, 2),
+                "investments_external": round(external, 2),
+                "investments": round(stacks["investments"], 2),
+                "bank": round(stacks["bank"], 2),
+                "debt": round(stacks["debt"], 2),
+                "net": round(sum(stacks.values()), 2),
+                # How much of the debt is money of others that you still hold (zero or
+                # negative). Already included in debt above.
+                "held": held,
+                # A measured point is harder than a point in between, and the chart must be able
+                # to show that difference.
+                "measured": d in measurement_days,
+            }
+        )
         day += timedelta(days=1)
 
     first, last = points[0], points[-1]
@@ -277,8 +298,7 @@ def series(conn: sqlite3.Connection, investment_points: list[dict]) -> dict:
         absolute = last["net"] - first["net"]
         change = {
             "absolute": round(absolute, 2),
-            "percent": (round(absolute / first["net"] * 100, 1)
-                        if first["net"] >= MINIMUM_BASE_FOR_PERCENT else None),
+            "percent": (round(absolute / first["net"] * 100, 1) if first["net"] >= MINIMUM_BASE_FOR_PERCENT else None),
             "since": first["d"],
         }
     return {
@@ -313,15 +333,16 @@ def daily_flows(conn: sqlite3.Connection) -> list[dict]:
     from domain.money.categorization import EXCLUDE, INVESTMENT_CATEGORY, role_of
 
     all_balances = _balances_per_account(conn)
-    bank_ids = sorted(r["id"] for r in accounts.load_accounts(conn, only_active=True)
-                      if stack_of(r["kind"]) == "bank" and all_balances.get(r["id"]))
+    bank_ids = sorted(
+        r["id"] for r in accounts.load_accounts(conn, only_active=True) if stack_of(r["kind"]) == "bank" and all_balances.get(r["id"])
+    )
     in_bank = f"account_id IN ({','.join('?' * len(bank_ids))})" if bank_ids else "1 = 0"
 
     cursor = conn.cursor()
-    bank_names = [r["name"] for r in cursor.execute("SELECT name, type FROM categories")
-                  if role_of(r["name"], r["type"]) == "bank"]
+    bank_names = [r["name"] for r in cursor.execute("SELECT name, type FROM categories") if role_of(r["name"], r["type"]) == "bank"]
     in_bank_role = f"category_effective IN ({','.join('?' * len(bank_names))})" if bank_names else "1 = 0"
-    cursor.execute(f"""
+    cursor.execute(
+        f"""
         SELECT date,
                -- Spending is positive in the database and income negative.
                -SUM(CASE WHEN type_effective IN ('INCOME', 'EXPENSE') THEN amount ELSE 0 END) AS saved,
@@ -333,10 +354,11 @@ def daily_flows(conn: sqlite3.Connection) -> list[dict]:
         FROM bank_transactions_typed
         GROUP BY date
         ORDER BY date ASC
-    """, (INVESTMENT_CATEGORY, EXCLUDE, *bank_ids, *bank_names))
+    """,
+        (INVESTMENT_CATEGORY, EXCLUDE, *bank_ids, *bank_names),
+    )
     keys = ("saved", "to_investments", "others", "unlabelled", "bank_flow", "bank_tx")
-    return [{"d": r["date"], **{k: round(r[k] or 0.0, 2) + 0.0 for k in keys}}
-            for r in cursor.fetchall()]
+    return [{"d": r["date"], **{k: round(r[k] or 0.0, 2) + 0.0 for k in keys}} for r in cursor.fetchall()]
 
 
 def bank_corrections(conn: sqlite3.Connection, start: str, end: str) -> dict:
@@ -368,10 +390,13 @@ def bank_corrections(conn: sqlite3.Connection, start: str, end: str) -> dict:
         series_balances = accounts.balances_for_series(conn, r["id"])
         dates = [m["date"] for m in series_balances]
         # Spending is positive in the database: an expense lowers the balance.
-        own = {row["date"]: -row["summed"] for row in conn.execute(
-            "SELECT date, SUM(amount) AS summed FROM bank_transactions "
-            "WHERE account_id = ? AND date > ? AND date <= ? GROUP BY date",
-            (r["id"], start, end))}
+        own = {
+            row["date"]: -row["summed"]
+            for row in conn.execute(
+                "SELECT date, SUM(amount) AS summed FROM bank_transactions WHERE account_id = ? AND date > ? AND date <= ? GROUP BY date",
+                (r["id"], start, end),
+            )
+        }
 
         def at(d: str) -> float:
             return accounts.value_on(series_balances, d, dates)
@@ -384,27 +409,35 @@ def bank_corrections(conn: sqlite3.Connection, start: str, end: str) -> dict:
             if not start < m["date"] <= end:
                 continue
             amount = at(m["date"]) - at(previous) - own_between(previous, m["date"])
-            kind = ("start" if i == 0 else "transfer" if m["source"] == "transfer"
-                    else "derived" if m["source"] == "derived" else "measurement")
+            kind = (
+                "start" if i == 0 else "transfer" if m["source"] == "transfer" else "derived" if m["source"] == "derived" else "measurement"
+            )
             if abs(amount) >= 0.005:
-                events.append({"date": m["date"], "kind": kind, "source": m["source"],
-                               "balance": round(m["balance"], 2), "amount": round(amount, 2)})
+                events.append(
+                    {"date": m["date"], "kind": kind, "source": m["source"], "balance": round(m["balance"], 2), "amount": round(amount, 2)}
+                )
             previous = m["date"]
         tail = at(end) - at(previous) - own_between(previous, end)
         if abs(tail) >= 0.005:
-            events.append({"date": end, "kind": "line", "source": "manual",
-                           "balance": round(at(end), 2), "amount": round(tail, 2)})
+            events.append({"date": end, "kind": "line", "source": "manual", "balance": round(at(end), 2), "amount": round(tail, 2)})
         transactions = sum(own.values())
         correction = at(end) - at(start) - transactions
         if abs(correction) < 0.005:
             continue
-        rows.append({"account_id": r["id"], "account": r["name"], "kind": r["kind"],
-                     "start_balance": round(at(start), 2), "end_balance": round(at(end), 2),
-                     "transactions": round(transactions, 2) + 0.0, "correction": round(correction, 2),
-                     "events": events})
+        rows.append(
+            {
+                "account_id": r["id"],
+                "account": r["name"],
+                "kind": r["kind"],
+                "start_balance": round(at(start), 2),
+                "end_balance": round(at(end), 2),
+                "transactions": round(transactions, 2) + 0.0,
+                "correction": round(correction, 2),
+                "events": events,
+            }
+        )
     rows.sort(key=lambda x: -abs(x["correction"]))
-    return {"start": start, "end": end,
-            "total": round(sum(x["correction"] for x in rows), 2) + 0.0, "accounts": rows}
+    return {"start": start, "end": end, "total": round(sum(x["correction"] for x in rows), 2) + 0.0, "accounts": rows}
 
 
 def per_month(conn: sqlite3.Connection) -> list[dict]:
@@ -461,8 +494,7 @@ def per_month(conn: sqlite3.Connection) -> list[dict]:
     coverage = [dict(r) for r in cursor.fetchall()]
     if not coverage:
         # All accounts closed: then the whole data is the only thing we have.
-        coverage = [{"name": tr("all accounts"), "start": first_day, "end": last_day,
-                    "first_balance": None}]
+        coverage = [{"name": tr("all accounts"), "start": first_day, "end": last_day, "first_balance": None}]
 
     # From the view, so exactly the same type counts here as the Spending list
     # shows — including your manual corrections. See database.init_db. Added up per
@@ -482,10 +514,16 @@ def per_month(conn: sqlite3.Connection) -> list[dict]:
     per: dict[str, dict] = {}
     for row in cursor.fetchall():
         key = layout.key(row["date"])
-        month = per.setdefault(key, {
-            "month": key, "spending": 0.0, "income": 0.0,
-            "internal": 0.0, "count": 0,
-        })
+        month = per.setdefault(
+            key,
+            {
+                "month": key,
+                "spending": 0.0,
+                "income": 0.0,
+                "internal": 0.0,
+                "count": 0,
+            },
+        )
         month["count"] += row["count"]
         if row["type"] == "EXPENSE":
             month["spending"] += row["summed"]
@@ -503,19 +541,20 @@ def per_month(conn: sqlite3.Connection) -> list[dict]:
 
         remaining = month["income"] - month["spending"]
         missing = sorted(d["name"] for d in coverage if _is_missing(d, begin, final))
-        outcome.append({
-            "month": month["month"],
-            "spending": round(month["spending"], 2),
-            "income": round(month["income"], 2),
-            "internal": round(month["internal"], 2),
-            "remaining": round(remaining, 2),
-            "spaarquote": (round(remaining / month["income"] * 100, 1)
-                           if month["income"] >= MINIMUM_INCOME_FOR_QUOTE else None),
-            "count": month["count"],
-            "complete": not missing,
-            "missing": missing,
-            "groups": groups.get(month["month"], {}),
-        })
+        outcome.append(
+            {
+                "month": month["month"],
+                "spending": round(month["spending"], 2),
+                "income": round(month["income"], 2),
+                "internal": round(month["internal"], 2),
+                "remaining": round(remaining, 2),
+                "spaarquote": (round(remaining / month["income"] * 100, 1) if month["income"] >= MINIMUM_INCOME_FOR_QUOTE else None),
+                "count": month["count"],
+                "complete": not missing,
+                "missing": missing,
+                "groups": groups.get(month["month"], {}),
+            }
+        )
     return outcome
 
 
@@ -540,8 +579,7 @@ def _is_missing(coverage: dict, begin: str, final: str) -> bool:
     return start > begin and not opened
 
 
-def spending_per_month_per_group(conn: sqlite3.Connection,
-                                 layout: "month_periods.Layout | None" = None) -> dict[str, dict[str, float]]:
+def spending_per_month_per_group(conn: sqlite3.Connection, layout: "month_periods.Layout | None" = None) -> dict[str, dict[str, float]]:
     """{month: {group: amount}} for everything that counts as EXPENSE, each group separately.
 
     The one place that says what spending per group is: the chart below merges the
@@ -551,22 +589,24 @@ def spending_per_month_per_group(conn: sqlite3.Connection,
     """
     layout = layout or month_periods.layout(conn)
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT date,
                COALESCE(group_name, ?)   AS group_name,
                SUM(amount)          AS summed
         FROM bank_transactions_typed
         WHERE type_effective = 'EXPENSE'
         GROUP BY 1, 2
-    """, (MISC,))
+    """,
+        (MISC,),
+    )
     outcome: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
     for row in cursor.fetchall():
         outcome[layout.key(row["date"])][row["group_name"]] += row["summed"]
     return {month: dict(groups) for month, groups in outcome.items()}
 
 
-def _spending_per_group(conn: sqlite3.Connection,
-                        layout: "month_periods.Layout | None" = None) -> dict[str, dict[str, float]]:
+def _spending_per_group(conn: sqlite3.Connection, layout: "month_periods.Layout | None" = None) -> dict[str, dict[str, float]]:
     """{month: {group: amount}} for everything that counts as EXPENSE.
 
     The largest MAX_GROUPS get their own name; the rest merges under "Overig".
@@ -584,20 +624,14 @@ def _spending_per_group(conn: sqlite3.Connection,
     for row in rows:
         total_per_group[row["group_name"]] += row["summed"]
 
-    own_colour = {
-        name for name, _ in
-        sorted(total_per_group.items(), key=lambda kv: -kv[1])[:MAX_GROUPS]
-    }
+    own_colour = {name for name, _ in sorted(total_per_group.items(), key=lambda kv: -kv[1])[:MAX_GROUPS]}
 
     per_month_group: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
     for row in rows:
         name = row["group_name"] if row["group_name"] in own_colour else MISC
         per_month_group[row["month"]][name] += row["summed"]
 
-    return {
-        month: {g: round(v, 2) for g, v in sorted(groups.items(), key=lambda kv: -kv[1])}
-        for month, groups in per_month_group.items()
-    }
+    return {month: {g: round(v, 2) for g, v in sorted(groups.items(), key=lambda kv: -kv[1])} for month, groups in per_month_group.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -619,8 +653,10 @@ def _spending_per_group(conn: sqlite3.Connection,
 # With `shared_as_spending` (a shared-costs category in Settings) the friends
 # part is your own share and moves to saved as spending.
 
+
 def _day_before(d: str) -> str:
     from datetime import timedelta
+
     return (date.fromisoformat(d) - timedelta(days=1)).isoformat()
 
 
@@ -635,8 +671,7 @@ def split(start: dict, end: dict, flows: list[dict], shared_as_spending: bool = 
     debt = (end["debt"] - (end.get("held") or 0)) - (start["debt"] - (start.get("held") or 0))
     # Before the first bank transaction there is nothing to split with.
     if not flows or start["d"] < _day_before(flows[0]["d"]):
-        return {"change": change, "saved": None, "market": None, "bank": None, "debt": None,
-                "detail": None, "shared": 0.0}
+        return {"change": change, "saved": None, "market": None, "bank": None, "debt": None, "detail": None, "shared": 0.0}
     saved = deposited = others = unlabelled = bank_flow = bank_tx = 0.0
     for f in flows:
         if start["d"] < f["d"] <= end["d"]:
@@ -648,9 +683,11 @@ def split(start: dict, end: dict, flows: list[dict], shared_as_spending: bool = 
             bank_tx += f.get("bank_tx") or 0
     on_holdings = all(p.get(k) is not None for p in (start, end) for k in ("portfolio", "portfolio_invested"))
     if on_holdings:
-        market = ((end["portfolio"] - start["portfolio"])
-                  - (end["portfolio_invested"] - start["portfolio_invested"])
-                  + ((end.get("portfolio_dividends") or 0) - (start.get("portfolio_dividends") or 0)))
+        market = (
+            (end["portfolio"] - start["portfolio"])
+            - (end["portfolio_invested"] - start["portfolio_invested"])
+            + ((end.get("portfolio_dividends") or 0) - (start.get("portfolio_dividends") or 0))
+        )
     else:
         market = end["investments"] - start["investments"] - deposited
     friends = (end.get("held") or 0) - (start.get("held") or 0) + others
@@ -665,15 +702,27 @@ def split(start: dict, end: dict, flows: list[dict], shared_as_spending: bool = 
     # corrections: money whose other half isn't a bank transaction.
     listed = bank_tx + unlabelled + (0.0 if shared_as_spending else others) if "bank_tx" in flows[0] else None
     other_half = None if listed is None else bank - listed - corrections
-    return {"change": change, "saved": saved, "market": market, "bank": bank, "debt": debt,
-            "detail": {"friends": friends, "unlabelled": unlabelled,
-                       "corrections": corrections, "transfers": transfers,
-                       "listed": listed, "other_half": other_half},
-            "shared": shared}
+    return {
+        "change": change,
+        "saved": saved,
+        "market": market,
+        "bank": bank,
+        "debt": debt,
+        "detail": {
+            "friends": friends,
+            "unlabelled": unlabelled,
+            "corrections": corrections,
+            "transfers": transfers,
+            "listed": listed,
+            "other_half": other_half,
+        },
+        "shared": shared,
+    }
 
 
-def split_per_month(points: list[dict], flows: list[dict], key, shared_as_spending: bool = False,
-                    *, until: str | None = None) -> list[dict]:
+def split_per_month(
+    points: list[dict], flows: list[dict], key, shared_as_spending: bool = False, *, until: str | None = None
+) -> list[dict]:
     """Per month the split of its change, like the month table on the Net worth page.
 
     `key(d)` gives the month of a date (month_periods.Layout.key). A month runs
@@ -691,10 +740,14 @@ def split_per_month(points: list[dict], flows: list[dict], key, shared_as_spendi
             final[key(p["d"])] = p
     rows, previous = [], None
     for month, p in final.items():
-        rows.append({
-            "month": month, "from": previous["d"] if previous else None, "to": p["d"],
-            "partial": p["d"] != last_of_month[month] or p["d"] == points[-1]["d"],
-            "split": split(previous, p, flows, shared_as_spending) if previous else None,
-        })
+        rows.append(
+            {
+                "month": month,
+                "from": previous["d"] if previous else None,
+                "to": p["d"],
+                "partial": p["d"] != last_of_month[month] or p["d"] == points[-1]["d"],
+                "split": split(previous, p, flows, shared_as_spending) if previous else None,
+            }
+        )
         previous = p
     return rows

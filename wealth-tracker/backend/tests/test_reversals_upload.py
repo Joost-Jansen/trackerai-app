@@ -11,8 +11,20 @@ import io
 
 import pandas as pd
 
-COLUMNS = ["Datum", "Tijd", "Valutadatum", "Product", "ISIN", "Omschrijving",
-            "FX", "Mutatie", "Unnamed: 8", "Saldo", "Unnamed: 10", "Order Id"]
+COLUMNS = [
+    "Datum",
+    "Tijd",
+    "Valutadatum",
+    "Product",
+    "ISIN",
+    "Omschrijving",
+    "FX",
+    "Mutatie",
+    "Unnamed: 8",
+    "Saldo",
+    "Unnamed: 10",
+    "Order Id",
+]
 BUNQ_HEADER = '"Date","Interest Date","Amount","Account","Counterparty","Name","Description"'
 BANK = "NL00BUNQ0000000009"
 ELSEWHERE = "DE00999999990000000001"
@@ -20,14 +32,29 @@ ELSEWHERE = "DE00999999990000000001"
 
 def _overview() -> bytes:
     def row(date, time, entry, balance, oms):
-        return {"Datum": date, "Tijd": time, "Valutadatum": date, "Product": "", "ISIN": "",
-                "Omschrijving": oms, "FX": "", "Mutatie": "EUR", "Unnamed: 8": entry,
-                "Saldo": "EUR", "Unnamed: 10": balance, "Order Id": ""}
+        return {
+            "Datum": date,
+            "Tijd": time,
+            "Valutadatum": date,
+            "Product": "",
+            "ISIN": "",
+            "Omschrijving": oms,
+            "FX": "",
+            "Mutatie": "EUR",
+            "Unnamed: 8": entry,
+            "Saldo": "EUR",
+            "Unnamed: 10": balance,
+            "Order Id": "",
+        }
+
     buf = io.BytesIO()
-    pd.DataFrame([
-        row("07-11-2025", "22:47", -69209.08, 0.0, "Opname"),
-        row("05-11-2025", "10:00", 69209.08, 69209.08, "Verkoop"),
-    ], columns=COLUMNS).to_excel(buf, index=False)
+    pd.DataFrame(
+        [
+            row("07-11-2025", "22:47", -69209.08, 0.0, "Opname"),
+            row("05-11-2025", "10:00", 69209.08, 69209.08, "Verkoop"),
+        ],
+        columns=COLUMNS,
+    ).to_excel(buf, index=False)
     return buf.getvalue()
 
 
@@ -41,8 +68,10 @@ def _login(client, user="alice", pw="alicepw"):
 
 
 def _upload_overview(client):
-    r = client.post("/api/uploads/dividends", files={"files": (
-        "Account.xlsx", _overview(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+    r = client.post(
+        "/api/uploads/dividends",
+        files={"files": ("Account.xlsx", _overview(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+    )
     assert r.status_code == 200, r.text
 
 
@@ -52,14 +81,13 @@ def _upload_bank(client):
 
 
 def _withdrawal(client) -> dict:
-    return next(t for t in client.get("/api/bank-transactions").json()["transactions"]
-                if t["counterparty_iban"] == ELSEWHERE)
+    return next(t for t in client.get("/api/bank-transactions").json()["transactions"] if t["counterparty_iban"] == ELSEWHERE)
 
 
 def test_first_the_bank_then_the_overview(client):
     _login(client)
     _upload_bank(client)
-    assert _withdrawal(client)["type"] == "INCOME"   # no counterpart known yet
+    assert _withdrawal(client)["type"] == "INCOME"  # no counterpart known yet
     _upload_overview(client)
     assert _withdrawal(client)["type"] == "INTERNAL"
 

@@ -11,12 +11,12 @@ import datetime
 
 import pytest
 
-from domain import database
-from domain.portfolio import positions as portfolio
 from app.services import dashboard_service, tradegate_service
 from app.services import holdings_service as hs
 from app.services import venue_price_service as vps
 from app.services.portfolio_service import PortfolioBundle
+from domain import database
+from domain.portfolio import positions as portfolio
 
 ISIN = "IE00B4L5YC18"
 NOW = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -26,31 +26,61 @@ LONG_AGO = "2026-01-02 12:00:00"
 def _tx(kind="BUY", qty=10.0, price=50.0, date="2026-01-05", time="09:30", isin=ISIN, exchange="TDG"):
     value = -(qty * price) if kind == "BUY" else qty * price
     return {
-        "isin": isin, "name": "iShares MSCI EM", "date": date, "time": time,
-        "transaction_type": kind, "quantity": qty, "price": price,
-        "value_eur": value, "total_eur": value - 1.0,
-        "transaction_fee": -1.0, "autofx_cost": None, "exchange": exchange,
+        "isin": isin,
+        "name": "iShares MSCI EM",
+        "date": date,
+        "time": time,
+        "transaction_type": kind,
+        "quantity": qty,
+        "price": price,
+        "value_eur": value,
+        "total_eur": value - 1.0,
+        "transaction_fee": -1.0,
+        "autofx_cost": None,
+        "exchange": exchange,
     }
 
 
 def _yahoo(price=55.15, prev=56.0, fetched=NOW, ticker="EUNM.DE"):
-    return {ISIN: {"isin": ISIN, "name": "iShares MSCI EM", "ticker": ticker, "price": price,
-                   "previous_close": prev, "currency": "EUR", "fetched_at": fetched}}
+    return {
+        ISIN: {
+            "isin": ISIN,
+            "name": "iShares MSCI EM",
+            "ticker": ticker,
+            "price": price,
+            "previous_close": prev,
+            "currency": "EUR",
+            "fetched_at": fetched,
+        }
+    }
 
 
 def _tdg(price=55.398, prev=56.304, fetched=NOW):
-    return {(ISIN, "TDG"): {"isin": ISIN, "venue": "TDG", "price": price, "previous_close": prev,
-                            "currency": "EUR", "source": "tradegate", "fetched_at": fetched}}
+    return {
+        (ISIN, "TDG"): {
+            "isin": ISIN,
+            "venue": "TDG",
+            "price": price,
+            "previous_close": prev,
+            "currency": "EUR",
+            "source": "tradegate",
+            "fetched_at": fetched,
+        }
+    }
 
 
 def _bundle(transactions, yahoo, venue):
     prices = vps.effective_prices(transactions, yahoo, venue)
     positions = portfolio.calculate_positions(transactions, prices)
     return PortfolioBundle(
-        prices=prices, transactions=transactions, dividends=[], dividends_by_isin={},
+        prices=prices,
+        transactions=transactions,
+        dividends=[],
+        dividends_by_isin={},
         positions=positions,
         summary=portfolio.calculate_portfolio_summary(positions, transactions, []),
-        venue_prices=venue, yahoo_prices=yahoo,
+        venue_prices=venue,
+        yahoo_prices=yahoo,
     )
 
 
@@ -61,18 +91,16 @@ TWO_VENUES = [_tx(qty=10, exchange="EAM"), _tx(qty=5, exchange="TDG", date="2026
 # Which price a position gets
 # ---------------------------------------------------------------------------
 
+
 def test_shares_per_venue_match_the_holdings_walk():
     txs = [
         _tx(qty=10, exchange="EAM"),
         _tx(qty=4, exchange="TDG", date="2026-02-01"),
         _tx("SELL", qty=3, exchange="EAM", date="2026-03-01"),
         _tx(qty=2, exchange=None, isin="NL0010773842"),
-        _tx("SELL", qty=4, exchange="TDG", date="2026-04-01"),   # TDG closed
+        _tx("SELL", qty=4, exchange="TDG", date="2026-04-01"),  # TDG closed
     ]
-    expected = {
-        key: round(b["shares"], 6)
-        for key, b in hs.cost_breakdown_by_venue(txs).items() if b["shares"] > 0.0001
-    }
+    expected = {key: round(b["shares"], 6) for key, b in hs.cost_breakdown_by_venue(txs).items() if b["shares"] > 0.0001}
     assert {k: round(v, 6) for k, v in vps.open_shares_by_venue(txs).items()} == expected
 
 
@@ -94,8 +122,7 @@ def test_the_per_isin_figures_add_up_to_the_positions():
     bundle = _bundle(TWO_VENUES, _yahoo(), _tdg())
     rows = hs.holdings_rows(bundle)
 
-    assert bundle.positions[0]["current_value"] == pytest.approx(
-        sum(r["current_value"] for r in rows), abs=0.011)
+    assert bundle.positions[0]["current_value"] == pytest.approx(sum(r["current_value"] for r in rows), abs=0.011)
 
     chip = dashboard_service.portfolio_day_change(bundle.positions, bundle.prices)
     assert chip["delta_eur"] == pytest.approx(sum(r["day_eur"] for r in rows), abs=0.011)
@@ -149,6 +176,7 @@ def test_without_venue_prices_nothing_changes():
 # The detail page's source line
 # ---------------------------------------------------------------------------
 
+
 def test_the_detail_names_tradegate_as_the_source():
     detail = hs.position_detail(_bundle([_tx(qty=5)], _yahoo(), _tdg()), ISIN, "TDG")
     assert detail["price_source"]["provider"] == "Tradegate"
@@ -169,9 +197,16 @@ def test_the_detail_says_fallback_when_tradegate_is_stale():
 # ---------------------------------------------------------------------------
 
 OK_QUOTE = {
-    "status": "ok", "isin": ISIN, "venue": "TDG", "currency": "EUR",
-    "last": 55.398, "bid": 55.0, "ask": 55.5, "previous_close": 56.304,
-    "fetched_at": "2026-09-14T19:24:25", "stale": False,
+    "status": "ok",
+    "isin": ISIN,
+    "venue": "TDG",
+    "currency": "EUR",
+    "last": 55.398,
+    "bid": 55.0,
+    "ask": 55.5,
+    "previous_close": 56.304,
+    "fetched_at": "2026-09-14T19:24:25",
+    "stale": False,
 }
 
 
@@ -192,7 +227,7 @@ def test_only_a_fresh_ok_quote_with_a_last_trade_is_stored(conn):
     assert row["fetched_at"] == "2026-09-14 19:24:25"
 
     assert not vps.save_quote(conn, {**OK_QUOTE, "stale": True, "last": 1.0})
-    assert not vps.save_quote(conn, {**OK_QUOTE, "last": None, "bid": 2.0})   # never bid instead
+    assert not vps.save_quote(conn, {**OK_QUOTE, "last": None, "bid": 2.0})  # never bid instead
     assert not vps.save_quote(conn, {"status": "unavailable", "isin": ISIN})
     assert not vps.save_quote(conn, None)
     assert database.load_venue_prices(conn)[(ISIN, "TDG")]["price"] == 55.398
@@ -220,14 +255,14 @@ def test_refresh_asks_tradegate_only_for_open_tdg_positions(conn, monkeypatch):
 def test_a_failed_tradegate_keeps_the_previous_price(conn, monkeypatch):
     vps.save_quote(conn, OK_QUOTE)
     monkeypatch.setattr(database, "load_transactions", lambda c: [_tx(qty=5)])
-    monkeypatch.setattr(tradegate_service, "get_quote",
-                        lambda isin: {"status": "unavailable", "isin": isin})
+    monkeypatch.setattr(tradegate_service, "get_quote", lambda isin: {"status": "unavailable", "isin": isin})
     assert vps.refresh(conn) == {"refreshed": 0, "failed": 1}
     assert database.load_venue_prices(conn)[(ISIN, "TDG")]["price"] == 55.398
 
 
 def test_load_venue_prices_on_an_unmigrated_database_is_empty(tmp_path):
     import sqlite3
+
     raw = sqlite3.connect(tmp_path / "old.db")
     raw.row_factory = sqlite3.Row
     assert database.load_venue_prices(raw) == {}

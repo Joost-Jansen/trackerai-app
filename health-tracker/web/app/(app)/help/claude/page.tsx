@@ -26,7 +26,14 @@ export default function HelpClaude() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card title={c.title} action={<ButtonLink href="/settings/agents/" size="sm" variant={tokens ? "secondary" : "primary"}>{c.toAgents}</ButtonLink>}>
+      <Card
+        title={c.title}
+        action={
+          <ButtonLink href="/settings/agents/" size="sm" variant={tokens ? "secondary" : "primary"}>
+            {c.toAgents}
+          </ButtonLink>
+        }
+      >
         <div className="flex max-w-[46rem] flex-col gap-3 text-[13.5px] leading-relaxed">
           <p>{ex.intro}</p>
           {o && (
@@ -40,13 +47,17 @@ export default function HelpClaude() {
 
       <Card title={c.connect}>
         <ol className="flex max-w-[46rem] list-decimal flex-col gap-2 pl-5 text-[13.5px] leading-relaxed">
-          {c.steps.map((s, i) => <li key={i}>{rich(s, tags)}</li>)}
+          {c.steps.map((s, i) => (
+            <li key={i}>{rich(s, tags)}</li>
+          ))}
         </ol>
       </Card>
 
       <Card title={c.good}>
         <ul className="flex max-w-[46rem] list-disc flex-col gap-1.5 pl-5 text-[13.5px] leading-relaxed">
-          {c.notes.map((s, i) => <li key={i}>{rich(s, tags)}</li>)}
+          {c.notes.map((s, i) => (
+            <li key={i}>{rich(s, tags)}</li>
+          ))}
         </ul>
       </Card>
     </div>

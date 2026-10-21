@@ -7,9 +7,9 @@ The pure functions take plain data; the router reads the caller's routes and act
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
 from statistics import median
-from typing import Callable
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -55,7 +55,9 @@ def _activity_track(aid: str, streams_fn: Callable, limit: int) -> list[list[flo
         latlng = [p for p in ((streams_fn(aid) or {}).get("latlng") or []) if p and p[0] is not None]
         if len(_TRACK_CACHE) >= _CACHE_MAX:
             _TRACK_CACHE.clear()
-        _TRACK_CACHE[key] = [[round(latlng[i][0], 5), round(latlng[i][1], 5)] for i in _pick(len(latlng), limit)] if len(latlng) >= 2 else []
+        _TRACK_CACHE[key] = (
+            [[round(latlng[i][0], 5), round(latlng[i][1], 5)] for i in _pick(len(latlng), limit)] if len(latlng) >= 2 else []
+        )
     return _TRACK_CACHE[key]
 
 
@@ -84,7 +86,9 @@ def _variants(route: dict, runs: list[dict], streams_fn: Callable, limit: int) -
     return out
 
 
-def route_summary(route: dict, activities: list[dict], streams_fn: Callable, points: int = PREVIEW_POINTS, variant_points: int = VARIANT_POINTS["preview"]) -> dict:
+def route_summary(
+    route: dict, activities: list[dict], streams_fn: Callable, points: int = PREVIEW_POINTS, variant_points: int = VARIANT_POINTS["preview"]
+) -> dict:
     runs = _runs(route, activities)
     paces = [(a, _pace(a)) for a in runs if _pace(a)]
     best = min(paces, key=lambda x: x[1]) if paces else None
@@ -92,16 +96,40 @@ def route_summary(route: dict, activities: list[dict], streams_fn: Callable, poi
     earlier = [p for _, p in paces[:-5]]
     eff = [e for e in (_efficiency(a) for a in runs) if e]
     return {
-        **{k: route.get(k) for k in ("id", "name", "distance_km", "is_loop", "elevation_gain_m", "runs", "first_run", "last_run", "median_pace", "median_speed_kmh", "median_hr", "start")},
+        **{
+            k: route.get(k)
+            for k in (
+                "id",
+                "name",
+                "distance_km",
+                "is_loop",
+                "elevation_gain_m",
+                "runs",
+                "first_run",
+                "last_run",
+                "median_pace",
+                "median_speed_kmh",
+                "median_hr",
+                "start",
+            )
+        },
         "sport": route.get("sport", "run"),
-        "best": {"activity_id": best[0]["id"], "date": best[0]["start_local"][:10], "pace_s_per_km": best[1], "moving_time_s": best[0].get("moving_time_s")} if best else None,
+        "best": {
+            "activity_id": best[0]["id"],
+            "date": best[0]["start_local"][:10],
+            "pace_s_per_km": best[1],
+            "moving_time_s": best[0].get("moving_time_s"),
+        }
+        if best
+        else None,
         "recent_pace_s_per_km": round(median(recent)) if recent else None,
         "earlier_pace_s_per_km": round(median(earlier)) if earlier else None,
         "recent_efficiency": round(median(eff[-5:]), 3) if eff[:-5] else None,
         "earlier_efficiency": round(median(eff[:-5]), 3) if eff[:-5] else None,
         "medoid_id": route.get("medoid_id"),
         # length variants (one circuit ridden with a detour, shortcut or lead-in); computed for routes stored before
-        "distance_variants": route.get("distance_variants") or distance_variants([member_from_activity(a) for a in runs if a.get("distance_km")], route.get("sport", "run")),
+        "distance_variants": route.get("distance_variants")
+        or distance_variants([member_from_activity(a) for a in runs if a.get("distance_km")], route.get("sport", "run")),
         "track": _track(route, runs, streams_fn, points),
         "variants": _variants(route, runs, streams_fn, variant_points),
     }
@@ -111,13 +139,32 @@ def route_detail(route: dict, activities: list[dict], streams_fn: Callable) -> d
     runs = _runs(route, activities)
     out = route_summary(route, activities, streams_fn, TRACK_POINTS, VARIANT_POINTS["detail"])
     out["history"] = [
-        {"id": a["id"], "date": a["start_local"][:10], "distance_km": a.get("distance_km"), "moving_time_s": a.get("moving_time_s"), "avg_hr": a.get("avg_hr"), "pace_s_per_km": _pace(a), "m_per_beat": _efficiency(a), "hr_zones_s": a.get("hr_zones_s")}
+        {
+            "id": a["id"],
+            "date": a["start_local"][:10],
+            "distance_km": a.get("distance_km"),
+            "moving_time_s": a.get("moving_time_s"),
+            "avg_hr": a.get("avg_hr"),
+            "pace_s_per_km": _pace(a),
+            "m_per_beat": _efficiency(a),
+            "hr_zones_s": a.get("hr_zones_s"),
+        }
         for a in runs
     ]
     return out
 
 
-def suggest(routes: list[dict], activities: list[dict], streams_fn: Callable, km: float, today: date, tolerance: float = 0.05, start: str | None = None, limit: int = 3, sport: str = "run") -> list[dict]:
+def suggest(
+    routes: list[dict],
+    activities: list[dict],
+    streams_fn: Callable,
+    km: float,
+    today: date,
+    tolerance: float = 0.05,
+    start: str | None = None,
+    limit: int = 3,
+    sport: str = "run",
+) -> list[dict]:
     """Routes of one sport only (routes stored without a sport are runs); `start` must be a route of that sport."""
     usable = [r for r in routes if r.get("start") and r.get("last_run") and r.get("sport", "run") == sport]
     if not usable:
@@ -128,7 +175,13 @@ def suggest(routes: list[dict], activities: list[dict], streams_fn: Callable, km
     out = []
     for rec in recommend(usable, km, today, tolerance, start=start, limit=limit, sport=sport):
         parts = [by_id[p] for p in rec["parts"]]
-        out.append({**rec, "names": [p.get("name") or p["id"] for p in parts], "tracks": {p["id"]: _track(p, _runs(p, activities), streams_fn, 300) for p in parts}})
+        out.append(
+            {
+                **rec,
+                "names": [p.get("name") or p["id"] for p in parts],
+                "tracks": {p["id"]: _track(p, _runs(p, activities), streams_fn, 300) for p in parts},
+            }
+        )
     return out
 
 
@@ -144,7 +197,9 @@ def _answered(scope) -> set:
     return {frozenset(p) for key in ("merge", "separate") for p in d.get(key) or [] if len(p) == 2}
 
 
-def candidates_view(pending: list[dict], answered: set, routes: list[dict], activities: list[dict], streams_fn: Callable, sport: str | None = None) -> list[dict]:
+def candidates_view(
+    pending: list[dict], answered: set, routes: list[dict], activities: list[dict], streams_fn: Callable, sport: str | None = None
+) -> list[dict]:
     """Open pairs with current names and a preview track per side; pairs whose route or activity is gone, that
     were answered, or whose activity is on a route by now are left out."""
     by_route = {r["id"]: r for r in routes}
@@ -160,12 +215,28 @@ def candidates_view(pending: list[dict], answered: set, routes: list[dict], acti
                 a = by_act.get(side["id"])
                 if a is None or side["id"] in on_route:
                     break
-                sides.append({"id": a["id"], "kind": "activity", "name": a.get("name"), "distance_km": a.get("distance_km"), "runs": 1, "date": a["start_local"][:10], "track": _activity_track(a["id"], streams_fn, PREVIEW_POINTS)})
+                sides.append(
+                    {
+                        "id": a["id"],
+                        "kind": "activity",
+                        "name": a.get("name"),
+                        "distance_km": a.get("distance_km"),
+                        "runs": 1,
+                        "date": a["start_local"][:10],
+                        "track": _activity_track(a["id"], streams_fn, PREVIEW_POINTS),
+                    }
+                )
             else:
                 r = by_route.get(side["id"])
                 if r is None:
                     break
-                sides.append({**{k: r.get(k) for k in ("id", "name", "distance_km", "runs", "last_run")}, "kind": "route", "track": _track(r, _runs(r, activities), streams_fn, PREVIEW_POINTS)})
+                sides.append(
+                    {
+                        **{k: r.get(k) for k in ("id", "name", "distance_km", "runs", "last_run")},
+                        "kind": "route",
+                        "track": _track(r, _runs(r, activities), streams_fn, PREVIEW_POINTS),
+                    }
+                )
         else:
             out.append({**{k: c.get(k) for k in ("sport", "outcome", "confidence", "reason_code", "reason")}, "a": sides[0], "b": sides[1]})
     return out
@@ -206,7 +277,10 @@ def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
         sport: str = "run",
         u=Depends(current_user),
     ):
-        return {"km": km, "options": suggest(u.store.routes, u.store.activities, u.store.streams, km, today(), tolerance, start, sport=sport)}
+        return {
+            "km": km,
+            "options": suggest(u.store.routes, u.store.activities, u.store.streams, km, today(), tolerance, start, sport=sport),
+        }
 
     @r.get("/api/routes/candidates")
     def list_candidates(sport: str | None = None, u=Depends(current_user)):

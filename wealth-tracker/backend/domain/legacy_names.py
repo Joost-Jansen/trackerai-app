@@ -30,21 +30,71 @@ TABLES = {
 }
 
 COLUMNS = {
-    "accounts": {"soort": "kind", "aanbieder": "provider", "naam": "name", "valuta": "currency", "extern_id": "external_id", "actief": "active", "aangemaakt_op": "created_at"},
+    "accounts": {
+        "soort": "kind",
+        "aanbieder": "provider",
+        "naam": "name",
+        "valuta": "currency",
+        "extern_id": "external_id",
+        "actief": "active",
+        "aangemaakt_op": "created_at",
+    },
     "account_balances": {"rekening_id": "account_id", "datum": "date", "saldo": "balance", "bron": "source"},
-    "bank_transactions": {"rekening_id": "account_id", "datum": "date", "rentedatum": "interest_date", "bedrag": "amount", "valuta": "currency", "naam": "name", "tegenpartij_iban": "counterparty_iban", "omschrijving": "description", "soort": "kind", "categorie_auto": "category_auto", "categorie_handmatig": "category_manual", "bron": "source", "categorie_bron": "category_source"},
-    "ai_suggestions": {"transactie_id": "transaction_id", "categorie": "category", "zekerheid": "confidence", "gemaakt_op": "created_at", "reden": "reason"},
-    "ai_checks": {"transactie_id": "transaction_id", "categorie": "category", "zekerheid": "confidence", "huidig": "current", "besluit": "decision", "gemaakt_op": "created_at", "reden": "reason"},
+    "bank_transactions": {
+        "rekening_id": "account_id",
+        "datum": "date",
+        "rentedatum": "interest_date",
+        "bedrag": "amount",
+        "valuta": "currency",
+        "naam": "name",
+        "tegenpartij_iban": "counterparty_iban",
+        "omschrijving": "description",
+        "soort": "kind",
+        "categorie_auto": "category_auto",
+        "categorie_handmatig": "category_manual",
+        "bron": "source",
+        "categorie_bron": "category_source",
+    },
+    "ai_suggestions": {
+        "transactie_id": "transaction_id",
+        "categorie": "category",
+        "zekerheid": "confidence",
+        "gemaakt_op": "created_at",
+        "reden": "reason",
+    },
+    "ai_checks": {
+        "transactie_id": "transaction_id",
+        "categorie": "category",
+        "zekerheid": "confidence",
+        "huidig": "current",
+        "besluit": "decision",
+        "gemaakt_op": "created_at",
+        "reden": "reason",
+    },
     "rule_suggestions": {"sleutel": "key", "patroon": "pattern", "categorie": "category", "gemaakt_op": "created_at"},
     "categories": {"groep": "group_name", "naam": "name", "volgorde": "sort_order"},
     "account_entries": {"rekening_id": "account_id", "datum": "date", "bedrag": "amount", "omschrijving": "description", "sleutel": "key"},
     "bank_connections": {"aanbieder": "provider", "sleutel": "key", "aangemaakt_op": "created_at"},
-    "bank_consents": {"land": "country", "sessie_id": "session_id", "geldig_tot": "valid_until", "fout": "error", "aangemaakt_op": "created_at", "laatst_opgehaald": "last_fetched"},
+    "bank_consents": {
+        "land": "country",
+        "sessie_id": "session_id",
+        "geldig_tot": "valid_until",
+        "fout": "error",
+        "aangemaakt_op": "created_at",
+        "laatst_opgehaald": "last_fetched",
+    },
     "bank_consent_accounts": {"toestemming_id": "consent_id", "rekening_id": "account_id"},
     "budgets": {"groep": "group_name", "bedrag": "amount"},
     "fixed_cost_choices": {"sleutel": "key", "vast": "is_fixed"},
     "debt_schedules": {"rekening_id": "account_id", "rente": "interest", "aflossing": "repayment", "vanaf": "from_date"},
-    "rules": {"prio": "priority", "veld": "field", "patroon": "pattern", "richting": "direction", "categorie": "category", "actief": "active"},
+    "rules": {
+        "prio": "priority",
+        "veld": "field",
+        "patroon": "pattern",
+        "richting": "direction",
+        "categorie": "category",
+        "actief": "active",
+    },
 }
 
 INDEXES = {"idx_bank_transacties_datum": "idx_bank_transactions_date"}
@@ -77,12 +127,21 @@ SETTINGS_KEYS = {
 SETTINGS_VALUES = {"month_periods": {"kalender": "calendar", "salaris": "salary"}}
 
 # JSON stored in settings: keys and string values renamed recursively.
-_ONBOARDING = {"keuze": "choice", "klaar": "done", "stap": "step",
-               "beleggingen": "investments", "geldzaken": "money", "allebei": "both"}
-_SPENDING = {"versie": "version", "grafieken": "charts", "zichtbaar": "visible",
-             "koers": "price", "maand": "month", "groep": "group_name", "verdeling": "distribution",
-             "vastvariabel": "fixed_variable", "wanneer": "when", "vastelasten": "fixedcosts", "inkomsten": "income",
-             "alle": "all"}
+_ONBOARDING = {"keuze": "choice", "klaar": "done", "stap": "step", "beleggingen": "investments", "geldzaken": "money", "allebei": "both"}
+_SPENDING = {
+    "versie": "version",
+    "grafieken": "charts",
+    "zichtbaar": "visible",
+    "koers": "price",
+    "maand": "month",
+    "groep": "group_name",
+    "verdeling": "distribution",
+    "vastvariabel": "fixed_variable",
+    "wanneer": "when",
+    "vastelasten": "fixedcosts",
+    "inkomsten": "income",
+    "alle": "all",
+}
 _AI = {"aan": "on"}
 JSON_SETTINGS = {"onboarding": _ONBOARDING, "preference:spending_overview": _SPENDING, "preference:ai_labelling": _AI}
 

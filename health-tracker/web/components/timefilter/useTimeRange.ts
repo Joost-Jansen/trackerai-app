@@ -16,7 +16,8 @@ function readStored(key: string): State | null {
     const raw = localStorage.getItem(`timerange:${key}`);
     if (!raw) return null;
     const s = JSON.parse(raw) as State;
-    if (s.custom && ISO.test(s.custom.from) && ISO.test(s.custom.to)) return { period: CUSTOM, custom: s.custom, preset: PERIODS.includes(s.preset) ? s.preset : DEFAULT_PERIOD };
+    if (s.custom && ISO.test(s.custom.from) && ISO.test(s.custom.to))
+      return { period: CUSTOM, custom: s.custom, preset: PERIODS.includes(s.preset) ? s.preset : DEFAULT_PERIOD };
     if (PERIODS.includes(s.period)) return { period: s.period, custom: null, preset: s.period };
   } catch {
     /* no storage: default */

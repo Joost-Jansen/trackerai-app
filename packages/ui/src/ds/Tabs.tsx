@@ -64,13 +64,7 @@ export default function Tabs({
             {i.label}
           </Link>
         ) : (
-          <button
-            key={i.id}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onChange?.(i.id)}
-            className={tabClass}
-          >
+          <button key={i.id} type="button" aria-pressed={active} onClick={() => onChange?.(i.id)} className={tabClass}>
             {i.label}
           </button>
         );

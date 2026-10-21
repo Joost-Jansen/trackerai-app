@@ -92,15 +92,17 @@ def parse(text: str) -> tuple[str | None, list[dict]]:
             continue
         release = release or get("NEVO-versie/NEVO-version") or None
         values = {key: _number(row[by_code[c]]) if by_code.get(c, len(row)) < len(row) else None for key, c in NEVO_CODES.items()}
-        out.append({
-            "source_code": code,
-            "name_nl": get("Voedingsmiddelnaam/Dutch food name"),
-            "name_en": get("Engelse naam/Food name") or None,
-            "synonyms": get("Synoniem") or None,
-            "food_group": get("Food group") or get("Voedingsmiddelgroep") or None,
-            "unit": "ml" if "ml" in get("Hoeveelheid/Quantity").lower() else "g",
-            "per_100": with_salt(values),
-        })
+        out.append(
+            {
+                "source_code": code,
+                "name_nl": get("Voedingsmiddelnaam/Dutch food name"),
+                "name_en": get("Engelse naam/Food name") or None,
+                "synonyms": get("Synoniem") or None,
+                "food_group": get("Food group") or get("Voedingsmiddelgroep") or None,
+                "unit": "ml" if "ml" in get("Hoeveelheid/Quantity").lower() else "g",
+                "per_100": with_salt(values),
+            }
+        )
     return release, out
 
 
@@ -116,8 +118,14 @@ def import_foods(engine, text: str) -> dict:
     version = f"NEVO-online {version_label(release)}"
     added = updated = 0
     with engine.begin() as conn:
-        have = {r.source_code: r for r in conn.execute(select(db.foods.c.id, db.foods.c.source_code, db.foods.c.per_100, db.foods.c.name_nl,
-                                                                db.foods.c.source_version).where(db.foods.c.source == SOURCE))}
+        have = {
+            r.source_code: r
+            for r in conn.execute(
+                select(db.foods.c.id, db.foods.c.source_code, db.foods.c.per_100, db.foods.c.name_nl, db.foods.c.source_version).where(
+                    db.foods.c.source == SOURCE
+                )
+            )
+        }
         for f in rows:
             old = have.get(f["source_code"])
             if old is None:

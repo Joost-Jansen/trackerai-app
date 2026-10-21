@@ -19,7 +19,7 @@ _log = logging.getLogger("uvicorn.error")
 HOW_TO = (
     "Set APP_ENCRYPTION_KEY to a Fernet key. On an existing server take over the key the app made "
     "itself: APP_ENCRYPTION_KEY=$(cat <DATA_DIR>/.encryption_key). A new one: python -c "
-    "\"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\". "
+    '"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())". '
     "For development only: ALLOW_INSECURE_DEFAULTS=true."
 )
 
@@ -34,8 +34,10 @@ def check() -> None:
     if not secret_box.environment_key():
         if not insecure:
             raise RuntimeError(f"APP_ENCRYPTION_KEY is required in production. {HOW_TO}")
-        _log.warning("[startup] APP_ENCRYPTION_KEY is not set; using a key file in the data folder "
-                     "(ALLOW_INSECURE_DEFAULTS=true). Do not run like this in production.")
+        _log.warning(
+            "[startup] APP_ENCRYPTION_KEY is not set; using a key file in the data folder "
+            "(ALLOW_INSECURE_DEFAULTS=true). Do not run like this in production."
+        )
     from trackerai_accounts import Config
 
     problems = Config.from_env().problems()

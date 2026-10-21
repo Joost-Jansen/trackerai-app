@@ -19,7 +19,8 @@ export function withFallback<X>(base: X, over: DeepPartial<X> | undefined): X {
   if (over === undefined) return base;
   if (typeof base !== "object" || base === null || typeof over !== "object" || over === null || Array.isArray(base)) return over as X;
   const out: Record<string, unknown> = { ...(base as Record<string, unknown>) };
-  for (const [k, v] of Object.entries(over as Record<string, unknown>)) out[k] = withFallback((base as Record<string, unknown>)[k], v as never);
+  for (const [k, v] of Object.entries(over as Record<string, unknown>))
+    out[k] = withFallback((base as Record<string, unknown>)[k], v as never);
   return out as X;
 }
 
@@ -142,7 +143,8 @@ export const en: Messages = {
     stayLoggedInHint: "On your own device. On a shared computer, untick it: you're logged out when the browser closes.",
     twoStepHelp: "How does two-step login work?",
     privacy: "Privacy",
-    consent: "I consent to the processing of my health data (workouts, heart rate, sleep and recovery) to show me my own overview, as described in the <link>privacy statement</link>. I can withdraw it at any time by deleting my account.",
+    consent:
+      "I consent to the processing of my health data (workouts, heart rate, sleep and recovery) to show me my own overview, as described in the <link>privacy statement</link>. I can withdraw it at any time by deleting my account.",
   },
 
   /** Feedback: something broken or an idea (components/feedback, settings/feedback). */
@@ -165,7 +167,8 @@ export const en: Messages = {
   privacy: {
     title: "Privacy",
     updated: "Last updated on 19 October 2026.",
-    intro: "health-tracker is a personal training dashboard: your workouts, sleep and recovery, your plan and your log. This installation is run by whoever hosts it (\u201cthe administrator\u201d), who is the controller of your data. Below is what data the app uses, what for, on what basis, for how long, and what you can do about it.",
+    intro:
+      "health-tracker is a personal training dashboard: your workouts, sleep and recovery, your plan and your log. This installation is run by whoever hosts it (\u201cthe administrator\u201d), who is the controller of your data. Below is what data the app uses, what for, on what basis, for how long, and what you can do about it.",
     controllerTitle: "Who is responsible",
     controller: (name: string | null, contact: string | null) =>
       `Controller: ${name ?? "the administrator of this installation"}${contact ? `, reachable at ${contact}` : ""}. Ask there about your data or this statement.`,
@@ -321,7 +324,8 @@ export const en: Messages = {
     upload_empty: "Empty file.",
     upload_too_large: (p: { max_mb: number }) => `File larger than ${p.max_mb} MB.`,
     fit_unreadable: "No readable activity in this FIT file.",
-    not_an_export: "This is not an Apple Health export. Upload the export.zip from the Health app (profile picture › Export All Health Data).",
+    not_an_export:
+      "This is not an Apple Health export. Upload the export.zip from the Health app (profile picture › Export All Health Data).",
     apple_import_running: "An import is already running.",
     import_failed: "The import failed. Try again; if it keeps failing, send feedback.",
     upload_not_found: "The upload has expired or was not found. Choose the file again.",
@@ -391,7 +395,8 @@ export const en: Messages = {
     twoStep: {
       title: "Two-step login",
       everywhere: "One setting for all your trackers: health-tracker and wealth-tracker use the same account.",
-      required: "Required for your account: you use more than one tracker or you are an admin, so one password opens more than your health data.",
+      required:
+        "Required for your account: you use more than one tracker or you are an admin, so one password opens more than your health data.",
       off: "Off. With two-step login, logging in also needs a code from an authenticator app on your phone (such as Google Authenticator, Microsoft Authenticator, 1Password or Bitwarden), so a leaked password alone is not enough.",
       adminHint: "Strongly recommended for admins: an admin account can see and change other accounts.",
       on: "On: logging in needs a code from your authenticator app.",
@@ -403,7 +408,8 @@ export const en: Messages = {
       confirm: "Confirm",
       cancel: "Cancel",
       backupTitle: "Your backup codes",
-      backupText: "Keep these somewhere safe, apart from your phone (a password manager, or on paper). Each code works once instead of a code from the app, for when you lose your phone. They are shown only now.",
+      backupText:
+        "Keep these somewhere safe, apart from your phone (a password manager, or on paper). Each code works once instead of a code from the app, for when you lose your phone. They are shown only now.",
       done: "I've saved them",
       turnOff: "Turn off",
       turnOffText: "To turn it off, enter your password and a code from the app (or a backup code).",
@@ -416,7 +422,8 @@ export const en: Messages = {
       makeCodes: "Make new codes",
       setUpAgain: "Set up again (new phone)…",
       appOff: "The authenticator app is off; your codes come by email. You can add the app too.",
-      setUpAgainText: "To move to a new phone: enter your password and a code from the app (or a backup code). Two-step login is then off, and you set it up again right away with your new phone.",
+      setUpAgainText:
+        "To move to a new phone: enter your password and a code from the app (or a backup code). Two-step login is then off, and you set it up again right away with your new phone.",
       failed: "That didn't work",
     },
     emailCodes: {
@@ -437,11 +444,13 @@ export const en: Messages = {
     },
     data: {
       title: "Your data",
-      exportText: "Download everything of your account: a zip with a JSON file per table (activities, streams, sleep and recovery, plans, log, documents, routes, settings, feedback) and your stored FIT files.",
+      exportText:
+        "Download everything of your account: a zip with a JSON file per table (activities, streams, sleep and recovery, plans, log, documents, routes, settings, feedback) and your stored FIT files.",
       export: "Download my data",
       exporting: "Preparing the download…",
       deleteTitle: "Delete account",
-      deleteText: "Deletes your whole trackerai account, in every tracker you use. Here: activities, FIT files, sleep and recovery, plans, log, documents, routes, agent tokens, feedback and connections (Wahoo access is revoked). This cannot be undone.",
+      deleteText:
+        "Deletes your whole trackerai account, in every tracker you use. Here: activities, FIT files, sleep and recovery, plans, log, documents, routes, agent tokens, feedback and connections (Wahoo access is revoked). This cannot be undone.",
       deletePassword: "Your password, to confirm",
       deleteCode: "Code from your app or email (or a backup code)",
       deleteConfirm: "Delete your account and all its data for good?",
@@ -463,12 +472,15 @@ export const en: Messages = {
     },
     gate: {
       totpTitle: "Set up two-step login",
-      totpText: "Your account opens more than one tracker (or you are an admin). So besides your password, logging in also needs a code from an authenticator app. You set it up once, for all your trackers.",
+      totpText:
+        "Your account opens more than one tracker (or you are an admin). So besides your password, logging in also needs a code from an authenticator app. You set it up once, for all your trackers.",
       joinTitle: "Use health-tracker",
-      joinText: "You already have a trackerai account. With health-tracker you see your workouts, sleep and recovery, with your own heart-rate zones.",
+      joinText:
+        "You already have a trackerai account. With health-tracker you see your workouts, sleep and recovery, with your own heart-rate zones.",
       consentTitle: "Consent for your health data",
       emailTitle: "Confirm your email",
-      emailText: (to: string) => `We sent a code to ${to}. Enter it to continue. From then on, logging in mails you a code too: that is your two-step login.`,
+      emailText: (to: string) =>
+        `We sent a code to ${to}. Enter it to continue. From then on, logging in mails you a code too: that is your two-step login.`,
       emailConfirm: "Confirm",
       emailAgain: "Send the code again",
       emailWrong: "Wrong address?",
@@ -518,7 +530,8 @@ export const en: Messages = {
     apple: {
       title: "Apple Health (Apple Watch)",
       manual: "Manual export and upload",
-      intro: "Got an Apple Watch? Apple has no online account the site can connect to: your data lives in the Health app on your iPhone. So this is not automatic like Garmin: export it there and upload the file here, and do that again each time you want your latest workouts and nights. Nothing is counted twice.",
+      intro:
+        "Got an Apple Watch? Apple has no online account the site can connect to: your data lives in the Health app on your iPhone. So this is not automatic like Garmin: export it there and upload the file here, and do that again each time you want your latest workouts and nights. Nothing is counted twice.",
       steps: [
         "On your iPhone, open the Health app and tap your profile picture at the top right.",
         "Tap “Export All Health Data” and then “Export”. With years of data this can take a few minutes.",
@@ -527,12 +540,14 @@ export const en: Messages = {
       ],
       choose: "Choose export.zip",
       again: "Import a newer export",
-      againHint: "Export again on your iPhone whenever you want your latest workouts and nights here. Workouts already imported are recognised, not added twice.",
+      againHint:
+        "Export again on your iPhone whenever you want your latest workouts and nights here. Workouts already imported are recognised, not added twice.",
       uploading: "Uploading",
       progress: {
         starting: "Starting the import",
         read: "Reading your export",
-        workouts: (done: number | null, total: number | null): string => (total ? `Saving workouts (${done ?? 0} of ${total})` : "Saving workouts"),
+        workouts: (done: number | null, total: number | null): string =>
+          total ? `Saving workouts (${done ?? 0} of ${total})` : "Saving workouts",
         days: "Saving sleep and recovery",
         derive: "Working out zones and routes",
       },
@@ -563,14 +578,21 @@ export const en: Messages = {
     },
     wahoo: {
       title: "Wahoo",
-      intro: "Connect your Wahoo account to bring in your rides from an ELEMNT or KICKR, with heart rate, power and GPS. You log in at Wahoo itself; the app only reads your workouts. The first time it fetches the past year, after that every morning whatever is new. A ride that is on Garmin too is merged, not counted twice.",
+      intro:
+        "Connect your Wahoo account to bring in your rides from an ELEMNT or KICKR, with heart rate, power and GPS. You log in at Wahoo itself; the app only reads your workouts. The first time it fetches the past year, after that every morning whatever is new. A ride that is on Garmin too is merged, not counted twice.",
       connect: "Connect Wahoo",
       notConfigured: "Wahoo is not set up on this server yet.",
       lastWorkout: "Last workout",
       unreadable: "The stored Wahoo connection can no longer be read (the server has a new key). Connect again.",
-      disconnectConfirm: "Disconnect Wahoo? Access at Wahoo is revoked and everything that came in through Wahoo is deleted: rides only Wahoo had, and Wahoo's part of rides that are on Garmin too. FIT files you uploaded yourself stay.",
+      disconnectConfirm:
+        "Disconnect Wahoo? Access at Wahoo is revoked and everything that came in through Wahoo is deleted: rides only Wahoo had, and Wahoo's part of rides that are on Garmin too. FIT files you uploaded yourself stay.",
       disconnected: (n: number) => `Wahoo disconnected; ${n === 1 ? "1 ride" : `${n} rides`} that only came from Wahoo removed.`,
-      result: { connected: "Wahoo is connected. The past year is being fetched; that can take a few minutes.", denied: "You did not give access at Wahoo; nothing was connected.", expired: "The Wahoo login took too long or did not match. Try again.", failed: "Connecting Wahoo failed. Try again later." } as Record<string, string>,
+      result: {
+        connected: "Wahoo is connected. The past year is being fetched; that can take a few minutes.",
+        denied: "You did not give access at Wahoo; nothing was connected.",
+        expired: "The Wahoo login took too long or did not match. Try again.",
+        failed: "Connecting Wahoo failed. Try again later.",
+      } as Record<string, string>,
     },
     unofficial:
       "Garmin has no public connection for individuals; the site logs in the way the Garmin Connect app does. That can break now and then when Garmin changes something.",
@@ -580,7 +602,7 @@ export const en: Messages = {
     saved: "Saved. The time per zone of your activities is being recalculated; that takes a moment.",
     title: "Heart-rate zones",
     intro:
-      "Zones as a percentage of your maximum heart rate, per sport. If you don't know your max, take the suggestion from your own data (your highest measured heart rate, without outliers) or estimate cycling and swimming from your running max and tick \"Estimate\".",
+      'Zones as a percentage of your maximum heart rate, per sport. If you don\'t know your max, take the suggestion from your own data (your highest measured heart rate, without outliers) or estimate cycling and swimming from your running max and tick "Estimate".',
     maxFor: (s: string) => `${sport(s)}: max heart rate`,
     estimate: "Estimate",
     suggestion: (bpm: number) => `Suggestion from your data: ${bpm}`,
@@ -597,15 +619,22 @@ export const en: Messages = {
     restingHr: "Resting heart rate (fallback)",
     restingHrHint: (value: number | null, source: string | null) =>
       `Only used when your watch has no measured nights: your resting heart rate is calculated from your nights. ${
-        value == null ? "Nothing to calculate yet." : `Calculated now: ${value} bpm (${source === "60d" ? "median of the last 60 days" : source === "recent" ? "median of your last 7 measured nights" : "this fallback"}).`
+        value == null
+          ? "Nothing to calculate yet."
+          : `Calculated now: ${value} bpm (${source === "60d" ? "median of the last 60 days" : source === "recent" ? "median of your last 7 measured nights" : "this fallback"}).`
       }`,
     rhrSource: (source: string | null | undefined): string =>
-      source === "recent" ? "median of your last 7 measured nights" : source === "profile" ? "from Settings, no measured nights" : "median of the last 60 days",
+      source === "recent"
+        ? "median of your last 7 measured nights"
+        : source === "profile"
+          ? "from Settings, no measured nights"
+          : "median of the last 60 days",
   },
 
   agents: {
     title: "Access for AI assistants (agents)",
-    intro1: "An AI assistant (Claude, ChatGPT, Codex, Copilot, Gemini or any other MCP client) can read your training data and, if you allow it, update your plan, log and goals.",
+    intro1:
+      "An AI assistant (Claude, ChatGPT, Codex, Copilot, Gemini or any other MCP client) can read your training data and, if you allow it, update your plan, log and goals.",
     intro2: "Choose your assistant below to connect it. You can revoke its access here at any time.",
     tokenName: "Token name",
     newToken: "New token",
@@ -613,20 +642,28 @@ export const en: Messages = {
     token: "Token",
     assistant: "Assistant",
     assistantHint: "Only for the instructions: the token works in every MCP client.",
-    clients: { claude: "Claude (app, claude.ai, Claude Code)", copilot: "GitHub Copilot (VS Code, CLI)", other: "Another MCP client (Cursor, Gemini CLI, …)" },
+    clients: {
+      claude: "Claude (app, claude.ai, Claude Code)",
+      copilot: "GitHub Copilot (VS Code, CLI)",
+      other: "Another MCP client (Cursor, Gemini CLI, …)",
+    },
     otherAssistant: "Another assistant? Choose it above; this token works there too.",
     appText:
-      "At <link>claude.ai/customize/connectors</link>, \"Add custom connector\". Name: health-tracker. Once per account: after that Claude can read your data and update your plan, goals and log in every new conversation, in the Claude app, on claude.ai and in Claude Code logged in with that account (also in the cloud). URL (contains the token, treat it as a password):",
+      'At <link>claude.ai/customize/connectors</link>, "Add custom connector". Name: health-tracker. Once per account: after that Claude can read your data and update your plan, goals and log in every new conversation, in the Claude app, on claude.ai and in Claude Code logged in with that account (also in the cloud). URL (contains the token, treat it as a password):',
     connectorUrl: "Connector URL",
-    chatgpt: "In ChatGPT on the web, switch on Developer mode under Settings (Apps or Connectors, Advanced). Then create a connector named health-tracker with this URL and authentication “No authentication”. The URL contains the token, treat it as a password:",
+    chatgpt:
+      "In ChatGPT on the web, switch on Developer mode under Settings (Apps or Connectors, Advanced). Then create a connector named health-tracker with this URL and authentication “No authentication”. The URL contains the token, treat it as a password:",
     codex: "Add this to ~/.codex/config.toml. It works for the Codex CLI and the IDE extension:",
     apiKeyCode: "Only for Claude Code with an API key instead of a claude.ai login, once in a terminal",
-    copilot: "VS Code and the Copilot CLI each keep their own list, so add it where you use Copilot. In VS Code: Command Palette, “MCP: Open User Configuration”, and add this server (inside the existing “servers”, if there is one).",
+    copilot:
+      "VS Code and the Copilot CLI each keep their own list, so add it where you use Copilot. In VS Code: Command Palette, “MCP: Open User Configuration”, and add this server (inside the existing “servers”, if there is one).",
     copilotCli: "Copilot CLI, once in a terminal",
-    other: "The server speaks MCP over streamable HTTP (no session, answers as JSON). Give the client the URL and the header, or, if it only takes a URL, the URL with the token in it.",
+    other:
+      "The server speaks MCP over streamable HTTP (no session, answers as JSON). Give the client the URL and the header, or, if it only takes a URL, the URL with the token in it.",
     urlWithToken: "URL with the token in it",
     cliTitle: "Only for tools/tr.py (command line)",
-    cliText: "Not needed if you use the connector. Set these two as variables in your own shell and allow network access to <code>host</code>.",
+    cliText:
+      "Not needed if you use the connector. Set these two as variables in your own shell and allow network access to <code>host</code>.",
     variables: "Variables",
     active: "Active tokens",
     none: "No tokens made on the site yet. (A token from tools/set_agent_token.py works too and is not listed here.)",
@@ -666,11 +703,13 @@ export const en: Messages = {
   },
 
   gear: {
-    intro: "How far your shoes and bike have gone and when they are due for replacement. Gear from Garmin Connect comes along with the sync; you can also add your own.",
+    intro:
+      "How far your shoes and bike have gone and when they are due for replacement. Gear from Garmin Connect comes along with the sync; you can also add your own.",
     add: "Add gear",
     loadFailed: "Could not load your gear.",
     emptyTitle: "No gear yet",
-    emptyBody: "Add your running shoes or bike. If your gear is in Garmin Connect, it shows up here with all its kilometres after the next sync.",
+    emptyBody:
+      "Add your running shoes or bike. If your gear is in Garmin Connect, it shows up here with all its kilometres after the next sync.",
     kinds: { shoes: "Shoes", bike: "Bike", other: "Other" },
     states: { ok: "In use", soon: "Nearly worn", replace: "Replace", retired: "Retired" },
     of: (limit: string) => `of ${limit}`,
@@ -711,7 +750,8 @@ export const en: Messages = {
       sinceHint: "Activities before this date do not get it as default.",
       retiredOn: "Retired on",
       defaultFor: "Default for",
-      defaultForHint: "New and earlier activities of this sport get this gear, unless you choose something on the activity or Garmin knows. One default per sport.",
+      defaultForHint:
+        "New and earlier activities of this sport get this gear, unless you choose something on the activity or Garmin knows. One default per sport.",
       takesOver: (name: string) => `takes over from ${name}`,
       noSports: "No activities yet, so no sports to choose from.",
       notes: "Notes",
@@ -749,7 +789,8 @@ export const en: Messages = {
     none: "No activity selected.",
     afterMultisport: "After swimming or cycling",
     distanceFix: {
-      doubtful: (gps: string, time: string) => `GPS measured ${gps} in ${time} of swimming. That can't be right: GPS is unreliable in open water, so this swim counts without a distance.`,
+      doubtful: (gps: string, time: string) =>
+        `GPS measured ${gps} in ${time} of swimming. That can't be right: GPS is unreliable in open water, so this swim counts without a distance.`,
       corrected: "You corrected this distance.",
       openWater: "Measured with GPS in open water, which can be off.",
       fix: "Enter the real distance",
@@ -789,7 +830,8 @@ export const en: Messages = {
     height: "Elevation",
     earlier: (name: string) => `Earlier times: ${name} (higher = faster)`,
     paceAria: "Pace on this loop over time",
-    footer: (hours: string, kcal: number | null) => `Total moving time ${hours}${kcal ? ` · ${kcal} kcal` : ""}. Heart rate from the wrist: check the chart when something looks odd.`,
+    footer: (hours: string, kcal: number | null) =>
+      `Total moving time ${hours}${kcal ? ` · ${kcal} kcal` : ""}. Heart rate from the wrist: check the chart when something looks odd.`,
   },
 
   routes: {
@@ -803,7 +845,8 @@ export const en: Messages = {
     searching: "Searching…",
     none: "No loops found.",
     notWithin: (km: string) => `Nothing within 5% of ${km} km; this comes closest.`,
-    option: (km: string, dev: string, days: number, notDone: string) => `${km} (${dev} km) · ${f.plural(days, { one: "# day", other: "# days" })} ${notDone}`,
+    option: (km: string, dev: string, days: number, notDone: string) =>
+      `${km} (${dev} km) · ${f.plural(days, { one: "# day", other: "# days" })} ${notDone}`,
     typicalAt: (typical: string, hr: string) => `: typically ${typical} at ${hr} bpm`,
     efficiencySame: "efficiency unchanged",
     moreEfficient: "more efficient",
@@ -816,7 +859,8 @@ export const en: Messages = {
     emptyRun: "No recurring loops yet",
     emptyRide: "No recurring bike loops yet",
     emptyRunBody: "A run counts as a loop once you have run the same route at least 3 times with GPS.",
-    emptyRideBody: "A ride counts as a loop once you have ridden the same route at least 2 times with GPS. Indoor rides (without GPS) don't count.",
+    emptyRideBody:
+      "A ride counts as a loop once you have ridden the same route at least 2 times with GPS. Indoor rides (without GPS) don't count.",
     loop: "loop",
     line: "route",
     elevationShort: (m: number) => `${m} m up`,
@@ -824,7 +868,8 @@ export const en: Messages = {
     timesDone: (n: number, done: string, last: string) => `${n}× ${done}, last ${last}`,
     typical: (typical: string, hr: string) => `typically ${typical} · ${hr} bpm`,
     best: (effort: string, day: string) => `best ${effort} (${day})`,
-    defaultName: (km: string, loop: boolean, ride: boolean, id: string) => `${km} km ${ride ? "bike " : ""}${loop ? "loop" : "route"} (${id})`,
+    defaultName: (km: string, loop: boolean, ride: boolean, id: string) =>
+      `${km} km ${ride ? "bike " : ""}${loop ? "loop" : "route"} (${id})`,
     back: "← Loops",
     notFound: "Loop not found.",
     noneChosen: "No loop selected.",
@@ -834,7 +879,8 @@ export const en: Messages = {
     map: "Map",
     mostTypical: "Most typical time",
     noTrack: "No GPS track for this route.",
-    mapNote: (n: number) => `Thick line: the most typical time (most like all the others). Thin and light: the ${n} other times, so you see where you deviated or started earlier or later.`,
+    mapNote: (n: number) =>
+      `Thick line: the most typical time (most like all the others). Thin and light: the ${n} other times, so you see where you deviated or started earlier or later.`,
     mapAria: (n: number) => (n ? `Map of the route with ${n} other times drawn lightly underneath` : "Map of the route"),
     speedTitle: "Speed on this loop",
     paceTitle: "Pace on this loop",
@@ -876,7 +922,8 @@ export const en: Messages = {
     loadFailed: "Could not load the plan.",
     noDatabase: "Note: the database is not connected yet (DATABASE_URL). Plans are stored temporarily and disappear with a new deploy.",
     emptyTitle: "No active plan yet",
-    emptyBody: "Make one yourself with the editor, paste a table from a spreadsheet, or let a coaching agent make one (it writes through the same API).",
+    emptyBody:
+      "Make one yourself with the editor, paste a table from a spreadsheet, or let a coaching agent make one (it writes through the same API).",
     create: "Create plan",
     paste: "Paste from table",
     finishConfirm: "Finish this plan? It then disappears from this page and from Today.",
@@ -1052,12 +1099,18 @@ export const en: Messages = {
   onboarding: {
     choices: {
       site: { title: "Just the site", text: "See your sessions, zones, trends, loops and plan on the site." },
-      claude: { title: "With Claude as your coach", text: "Everything on the site, plus Claude working with your data: analyses, plans and your log." },
+      claude: {
+        title: "With Claude as your coach",
+        text: "Everything on the site, plus Claude working with your data: analyses, plans and your log.",
+      },
     },
     devices: {
       question: "Which watch do you use?",
       garmin: { title: "Garmin", text: "Connect your Garmin account; every morning the site brings in what's new." },
-      apple: { title: "Apple Watch", text: "Upload the export of the Health app on your iPhone. Not automatic: upload a new export each time you want new data." },
+      apple: {
+        title: "Apple Watch",
+        text: "Upload the export of the Health app on your iPhone. Not automatic: upload a new export each time you want new data.",
+      },
     },
     steps: {
       garmin: { title: "Connect Garmin", link: "Connections" },
@@ -1091,10 +1144,12 @@ export const en: Messages = {
     card: {
       title: "Getting started",
       requiredDone: "You're set up: your sessions are coming in and everything uses your own zones. Anything left below is optional.",
-      requiredTodo: "Three quick steps and the site runs on your own data: connect Garmin, run the first sync and set your heart-rate zones. Everything else is optional.",
+      requiredTodo:
+        "Three quick steps and the site runs on your own data: connect Garmin, run the first sync and set your heart-rate zones. Everything else is optional.",
       laterPrefix: "Then, if you like: ",
       laterSuffix: "You'll also find all of this under <link>Help</link>.",
-      requiredTodoApple: "Two quick steps and the site runs on your own data: import your Apple Health export and set your heart-rate zones. Everything else is optional.",
+      requiredTodoApple:
+        "Two quick steps and the site runs on your own data: import your Apple Health export and set your heart-rate zones. Everything else is optional.",
     },
     banner: {
       notConnected: "No sessions yet. Connect your Garmin account and this page fills up on its own.",
@@ -1116,7 +1171,8 @@ export const en: Messages = {
       welcomeTitle: "Welcome to health-tracker",
       welcomeText: "Two quick questions, then we'll walk you through the setup step by step. You can change both later under Help.",
       example: "Example data",
-      exampleNote: "These pages show made-up example data, so you can see what they look like. Your own data comes back when the tour ends.",
+      exampleNote:
+        "These pages show made-up example data, so you can see what they look like. Your own data comes back when the tour ends.",
       back: "Back",
       skip: "Skip the tour",
       paused: (i: number, n: number) => `Tour · step ${i} of ${n}`,
@@ -1130,18 +1186,25 @@ export const en: Messages = {
       otherChoice: "Change choice",
       optional: (title: string) => `${title} (optional)`,
       introTitle: "How it works",
-      intro: "health-tracker brings in your sessions and recovery from Garmin and analyses everything using your own heart-rate zones. Three quick steps get you started; the rest can wait.",
+      intro:
+        "health-tracker brings in your sessions and recovery from Garmin and analyses everything using your own heart-rate zones. Three quick steps get you started; the rest can wait.",
       introBullets: ["Each step ticks itself off once it's done", "You can find all of this under Help in the sidebar"],
       phases: ["Connect Garmin", "Wait for the first sync", "Set your heart-rate zones"],
       goalsPlan: "Goals and plan",
       doneTitle: "You're all set",
-      doneIntro: "That's the tour. The checklist stays on Today until the basics are in place, and you can always find it under Help → Getting started.",
-      doneBullets: ["Want to see this again? Go to Help → Getting started → Restart tour", "The small print under many blocks explains how the numbers are worked out"],
-      introApple: "health-tracker reads the workouts, sleep and recovery from your Apple Watch and analyses everything using your own heart-rate zones. Unlike Garmin, this is not automatic: Apple doesn't let the site fetch your data, so each time you want your latest workouts and nights here, you export them on your iPhone and upload them again. Two quick steps get you started; the rest can wait.",
+      doneIntro:
+        "That's the tour. The checklist stays on Today until the basics are in place, and you can always find it under Help → Getting started.",
+      doneBullets: [
+        "Want to see this again? Go to Help → Getting started → Restart tour",
+        "The small print under many blocks explains how the numbers are worked out",
+      ],
+      introApple:
+        "health-tracker reads the workouts, sleep and recovery from your Apple Watch and analyses everything using your own heart-rate zones. Unlike Garmin, this is not automatic: Apple doesn't let the site fetch your data, so each time you want your latest workouts and nights here, you export them on your iPhone and upload them again. Two quick steps get you started; the rest can wait.",
       phasesApple: ["Export from the Health app and upload it (again for each update)", "Set your heart-rate zones"],
     },
     summary: {
-      garminConnected: (since: string | null) => `Connected${since ? ` since ${since}` : ""}. Your password isn't stored, only an encrypted session.`,
+      garminConnected: (since: string | null) =>
+        `Connected${since ? ` since ${since}` : ""}. Your password isn't stored, only an encrypted session.`,
       garminTodo: "Sign in with your Garmin account. Your password goes only to Garmin.",
       syncRunning: "Your first sync is running. This can take a few minutes; the step ticks itself off when it's done.",
       syncDone: (n: number, first: string, last: string, lastSync: string, failed: string[]) =>
@@ -1152,10 +1215,14 @@ export const en: Messages = {
       zonesTodo: "Enter your max heart rate for each sport and the site works out your five zones.",
       profileDone: (facts: string[]) => `Filled in: ${facts.join(", ")}.`,
       profileTodo: "Year of birth, weight, height and resting heart rate.",
-      facts: { birth_year: "year of birth", weight_kg: "weight", height_cm: "height", resting_hr: "resting heart rate" } as Record<string, string>,
+      facts: { birth_year: "year of birth", weight_kg: "weight", height_cm: "height", resting_hr: "resting heart rate" } as Record<
+        string,
+        string
+      >,
       exploreDone: "You've seen Today, Trends, Loops and History.",
       exploreLeft: "Not seen yet: ",
-      agentDone: (n: number) => `${f.plural(n, { one: "# token", other: "# tokens" })} active. Setup instructions for each Claude app are under Agents.`,
+      agentDone: (n: number) =>
+        `${f.plural(n, { one: "# token", other: "# tokens" })} active. Setup instructions for each Claude app are under Agents.`,
       agentTodo: "Create an agent token and connect Claude through MCP, in the Claude app or in Claude Code.",
       goalsDone: "Saved under Log → Goals.",
       goalsTodo: "What you're working towards: a race, a target time, or simply staying fit.",
@@ -1178,7 +1245,8 @@ export const en: Messages = {
         ],
       },
       apple: {
-        intro: "An Apple Watch keeps your data in the Health app on your iPhone; Apple has no account the site can connect to. So the site can't fetch new data by itself: you upload an export by hand, and again each time you want your latest workouts and nights here.",
+        intro:
+          "An Apple Watch keeps your data in the Health app on your iPhone; Apple has no account the site can connect to. So the site can't fetch new data by itself: you upload an export by hand, and again each time you want your latest workouts and nights here.",
         bullets: [
           "Not automatic: nothing comes in until you upload a new export. Once a week, or before you look at your trends, is a good habit",
           "On your iPhone: Health app → your profile picture (top right) → “Export All Health Data” → Export",
@@ -1194,7 +1262,8 @@ export const en: Messages = {
       ],
       zones: "Settings → Zones and profile: your max heart rate for each sport, and optionally the percentages for each zone",
       profile: ["Settings → Zones and profile, at the bottom", "Everything is optional and visible only to you"],
-      explore: "These four pages show what your sessions tell you. The small print under many blocks explains how the numbers are worked out.",
+      explore:
+        "These four pages show what your sessions tell you. The small print under many blocks explains how the numbers are worked out.",
       agent: {
         intro:
           "With an agent token, Claude can work with your data through MCP: it reads your sessions, zones and recovery, and writes analyses, plans and log entries. Anything Claude writes appears on the site straight away.",
@@ -1205,11 +1274,13 @@ export const en: Messages = {
         ],
       },
       goals: {
-        intro: "Your goals in your own words: a race and its date, a target time, or how often you want to train. Claude reads them every time you ask something.",
+        intro:
+          "Your goals in your own words: a race and its date, a target time, or how often you want to train. Claude reads them every time you ask something.",
         bullets: ["Log → Goals: plain text or markdown"],
       },
       plan: {
-        intro: "A day-by-day training plan. The site puts your sessions next to it: done, missed, and whether you trained in the right zone.",
+        intro:
+          "A day-by-day training plan. The site puts your sessions next to it: done, missed, and whether you trained in the right zone.",
         bullets: ["Plan: import a CSV or markdown table, or edit it on the site", "Or ask Claude to build a plan from your goals and data"],
       },
     },
@@ -1244,7 +1315,8 @@ export const en: Messages = {
         "The site fetches your sessions (with GPS and heart rate per second) and your recovery (sleep, resting heart rate, Body Battery) from Garmin, and works everything out with your own heart-rate zones: time per zone, load, form, loops and records.",
       contentsAria: "Contents",
       stepGarmin: "<b>Connect Garmin</b> under <link>Settings, Connections</link>.",
-      stepApple: "With an Apple Watch: <b>import Apple Health</b> under <link>Settings, Connections</link> (export it from the Health app on your iPhone first).",
+      stepApple:
+        "With an Apple Watch: <b>import Apple Health</b> under <link>Settings, Connections</link> (export it from the Health app on your iPhone first).",
       appleTitle: "With an Apple Watch",
       stepSync: "Wait for <b>the first sync</b>: it starts by itself.",
       stepZones: "Set your <b>heart-rate zones</b> under <link>Settings, Zones and profile</link>.",
@@ -1292,11 +1364,15 @@ export const en: Messages = {
     lastSync: (when: string) => `Last sync: ${when}`,
     lastImport: (when: string) => `Last Apple Health import: ${when}`,
     importNewer: "import a newer export",
-    importStale: (days: number): string => `That was ${days} days ago: workouts and nights since then are missing, because an Apple Watch doesn't send its data by itself. Export again in the Health app on your iPhone and upload it.`,
+    importStale: (days: number): string =>
+      `That was ${days} days ago: workouts and nights since then are missing, because an Apple Watch doesn't send its data by itself. Export again in the Health app on your iPhone and upload it.`,
     importNow: "Upload a new export",
     formTitle: "Form",
     allTrends: "All trends",
-    statuses: { transition: "Detraining", fresh: "Fresh", neutral: "Neutral", optimal: "Productive", high_risk: "High risk" } as Record<string, string>,
+    statuses: { transition: "Detraining", fresh: "Fresh", neutral: "Neutral", optimal: "Productive", high_risk: "High risk" } as Record<
+      string,
+      string
+    >,
     fitness: "Fitness",
     fatigue: "Fatigue",
     form: "Form",
@@ -1307,7 +1383,8 @@ export const en: Messages = {
     month: "Month",
     thisWeek: "This week",
     thisMonth: "This month",
-    noHrNow: (period: "week" | "month"): string => (period === "week" ? "No session with heart rate this week yet." : "No session with heart rate this month yet."),
+    noHrNow: (period: "week" | "month"): string =>
+      period === "week" ? "No session with heart rate this week yet." : "No session with heart rate this month yet.",
     noHrPeriod: "No session with heart rate in this period.",
     onlySport: (s: string) => `Only ${lower(s)} in this period.`,
     volumeTitle: "Volume this week",
@@ -1404,15 +1481,39 @@ export const en: Messages = {
       before: (text: string) => `Evening before: ${text}`,
     },
     nutrients: {
-      energy_kcal: "Energy", carbs_g: "Carbohydrate", sugars_g: "of which sugars", fiber_g: "Fibre", protein_g: "Protein", fat_g: "Fat",
-      sat_fat_g: "of which saturated", mufa_g: "of which monounsaturated", pufa_g: "of which polyunsaturated", omega3_g: "Omega-3",
-      trans_fat_g: "Trans fat", alcohol_g: "Alcohol", salt_g: "Salt", sodium_mg: "Sodium", iron_mg: "Iron", calcium_mg: "Calcium",
-      magnesium_mg: "Magnesium", potassium_mg: "Potassium", zinc_mg: "Zinc", vit_c_mg: "Vitamin C", vit_d_ug: "Vitamin D",
-      vit_b12_ug: "Vitamin B12", folate_ug: "Folate",
+      energy_kcal: "Energy",
+      carbs_g: "Carbohydrate",
+      sugars_g: "of which sugars",
+      fiber_g: "Fibre",
+      protein_g: "Protein",
+      fat_g: "Fat",
+      sat_fat_g: "of which saturated",
+      mufa_g: "of which monounsaturated",
+      pufa_g: "of which polyunsaturated",
+      omega3_g: "Omega-3",
+      trans_fat_g: "Trans fat",
+      alcohol_g: "Alcohol",
+      salt_g: "Salt",
+      sodium_mg: "Sodium",
+      iron_mg: "Iron",
+      calcium_mg: "Calcium",
+      magnesium_mg: "Magnesium",
+      potassium_mg: "Potassium",
+      zinc_mg: "Zinc",
+      vit_c_mg: "Vitamin C",
+      vit_d_ug: "Vitamin D",
+      vit_b12_ug: "Vitamin B12",
+      folate_ug: "Folate",
     },
     short: { saturated: "saturated", mono: "monounsat.", poly: "polyunsat.", sugars: "sugars" },
     moments: { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack", training: "During training", drinks: "Drinks" },
-    dayTypes: { rest: "Rest day", easy: "Easy day", moderate: "Moderate training day", long: "Long or hard training", race: "Race or over 3 hours" },
+    dayTypes: {
+      rest: "Rest day",
+      easy: "Easy day",
+      moderate: "Moderate training day",
+      long: "Long or hard training",
+      race: "Race or over 3 hours",
+    },
     perKg: (v: string) => `${v} g/kg`,
     ofRange: (lo: string, hi: string) => `of ${lo}–${hi}`,
     inRange: "within your target",
@@ -1481,7 +1582,8 @@ export const en: Messages = {
       photoFailed: "Could not read the photo. Search what you ate yourself; the photo is kept.",
       photoAlt: "Your meal",
       confidence: { high: "Claude is fairly sure", medium: "Claude is a bit unsure", low: "Claude is not sure" },
-      confidenceHelp: "How sure Claude is of what it is (not of the amount). When in doubt, check under 'swap' whether the right food is there.",
+      confidenceHelp:
+        "How sure Claude is of what it is (not of the amount). When in doubt, check under 'swap' whether the right food is there.",
       sawAs: (label: string) => `Seen as ${label}, swap:`,
       swap: "Swap",
       fromMemory: "Your usual portion; Claude estimated otherwise.",
@@ -1520,7 +1622,8 @@ export const en: Messages = {
     settings: {
       title: "Nutrition",
       ai: "Let Claude analyse photos",
-      aiHelp: "A photo of your meal goes, without location, to Anthropic to recognise foods and grams. The nutrient values always come from the food table.",
+      aiHelp:
+        "A photo of your meal goes, without location, to Anthropic to recognise foods and grams. The nutrient values always come from the food table.",
       aiUnavailable: "Photo analysis is not available on this server (no key for Claude is set).",
       photos: "Keep photos",
       keep30: "30 days",
@@ -1572,7 +1675,8 @@ export const en: Messages = {
     latest: "Latest",
     none: "No data from your watch yet. It comes in with the next sync (the first time the last two weeks through the day).",
     empty: "No data for this day: watch not worn, not synced yet, or the data does not come from Garmin.",
-    emptyToday: "Nothing of today has reached Garmin yet. Your watch sends its data through the Garmin Connect app on your phone: open the app, wait until it has synced, then sync here.",
+    emptyToday:
+      "Nothing of today has reached Garmin yet. Your watch sends its data through the Garmin Connect app on your phone: open the app, wait until it has synced, then sync here.",
     normal: (v: string) => `normal ${v}`,
     bpm: (v: number) => `${v} bpm`,
     sleep: "Sleep",
@@ -1591,7 +1695,8 @@ export const en: Messages = {
     sleepStress: "Stress while asleep",
     spo2: "Blood oxygen (SpO2)",
     bbCharged: "Body Battery charged",
-    estimate: "Sleep stages are the watch's estimate from heart rate and movement, not a measurement of brain waves: one night can be off, the trend over weeks is more reliable.",
+    estimate:
+      "Sleep stages are the watch's estimate from heart rate and movement, not a measurement of brain waves: one night can be off, the trend over weeks is more reliable.",
     noNight: "Too few heart-rate readings while asleep for a summary of the night.",
     day: "Day",
     restingHr: "Resting heart rate",
@@ -1607,12 +1712,14 @@ export const en: Messages = {
     activeKcal: "Active calories",
     kcal: (v: string) => `${v} kcal`,
     timeline: "Through the night and day",
-    timelineAria: (day: string) => `Heart rate, stress, Body Battery, breathing and blood oxygen on ${day}, with the night before. Use the arrow keys to read the values.`,
+    timelineAria: (day: string) =>
+      `Heart rate, stress, Body Battery, breathing and blood oxygen on ${day}, with the night before. Use the arrow keys to read the values.`,
     series: { hr: "Heart rate", stress: "Stress", bb: "Body Battery", resp: "Breathing", spo2: "SpO2" },
     unit: { hr: "bpm", stress: "", bb: "", resp: "/min", spo2: "%" },
     range: (lo: string, hi: string) => `${lo}–${hi}`,
     normalLine: (v: number) => `normal resting heart rate ${v}`,
-    source: "The watch measures heart rate and breathing every few minutes (a Garmin about every 2, an Apple Watch every 5 to 10 while you are still), stress and Body Battery every 3 (Garmin only), blood oxygen only when the watch does; a line breaks where there is no reading (watch off, or during a workout). Normal is the median of the 60 days before.",
+    source:
+      "The watch measures heart rate and breathing every few minutes (a Garmin about every 2, an Apple Watch every 5 to 10 while you are still), stress and Body Battery every 3 (Garmin only), blood oxygen only when the watch does; a line breaks where there is no reading (watch off, or during a workout). Normal is the median of the 60 days before.",
   },
 
   zones: {
@@ -1661,7 +1768,8 @@ export const en: Messages = {
   },
 
   trendsPage: {
-    brushAria: (window: string) => `Window on the whole history: ${window}. Use the date fields or the buttons to change it with the keyboard.`,
+    brushAria: (window: string) =>
+      `Window on the whole history: ${window}. Use the date fields or the buttons to change it with the keyboard.`,
   },
 
   charts: {
@@ -1697,6 +1805,6 @@ export const en: Messages = {
 };
 
 function ordinal(n: number): string {
-  const s = n % 100 >= 11 && n % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
+  const s = n % 100 >= 11 && n % 100 <= 13 ? "th" : (({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th");
   return `${n}${s}`;
 }

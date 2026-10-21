@@ -143,40 +143,94 @@ export default function CoachMark({
       {!docked && (
         <div aria-hidden className="pointer-events-none fixed inset-0 z-40">
           {/* The rest of the sidebar a little darker: above, below and beside the item. */}
-          <div className="absolute" style={{ background: DIM, left: rail.left, width: rail.width, top: rail.top, height: Math.max(0, item.top - RING - rail.top) }} />
-          <div className="absolute" style={{ background: DIM, left: rail.left, width: rail.width, top: item.top + item.height + RING, bottom: 0 }} />
-          <div className="absolute" style={{ background: DIM, left: rail.left, width: Math.max(0, item.left - RING - rail.left), top: item.top - RING, height: item.height + 2 * RING }} />
-          <div className="absolute" style={{ background: DIM, left: item.left + item.width + RING, width: Math.max(0, rail.left + rail.width - item.left - item.width - RING), top: item.top - RING, height: item.height + 2 * RING }} />
+          <div
+            className="absolute"
+            style={{ background: DIM, left: rail.left, width: rail.width, top: rail.top, height: Math.max(0, item.top - RING - rail.top) }}
+          />
+          <div
+            className="absolute"
+            style={{ background: DIM, left: rail.left, width: rail.width, top: item.top + item.height + RING, bottom: 0 }}
+          />
+          <div
+            className="absolute"
+            style={{
+              background: DIM,
+              left: rail.left,
+              width: Math.max(0, item.left - RING - rail.left),
+              top: item.top - RING,
+              height: item.height + 2 * RING,
+            }}
+          />
+          <div
+            className="absolute"
+            style={{
+              background: DIM,
+              left: item.left + item.width + RING,
+              width: Math.max(0, rail.left + rail.width - item.left - item.width - RING),
+              top: item.top - RING,
+              height: item.height + 2 * RING,
+            }}
+          />
           {/* The ring around the item. */}
-          <div className="absolute rounded-lg" style={{
-            left: item.left - RING, top: item.top - RING, width: item.width + 2 * RING, height: item.height + 2 * RING,
-            boxShadow: "0 0 0 2px var(--brand-300)",
-          }} />
+          <div
+            className="absolute rounded-lg"
+            style={{
+              left: item.left - RING,
+              top: item.top - RING,
+              width: item.width + 2 * RING,
+              height: item.height + 2 * RING,
+              boxShadow: "0 0 0 2px var(--brand-300)",
+            }}
+          />
         </div>
       )}
-      <div ref={pop} role="dialog" aria-modal="false" aria-label={tr.aria} aria-describedby="coachmark-text"
+      <div
+        ref={pop}
+        role="dialog"
+        aria-modal="false"
+        aria-label={tr.aria}
+        aria-describedby="coachmark-text"
         className={`fixed z-50 rounded-xl p-4 ${docked ? "mx-auto max-w-[420px]" : ""}`}
-        style={{ ...style, background: "var(--surface-card)", boxShadow: "inset 0 0 0 1px var(--border-hairline), var(--shadow-4)" }}>
+        style={{ ...style, background: "var(--surface-card)", boxShadow: "inset 0 0 0 1px var(--border-hairline), var(--shadow-4)" }}
+      >
         {!docked && (
           // A small arrow pointing at the item.
-          <span aria-hidden className="absolute h-3 w-3 rotate-45" style={{
-            left: -6, top: arrow - 6, background: "var(--surface-card)",
-            boxShadow: "-1px 1px 0 0 var(--border-hairline)",
-          }} />
+          <span
+            aria-hidden
+            className="absolute h-3 w-3 rotate-45"
+            style={{
+              left: -6,
+              top: arrow - 6,
+              background: "var(--surface-card)",
+              boxShadow: "-1px 1px 0 0 var(--border-hairline)",
+            }}
+          />
         )}
         <div className="flex items-center justify-between gap-2">
           <span className="text-[11.5px] text-ink-muted">{tr.step(index + 1, total)}</span>
-          <Button size="sm" variant="ghost" className="-mr-2" onClick={onSkip}>{tr.skip}</Button>
+          <Button size="sm" variant="ghost" className="-mr-2" onClick={onSkip}>
+            {tr.skip}
+          </Button>
         </div>
         <div className="mb-1 mt-1 flex items-center justify-between gap-2">
           <h3 className="font-display text-[19px] font-normal tracking-[-0.014em]">{title}</h3>
-          <Tag tone="brand" className="flex-none">{tr.example}</Tag>
+          <Tag tone="brand" className="flex-none">
+            {tr.example}
+          </Tag>
         </div>
-        <p id="coachmark-text" className="text-[13px] leading-relaxed text-ink-muted">{text}</p>
-        <p className="mt-2 rounded-lg px-3 py-2 text-[12px] leading-relaxed" style={{ background: "var(--surface-inset)" }}>{tr.exampleNote}</p>
+        <p id="coachmark-text" className="text-[13px] leading-relaxed text-ink-muted">
+          {text}
+        </p>
+        <p className="mt-2 rounded-lg px-3 py-2 text-[12px] leading-relaxed" style={{ background: "var(--surface-inset)" }}>
+          {tr.exampleNote}
+        </p>
         <div className="mt-3 flex items-center justify-between gap-2">
-          <Button size="sm" variant="ghost" className="-ml-2" onClick={onBack} icon={<ChevronLeftIcon className="h-3.5 w-3.5" />}>{tr.back}</Button>
-          <Button data-coach-next size="sm" variant="primary" onClick={onNext} iconAfter={<ChevronRightIcon className="h-3.5 w-3.5" />}>{t.common.next}</Button>
+          <Button size="sm" variant="ghost" className="-ml-2" onClick={onBack} icon={<ChevronLeftIcon className="h-3.5 w-3.5" />}>
+            {tr.back}
+          </Button>
+          <Button data-coach-next size="sm" variant="primary" onClick={onNext} iconAfter={<ChevronRightIcon className="h-3.5 w-3.5" />}>
+            {t.common.next}
+          </Button>
         </div>
       </div>
     </>

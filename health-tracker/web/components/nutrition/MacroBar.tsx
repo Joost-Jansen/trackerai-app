@@ -5,7 +5,14 @@
 import { CheckIcon } from "@trackerai/ui/icons";
 import { useFormat, useT } from "@/lib/i18n";
 
-export default function MacroBar({ label, grams, range, perKg, perKgRange, colour }: {
+export default function MacroBar({
+  label,
+  grams,
+  range,
+  perKg,
+  perKgRange,
+  colour,
+}: {
   label: string;
   grams: number;
   /** Target in grams; null without a body weight. */
@@ -31,14 +38,16 @@ export default function MacroBar({ label, grams, range, perKg, perKgRange, colou
           {within && <CheckIcon width={13} height={13} className="self-center text-[var(--moss-500)]" />}
         </span>
         <span className="tabular-nums text-ink-muted">
-          {perKg != null && <span className="text-[var(--text-primary)]">{t.perKg(f.num(perKg, 1))}</span>}
-          {" "}{t.ofRange(f.trim(perKgRange[0], 1), f.trim(perKgRange[1], 1))}
+          {perKg != null && <span className="text-[var(--text-primary)]">{t.perKg(f.num(perKg, 1))}</span>}{" "}
+          {t.ofRange(f.trim(perKgRange[0], 1), f.trim(perKgRange[1], 1))}
         </span>
       </div>
       <div role="img" aria-label={aria} className="relative h-2 overflow-hidden rounded-full bg-[var(--surface-inset)]">
         {range && (
-          <span className="absolute inset-y-0 bg-[var(--target-band)] ring-1 ring-inset ring-[var(--border-strong,var(--border))]"
-            style={{ left: pct(range[0]), width: `calc(${pct(range[1])} - ${pct(range[0])})` }} />
+          <span
+            className="absolute inset-y-0 bg-[var(--target-band)] ring-1 ring-inset ring-[var(--border-strong,var(--border))]"
+            style={{ left: pct(range[0]), width: `calc(${pct(range[1])} - ${pct(range[0])})` }}
+          />
         )}
         <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: pct(grams), background: colour, opacity: 0.85 }} />
       </div>

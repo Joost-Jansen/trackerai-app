@@ -4,7 +4,6 @@ come back empty, and both shapes yfinance has returned are read."""
 from app.core import config
 from app.services import news_service
 
-
 NEW_SHAPE = {
     "id": "abc",
     "content": {
@@ -71,7 +70,9 @@ def test_yahoo_only_without_finnhub_key(monkeypatch):
 
 def test_market_feed_filled_by_yahoo(monkeypatch, tmp_path):
     import sqlite3
+
     import yfinance
+
     from domain import database
 
     monkeypatch.setattr(yfinance, "Ticker", _FakeTicker)

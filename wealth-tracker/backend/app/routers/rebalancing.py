@@ -13,10 +13,11 @@ import sqlite3
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
-from domain import database
 from app.deps import CurrentUser, get_current_user, get_db
-from app.services import etf_service, rebalancing_service as rb
+from app.services import etf_service
+from app.services import rebalancing_service as rb
 from app.services.portfolio_service import load_portfolio
+from domain import database
 from domain.i18n import tr
 
 router = APIRouter(prefix="/api/rebalancing", tags=["rebalancing"])
@@ -44,18 +45,14 @@ def allocation(
     positions = load_portfolio(conn).positions
     targets = rb.load_targets(conn)
     rows = rb.categorise(conn, positions)
-    by_category, current_pcts, total = rb.allocation(
-        positions, {r["isin"]: r["category"] for r in rows}
-    )
+    by_category, current_pcts, total = rb.allocation(positions, {r["isin"]: r["category"] for r in rows})
     return {
         "targets": targets,
         "positions": rows,
         "by_category": by_category,
         "current_pcts": current_pcts,
         "total_value": total,
-        "status": {
-            cat: rb.deviation_status(current_pcts[cat], targets[cat]) for cat in rb.CATEGORIES
-        },
+        "status": {cat: rb.deviation_status(current_pcts[cat], targets[cat]) for cat in rb.CATEGORIES},
     }
 
 
@@ -77,9 +74,7 @@ def save_categories(
 ):
     for isin, category in categories.items():
         if category not in rb.CATEGORIES:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST, tr("Unknown category '{0}' for {1}.", category, isin)
-            )
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, tr("Unknown category '{0}' for {1}.", category, isin))
     for isin, category in categories.items():
         database.save_asset_category(conn, isin, category)
     return {"ok": True, "saved": len(categories)}
@@ -102,6 +97,7 @@ def next_investment(
 # Market allocation (US / Europe / Emerging Markets)
 # ---------------------------------------------------------------------------
 
+
 def _market_state(conn: sqlite3.Connection):
     """Equity value and its US/Europe/EM split, from the ETF tab's breakdown.
 
@@ -111,9 +107,7 @@ def _market_state(conn: sqlite3.Connection):
     """
     positions = load_portfolio(conn).positions
     breakdown = etf_service.get_breakdown(conn, positions)
-    equity_value = sum(
-        c["current_value"] for c in breakdown["coverage"] if c["region_data"] != "excluded"
-    )
+    equity_value = sum(c["current_value"] for c in breakdown["coverage"] if c["region_data"] != "excluded")
     by_market = rb.market_allocation(breakdown["region_totals"], equity_value)
     return by_market, equity_value
 
@@ -125,19 +119,14 @@ def market(
 ):
     by_market, equity_value = _market_state(conn)
     targets = rb.load_market_targets(conn)
-    current_pcts = {
-        b: (by_market.get(b, 0.0) / equity_value * 100) if equity_value else 0.0
-        for b in rb.MARKET_BUCKETS
-    }
+    current_pcts = {b: (by_market.get(b, 0.0) / equity_value * 100) if equity_value else 0.0 for b in rb.MARKET_BUCKETS}
     return {
         "targets": targets,
         "by_market": by_market,
         "current_pcts": current_pcts,
         "equity_value": equity_value,
         "other_value": by_market.get(rb.OTHER_MARKET, 0.0),
-        "status": {
-            b: rb.deviation_status(current_pcts[b], targets[b]) for b in rb.MARKET_BUCKETS
-        },
+        "status": {b: rb.deviation_status(current_pcts[b], targets[b]) for b in rb.MARKET_BUCKETS},
     }
 
 

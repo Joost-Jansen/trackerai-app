@@ -5,13 +5,8 @@ processing those decisions in one go. Claude is never called: fake answers.
 
 import pytest
 
-from domain.money import ai_labelling
-from domain.money import bank_transactions
-from domain.money import categorization
-from domain import database
-from domain.money import label_queue
-from domain.money import accounts
-from domain import preferences
+from domain import database, preferences
+from domain.money import accounts, ai_labelling, bank_transactions, categorization, label_queue
 
 
 @pytest.fixture(autouse=True)
@@ -41,8 +36,12 @@ def claude(conn, monkeypatch):
     fake = {"answers": {}}
 
     def _ask(items, categories, **_):
-        return [{"id": i["id"], "category": c, "confidence": z, "reason": "fake"}
-                for i in items if (c_z := fake["answers"].get(i["id"])) for c, z in [c_z]]
+        return [
+            {"id": i["id"], "category": c, "confidence": z, "reason": "fake"}
+            for i in items
+            if (c_z := fake["answers"].get(i["id"]))
+            for c, z in [c_z]
+        ]
 
     monkeypatch.setattr(ai_labelling, "_ask_claude", _ask)
     monkeypatch.setattr(ai_labelling, "_ask_patterns", lambda groups: [{"id": g["id"], "pattern": "TIOFLI"} for g in groups])
@@ -54,11 +53,25 @@ _counter = iter(range(1, 10_000))
 
 def _tx(conn, rid, name, description="", amount=10.0, iban=None):
     n = next(_counter)
-    bank_transactions.save(conn, rid, [{
-        "date": f"2026-04-{n % 28 + 1:02d}", "interest_date": None, "amount": amount, "currency": "EUR",
-        "name": name, "counterparty_iban": iban, "description": description, "code": None, "kind": None,
-        "dedup_hash": f"w{n}", "raw": {},
-    }])
+    bank_transactions.save(
+        conn,
+        rid,
+        [
+            {
+                "date": f"2026-04-{n % 28 + 1:02d}",
+                "interest_date": None,
+                "amount": amount,
+                "currency": "EUR",
+                "name": name,
+                "counterparty_iban": iban,
+                "description": description,
+                "code": None,
+                "kind": None,
+                "dedup_hash": f"w{n}",
+                "raw": {},
+            }
+        ],
+    )
     return conn.execute("SELECT MAX(id) FROM bank_transactions").fetchone()[0]
 
 
@@ -85,8 +98,7 @@ def test_an_unknown_counterparty_as_a_rule(conn, rid):
     ids = [_tx(conn, rid, "Tiofli 1 AMSTERDAM NLD", amount=10.0 + i) for i in range(2)]
     categorization.relabel(conn)
     [item] = _kind(conn, "unknown")
-    label_queue.decision(conn, [{"kind": "unknown", "choice": "otherwise", "ids": item["ids"],
-                                  "category": "Cafe & uitgaan", "rule": True}])
+    label_queue.decision(conn, [{"kind": "unknown", "choice": "otherwise", "ids": item["ids"], "category": "Cafe & uitgaan", "rule": True}])
     assert all(_category(conn, i) == "Cafe & uitgaan" for i in ids)
     new = _tx(conn, rid, "Tiofli 1 AMSTERDAM NLD", amount=99.0)
     categorization.relabel(conn)
@@ -112,10 +124,13 @@ def test_doubt_agree_and_reject(conn, rid, claude):
     assert doubt["Borisov Amsterdam NLD"]["reason"] == "fake"
     assert _kind(conn, "unknown") == [], "wat in twijfel staat staat er niet dubbel"
 
-    label_queue.decision(conn, [
-        {"kind": "doubt", "choice": "agreed", "ids": doubt["Borisov Amsterdam NLD"]["ids"], "category": "Uit eten & bezorgen"},
-        {"kind": "doubt", "choice": "reject", "ids": doubt["Moonflower 9"]["ids"]},
-    ])
+    label_queue.decision(
+        conn,
+        [
+            {"kind": "doubt", "choice": "agreed", "ids": doubt["Borisov Amsterdam NLD"]["ids"], "category": "Uit eten & bezorgen"},
+            {"kind": "doubt", "choice": "reject", "ids": doubt["Moonflower 9"]["ids"]},
+        ],
+    )
     assert _category(conn, a) == "Uit eten & bezorgen"
     assert _kind(conn, "doubt") == []
     assert [i["title"] for i in _kind(conn, "unknown")] == ["Moonflower 9"]
@@ -136,10 +151,13 @@ def test_disagree_and_rule_suggestion(conn, rid, claude):
     assert (disagree["now"], disagree["suggestion"]) == ("Supermarkt", "Uit eten & bezorgen")
     assert (rule["title"], rule["suggestion"]) == ("TIOFLI", "Cafe & uitgaan")
 
-    label_queue.decision(conn, [
-        {"kind": "disagree", "choice": "reject", "ids": disagree["ids"]},
-        {"kind": "rule", "choice": "agreed", "ids": [], "rule_id": rule["rule_id"]},
-    ])
+    label_queue.decision(
+        conn,
+        [
+            {"kind": "disagree", "choice": "reject", "ids": disagree["ids"]},
+            {"kind": "rule", "choice": "agreed", "ids": [], "rule_id": rule["rule_id"]},
+        ],
+    )
     assert all(_category(conn, i) == "Supermarkt" for i in ah), "origineel klopt"
     assert _kind(conn, "disagree") == [] and _kind(conn, "rule") == []
     assert any(r["pattern"] == "TIOFLI" for r in categorization.load_rules(conn))
@@ -187,8 +205,10 @@ def test_an_old_suggestion_in_the_wrong_direction_is_corrected(conn, rid, claude
     tid = _tx(conn, rid, "Zaak Oud 9", amount=-60.0)
     off = _tx(conn, rid, "Zaak Uit 9", amount=60.0)
     categorization.relabel(conn)
-    conn.executemany("INSERT INTO ai_suggestions (transaction_id, category, confidence, created_at) "
-                     "VALUES (?, ?, 0.6, '2026-01-01')", [(tid, "Betaald aan vrienden"), (off, "Salaris")])
+    conn.executemany(
+        "INSERT INTO ai_suggestions (transaction_id, category, confidence, created_at) VALUES (?, ?, 0.6, '2026-01-01')",
+        [(tid, "Betaald aan vrienden"), (off, "Salaris")],
+    )
     conn.commit()
     [item] = _kind(conn, "doubt")
     assert item["ids"] == [tid] and item["suggestion"] == "Ontvangen van vrienden"
@@ -197,8 +217,9 @@ def test_an_old_suggestion_in_the_wrong_direction_is_corrected(conn, rid, claude
 def test_certain_but_not_yet_applied_is_applied_after_all(conn, rid, claude):
     tid = _tx(conn, rid, "Zaak Zeker 9")
     categorization.relabel(conn)
-    conn.execute("INSERT INTO ai_suggestions (transaction_id, category, confidence, created_at) "
-                 "VALUES (?, 'Vakantie', 0.95, '2026-01-01')", (tid,))
+    conn.execute(
+        "INSERT INTO ai_suggestions (transaction_id, category, confidence, created_at) VALUES (?, 'Vakantie', 0.95, '2026-01-01')", (tid,)
+    )
     conn.commit()
     assert _category(conn, tid) == categorization.UNKNOWN
     w = label_queue.queue(conn)
@@ -210,7 +231,8 @@ def test_a_readable_explanation():
     ing = label_queue.readable(
         "Name: P. Visser Description: Betaling van P. Visser NL00RABO0000000045 Borg kamer "
         "IBAN: NL00RABO0000000045 Reference: 13-11-2024 13:55 1234567890123456 Value date: 13/11/2024",
-        "P. Visser")
+        "P. Visser",
+    )
     assert "Borg kamer" in ing
     assert not any(noise in ing for noise in ("NL00RABO", "Name", "IBAN", "13:55", "Visser", "Reference"))
     assert label_queue.readable("Card sequence no.: 900 26/06/2024 12:08 Transaction: W00082 Term: 9DHT", "X") == ""

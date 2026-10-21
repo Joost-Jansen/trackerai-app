@@ -147,7 +147,11 @@ function ticksFor(unit: Unit, a: number, b: number, locale: TimeLocale = "nl"): 
       const p = parts(d);
       // The first of the month or a Monday after a month change already carries the month; the year is
       // on 1 January so a window across the year boundary can be read.
-      out.push({ day: n, label: p.m === 0 && p.day <= period ? `${p.day} ${MONTHS_OF[locale][0]} ${p.y}` : fmtDate(d, false, locale), major: p.day <= period });
+      out.push({
+        day: n,
+        label: p.m === 0 && p.day <= period ? `${p.day} ${MONTHS_OF[locale][0]} ${p.y}` : fmtDate(d, false, locale),
+        major: p.day <= period,
+      });
     }
     return out;
   }
@@ -162,9 +166,7 @@ function ticksFor(unit: Unit, a: number, b: number, locale: TimeLocale = "nl"): 
     const take = unit.kind === "year" ? m === 0 && y % unit.step === 0 : monthIndex % unit.step === 0;
     if (n >= first && take) {
       out.push(
-        unit.kind === "year" || m === 0
-          ? { day: n, label: String(y), major: true }
-          : { day: n, label: MONTHS_OF[locale][m], major: false },
+        unit.kind === "year" || m === 0 ? { day: n, label: String(y), major: true } : { day: n, label: MONTHS_OF[locale][m], major: false },
       );
     }
     if (unit.kind === "year") y += 1;

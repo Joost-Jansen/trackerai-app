@@ -1,5 +1,7 @@
 """CSV and Excel exports must produce the same financial values."""
+
 import csv
+
 import pandas as pd
 import pytest
 
@@ -9,10 +11,19 @@ from domain.imports import degiro_transactions as transaction_parser
 from domain.imports.degiro_export import number
 
 
-@pytest.mark.parametrize("text,expected", [
-    ("1.234,56", 1234.56), ("-1.234,56", -1234.56), ("1,234.56", 1234.56),
-    ("62,02", 62.02), ("62.02", 62.02), ("NaN", None), ("inf", None), ("", None),
-])
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("1.234,56", 1234.56),
+        ("-1.234,56", -1234.56),
+        ("1,234.56", 1234.56),
+        ("62,02", 62.02),
+        ("62.02", 62.02),
+        ("NaN", None),
+        ("inf", None),
+        ("", None),
+    ],
+)
 def test_numbers(text, expected):
     assert number(text) == expected
 

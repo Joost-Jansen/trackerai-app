@@ -67,10 +67,20 @@ def context_markdown(ctx: dict) -> str:
         out.append("")
     f = d.get("form")
     if f:
-        status = {"transition": "overgang (fitheid zakt weg)", "fresh": "fris", "neutral": "neutraal", "optimal": "optimaal trainen", "high_risk": "hoog risico"}.get(f["status"], f["status"])
+        status = {
+            "transition": "overgang (fitheid zakt weg)",
+            "fresh": "fris",
+            "neutral": "neutraal",
+            "optimal": "optimaal trainen",
+            "high_risk": "hoog risico",
+        }.get(f["status"], f["status"])
         if f.get("pct") is not None:
             status += f" ({f['pct']}% van fitheid)"
-        out += [f"## Vorm: {status}", f"Fitheid {f['ctl']:.0f}, vermoeidheid {f['atl']:.0f}, vorm {f['tsb']:+.0f}; piek fitheid {f['ctl_peak']:.0f} op {f['ctl_peak_date']}.", ""]
+        out += [
+            f"## Vorm: {status}",
+            f"Fitheid {f['ctl']:.0f}, vermoeidheid {f['atl']:.0f}, vorm {f['tsb']:+.0f}; piek fitheid {f['ctl_peak']:.0f} op {f['ctl_peak_date']}.",
+            "",
+        ]
     out.append("## Volume deze week (gemiddelde 4 weken)")
     for sport, v in d["volume"]["week"].items():
         avg = d["volume"]["avg4w"].get(sport, {})
@@ -82,13 +92,19 @@ def context_markdown(ctx: dict) -> str:
         out.append(f"**{plan['title']}** (id {plan['id']}); doel: {plan.get('goal') or '-'}; race: {plan.get('race') or '-'}")
         for s in plan["sessions"]:
             size = f"{s['distance_km']} km" if s.get("distance_km") else f"{s.get('duration_min') or '?'} min"
-            out.append(f"- {s['date']} {s['sport']} {s.get('kind') or ''} {size} {s.get('target_zone') or ''} {s.get('description') or ''}".rstrip())
+            out.append(
+                f"- {s['date']} {s['sport']} {s.get('kind') or ''} {size} {s.get('target_zone') or ''} {s.get('description') or ''}".rstrip()
+            )
     else:
         out.append("_geen_")
     out += ["", "## Vaste rondjes"]
     for r in ctx.get("routes", []):
-        typical = f"{r['median_speed_kmh']} km/u" if r.get("sport") == "ride" and r.get("median_speed_kmh") else f"{r.get('median_pace')}/km"
-        out.append(f"- {r['id']} {r['name']}: {r['distance_km']} km, {r['runs']}x, laatst {r['last_run']}, {typical} bij {r.get('median_hr')} bpm")
+        typical = (
+            f"{r['median_speed_kmh']} km/u" if r.get("sport") == "ride" and r.get("median_speed_kmh") else f"{r.get('median_pace')}/km"
+        )
+        out.append(
+            f"- {r['id']} {r['name']}: {r['distance_km']} km, {r['runs']}x, laatst {r['last_run']}, {typical} bij {r.get('median_hr')} bpm"
+        )
     out += ["", "## Recente log"]
     for e in ctx.get("recent_log", []):
         out += [f"### {e['day']}: {e['title']} ({e['author']})", e["body"].strip(), ""]

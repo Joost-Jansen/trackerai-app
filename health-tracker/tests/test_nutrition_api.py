@@ -63,12 +63,22 @@ def test_only_admins_import_nevo(app, client, engine):  # noqa: F811
 def test_log_a_meal_by_search_and_see_the_day(client, engine):  # noqa: F811
     beta(engine)
     client.post("/api/nutrition/admin/nevo", content=SAMPLE)
-    r = client.post("/api/plans", json={"title": "Najaar", "sessions": [{"date": "2026-10-20", "sport": "run", "kind": "Duurloop", "distance_km": 20}]})
+    r = client.post(
+        "/api/plans", json={"title": "Najaar", "sessions": [{"date": "2026-10-20", "sport": "run", "kind": "Duurloop", "distance_km": 20}]}
+    )
     assert r.status_code in (200, 201), r.text
     hits = client.get("/api/nutrition/foods/search", params={"q": "haver"}).json()
     assert hits[0]["ref"] == "nevo:9001" and hits[0]["portion_g"] is None
-    r = client.post("/api/nutrition/meals", json={"day": "2026-10-19", "eaten_at": "07:30", "moment": "breakfast", "input": "search",
-                                                 "items": [{"food_ref": "nevo:9001", "grams": 80}, {"food_ref": "nevo:9003", "grams": 250}]})
+    r = client.post(
+        "/api/nutrition/meals",
+        json={
+            "day": "2026-10-19",
+            "eaten_at": "07:30",
+            "moment": "breakfast",
+            "input": "search",
+            "items": [{"food_ref": "nevo:9001", "grams": 80}, {"food_ref": "nevo:9003", "grams": 250}],
+        },
+    )
     assert r.status_code == 201, r.text
     meal = r.json()
     assert [i["unit"] for i in meal["items"]] == ["g", "ml"] and meal["totals"]["energy_kcal"] == 411
@@ -84,7 +94,9 @@ def test_log_a_meal_by_search_and_see_the_day(client, engine):  # noqa: F811
     assert [f["ref"] for f in client.get("/api/nutrition/foods/recent").json()] == ["nevo:9001", "nevo:9003"]
     # edit: less milk, later; then delete
     oats, milk = meal["items"]
-    r = client.patch(f"/api/nutrition/meals/{meal['id']}", json={"eaten_at": "08:00", "items": [{"id": oats["id"]}, {"id": milk["id"], "grams": 100}]})
+    r = client.patch(
+        f"/api/nutrition/meals/{meal['id']}", json={"eaten_at": "08:00", "items": [{"id": oats["id"]}, {"id": milk["id"], "grams": 100}]}
+    )
     assert r.status_code == 200 and r.json()["eaten_at"] == "08:00" and r.json()["items"][1]["grams"] == 100
     assert client.get("/api/nutrition/meals", params={"from": "2026-10-01", "to": "2026-10-31"}).json()[0]["id"] == meal["id"]
     assert client.delete(f"/api/nutrition/meals/{meal['id']}").json() == {"ok": True}
@@ -111,8 +123,10 @@ def test_errors_are_codes(client, engine):  # noqa: F811
 def test_another_user_sees_none_of_it(app, client, engine):  # noqa: F811
     beta(engine)
     client.post("/api/nutrition/admin/nevo", content=SAMPLE)
-    meal = client.post("/api/nutrition/meals", json={"day": "2026-10-19", "eaten_at": "07:30", "moment": "breakfast",
-                                                     "items": [{"food_ref": "nevo:9002", "grams": 120}]}).json()
+    meal = client.post(
+        "/api/nutrition/meals",
+        json={"day": "2026-10-19", "eaten_at": "07:30", "moment": "breakfast", "items": [{"food_ref": "nevo:9002", "grams": 120}]},
+    ).json()
     client.patch("/api/trackerai/admin/registration", json={"registration": "open"})
     anna, _ = register(app)
     beta(engine, anna.get("/api/me").json()["id"])
@@ -126,12 +140,16 @@ def test_dashboard_block(client, engine):  # noqa: F811
     beta(engine)
     client.post("/api/nutrition/admin/nevo", content=SAMPLE)
     assert client.get("/api/dashboard").json()["nutrition"] is None  # never used: the card stays away
-    client.post("/api/nutrition/meals", json={"day": "2026-10-18", "eaten_at": "19:00", "moment": "dinner",
-                                              "items": [{"food_ref": "nevo:9002", "grams": 100}]})
+    client.post(
+        "/api/nutrition/meals",
+        json={"day": "2026-10-18", "eaten_at": "19:00", "moment": "dinner", "items": [{"food_ref": "nevo:9002", "grams": 100}]},
+    )
     block = client.get("/api/dashboard").json()["nutrition"]
     assert block["empty"] is True and block["targets"]["day_type"] == "rest"  # used before, nothing today: no bars
-    client.post("/api/nutrition/meals", json={"day": "2026-10-19", "eaten_at": "07:30", "moment": "breakfast",
-                                              "items": [{"food_ref": "nevo:9001", "grams": 80}]})
+    client.post(
+        "/api/nutrition/meals",
+        json={"day": "2026-10-19", "eaten_at": "07:30", "moment": "breakfast", "items": [{"food_ref": "nevo:9001", "grams": 80}]},
+    )
     block = client.get("/api/dashboard").json()["nutrition"]
     assert block["empty"] is False and block["totals"]["energy_kcal"] == 296 and len(block["meals"]) == 1
     assert block["per_kg"]["carbs"] == 0.6
@@ -177,11 +195,31 @@ def test_from_photo_to_saved_meal(app, client, engine, ai):  # noqa: F811
     assert [i["food"]["ref"] for i in d["items"]] == ["nevo:9001", "nevo:9002", "nevo:9003"]
     stored = client.get(f"/api/nutrition/photos/{d['photo_id']}")
     assert stored.headers["content-type"] == "image/jpeg" and b"Exif" not in stored.content and b"GPS" not in stored.content
-    items = [{"food_ref": i["food"]["ref"], "grams": i["grams"], "grams_source": i["grams_source"], "grams_ai": i["grams_ai"],
-              "grams_low": i["grams_low"], "grams_high": i["grams_high"], "confidence": i["confidence"]} for i in d["items"]]
+    items = [
+        {
+            "food_ref": i["food"]["ref"],
+            "grams": i["grams"],
+            "grams_source": i["grams_source"],
+            "grams_ai": i["grams_ai"],
+            "grams_low": i["grams_low"],
+            "grams_high": i["grams_high"],
+            "confidence": i["confidence"],
+        }
+        for i in d["items"]
+    ]
     items[0].update(grams=50, grams_source="user")  # corrected the oats
-    meal = client.post("/api/nutrition/meals", json={"day": "2026-10-19", "eaten_at": "07:45", "moment": "breakfast", "input": "photo",
-                                                     "photo_id": d["photo_id"], "ai_run_id": d["ai_run_id"], "items": items}).json()
+    meal = client.post(
+        "/api/nutrition/meals",
+        json={
+            "day": "2026-10-19",
+            "eaten_at": "07:45",
+            "moment": "breakfast",
+            "input": "photo",
+            "photo_id": d["photo_id"],
+            "ai_run_id": d["ai_run_id"],
+            "items": items,
+        },
+    ).json()
     assert meal["photo_id"] == d["photo_id"] and [i["grams_source"] for i in meal["items"]] == ["user", "ai", "ai"]
     assert meal["items"][0]["grams_ai"] == 65
     # someone else sees nothing of it, and cannot attach the photo to their own meal
@@ -189,12 +227,28 @@ def test_from_photo_to_saved_meal(app, client, engine, ai):  # noqa: F811
     anna, _ = register(app)
     beta(engine, anna.get("/api/me").json()["id"])
     assert anna.get(f"/api/nutrition/photos/{d['photo_id']}").status_code == 404
-    r = anna.post("/api/nutrition/meals", json={"day": "2026-10-19", "eaten_at": "08:00", "moment": "breakfast", "photo_id": d["photo_id"],
-                                                "items": [{"food_ref": "nevo:9001", "grams": 50}]})
+    r = anna.post(
+        "/api/nutrition/meals",
+        json={
+            "day": "2026-10-19",
+            "eaten_at": "08:00",
+            "moment": "breakfast",
+            "photo_id": d["photo_id"],
+            "items": [{"food_ref": "nevo:9001", "grams": 50}],
+        },
+    )
     assert r.status_code == 404 and r.json()["code"] == "photo_not_found"
     # a run is only yours to refer to
-    r = anna.post("/api/nutrition/meals", json={"day": "2026-10-19", "eaten_at": "08:00", "moment": "breakfast", "ai_run_id": d["ai_run_id"],
-                                                "items": [{"food_ref": "nevo:9001", "grams": 50}]})
+    r = anna.post(
+        "/api/nutrition/meals",
+        json={
+            "day": "2026-10-19",
+            "eaten_at": "08:00",
+            "moment": "breakfast",
+            "ai_run_id": d["ai_run_id"],
+            "items": [{"food_ref": "nevo:9001", "grams": 50}],
+        },
+    )
     assert r.status_code == 201 and r.json()["ai_run_id"] is None
     # deleting the meal deletes the photo
     client.delete(f"/api/nutrition/meals/{meal['id']}")
@@ -225,8 +279,13 @@ def test_a_failed_analysis_keeps_the_photo(client, engine, monkeypatch):  # noqa
 
 def test_barcode(client, engine, monkeypatch):  # noqa: F811
     beta(engine)
-    monkeypatch.setattr(off, "fetch", lambda ean: {"product_name": "Skyr", "nutriments": {"energy-kcal_100g": 63, "proteins_100g": 11}}
-                        if ean == "4006381333931" else None)
+    monkeypatch.setattr(
+        off,
+        "fetch",
+        lambda ean: (
+            {"product_name": "Skyr", "nutriments": {"energy-kcal_100g": 63, "proteins_100g": 11}} if ean == "4006381333931" else None
+        ),
+    )
     assert client.get("/api/nutrition/foods/barcode/123").json()["code"] == "invalid_barcode"
     assert client.get("/api/nutrition/foods/barcode/4006381333931").json()["per_100"]["protein_g"] == 11
     assert client.get("/api/nutrition/foods/barcode/5000112637922").status_code == 404
@@ -243,7 +302,9 @@ def test_barcode(client, engine, monkeypatch):  # noqa: F811
 def test_favourites_api(client, engine):  # noqa: F811
     beta(engine)
     client.post("/api/nutrition/admin/nevo", content=SAMPLE)
-    t = client.post("/api/nutrition/templates", json={"name": "Pap", "moment": "breakfast", "items": [{"food_ref": "nevo:9001", "grams": 60}]})
+    t = client.post(
+        "/api/nutrition/templates", json={"name": "Pap", "moment": "breakfast", "items": [{"food_ref": "nevo:9001", "grams": 60}]}
+    )
     assert t.status_code == 201
     tid = t.json()["id"]
     assert client.patch(f"/api/nutrition/templates/{tid}", json={"name": "Havermoutpap"}).json()["name"] == "Havermoutpap"

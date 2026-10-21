@@ -26,22 +26,31 @@ def _seed(username, tmp_path, isins, fetched_at=None):
     """Put priced positions in a user's own database, bypassing the network."""
     conn = database.connect(username)
     database.init_db(conn)
-    database.save_transactions(conn, [
-        {
-            "date": "2025-01-02", "time": "10:00", "isin": isin, "name": f"Fund {i}",
-            "transaction_type": "BUY", "quantity": 10.0, "price": 100.0,
-            "total_eur": 1000.0, "order_ref": f"o{i}", "currency": "EUR",
-            "exchange": "EAM", "transaction_fee": 1.0, "autofx_cost": 0.0,
-        }
-        for i, isin in enumerate(isins)
-    ])
+    database.save_transactions(
+        conn,
+        [
+            {
+                "date": "2025-01-02",
+                "time": "10:00",
+                "isin": isin,
+                "name": f"Fund {i}",
+                "transaction_type": "BUY",
+                "quantity": 10.0,
+                "price": 100.0,
+                "total_eur": 1000.0,
+                "order_ref": f"o{i}",
+                "currency": "EUR",
+                "exchange": "EAM",
+                "transaction_fee": 1.0,
+                "autofx_cost": 0.0,
+            }
+            for i, isin in enumerate(isins)
+        ],
+    )
     for i, isin in enumerate(isins):
         conn.execute(
-            "INSERT OR REPLACE INTO prices"
-            " (isin, name, ticker, price, currency, fetched_at, previous_close)"
-            " VALUES (?,?,?,?,?,?,?)",
-            (isin, f"Fund {i}", f"T{i}.AS", 110.0, "EUR",
-             (fetched_at or {}).get(isin, "2026-08-07 09:00:00"), 100.0),
+            "INSERT OR REPLACE INTO prices (isin, name, ticker, price, currency, fetched_at, previous_close) VALUES (?,?,?,?,?,?,?)",
+            (isin, f"Fund {i}", f"T{i}.AS", 110.0, "EUR", (fetched_at or {}).get(isin, "2026-08-07 09:00:00"), 100.0),
         )
     conn.commit()
     conn.close()
@@ -50,6 +59,7 @@ def _seed(username, tmp_path, isins, fetched_at=None):
 # ---------------------------------------------------------------------------
 # POST /api/prices/refresh
 # ---------------------------------------------------------------------------
+
 
 def test_refresh_reports_zero_when_every_fetch_failed(client, tmp_path, monkeypatch):
     _login(client)
@@ -90,9 +100,9 @@ def test_refresh_reports_a_clean_round(client, tmp_path, monkeypatch):
     _seed("alice", tmp_path, ["NL0000001"])
 
     monkeypatch.setattr(
-        portfolio, "fetch_price_for_isin",
-        lambda *a, **k: {"ticker": "T0.AS", "price": 120.0, "currency": "EUR",
-                         "previous_close": 100.0},
+        portfolio,
+        "fetch_price_for_isin",
+        lambda *a, **k: {"ticker": "T0.AS", "price": 120.0, "currency": "EUR", "previous_close": 100.0},
     )
     monkeypatch.setattr(portfolio.time, "sleep", lambda _s: None)
 
@@ -100,8 +110,7 @@ def test_refresh_reports_a_clean_round(client, tmp_path, monkeypatch):
 
     # No position on Tradegate here, so its own counts are zero and do not
     # affect `complete`, which is Yahoo's round.
-    assert body == {"updated_count": 1, "failed": [], "skipped": 0, "complete": True,
-                    "venue_refreshed": 0, "venue_failed": 0}
+    assert body == {"updated_count": 1, "failed": [], "skipped": 0, "complete": True, "venue_refreshed": 0, "venue_failed": 0}
 
 
 # ---------------------------------------------------------------------------
@@ -114,8 +123,7 @@ _NEW = "2026-08-07 09:00:00"
 
 def test_status_reports_the_oldest_quote_beside_the_newest(client, tmp_path):
     _login(client)
-    _seed("alice", tmp_path, ["NL0000001", "NL0000002"],
-          fetched_at={"NL0000001": _OLD, "NL0000002": _NEW})
+    _seed("alice", tmp_path, ["NL0000001", "NL0000002"], fetched_at={"NL0000001": _OLD, "NL0000002": _NEW})
 
     body = client.get("/api/prices/status").json()
 
@@ -127,8 +135,7 @@ def test_status_reports_the_oldest_quote_beside_the_newest(client, tmp_path):
 
 def test_dashboard_summary_reports_the_oldest_quote(client, tmp_path):
     _login(client)
-    _seed("alice", tmp_path, ["NL0000001", "NL0000002"],
-          fetched_at={"NL0000001": _OLD, "NL0000002": _NEW})
+    _seed("alice", tmp_path, ["NL0000001", "NL0000002"], fetched_at={"NL0000001": _OLD, "NL0000002": _NEW})
 
     body = client.get("/api/dashboard/summary").json()
 
@@ -142,8 +149,7 @@ def test_dashboard_summary_reports_the_oldest_quote(client, tmp_path):
 
 def test_holdings_overview_reports_the_oldest_quote(client, tmp_path):
     _login(client)
-    _seed("alice", tmp_path, ["NL0000001", "NL0000002"],
-          fetched_at={"NL0000001": _OLD, "NL0000002": _NEW})
+    _seed("alice", tmp_path, ["NL0000001", "NL0000002"], fetched_at={"NL0000001": _OLD, "NL0000002": _NEW})
 
     body = client.get("/api/holdings/overview").json()
 

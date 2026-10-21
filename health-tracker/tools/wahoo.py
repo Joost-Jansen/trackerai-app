@@ -59,13 +59,26 @@ def _detail(r) -> str:
 
 
 def _tokens(body: dict, now: float) -> dict:
-    return {"access_token": body["access_token"], "refresh_token": body["refresh_token"], "expires_at": int(now + int(body.get("expires_in") or 7200))}
+    return {
+        "access_token": body["access_token"],
+        "refresh_token": body["refresh_token"],
+        "expires_at": int(now + int(body.get("expires_in") or 7200)),
+    }
 
 
 def exchange_code(code: str, redirect_uri: str, creds: tuple[str, str], http=requests, now=time.time) -> dict:
     """The tokens for the code Wahoo sent to the callback."""
-    r = http.post(f"{API}/oauth/token", data={"client_id": creds[0], "client_secret": creds[1], "code": code,
-                                              "redirect_uri": redirect_uri, "grant_type": "authorization_code"}, timeout=TIMEOUT_S)
+    r = http.post(
+        f"{API}/oauth/token",
+        data={
+            "client_id": creds[0],
+            "client_secret": creds[1],
+            "code": code,
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code",
+        },
+        timeout=TIMEOUT_S,
+    )
     if r.status_code != 200:
         raise WahooError(f"token exchange: {_detail(r)}")
     return _tokens(r.json(), now())
@@ -83,8 +96,16 @@ class WahooClient:
         return dict(self._t)
 
     def refresh(self) -> None:
-        r = self.http.post(f"{API}/oauth/token", data={"client_id": self.creds[0], "client_secret": self.creds[1],
-                                                       "grant_type": "refresh_token", "refresh_token": self._t["refresh_token"]}, timeout=TIMEOUT_S)
+        r = self.http.post(
+            f"{API}/oauth/token",
+            data={
+                "client_id": self.creds[0],
+                "client_secret": self.creds[1],
+                "grant_type": "refresh_token",
+                "refresh_token": self._t["refresh_token"],
+            },
+            timeout=TIMEOUT_S,
+        )
         if r.status_code in (400, 401) and b"invalid_grant" in (r.content or b""):
             raise WahooRevoked(f"refresh token refused: {_detail(r)}")
         if r.status_code != 200:
@@ -95,8 +116,13 @@ class WahooClient:
         if self._t.get("expires_at", 0) - 120 < self.now():
             self.refresh()
         for attempt in (1, 2) if refresh_on_401 else (2,):
-            r = self.http.request(method, f"{API}{path}", params=params or None,
-                                  headers={"Authorization": f"Bearer {self._t['access_token']}"}, timeout=TIMEOUT_S)
+            r = self.http.request(
+                method,
+                f"{API}{path}",
+                params=params or None,
+                headers={"Authorization": f"Bearer {self._t['access_token']}"},
+                timeout=TIMEOUT_S,
+            )
             if r.status_code == 401 and attempt == 1:
                 self.refresh()
                 continue
@@ -147,8 +173,9 @@ def save_tokens(s: db.Scope, tokens: dict, key: str) -> None:
     db.set_setting(s, TOKENS_KEY, encrypt(json.dumps(tokens), key))
 
 
-def sync_wahoo(s: db.Scope, client: WahooClient, state: dict, today: date, since: date | None = None, read_activity=None,
-               progress=None) -> int:
+def sync_wahoo(
+    s: db.Scope, client: WahooClient, state: dict, today: date, since: date | None = None, read_activity=None, progress=None
+) -> int:
     """New workouts since the last one seen (the past year the first time) -> activities. Returns how many.
     `progress("wahoo", days, total_days)`: how far back from today it is, newest first."""
     read_activity = read_activity or read_fit_activity
@@ -181,8 +208,10 @@ def sync_wahoo(s: db.Scope, client: WahooClient, state: dict, today: date, since
                 try:
                     summary = client.summary(wo["id"])
                 except WahooError as err:  # Wahoo refuses some workouts' summaries: skip that one, not the rest
-                    print(f"wahoo: workout {wo['id']} van {wo.get('starts')} ({wo.get('name')!r}, type {wo.get('workout_type_id')}, "
-                          f"bron {wo.get('workout_token') or '-'}) overgeslagen ({err})")
+                    print(
+                        f"wahoo: workout {wo['id']} van {wo.get('starts')} ({wo.get('name')!r}, type {wo.get('workout_type_id')}, "
+                        f"bron {wo.get('workout_token') or '-'}) overgeslagen ({err})"
+                    )
                     continue
             url = ((summary or {}).get("file") or {}).get("url")
             if not url:

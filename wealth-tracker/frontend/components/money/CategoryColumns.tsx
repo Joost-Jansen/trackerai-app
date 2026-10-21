@@ -46,17 +46,27 @@ export function TypeChoice({ category }: { category: Category }) {
     <span className="inline-flex items-center gap-1">
       <select
         aria-label={tr("Column for {0}", category.name)}
-        title={category.type_locked
-          ? tr("The app relies on how this category counts.")
-          : tr("Where this category counts on Net worth. Spending and income make up Saved; Bank & cash is what moves between accounts and doesn't count as income or spending.")}
+        title={
+          category.type_locked
+            ? tr("The app relies on how this category counts.")
+            : tr(
+                "Where this category counts on Net worth. Spending and income make up Saved; Bank & cash is what moves between accounts and doesn't count as income or spending.",
+              )
+        }
         className="ds-select h-8 w-56 py-0 text-xs"
         value={category.type}
         disabled={category.type_locked || change.isPending}
         onChange={(e) => change.mutate(e.target.value as CategoryType)}
       >
-        {category.type_locked
-          ? <option value={category.type}>{countsAs(category)}</option>
-          : COLUMN_ORDER.map((t) => <option key={t} value={t}>{COLUMN_OF[t]()}</option>)}
+        {category.type_locked ? (
+          <option value={category.type}>{countsAs(category)}</option>
+        ) : (
+          COLUMN_ORDER.map((t) => (
+            <option key={t} value={t}>
+              {COLUMN_OF[t]()}
+            </option>
+          ))
+        )}
       </select>
       {change.isError && (
         <span className="text-xs" style={{ color: "var(--text-loss)" }}>
@@ -75,17 +85,32 @@ export function CountsAsHelp() {
   const rows: [string, string][] = [
     [ROLE_OF.spending(), tr("Money you spent. It shows on Spending and lowers Saved on Net worth.")],
     [ROLE_OF.income(), tr("Money you earned. It raises Saved on Net worth.")],
-    [ROLE_OF.bank(), tr("Money that is neither income nor spending, such as a gift or a transfer to an account outside your net worth. It lands in Bank & cash on Net worth.")],
-    [ROLE_OF.investments(), tr("Money to your broker. It leaves your bank and arrives in your investments, so your net worth stays the same.")],
+    [
+      ROLE_OF.bank(),
+      tr(
+        "Money that is neither income nor spending, such as a gift or a transfer to an account outside your net worth. It lands in Bank & cash on Net worth.",
+      ),
+    ],
+    [
+      ROLE_OF.investments(),
+      tr("Money to your broker. It leaves your bank and arrives in your investments, so your net worth stays the same."),
+    ],
     [ROLE_OF.debt(), tr("A repayment. Your bank balance goes down and so does your debt, so your net worth stays the same.")],
     [ROLE_OF.own(), tr("Money between your own accounts, such as to your savings account. It changes nothing.")],
-    [ROLE_OF.others(), tr("Money that passes through you for others, such as a trip you organise. Only your own share counts, as you set in Settings.")],
+    [
+      ROLE_OF.others(),
+      tr("Money that passes through you for others, such as a trip you organise. Only your own share counts, as you set in Settings."),
+    ],
   ];
   return (
     <details className="py-2 text-sm">
       <summary className="cursor-pointer text-ink-muted">{tr("How categories count")}</summary>
       <div className="flex max-w-[72ch] flex-col gap-2 pt-3">
-        <p className="text-ink-muted">{tr("On Net worth every change splits into Saved, Market, Bank & cash and Debt. The category of a transaction decides where it goes:")}</p>
+        <p className="text-ink-muted">
+          {tr(
+            "On Net worth every change splits into Saved, Market, Bank & cash and Debt. The category of a transaction decides where it goes:",
+          )}
+        </p>
         <dl className="grid gap-x-6 gap-y-1.5 sm:grid-cols-[14rem_1fr]">
           {rows.map(([term, meaning]) => (
             <div key={term} className="contents">
@@ -94,7 +119,11 @@ export function CountsAsHelp() {
             </div>
           ))}
         </dl>
-        <p className="text-ink-muted">{tr("Market and Debt don't come from categories: Market is what your holdings did, Debt how your debts changed. Change a category's choice with the dropdown on the right; the ones the app relies on are fixed.")}</p>
+        <p className="text-ink-muted">
+          {tr(
+            "Market and Debt don't come from categories: Market is what your holdings did, Debt how your debts changed. Change a category's choice with the dropdown on the right; the ones the app relies on are fixed.",
+          )}
+        </p>
       </div>
     </details>
   );

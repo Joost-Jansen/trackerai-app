@@ -5,7 +5,11 @@
 // Used for column headers and card labels whose meaning isn't obvious from the
 // word alone.
 
-export default function Explained({ children, text, align = "left" }: {
+export default function Explained({
+  children,
+  text,
+  align = "left",
+}: {
   children: React.ReactNode;
   text: string;
   /** Which edge of the word the box lines up with; "right" for right-aligned columns. */

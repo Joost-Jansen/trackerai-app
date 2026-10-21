@@ -36,7 +36,9 @@ export default function When({ ctx, inst, put, editing }: ChartProps) {
   const days = Array.from({ length: dayNumber(final) - start + 1 }, (_, k) => isoDay(start + k));
 
   const colour = (w: number, max: number) =>
-    w <= 0 ? "var(--surface-inset)" : `color-mix(in oklab, var(--cat-2) ${Math.round(20 + 80 * Math.min(1, w / max))}%, var(--surface-inset))`;
+    w <= 0
+      ? "var(--surface-inset)"
+      : `color-mix(in oklab, var(--cat-2) ${Math.round(20 + 80 * Math.min(1, w / max))}%, var(--surface-inset))`;
   const toDay = (d: string) => ctx.dest({ start: d, end: d });
 
   let content: React.ReactNode;
@@ -48,22 +50,41 @@ export default function When({ ctx, inst, put, editing }: ChartProps) {
     content = (
       <div className="flex gap-2">
         <div className="grid grid-rows-7 gap-[3px] pt-0 text-[10px] text-ink-muted">
-          {WEEKDAYS.map((d) => <span key={d} className="flex h-[14px] items-center">{d}</span>)}
-        </div>
-        <div className="grid flex-1 grid-flow-col grid-rows-7 gap-[3px]" style={{ gridTemplateColumns: `repeat(${weeks}, minmax(0, 1fr))` }}>
-          {cells.map((d, k) => d === null ? <span key={`leeg${k}`} /> : (
-            <button key={d} type="button" aria-label={`${fmtDayMonthYear(d)}: ${fmtEuro(perDay.get(d)?.w ?? 0)}`}
-              className="h-[14px] rounded-[3px] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--text-primary)]"
-              style={{ background: colour(perDay.get(d)?.w ?? 0, max) }}
-              {...props(d, {
-                title: fmtDayMonthYear(d),
-                rules: [
-                  { label: tr("spent"), value: fmtEuro(perDay.get(d)?.w ?? 0), strong: true },
-                  { label: tr("transactions"), value: String(perDay.get(d)?.n ?? 0) },
-                ],
-                foot: perDay.get(d) ? tr("Click for the transactions of that day") : undefined,
-              }, perDay.get(d) ? () => toDay(d) : undefined)} />
+          {WEEKDAYS.map((d) => (
+            <span key={d} className="flex h-[14px] items-center">
+              {d}
+            </span>
           ))}
+        </div>
+        <div
+          className="grid flex-1 grid-flow-col grid-rows-7 gap-[3px]"
+          style={{ gridTemplateColumns: `repeat(${weeks}, minmax(0, 1fr))` }}
+        >
+          {cells.map((d, k) =>
+            d === null ? (
+              <span key={`leeg${k}`} />
+            ) : (
+              <button
+                key={d}
+                type="button"
+                aria-label={`${fmtDayMonthYear(d)}: ${fmtEuro(perDay.get(d)?.w ?? 0)}`}
+                className="h-[14px] rounded-[3px] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--text-primary)]"
+                style={{ background: colour(perDay.get(d)?.w ?? 0, max) }}
+                {...props(
+                  d,
+                  {
+                    title: fmtDayMonthYear(d),
+                    rules: [
+                      { label: tr("spent"), value: fmtEuro(perDay.get(d)?.w ?? 0), strong: true },
+                      { label: tr("transactions"), value: String(perDay.get(d)?.n ?? 0) },
+                    ],
+                    foot: perDay.get(d) ? tr("Click for the transactions of that day") : undefined,
+                  },
+                  perDay.get(d) ? () => toDay(d) : undefined,
+                )}
+              />
+            ),
+          )}
         </div>
       </div>
     );
@@ -89,7 +110,10 @@ export default function When({ ctx, inst, put, editing }: ChartProps) {
       <>
         <div className="flex h-40 items-end gap-[3px]">
           {gem.map((w, k) => (
-            <button key={k} type="button" aria-label={`${label(k)}: ${fmtEuro(w)}`}
+            <button
+              key={k}
+              type="button"
+              aria-label={`${label(k)}: ${fmtEuro(w)}`}
               className="min-w-0 flex-1 rounded-t-[4px] transition-[filter] hover:brightness-110 focus:outline-none focus-visible:brightness-110"
               style={{ height: `${Math.max(2, (w / max) * 100)}%`, background: "var(--cat-2)" }}
               {...props(String(k), {
@@ -98,7 +122,8 @@ export default function When({ ctx, inst, put, editing }: ChartProps) {
                   { label: tr("average spent"), value: fmtEuro(w), strong: true },
                   { label: tr("times in the period"), value: String(times[k]) },
                 ],
-              })} />
+              })}
+            />
           ))}
         </div>
         <div className="flex gap-[3px] pt-1">
@@ -113,16 +138,49 @@ export default function When({ ctx, inst, put, editing }: ChartProps) {
   }
 
   return (
-    <ChartCard title={tr("When you spend")} editing={editing}
-      settings={<>
-        <Setting label={tr("View")} value={i.view} onChange={(w) => put("view", w)}
-          options={[["calendar", tr("Calendar")], ["weekday", tr("Per weekday")], ["maanddag", ctx.boundaries ? tr("Per day after salary") : tr("Per day of the month")]]} />
-        <Setting label={tr("Spending")} value={i.spending} onChange={(w) => put("spending", w)} options={[["everything", tr("Everything")], ["variable", tr("Without fixed costs")]]} />
-      </>}
-      info={<>{i.view === "calendar"
-        ? <>{tr("A box for each day of your period (at most half a year): the darker, the more you spent that day.")}</>
-        : i.view === "weekday" ? <>{tr("What you spend on average on each day of the week.")}</>
-        : <>{trx("What you spend on average on each day {0}.", ctx.boundaries ? tr("after your salary (day 1 is your salary day)") : tr("of the month"))}</>}</>}>
+    <ChartCard
+      title={tr("When you spend")}
+      editing={editing}
+      settings={
+        <>
+          <Setting
+            label={tr("View")}
+            value={i.view}
+            onChange={(w) => put("view", w)}
+            options={[
+              ["calendar", tr("Calendar")],
+              ["weekday", tr("Per weekday")],
+              ["maanddag", ctx.boundaries ? tr("Per day after salary") : tr("Per day of the month")],
+            ]}
+          />
+          <Setting
+            label={tr("Spending")}
+            value={i.spending}
+            onChange={(w) => put("spending", w)}
+            options={[
+              ["everything", tr("Everything")],
+              ["variable", tr("Without fixed costs")],
+            ]}
+          />
+        </>
+      }
+      info={
+        <>
+          {i.view === "calendar" ? (
+            <>{tr("A box for each day of your period (at most half a year): the darker, the more you spent that day.")}</>
+          ) : i.view === "weekday" ? (
+            <>{tr("What you spend on average on each day of the week.")}</>
+          ) : (
+            <>
+              {trx(
+                "What you spend on average on each day {0}.",
+                ctx.boundaries ? tr("after your salary (day 1 is your salary day)") : tr("of the month"),
+              )}
+            </>
+          )}
+        </>
+      }
+    >
       <div className="relative" data-tip-area>
         {content}
         <TipCard tip={tip} />

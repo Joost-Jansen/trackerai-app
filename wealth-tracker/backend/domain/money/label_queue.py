@@ -25,10 +25,8 @@ import re
 import sqlite3
 from collections import defaultdict
 
-from domain.money import ai_labelling
-from domain.money import bank_transactions
-from domain.money import categorization
 from domain.i18n import tr
+from domain.money import ai_labelling, bank_transactions, categorization
 
 KINDS = ("own", "doubt", "disagree", "unknown", "rule", "ai")
 CHOICES = ("agreed", "reject", "otherwise")
@@ -39,8 +37,11 @@ UNKNOWN = categorization.UNKNOWN
 FRIENDS = categorization.FRIENDS
 
 
-_LABELS = re.compile(r"\b(reference|other party|value date|date|time|iban|bic|name|description|naam|"
-                     r"omschrijving|kenmerk|referentie)\s*:\s*", re.IGNORECASE)
+_LABELS = re.compile(
+    r"\b(reference|other party|value date|date|time|iban|bic|name|description|naam|"
+    r"omschrijving|kenmerk|referentie)\s*:\s*",
+    re.IGNORECASE,
+)
 _NUMBERS = re.compile(r"(?<!\w)[\d/:.\-]+(?!\w)")
 
 
@@ -61,18 +62,36 @@ def readable(description: str | None, name: str | None) -> str:
     return text if re.search(r"[A-Za-zÀ-ÿ]{3}", text) else ""
 
 
-def _item(kind: str, key: str, title: str, rows: list[dict], *, now: str | None,
-          suggestion: str | None = None, confidence: float | None = None, reason: str | None = None,
-          rule_possible: bool = False, **extra) -> dict:
+def _item(
+    kind: str,
+    key: str,
+    title: str,
+    rows: list[dict],
+    *,
+    now: str | None,
+    suggestion: str | None = None,
+    confidence: float | None = None,
+    reason: str | None = None,
+    rule_possible: bool = False,
+    **extra,
+) -> dict:
     description = next((r["description"] for r in rows if r["description"]), "")
     return {
-        "key": f"{kind}:{key}", "kind": kind, "title": title,
-        "ids": [r["id"] for r in rows], "count": len(rows),
+        "key": f"{kind}:{key}",
+        "kind": kind,
+        "title": title,
+        "ids": [r["id"] for r in rows],
+        "count": len(rows),
         "total": round(sum(r["amount"] for r in rows), 2),
         "last": max((r["date"] for r in rows), default=None),
-        "description": description, "remark": readable(description, title),
-        "now": now, "suggestion": suggestion, "confidence": confidence, "reason": reason,
-        "rule_possible": rule_possible, **extra,
+        "description": description,
+        "remark": readable(description, title),
+        "now": now,
+        "suggestion": suggestion,
+        "confidence": confidence,
+        "reason": reason,
+        "rule_possible": rule_possible,
+        **extra,
     }
 
 
@@ -82,9 +101,10 @@ def _name_is_counterparty(name: str | None) -> bool:
 
 
 def _own(conn: sqlite3.Connection) -> list[dict]:
-    return [_item("own", str(r["id"]), r["name"], [r], now=r["category_effective"],
-                  suggestion=r["suggestion"], reason=r["reason"])
-            for r in categorization.suspicious(conn, limit=500)]
+    return [
+        _item("own", str(r["id"]), r["name"], [r], now=r["category_effective"], suggestion=r["suggestion"], reason=r["reason"])
+        for r in categorization.suspicious(conn, limit=500)
+    ]
 
 
 def _doubt(conn: sqlite3.Connection, already: set[int]) -> list[dict]:
@@ -117,11 +137,20 @@ def _doubt(conn: sqlite3.Connection, already: set[int]) -> list[dict]:
         if r["now"] in FRIENDS and not categorization.has_target_text(r["name"], r["description"]):
             continue
         groups[(r["name"], r["now"], r["suggestion"])].append(r)
-    return [_item("doubt", f"{name}|{now}|{suggestion}", name, rs, now=now, suggestion=suggestion,
-                  confidence=max(r["confidence"] for r in rs),
-                  reason=next((r["reason"] for r in rs if r["reason"]), None),
-                  rule_possible=_name_is_counterparty(name))
-            for (name, now, suggestion), rs in groups.items()]
+    return [
+        _item(
+            "doubt",
+            f"{name}|{now}|{suggestion}",
+            name,
+            rs,
+            now=now,
+            suggestion=suggestion,
+            confidence=max(r["confidence"] for r in rs),
+            reason=next((r["reason"] for r in rs if r["reason"]), None),
+            rule_possible=_name_is_counterparty(name),
+        )
+        for (name, now, suggestion), rs in groups.items()
+    ]
 
 
 def _unknown(conn: sqlite3.Connection, already: set[int]) -> list[dict]:
@@ -137,20 +166,40 @@ def _unknown(conn: sqlite3.Connection, already: set[int]) -> list[dict]:
     ):
         if r["id"] not in already:
             groups[r["name"]].append(dict(r))
-    return [_item("unknown", name, name, rs, now=UNKNOWN,
-                  processor=bool(categorization._PROCESSOR.search(name.upper())),
-                  rule_possible=_name_is_counterparty(name))
-            for name, rs in groups.items()]
+    return [
+        _item(
+            "unknown",
+            name,
+            name,
+            rs,
+            now=UNKNOWN,
+            processor=bool(categorization._PROCESSOR.search(name.upper())),
+            rule_possible=_name_is_counterparty(name),
+        )
+        for name, rs in groups.items()
+    ]
 
 
 def _disagree(conn: sqlite3.Connection) -> list[dict]:
-    return [{
-        "key": f"oneens:{a['name']}|{a['now']}|{a['suggestion']}", "kind": "disagree", "title": a["name"],
-        "ids": a["ids"], "count": a["count"], "total": a["total"], "last": a["last"],
-        "description": a["description"], "remark": readable(a["description"], a["name"]),
-        "now": a["now"], "suggestion": a["suggestion"],
-        "confidence": a["confidence"], "reason": a.get("reason"), "rule_possible": a["rule_possible"],
-    } for a in ai_labelling.deviations(conn, limit=1000)]
+    return [
+        {
+            "key": f"oneens:{a['name']}|{a['now']}|{a['suggestion']}",
+            "kind": "disagree",
+            "title": a["name"],
+            "ids": a["ids"],
+            "count": a["count"],
+            "total": a["total"],
+            "last": a["last"],
+            "description": a["description"],
+            "remark": readable(a["description"], a["name"]),
+            "now": a["now"],
+            "suggestion": a["suggestion"],
+            "confidence": a["confidence"],
+            "reason": a.get("reason"),
+            "rule_possible": a["rule_possible"],
+        }
+        for a in ai_labelling.deviations(conn, limit=1000)
+    ]
 
 
 def _rules(conn: sqlite3.Connection) -> list[dict]:
@@ -158,16 +207,28 @@ def _rules(conn: sqlite3.Connection) -> list[dict]:
     for v in ai_labelling.rule_suggestions(conn):
         reason = f"raakt {v['touches']}"
         if v["changes"]:
-            reason += tr(", {0} get another category", v['changes'])
+            reason += tr(", {0} get another category", v["changes"])
         if v["clashes"]:
-            reason += tr(", {0} different by hand (stays)", v['clashes'])
-        off.append({
-            "key": f"regel:{v['id']}", "kind": "rule", "title": v["pattern"], "rule_id": v["id"],
-            "ids": [], "count": v["touches"], "total": 0.0, "last": None,
-            "description": " · ".join(v["examples"]), "remark": " · ".join(v["examples"]),
-            "now": None, "suggestion": v["category"],
-            "confidence": None, "reason": reason, "rule_possible": False,
-        })
+            reason += tr(", {0} different by hand (stays)", v["clashes"])
+        off.append(
+            {
+                "key": f"regel:{v['id']}",
+                "kind": "rule",
+                "title": v["pattern"],
+                "rule_id": v["id"],
+                "ids": [],
+                "count": v["touches"],
+                "total": 0.0,
+                "last": None,
+                "description": " · ".join(v["examples"]),
+                "remark": " · ".join(v["examples"]),
+                "now": None,
+                "suggestion": v["category"],
+                "confidence": None,
+                "reason": reason,
+                "rule_possible": False,
+            }
+        )
     return off
 
 
@@ -175,11 +236,20 @@ def _by_ai(conn: sqlite3.Connection) -> list[dict]:
     groups: dict = defaultdict(list)
     for r in ai_labelling.by_ai(conn, limit=2000):
         groups[(r["name"], r["category"])].append(r)
-    return [_item("ai", f"{name}|{category}", name, rs, now=category, suggestion=category,
-                  confidence=min(r["confidence"] for r in rs),
-                  reason=next((r.get("reason") for r in rs if r.get("reason")), None),
-                  rule_possible=_name_is_counterparty(name))
-            for (name, category), rs in groups.items()]
+    return [
+        _item(
+            "ai",
+            f"{name}|{category}",
+            name,
+            rs,
+            now=category,
+            suggestion=category,
+            confidence=min(r["confidence"] for r in rs),
+            reason=next((r.get("reason") for r in rs if r.get("reason")), None),
+            rule_possible=_name_is_counterparty(name),
+        )
+        for (name, category), rs in groups.items()
+    ]
 
 
 def _restore(conn: sqlite3.Connection) -> None:
@@ -197,7 +267,8 @@ def _restore(conn: sqlite3.Connection) -> None:
         SELECT name, description, category_auto FROM bank_transactions
          WHERE category_manual IS NULL AND COALESCE(category_source, 'rule') != 'ai'
            AND id IN ({places})
-        """, ids,
+        """,
+        ids,
     ):
         open_ = r["category_auto"] in (None, UNKNOWN)
         if open_ or (r["category_auto"] in FRIENDS and categorization.has_target_text(r["name"], r["description"])):
@@ -219,9 +290,11 @@ def queue(conn: sqlite3.Connection) -> dict:
     doubt = _doubt(conn, already) if claude else []
     already |= {i for item in doubt for i in item["ids"]}
     decisions = own + doubt + (_disagree(conn) if claude else []) + _unknown(conn, already)
-    items = (sorted(decisions, key=lambda i: -abs(i["total"]))
-             + (_rules(conn) if claude else [])
-             + (sorted(_by_ai(conn), key=lambda i: -abs(i["total"])) if claude else []))
+    items = (
+        sorted(decisions, key=lambda i: -abs(i["total"]))
+        + (_rules(conn) if claude else [])
+        + (sorted(_by_ai(conn), key=lambda i: -abs(i["total"])) if claude else [])
+    )
 
     total, open_ = conn.execute(
         "SELECT COUNT(*), COALESCE(SUM(COALESCE(category_effective, ?) = ?), 0) FROM bank_transactions_typed",
@@ -255,8 +328,9 @@ def _rule_on_name(conn: sqlite3.Connection, ids: list[int], category: str) -> bo
     name = names.pop()
     if not _name_is_counterparty(name):
         return False
-    categorization.make_rule(conn, priority=ai_labelling.RULE_PRIORITY, field="N",
-                             pattern=re.escape(name.strip().upper()), direction="", category=category)
+    categorization.make_rule(
+        conn, priority=ai_labelling.RULE_PRIORITY, field="N", pattern=re.escape(name.strip().upper()), direction="", category=category
+    )
     return True
 
 
@@ -289,8 +363,13 @@ def decision(conn: sqlite3.Connection, decisions: list[dict]) -> dict:
             ai_labelling.rule_suggestion_decision(conn, ids=[int(b["rule_id"])], accept=choice == "agreed")
             continue
         if kind == "disagree":
-            ai_labelling.decision(conn, ids=ids, category=category, rule=bool(b.get("rule")),
-                               choice={"agreed": "suggestion", "reject": "original", "otherwise": "otherwise"}[choice])
+            ai_labelling.decision(
+                conn,
+                ids=ids,
+                category=category,
+                rule=bool(b.get("rule")),
+                choice={"agreed": "suggestion", "reject": "original", "otherwise": "otherwise"}[choice],
+            )
             continue
         if choice == "reject":
             if kind in ("doubt", "ai"):

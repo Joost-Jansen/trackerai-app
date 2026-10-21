@@ -16,10 +16,18 @@ from tools.sync import garmin_gear
 
 
 def _run(s, day, km, garmin_id=None, sport="run"):
-    return db.upsert_activity(s, {
-        "start_utc": f"{day}T06:00:00Z", "start_local": f"{day}T08:00:00", "sport": sport, "name": f"{sport} {day}",
-        "distance_km": km, "moving_time_s": int(km * 330), "sources": {"garmin" if garmin_id else "wahoo": {"id": garmin_id or day, "raw": {}}},
-    })
+    return db.upsert_activity(
+        s,
+        {
+            "start_utc": f"{day}T06:00:00Z",
+            "start_local": f"{day}T08:00:00",
+            "sport": sport,
+            "name": f"{sport} {day}",
+            "distance_km": km,
+            "moving_time_s": int(km * 330),
+            "sources": {"garmin" if garmin_id else "wahoo": {"id": garmin_id or day, "raw": {}}},
+        },
+    )
 
 
 @pytest.fixture
@@ -37,7 +45,9 @@ def test_own_shoes_count_the_runs_from_their_first_day_and_say_when_to_replace(c
     s = db.Scope(engine, 1)
     _run(s, "2026-08-01", 5)  # before the shoes
     _run(s, "2026-10-01", 12)
-    r = client.post("/api/gear", json={"kind": "shoes", "name": "Pegasus 41", "start_km": 600, "since": "2026-09-01", "default_for": ["run"]})
+    r = client.post(
+        "/api/gear", json={"kind": "shoes", "name": "Pegasus 41", "start_km": 600, "since": "2026-09-01", "default_for": ["run"]}
+    )
     assert r.status_code == 201
     g = r.json()
     # 600 before + the 10 km run of 29 Sep + 12 km on 1 Oct; the run of 1 Aug was before them
@@ -79,8 +89,16 @@ def test_a_default_moves_to_the_newer_shoes_and_retired_ones_stop_counting(clien
 def test_garmin_gear_with_its_history_and_links(client, engine):  # noqa: F811
     s = db.Scope(engine, 1)
     _run(s, "2026-10-02", 6, garmin_id=2)
-    raw = {"uuid": "u1", "gearTypeName": "Shoes", "gearMakeName": "Nike", "gearModelName": "Pegasus 41", "displayName": "Pegasus",
-           "gearStatusName": "active", "dateBegin": "2026-03-01T00:00:00.0", "maximumMeters": 800000.0}
+    raw = {
+        "uuid": "u1",
+        "gearTypeName": "Shoes",
+        "gearMakeName": "Nike",
+        "gearModelName": "Pegasus 41",
+        "displayName": "Pegasus",
+        "gearStatusName": "active",
+        "dateBegin": "2026-03-01T00:00:00.0",
+        "maximumMeters": 800000.0,
+    }
     item = garmin_gear(raw, {"totalDistance": 316000.0, "totalActivities": 40}, [{"activityId": 1}, {"activityId": 2}])
     assert (item["kind"], item["brand"], item["max_km"], item["total_km"]) == ("shoes", "Nike", 800, 316)
     assert db.save_garmin_gear(s, [item]) == {"added": 1, "linked": 2}
@@ -105,8 +123,13 @@ def test_the_sync_brings_garmin_gear(engine, monkeypatch):  # noqa: F811
 
     class WithGear(FakeClientWithTokens):
         def gear(self):
-            return [garmin_gear({"uuid": "u9", "gearTypeName": "Bike", "displayName": "Canyon", "gearStatusName": "active"},
-                                {"totalDistance": 1500000.0, "totalActivities": 30}, [])]
+            return [
+                garmin_gear(
+                    {"uuid": "u9", "gearTypeName": "Bike", "displayName": "Canyon", "gearStatusName": "active"},
+                    {"totalDistance": 1500000.0, "totalActivities": 30},
+                    [],
+                )
+            ]
 
     key = Fernet.generate_key().decode()
     s = db.Scope(engine, 1)
@@ -134,7 +157,9 @@ def test_checks_on_input(client):
 
 
 def test_summary_orders_what_needs_attention_first():
-    items = [{"id": i, "kind": "shoes", "name": n, "start_km": km, "max_km": 100, "retired_on": r} for i, (n, km, r) in
-             enumerate([("ok", 10, None), ("old", 500, "2026-01-01"), ("worn", 120, None), ("nearly", 90, None)])]
+    items = [
+        {"id": i, "kind": "shoes", "name": n, "start_km": km, "max_km": 100, "retired_on": r}
+        for i, (n, km, r) in enumerate([("ok", 10, None), ("old", 500, "2026-01-01"), ("worn", 120, None), ("nearly", 90, None)])
+    ]
     names = [g["name"] for g in summarize(items, [], [], {}, date(2026, 10, 1))]
     assert names == ["worn", "nearly", "ok", "old"]

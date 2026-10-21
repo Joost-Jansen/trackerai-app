@@ -117,9 +117,7 @@ export default function PriceChart({
   const labelDecimals = Math.max(tickDecimals(ticks), decimals);
 
   const x = (i: number) => (i / (points.length - 1)) * W;
-  const path = points
-    .map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(p.c).toFixed(1)}`)
-    .join(" ");
+  const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(p.c).toFixed(1)}`).join(" ");
 
   const last = points[points.length - 1];
   const mid = points[Math.floor((points.length - 1) / 2)];
@@ -308,20 +306,14 @@ export default function PriceChart({
                 </g>
               ))}
 
-            {!measured && (
-              <circle cx={W} cy={y(last.c)} r="3.5" fill={colour} stroke="var(--surface-page)" strokeWidth="2" />
-            )}
+            {!measured && <circle cx={W} cy={y(last.c)} r="3.5" fill={colour} stroke="var(--surface-page)" strokeWidth="2" />}
           </svg>
 
           {/* The y labels in the gutter on the right. hi and lo lie PAD_Y inside the viewBox, so
               each label is at the height of its own tick. */}
           <div className="pointer-events-none absolute inset-y-0 -right-12 w-12 text-[11px] text-ink-muted">
             {ticks.map((t) => (
-              <span
-                key={t}
-                className="num absolute left-1.5 -translate-y-1/2 whitespace-nowrap"
-                style={{ top: `${(y(t) / H) * 100}%` }}
-              >
+              <span key={t} className="num absolute left-1.5 -translate-y-1/2 whitespace-nowrap" style={{ top: `${(y(t) / H) * 100}%` }}>
                 {fmtNumber(t, { decimals: labelDecimals })}
               </span>
             ))}
@@ -332,9 +324,15 @@ export default function PriceChart({
           <div className="mt-1 h-4 text-xs text-ink-muted">{tr("let go to show this period")}</div>
         ) : dateAxis ? (
           <div className="relative mt-1 h-4 text-xs text-ink-muted">
-            {tickFractions(points.map((p) => p.d.slice(0, 10)), pw).map((t, i) => (
-              <span key={i} className="absolute whitespace-nowrap"
-                style={{ left: `${t.f * 100}%`, transform: t.f < 0.04 ? "none" : t.f > 0.96 ? "translateX(-100%)" : "translateX(-50%)" }}>
+            {tickFractions(
+              points.map((p) => p.d.slice(0, 10)),
+              pw,
+            ).map((t, i) => (
+              <span
+                key={i}
+                className="absolute whitespace-nowrap"
+                style={{ left: `${t.f * 100}%`, transform: t.f < 0.04 ? "none" : t.f > 0.96 ? "translateX(-100%)" : "translateX(-50%)" }}
+              >
                 {t.label}
               </span>
             ))}

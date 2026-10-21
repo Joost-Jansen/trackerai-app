@@ -25,21 +25,18 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from domain.portfolio import series as charts
 from domain import database
 from domain.i18n import tr
+from domain.portfolio import series as charts
 
-_PRICES_TTL_SECONDS = 3600   # app.py:57's @st.cache_data(ttl=3600)
+_PRICES_TTL_SECONDS = 3600  # app.py:57's @st.cache_data(ttl=3600)
 _SEGMENTS_TTL_SECONDS = 3600  # app.py:147's
 
 
 def _dump_series(prices: dict) -> dict:
     """{label: pd.Series} -> {label: {iso date: float}}."""
     return {
-        label: {
-            (idx.date() if hasattr(idx, "date") else idx).isoformat(): float(value)
-            for idx, value in series.items()
-        }
+        label: {(idx.date() if hasattr(idx, "date") else idx).isoformat(): float(value) for idx, value in series.items()}
         for label, series in prices.items()
     }
 
@@ -60,19 +57,13 @@ def _load_series(raw: dict) -> dict:
 
 def _dump_segments(segments: list) -> list:
     """[(dates, values, cfs)] -> [[[iso], [float], [float]]]."""
-    return [
-        [[d.isoformat() for d in dates], list(values), list(cfs)]
-        for dates, values, cfs in segments
-    ]
+    return [[[d.isoformat() for d in dates], list(values), list(cfs)] for dates, values, cfs in segments]
 
 
 def _load_segments(raw: list) -> list:
     """The inverse. Dates return as datetime.date, which is what
     _build_portfolio_daily_series emits and what the charts compare with str()."""
-    return [
-        ([date.fromisoformat(d) for d in dates], list(values), list(cfs))
-        for dates, values, cfs in raw
-    ]
+    return [([date.fromisoformat(d) for d in dates], list(values), list(cfs)) for dates, values, cfs in raw]
 
 
 def _fingerprint(*objs) -> str:
@@ -150,11 +141,7 @@ def _points(series) -> list[dict]:
 
 def _chart(portfolio_points: list[dict], benchmark_points: dict[str, list[dict]], baseline: float):
     series = [{"label": tr(PORTFOLIO_LABEL), "kind": "portfolio", "points": portfolio_points}]
-    series += [
-        {"label": label, "kind": "benchmark", "points": pts}
-        for label, pts in benchmark_points.items()
-        if pts
-    ]
+    series += [{"label": label, "kind": "benchmark", "points": pts} for label, pts in benchmark_points.items() if pts]
     return {"series": series, "baseline": baseline}
 
 
@@ -213,9 +200,7 @@ def indexed_series(segments: list, benchmark_prices: dict) -> dict:
 ROLLING_WINDOW_DAYS = 91
 
 
-def rolling_series(
-    segments: list, benchmark_prices: dict, window_days: int = ROLLING_WINDOW_DAYS
-) -> dict:
+def rolling_series(segments: list, benchmark_prices: dict, window_days: int = ROLLING_WINDOW_DAYS) -> dict:
     """Return over a trailing *window_days* window, as a percentage, per day."""
     twr = charts._compute_twr_index(segments)
     portfolio = (twr.asfreq("D", method="ffill").pct_change(periods=window_days) * 100).dropna()

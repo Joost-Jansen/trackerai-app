@@ -39,9 +39,7 @@ export default function ThemeToggle() {
     <IconButton
       onClick={toggle}
       label={theme === "dark" ? tr("Switch to light theme") : tr("Switch to dark theme")}
-      icon={
-        theme === "dark" ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />
-      }
+      icon={theme === "dark" ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
     />
   );
 }

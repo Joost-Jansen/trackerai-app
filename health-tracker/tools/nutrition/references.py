@@ -59,7 +59,14 @@ def table(totals: dict, group: str | None, years: int | None) -> list[dict]:
     for key in ORDER:
         n = norm(key, group, years)
         amount = totals.get(key)
-        rows.append({"key": key, "amount": amount, "kind": n[0] if n else None, "reference": n[1] if n else None,
-                     "pct": round(amount / n[1] * 100) if n and amount is not None else None,
-                     "missing": (totals.get("missing") or {}).get(key, 0)})
+        rows.append(
+            {
+                "key": key,
+                "amount": amount,
+                "kind": n[0] if n else None,
+                "reference": n[1] if n else None,
+                "pct": round(amount / n[1] * 100) if n and amount is not None else None,
+                "missing": (totals.get("missing") or {}).get(key, 0),
+            }
+        )
     return rows

@@ -13,7 +13,7 @@ A series Garmin has nothing for is left out; a day without anything is {}.
 from __future__ import annotations
 
 from calendar import timegm
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime, timezone
 from zoneinfo import ZoneInfo
 
 # Garmin's sleepLevels.activityLevel; stored as the number, named in the API (api/daily.py)
@@ -35,7 +35,7 @@ def _gmt_seconds(text) -> float | None:
         return None
     if isinstance(text, (int, float)):
         return text / 1000
-    return datetime.fromisoformat(str(text).replace(" ", "T")).replace(tzinfo=timezone.utc).timestamp()
+    return datetime.fromisoformat(str(text).replace(" ", "T")).replace(tzinfo=UTC).timestamp()
 
 
 def _offset(responses: list[dict], sleep_dto: dict, day: str) -> float:
@@ -74,16 +74,22 @@ def _index(descriptors, key: str, default: int) -> int:
     return default
 
 
-def intraday_from_garmin(day: str, hr: dict | None = None, sleep: dict | None = None, stress: dict | None = None,
-                         respiration: dict | None = None, spo2: dict | None = None) -> dict:
+def intraday_from_garmin(
+    day: str,
+    hr: dict | None = None,
+    sleep: dict | None = None,
+    stress: dict | None = None,
+    respiration: dict | None = None,
+    spo2: dict | None = None,
+) -> dict:
     """Garmin's answers for one day -> the compact row (module docstring).
-        hr           get_heart_rates       heartRateValues [[ms, bpm | None]], about every 2 min
-        sleep        get_sleep_data        dailySleepDTO.sleepStart/EndTimestampLocal|GMT (ms), sleepLevels
-        stress       get_stress_data       stressValuesArray [[ms, level]] (every 3 min) and
-                                           bodyBatteryValuesArray [[ms, status, level, version]]
-        respiration  get_respiration_data  respirationValuesArray [[ms, breaths/min]]
-        spo2         get_spo2_data         continuousReadingDTOList [{epochTimestamp, spo2Reading}] or
-                                           spO2HourlyAverages [[ms, %]]; only when the watch measured it"""
+    hr           get_heart_rates       heartRateValues [[ms, bpm | None]], about every 2 min
+    sleep        get_sleep_data        dailySleepDTO.sleepStart/EndTimestampLocal|GMT (ms), sleepLevels
+    stress       get_stress_data       stressValuesArray [[ms, level]] (every 3 min) and
+                                       bodyBatteryValuesArray [[ms, status, level, version]]
+    respiration  get_respiration_data  respirationValuesArray [[ms, breaths/min]]
+    spo2         get_spo2_data         continuousReadingDTOList [{epochTimestamp, spo2Reading}] or
+                                       spO2HourlyAverages [[ms, %]]; only when the watch measured it"""
     midnight = timegm(date.fromisoformat(day).timetuple())  # local midnight as if it were UTC
     hr, stress, respiration, spo2 = hr or {}, stress or {}, respiration or {}, spo2 or {}
     dto = (sleep or {}).get("dailySleepDTO") or {}
@@ -95,8 +101,15 @@ def intraday_from_garmin(day: str, hr: dict | None = None, sleep: dict | None = 
     out: dict = {}
     series = {
         "hr": _series(hr.get("heartRateValues"), minute),
-        "stress": _series(stress.get("stressValuesArray"), minute, _index(stress.get("stressValueDescriptorsDTOList"), "stressLevel", 1), zero_ok=True),
-        "bb": _series(stress.get("bodyBatteryValuesArray"), minute, _index(stress.get("bodyBatteryValueDescriptorsDTOList"), "bodyBatteryLevel", 2), zero_ok=True),
+        "stress": _series(
+            stress.get("stressValuesArray"), minute, _index(stress.get("stressValueDescriptorsDTOList"), "stressLevel", 1), zero_ok=True
+        ),
+        "bb": _series(
+            stress.get("bodyBatteryValuesArray"),
+            minute,
+            _index(stress.get("bodyBatteryValueDescriptorsDTOList"), "bodyBatteryLevel", 2),
+            zero_ok=True,
+        ),
         "resp": _series(respiration.get("respirationValuesArray"), minute, 1, digits=1),
     }
     readings = [[r.get("epochTimestamp"), r.get("spo2Reading")] for r in spo2.get("continuousReadingDTOList") or [] if isinstance(r, dict)]
@@ -106,7 +119,9 @@ def intraday_from_garmin(day: str, hr: dict | None = None, sleep: dict | None = 
         out.update({k: hr[f"{k}HeartRate"] for k in ("resting", "min", "max") if hr.get(f"{k}HeartRate")})
 
     if dto.get("sleepStartTimestampLocal") and dto.get("sleepEndTimestampLocal"):
-        sleep_offset = (dto["sleepStartTimestampLocal"] - dto["sleepStartTimestampGMT"]) / 1000 if dto.get("sleepStartTimestampGMT") else offset
+        sleep_offset = (
+            (dto["sleepStartTimestampLocal"] - dto["sleepStartTimestampGMT"]) / 1000 if dto.get("sleepStartTimestampGMT") else offset
+        )
         stages = []
         for lvl in (sleep or {}).get("sleepLevels") or []:
             start, end = _gmt_seconds(lvl.get("startGMT")), _gmt_seconds(lvl.get("endGMT"))

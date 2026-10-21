@@ -70,7 +70,10 @@ export default function SleepStages({ nights, window: win }: { nights: SleepNigh
   const f = useFormat();
   const S = t.texts.trends.sleepStages;
   const today = iso(new Date());
-  const inWindow = useMemo(() => nights.filter((n) => !win?.from || (n.date >= win.from && n.date <= win.to)), [nights, win?.from, win?.to]);
+  const inWindow = useMemo(
+    () => nights.filter((n) => !win?.from || (n.date >= win.from && n.date <= win.to)),
+    [nights, win?.from, win?.to],
+  );
   // per night up to two months, beyond that per week; months for a year or more
   const auto: Period = inWindow.length <= 62 ? "night" : inWindow.length <= 400 ? "week" : "month";
   const [chosen, setChosen] = useState<Period | null>(null);
@@ -84,14 +87,18 @@ export default function SleepStages({ nights, window: win }: { nights: SleepNigh
   const short = (b: Bar) => (period === "month" ? f.monthShort(b.start) : f.dayMonth(b.start));
 
   // over the whole period: average hours per night and the share of each stage
-  const all = useMemo(() => group(inWindow, "month", today).reduce(
-    (acc, b) => {
-      STAGES.forEach((s) => (acc.hours[s] += b.hours[s]));
-      acc.nights += b.nights;
-      return acc;
-    },
-    { hours: { deep: 0, light: 0, rem: 0, awake: 0 } as Record<SleepStage, number>, nights: 0 },
-  ), [inWindow, today]);
+  const all = useMemo(
+    () =>
+      group(inWindow, "month", today).reduce(
+        (acc, b) => {
+          STAGES.forEach((s) => (acc.hours[s] += b.hours[s]));
+          acc.nights += b.nights;
+          return acc;
+        },
+        { hours: { deep: 0, light: 0, rem: 0, awake: 0 } as Record<SleepStage, number>, nights: 0 },
+      ),
+    [inWindow, today],
+  );
   const allTotal = STAGES.reduce((s, k) => s + all.hours[k], 0);
   const perNight = (h: number, n: number) => f.duration(Math.round((h / Math.max(1, n)) * 3600));
 
@@ -103,7 +110,16 @@ export default function SleepStages({ nights, window: win }: { nights: SleepNigh
       bars.map((b, i) => {
         const win = bars.slice(Math.max(0, i - roll + 1), i + 1);
         const part = win.reduce((sum, w) => sum + w.hours[s], 0);
-        if (mode === "hours") return { d: b.start, v: part / Math.max(1, win.reduce((sum, w) => sum + w.nights, 0)) };
+        if (mode === "hours")
+          return {
+            d: b.start,
+            v:
+              part /
+              Math.max(
+                1,
+                win.reduce((sum, w) => sum + w.nights, 0),
+              ),
+          };
         const tot = win.reduce((sum, w) => sum + STAGES.reduce((x, k) => x + w.hours[k], 0), 0);
         return { d: b.start, v: tot ? (part / tot) * 100 : 0 };
       });
@@ -117,7 +133,13 @@ export default function SleepStages({ nights, window: win }: { nights: SleepNigh
       const n = items.reduce((x, b) => x + b.nights, 0) || 1;
       const h = (s: SleepStage) => items.reduce((x, b) => x + b.hours[s], 0) / n;
       const bed = STAGES.reduce((x, s) => x + h(s), 0) || 1;
-      return { asleep: h("deep") + h("light") + h("rem"), deep: h("deep"), rem: h("rem"), deepPct: (h("deep") / bed) * 100, remPct: (h("rem") / bed) * 100 };
+      return {
+        asleep: h("deep") + h("light") + h("rem"),
+        deep: h("deep"),
+        rem: h("rem"),
+        deepPct: (h("deep") / bed) * 100,
+        remPct: (h("rem") / bed) * 100,
+      };
     };
     if (!bars.length) return null;
     const now = sum(bars.slice(-roll));
@@ -135,10 +157,23 @@ export default function SleepStages({ nights, window: win }: { nights: SleepNigh
       title={S.title}
       action={
         <div className="flex flex-wrap items-center gap-2">
-          <Tabs variant="segmented" items={[{ id: "pct", label: "%" }, { id: "hours", label: S.hours }]} value={mode} onChange={(v) => setMode(v as Mode)} ariaLabel={S.unit} />
           <Tabs
             variant="segmented"
-            items={[{ id: "night", label: S.night }, { id: "week", label: t.dashboard.week }, { id: "month", label: t.dashboard.month }]}
+            items={[
+              { id: "pct", label: "%" },
+              { id: "hours", label: S.hours },
+            ]}
+            value={mode}
+            onChange={(v) => setMode(v as Mode)}
+            ariaLabel={S.unit}
+          />
+          <Tabs
+            variant="segmented"
+            items={[
+              { id: "night", label: S.night },
+              { id: "week", label: t.dashboard.week },
+              { id: "month", label: t.dashboard.month },
+            ]}
             value={period}
             onChange={(v) => setChosen(v as Period)}
             ariaLabel={S.per}
@@ -152,7 +187,9 @@ export default function SleepStages({ nights, window: win }: { nights: SleepNigh
         <>
           <p className="mb-2 text-[13px] text-ink-muted">
             {S.summary(all.nights, perNight(allTotal - all.hours.awake, all.nights))}{" "}
-            {STAGES.map((s) => `${name(s)} ${Math.round((all.hours[s] / allTotal) * 100)}% (${perNight(all.hours[s], all.nights)})`).join(" · ")}
+            {STAGES.map((s) => `${name(s)} ${Math.round((all.hours[s] / allTotal) * 100)}% (${perNight(all.hours[s], all.nights)})`).join(
+              " · ",
+            )}
           </p>
           <StageBars bars={bars} mode={mode} label={label} short={short} perNight={perNight} name={name} />
 
@@ -190,11 +227,37 @@ export default function SleepStages({ nights, window: win }: { nights: SleepNigh
             <div className="mt-5 border-t border-border pt-4">
               <h3 className="mb-2 text-[13px] font-medium">{S.lastN(ROLL[period], period)}</h3>
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                {([
-                  { key: "asleep", title: S.asleepTitle, colour: "var(--text-primary)", v: status.now.asleep, goal: GOAL_H, pct: null, was: status.first?.asleep },
-                  { key: "rem", title: name("rem"), colour: STAGE_COLOUR.rem.fill, v: status.now.rem, goal: GOAL_STAGE_H.rem, pct: status.now.remPct, was: status.first?.rem },
-                  { key: "deep", title: name("deep"), colour: STAGE_COLOUR.deep.fill, v: status.now.deep, goal: GOAL_STAGE_H.deep, pct: status.now.deepPct, was: status.first?.deep },
-                ] as const).map((x) => {
+                {(
+                  [
+                    {
+                      key: "asleep",
+                      title: S.asleepTitle,
+                      colour: "var(--text-primary)",
+                      v: status.now.asleep,
+                      goal: GOAL_H,
+                      pct: null,
+                      was: status.first?.asleep,
+                    },
+                    {
+                      key: "rem",
+                      title: name("rem"),
+                      colour: STAGE_COLOUR.rem.fill,
+                      v: status.now.rem,
+                      goal: GOAL_STAGE_H.rem,
+                      pct: status.now.remPct,
+                      was: status.first?.rem,
+                    },
+                    {
+                      key: "deep",
+                      title: name("deep"),
+                      colour: STAGE_COLOUR.deep.fill,
+                      v: status.now.deep,
+                      goal: GOAL_STAGE_H.deep,
+                      pct: status.now.deepPct,
+                      was: status.first?.deep,
+                    },
+                  ] as const
+                ).map((x) => {
                   const below = x.goal - x.v >= 5 / 60;
                   return (
                     <div key={x.key} className="min-w-0 rounded-md border border-border px-2.5 py-2 sm:px-3 sm:py-2.5">
@@ -207,11 +270,22 @@ export default function SleepStages({ nights, window: win }: { nights: SleepNigh
                         {x.pct != null && <span className="ml-1.5 text-[13px] text-ink-muted">{Math.round(x.pct)}%</span>}
                       </div>
                       <div className="mt-0.5 flex items-baseline gap-1.5 text-[11.5px] sm:text-[12px]">
-                        <span aria-hidden className="inline-block h-1.5 w-1.5 flex-none translate-y-[-1px] rounded-full" style={{ background: below ? "var(--zone-4)" : "var(--zone-2)" }} />
-                        <span>{vsGoal(x.v, x.goal)} <span className="hidden text-ink-muted sm:inline">({S.goalShort(x.key === "asleep" ? `${GOAL_H} ${f.hourUnit}` : hm(x.goal))})</span></span>
+                        <span
+                          aria-hidden
+                          className="inline-block h-1.5 w-1.5 flex-none translate-y-[-1px] rounded-full"
+                          style={{ background: below ? "var(--zone-4)" : "var(--zone-2)" }}
+                        />
+                        <span>
+                          {vsGoal(x.v, x.goal)}{" "}
+                          <span className="hidden text-ink-muted sm:inline">
+                            ({S.goalShort(x.key === "asleep" ? `${GOAL_H} ${f.hourUnit}` : hm(x.goal))})
+                          </span>
+                        </span>
                       </div>
                       {x.was != null && (
-                        <div className="mt-0.5 text-[11.5px] text-ink-muted">{S.sinceShort(period === "month" ? f.month(bars[0].start) : f.dayMonth(bars[0].start), change(x.v - x.was))}</div>
+                        <div className="mt-0.5 text-[11.5px] text-ink-muted">
+                          {S.sinceShort(period === "month" ? f.month(bars[0].start) : f.dayMonth(bars[0].start), change(x.v - x.was))}
+                        </div>
                       )}
                     </div>
                   );
@@ -274,11 +348,22 @@ function StageBars({
     <div>
       <div className="relative">
         {mode === "hours" && (
-          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 z-10 border-t border-dashed border-[var(--text-primary)] opacity-70" style={{ bottom: `${(8 / top) * 100}%` }}>
-            <span className="absolute -top-[9px] right-0 rounded bg-surface px-1 text-[10.5px] leading-[16px] text-[var(--text-primary)]">8 {f.hourUnit}</span>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 z-10 border-t border-dashed border-[var(--text-primary)] opacity-70"
+            style={{ bottom: `${(8 / top) * 100}%` }}
+          >
+            <span className="absolute -top-[9px] right-0 rounded bg-surface px-1 text-[10.5px] leading-[16px] text-[var(--text-primary)]">
+              8 {f.hourUnit}
+            </span>
           </div>
         )}
-        <div role="group" aria-label={S.title} className="flex h-[150px] items-stretch gap-[3px] sm:h-[180px]" onMouseLeave={() => setActive(null)}>
+        <div
+          role="group"
+          aria-label={S.title}
+          className="flex h-[150px] items-stretch gap-[3px] sm:h-[180px]"
+          onMouseLeave={() => setActive(null)}
+        >
           {bars.map((b, i) => (
             <button
               key={b.start}
@@ -297,7 +382,11 @@ function StageBars({
                     key={s}
                     aria-hidden="true"
                     className="block w-full"
-                    style={{ height: `${height(b, s)}%`, background: STAGE_COLOUR[s].fill, opacity: STAGE_COLOUR[s].opacity * (b.partial ? 0.6 : 1) }}
+                    style={{
+                      height: `${height(b, s)}%`,
+                      background: STAGE_COLOUR[s].fill,
+                      opacity: STAGE_COLOUR[s].opacity * (b.partial ? 0.6 : 1),
+                    }}
                   />
                 ) : null,
               )}
@@ -322,7 +411,11 @@ function StageBars({
             </div>
             {STAGES.map((s) => (
               <div key={s} className="flex items-center gap-1.5">
-                <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ background: STAGE_COLOUR[s].fill, opacity: Math.max(0.6, STAGE_COLOUR[s].opacity) }} />
+                <span
+                  aria-hidden="true"
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ background: STAGE_COLOUR[s].fill, opacity: Math.max(0.6, STAGE_COLOUR[s].opacity) }}
+                />
                 <span className="opacity-80">{name(s)}</span>
                 <span className="ml-auto pl-3 font-semibold">{Math.round(shown.pct[s])}%</span>
                 <span className="w-12 text-right opacity-80">{perNight(shown.hours[s], shown.nights)}</span>
@@ -337,7 +430,10 @@ function StageBars({
           const show = (bars.length - 1 - i) % every === 0;
           const edge = i === 0 ? "justify-start" : i === bars.length - 1 ? "justify-end" : "justify-center";
           return (
-            <span key={b.start} className={`flex min-w-0 flex-1 ${edge} whitespace-nowrap text-[11px] leading-tight ${i === active ? "font-semibold text-text" : "text-ink-muted"}`}>
+            <span
+              key={b.start}
+              className={`flex min-w-0 flex-1 ${edge} whitespace-nowrap text-[11px] leading-tight ${i === active ? "font-semibold text-text" : "text-ink-muted"}`}
+            >
               <span className="flex-none">{show ? short(b) : ""}</span>
             </span>
           );
@@ -347,7 +443,11 @@ function StageBars({
       <div className="mt-2.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[11px] text-ink-muted">
         {STAGES.map((s) => (
           <span key={s} className="inline-flex items-center gap-1.5">
-            <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: STAGE_COLOUR[s].fill, opacity: STAGE_COLOUR[s].opacity }} />
+            <span
+              aria-hidden="true"
+              className="inline-block h-2.5 w-2.5 rounded-[3px]"
+              style={{ background: STAGE_COLOUR[s].fill, opacity: STAGE_COLOUR[s].opacity }}
+            />
             {name(s)}
           </span>
         ))}

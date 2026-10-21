@@ -131,8 +131,7 @@ export function rangeBreakdown(all: ValuePoint[], slice: ValuePoint[]) {
  *  drawing — a tooltip floating over a 150px-high chart covers the line it is
  *  describing. */
 export type Probe =
-  | { kind: "point"; point: ValuePoint }
-  | ({ kind: "span"; a: ValuePoint; b: ValuePoint } & ReturnType<typeof splitChange>);
+  { kind: "point"; point: ValuePoint } | ({ kind: "span"; a: ValuePoint; b: ValuePoint } & ReturnType<typeof splitChange>);
 
 /** What happened between two points on the value chart, split into the part you
  *  paid for and the part the market did.
@@ -392,9 +391,7 @@ function rangeStart(last: Date, range: Range): Date | null {
  *  fall back a day in Dutch summer time.
  */
 function iso(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
-  ).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 /**

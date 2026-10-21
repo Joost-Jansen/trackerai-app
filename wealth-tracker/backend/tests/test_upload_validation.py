@@ -34,22 +34,59 @@ def _xlsx(headers: list[str], rows: list[list]) -> bytes:
 
 
 _TRANSACTION_HEADERS = [
-    "Datum", "Tijd", "Product", "ISIN", "Beurs", "Uitvoeringsplaats", "Aantal",
-    "Koers", "Unnamed: 8", "Lokale waarde", "Unnamed: 10", "Waarde EUR",
-    "Wisselkoers", "AutoFX Kosten", "Transactiekosten en/of kosten van derden EUR",
-    "Totaal EUR", "Order ID",
+    "Datum",
+    "Tijd",
+    "Product",
+    "ISIN",
+    "Beurs",
+    "Uitvoeringsplaats",
+    "Aantal",
+    "Koers",
+    "Unnamed: 8",
+    "Lokale waarde",
+    "Unnamed: 10",
+    "Waarde EUR",
+    "Wisselkoers",
+    "AutoFX Kosten",
+    "Transactiekosten en/of kosten van derden EUR",
+    "Totaal EUR",
+    "Order ID",
 ]
 _TRANSACTION_ROW = [
-    "11-06-2026", "10:31", "ISHARES CORE EURO STOXX 50", "IE0008471009", "EAM",
-    "XAMS", 9, 62.02, "EUR", -558.18, "EUR", -558.18, None, 0.0, -3.0, -561.18,
+    "11-06-2026",
+    "10:31",
+    "ISHARES CORE EURO STOXX 50",
+    "IE0008471009",
+    "EAM",
+    "XAMS",
+    9,
+    62.02,
+    "EUR",
+    -558.18,
+    "EUR",
+    -558.18,
+    None,
+    0.0,
+    -3.0,
+    -561.18,
     "8578dd38-aaad-4656-8837-a3ce43031ea7",
 ]
 
 # The account statement shares Datum/Product/ISIN with the transaction export;
 # only Omschrijving vs Aantal tells them apart.
 _ACCOUNT_HEADERS = [
-    "Datum", "Tijd", "Valutadatum", "Product", "ISIN", "Omschrijving", "FX",
-    "Mutatie", "Unnamed: 8", "Saldo", "Unnamed: 10", "Order Id",
+    "Datum",
+    "Tijd",
+    "Valutadatum",
+    "Product",
+    "ISIN",
+    "Omschrijving",
+    "FX",
+    "Mutatie",
+    "Unnamed: 8",
+    "Saldo",
+    "Unnamed: 10",
+    "Order Id",
 ]
 
 
@@ -83,8 +120,7 @@ def test_the_name_ios_gives_a_second_download_still_parses(client):
     and nothing here may start deciding by extension instead.
     """
     _login(client)
-    resp = _post(client, "transactions", "Transactions.xlsx 2",
-                 _xlsx(_TRANSACTION_HEADERS, [_TRANSACTION_ROW]))
+    resp = _post(client, "transactions", "Transactions.xlsx 2", _xlsx(_TRANSACTION_HEADERS, [_TRANSACTION_ROW]))
 
     assert resp.status_code == 200
     assert resp.json()["results"][0]["saved"] == 1
@@ -109,8 +145,7 @@ def test_the_account_statement_in_the_transactions_slot_is_named(client):
 
 def test_the_transaction_export_in_the_dividend_slot_is_named(client):
     _login(client)
-    resp = _post(client, "dividends", "Transactions.xlsx",
-                 _xlsx(_TRANSACTION_HEADERS, [_TRANSACTION_ROW]))
+    resp = _post(client, "dividends", "Transactions.xlsx", _xlsx(_TRANSACTION_HEADERS, [_TRANSACTION_ROW]))
 
     assert resp.status_code == 422
     assert "rekeningoverzicht" in resp.json()["detail"]
@@ -123,7 +158,10 @@ def test_an_export_with_no_rows_is_accepted_not_rejected(client):
 
     assert resp.status_code == 200
     assert resp.json()["results"][0] == {
-        "filename": "Transactions.xlsx", "saved": 0, "skipped": 0, "unparsed": [],
+        "filename": "Transactions.xlsx",
+        "saved": 0,
+        "skipped": 0,
+        "unparsed": [],
     }
 
 
@@ -145,8 +183,7 @@ def test_a_rejected_file_does_not_count_as_an_import(client):
 def test_a_traversing_filename_cannot_escape_the_upload_dir(client):
     """The browser picks the filename, and iOS hands over odd ones."""
     _login(client)
-    resp = _post(client, "transactions", "../../../../evil.xlsx",
-                 _xlsx(_TRANSACTION_HEADERS, [_TRANSACTION_ROW]))
+    resp = _post(client, "transactions", "../../../../evil.xlsx", _xlsx(_TRANSACTION_HEADERS, [_TRANSACTION_ROW]))
 
     assert resp.status_code == 200
     assert resp.json()["results"][0]["filename"] == "evil.xlsx"
@@ -158,6 +195,7 @@ def test_a_traversing_filename_cannot_escape_the_upload_dir(client):
 
 def test_csv_upload_and_duplicate(client):
     import csv
+
     _login(client)
     stream = io.StringIO()
     writer = csv.writer(stream)

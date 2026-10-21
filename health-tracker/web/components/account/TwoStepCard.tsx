@@ -50,19 +50,40 @@ export default function TwoStepCard({ me, onEnabled }: { me: Me; onEnabled?: () 
       setBusy(false);
     }
   };
-  const status = useQuery({ queryKey: ["totp"], queryFn: () => api.get<{ backup_codes_left: number }>("/api/account/totp"), enabled: !!me.totp_enabled });
-  const codesLeft = me.totp_enabled ? status.data?.backup_codes_left ?? null : null;
+  const status = useQuery({
+    queryKey: ["totp"],
+    queryFn: () => api.get<{ backup_codes_left: number }>("/api/account/totp"),
+    enabled: !!me.totp_enabled,
+  });
+  const codesLeft = me.totp_enabled ? (status.data?.backup_codes_left ?? null) : null;
   const fail = (err: unknown) => setMsg({ ok: false, text: errorText(err, t, m.failed) });
-  const reset = () => { setCode(""); setPassword(""); setMsg(null); };
+  const reset = () => {
+    setCode("");
+    setPassword("");
+    setMsg(null);
+  };
 
   if (backup) {
     return (
       <Card title={m.backupTitle}>
         <p className="mb-3 max-w-prose text-[12.5px] text-ink-muted">{m.backupText}</p>
         <ul className="mb-4 grid max-w-xs grid-cols-2 gap-x-6 gap-y-1 font-mono text-[13px]">
-          {backup.map((c) => <li key={c}>{c}</li>)}
+          {backup.map((c) => (
+            <li key={c}>{c}</li>
+          ))}
         </ul>
-        <Button size="sm" variant="primary" onClick={() => { setBackup(null); qc.invalidateQueries({ queryKey: ["me"] }); qc.invalidateQueries({ queryKey: ["totp"] }); onEnabled?.(); }}>{m.done}</Button>
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={() => {
+            setBackup(null);
+            qc.invalidateQueries({ queryKey: ["me"] });
+            qc.invalidateQueries({ queryKey: ["totp"] });
+            onEnabled?.();
+          }}
+        >
+          {m.done}
+        </Button>
       </Card>
     );
   }
@@ -70,7 +91,10 @@ export default function TwoStepCard({ me, onEnabled }: { me: Me; onEnabled?: () 
   return (
     <Card title={m.title}>
       <p className="mb-3 max-w-prose text-[12px] text-ink-muted">
-        {m.everywhere}{" "}<Link href="/two-step/" className="underline underline-offset-2">{t.auth.twoStepHelp}</Link>
+        {m.everywhere}{" "}
+        <Link href="/two-step/" className="underline underline-offset-2">
+          {t.auth.twoStepHelp}
+        </Link>
       </p>
       {me.totp_enabled ? (
         <div className="flex max-w-sm flex-col gap-3">
@@ -79,8 +103,26 @@ export default function TwoStepCard({ me, onEnabled }: { me: Me; onEnabled?: () 
           {codesLeft !== null && <p className="text-[12.5px] text-ink-muted">{m.codesLeft(codesLeft)}</p>}
           {mode === null && (
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="secondary" onClick={() => { reset(); setMode("off"); }}>{me.totp_required ? m.setUpAgain : m.turnOff}</Button>
-              <Button size="sm" variant="ghost" onClick={() => { reset(); setMode("codes"); }}>{m.newCodes}</Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  reset();
+                  setMode("off");
+                }}
+              >
+                {me.totp_required ? m.setUpAgain : m.turnOff}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  reset();
+                  setMode("codes");
+                }}
+              >
+                {m.newCodes}
+              </Button>
             </div>
           )}
           {mode === "off" && (
@@ -99,11 +141,35 @@ export default function TwoStepCard({ me, onEnabled }: { me: Me; onEnabled?: () 
               })}
             >
               <p className="text-[12.5px] text-ink-muted">{me.totp_required ? m.setUpAgainText : m.turnOffText}</p>
-              <Input type="password" autoComplete="current-password" label={m.password} value={password} onChange={(e) => setPassword(e.target.value)} />
-              <Input inputMode="numeric" autoComplete="one-time-code" label={m.codeOrBackup} value={code} onChange={(e) => setCode(e.target.value)} />
+              <Input
+                type="password"
+                autoComplete="current-password"
+                label={m.password}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <Input
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                label={m.codeOrBackup}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
               <div className="flex items-center gap-3">
-                <Button type="submit" size="sm" variant="secondary" disabled={busy || !password || !code}>{m.turnOff}</Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => { reset(); setMode(null); }}>{m.cancel}</Button>
+                <Button type="submit" size="sm" variant="secondary" disabled={busy || !password || !code}>
+                  {m.turnOff}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    reset();
+                    setMode(null);
+                  }}
+                >
+                  {m.cancel}
+                </Button>
               </div>
             </form>
           )}
@@ -122,10 +188,28 @@ export default function TwoStepCard({ me, onEnabled }: { me: Me; onEnabled?: () 
               })}
             >
               <p className="text-[12.5px] text-ink-muted">{m.newCodesText}</p>
-              <Input inputMode="numeric" autoComplete="one-time-code" label={m.code} value={code} onChange={(e) => setCode(e.target.value)} />
+              <Input
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                label={m.code}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
               <div className="flex items-center gap-3">
-                <Button type="submit" size="sm" variant="primary" disabled={busy || code.trim().length < 6}>{m.makeCodes}</Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => { reset(); setMode(null); }}>{m.cancel}</Button>
+                <Button type="submit" size="sm" variant="primary" disabled={busy || code.trim().length < 6}>
+                  {m.makeCodes}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    reset();
+                    setMode(null);
+                  }}
+                >
+                  {m.cancel}
+                </Button>
               </div>
             </form>
           )}
@@ -147,27 +231,59 @@ export default function TwoStepCard({ me, onEnabled }: { me: Me; onEnabled?: () 
         >
           <p className="text-[12.5px] text-ink-muted">{m.scan}</p>
           <Qr text={setup.otpauth_uri} />
-          <p className="text-[12px] text-ink-muted">{m.key}: <span className="select-all break-all font-mono text-[var(--text-primary)]">{setup.secret}</span></p>
-          <Input inputMode="numeric" autoComplete="one-time-code" label={m.code} hint={m.codeHint} value={code} onChange={(e) => setCode(e.target.value)} autoFocus />
+          <p className="text-[12px] text-ink-muted">
+            {m.key}: <span className="select-all break-all font-mono text-[var(--text-primary)]">{setup.secret}</span>
+          </p>
+          <Input
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            label={m.code}
+            hint={m.codeHint}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            autoFocus
+          />
           <div className="flex items-center gap-3">
-            <Button type="submit" size="sm" variant="primary" disabled={busy || code.trim().length < 6}>{m.confirm}</Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => { setSetup(null); reset(); }}>{m.cancel}</Button>
+            <Button type="submit" size="sm" variant="primary" disabled={busy || code.trim().length < 6}>
+              {m.confirm}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setSetup(null);
+                reset();
+              }}
+            >
+              {m.cancel}
+            </Button>
             {msg && <span className={`text-[12.5px] ${msg.ok ? "text-gain" : "text-loss"}`}>{msg.text}</span>}
           </div>
         </form>
       ) : (
         <div className="flex max-w-prose flex-col gap-3">
           <p className="text-[12.5px] text-ink-muted">{me.email_codes ? m.appOff : m.off}</p>
-          {me.email_codes ? null : me.totp_required ? <p className="text-[12.5px]">{m.required}</p> : me.is_admin && <p className="text-[12.5px]">{m.adminHint}</p>}
+          {me.email_codes ? null : me.totp_required ? (
+            <p className="text-[12.5px]">{m.required}</p>
+          ) : (
+            me.is_admin && <p className="text-[12.5px]">{m.adminHint}</p>
+          )}
           <div className="flex items-center gap-3">
-            <Button size="sm" variant="primary" onClick={async () => {
-              reset();
-              try {
-                setSetup(await api.post<{ secret: string; otpauth_uri: string }>("/api/account/totp/setup"));
-              } catch (err) {
-                fail(err);
-              }
-            }}>{m.turnOn}</Button>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={async () => {
+                reset();
+                try {
+                  setSetup(await api.post<{ secret: string; otpauth_uri: string }>("/api/account/totp/setup"));
+                } catch (err) {
+                  fail(err);
+                }
+              }}
+            >
+              {m.turnOn}
+            </Button>
             {msg && <span className={`text-[12.5px] ${msg.ok ? "text-gain" : "text-loss"}`}>{msg.text}</span>}
           </div>
         </div>

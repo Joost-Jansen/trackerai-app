@@ -30,9 +30,7 @@ function Field({
         </label>
       )}
       {children}
-      {(error || hint) && (
-        <span className={`ds-field__hint ${error ? "ds-field__hint--error" : ""}`}>{error ?? hint}</span>
-      )}
+      {(error || hint) && <span className={`ds-field__hint ${error ? "ds-field__hint--error" : ""}`}>{error ?? hint}</span>}
     </div>
   );
 }
@@ -124,9 +122,7 @@ export function Checkbox({
   className?: string;
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "checked" | "className" | "type">) {
   return (
-    <label
-      className={`ds-check ${checked ? "ds-check--on" : ""} ${disabled ? "ds-check--disabled" : ""} ${className}`}
-    >
+    <label className={`ds-check ${checked ? "ds-check--on" : ""} ${disabled ? "ds-check--disabled" : ""} ${className}`}>
       <input
         type="checkbox"
         checked={checked}
@@ -161,9 +157,7 @@ export function Switch({
   className?: string;
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "checked" | "className" | "type">) {
   return (
-    <label
-      className={`ds-switch ${checked ? "ds-switch--on" : ""} ${disabled ? "ds-switch--disabled" : ""} ${className}`}
-    >
+    <label className={`ds-switch ${checked ? "ds-switch--on" : ""} ${disabled ? "ds-switch--disabled" : ""} ${className}`}>
       <input
         type="checkbox"
         role="switch"

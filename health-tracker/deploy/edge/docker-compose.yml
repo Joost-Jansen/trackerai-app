@@ -29,11 +29,11 @@ services:
       - caddy-data:/data
       - caddy-config:/config
     ports:
-      - "127.0.0.1:8081:8081"  # Tailscale: health-tracker  (tailscale serve --bg --https=443 http://127.0.0.1:8081)
-      - "127.0.0.1:8082:8082"  # Tailscale: stock-tracker   (tailscale serve --bg --https=8443 http://127.0.0.1:8082)
+      - "127.0.0.1:8081:8081" # Tailscale: health-tracker  (tailscale serve --bg --https=443 http://127.0.0.1:8081)
+      - "127.0.0.1:8082:8082" # Tailscale: stock-tracker   (tailscale serve --bg --https=8443 http://127.0.0.1:8082)
     networks:
       edge:
-        ipv4_address: 172.30.0.10  # fixed: the apps trust forwarding headers from this address only (TRUSTED_PROXIES)
+        ipv4_address: 172.30.0.10 # fixed: the apps trust forwarding headers from this address only (TRUSTED_PROXIES)
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
@@ -45,7 +45,7 @@ services:
     logging: *logging
 
   cloudflared:
-    image: cloudflare/cloudflared:2026.10.0  # pinned: update on purpose, not with every pull
+    image: cloudflare/cloudflared:2026.10.0 # pinned: update on purpose, not with every pull
     container_name: edge-cloudflared
     command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
     volumes:

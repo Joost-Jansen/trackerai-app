@@ -7,7 +7,7 @@ again when it still exists, else from the item's own snapshot.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 
 from sqlalchemy import delete, func, insert, select, update
 
@@ -30,7 +30,7 @@ class MealError(ValueError):
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _item_values(s: db.Scope, item: dict, position: int, old: dict | None = None) -> dict:
@@ -51,9 +51,18 @@ def _item_values(s: db.Scope, item: dict, position: int, old: dict | None = None
     if source not in GRAMS_SOURCES:
         raise MealError("invalid_choice", options=", ".join(GRAMS_SOURCES))
     return {
-        "user_id": s.user_id, "position": position, "food_ref": ref, "name": str(name)[:200], "unit": unit, "grams": round(grams, 1),
-        "grams_ai": item.get("grams_ai"), "grams_low": item.get("grams_low"), "grams_high": item.get("grams_high"),
-        "grams_source": source, "confidence": item.get("confidence"), "nutrients": nutrients,
+        "user_id": s.user_id,
+        "position": position,
+        "food_ref": ref,
+        "name": str(name)[:200],
+        "unit": unit,
+        "grams": round(grams, 1),
+        "grams_ai": item.get("grams_ai"),
+        "grams_low": item.get("grams_low"),
+        "grams_high": item.get("grams_high"),
+        "grams_source": source,
+        "confidence": item.get("confidence"),
+        "nutrients": nutrients,
     }
 
 
@@ -84,8 +93,18 @@ def validate(*, day: str, eaten_at: str, moment: str, items: list[dict]) -> None
             raise MealError("invalid_grams", max=int(MAX_GRAMS))
 
 
-def create(s: db.Scope, *, day: str, eaten_at: str, moment: str, input: str, items: list[dict], note: str | None = None,
-           photo_id: int | None = None, ai_run_id: int | None = None) -> dict:
+def create(
+    s: db.Scope,
+    *,
+    day: str,
+    eaten_at: str,
+    moment: str,
+    input: str,
+    items: list[dict],
+    note: str | None = None,
+    photo_id: int | None = None,
+    ai_run_id: int | None = None,
+) -> dict:
     _check(day, eaten_at, moment, input)
     if not items:
         raise MealError("meal_empty")
@@ -93,8 +112,19 @@ def create(s: db.Scope, *, day: str, eaten_at: str, moment: str, input: str, ite
         raise MealError("meal_too_many_items", max=MAX_ITEMS)
     values = [_item_values(s, it, i) for i, it in enumerate(items)]
     with s.engine.begin() as conn:
-        mid = conn.execute(insert(db.meals).values(user_id=s.user_id, day=day, eaten_at=eaten_at, moment=moment, input=input,
-                                                   note=note, photo_id=photo_id, ai_run_id=ai_run_id, created_at=_now())).inserted_primary_key[0]
+        mid = conn.execute(
+            insert(db.meals).values(
+                user_id=s.user_id,
+                day=day,
+                eaten_at=eaten_at,
+                moment=moment,
+                input=input,
+                note=note,
+                photo_id=photo_id,
+                ai_run_id=ai_run_id,
+                created_at=_now(),
+            )
+        ).inserted_primary_key[0]
         for v in values:
             conn.execute(insert(db.meal_items).values(meal_id=mid, **v))
     learn(s, values, day)
@@ -103,11 +133,25 @@ def create(s: db.Scope, *, day: str, eaten_at: str, moment: str, input: str, ite
 
 def _rows(s: db.Scope, where) -> list[dict]:
     with s.engine.connect() as conn:
-        meals = [dict(r) for r in conn.execute(select(db.meals).where(db.meals.c.user_id == s.user_id, *where)
-                                               .order_by(db.meals.c.day, db.meals.c.eaten_at, db.meals.c.id)).mappings()]
+        meals = [
+            dict(r)
+            for r in conn.execute(
+                select(db.meals).where(db.meals.c.user_id == s.user_id, *where).order_by(db.meals.c.day, db.meals.c.eaten_at, db.meals.c.id)
+            ).mappings()
+        ]
         ids = [m["id"] for m in meals]
-        items = [dict(r) for r in conn.execute(select(db.meal_items).where(db.meal_items.c.user_id == s.user_id, db.meal_items.c.meal_id.in_(ids))
-                                               .order_by(db.meal_items.c.meal_id, db.meal_items.c.position)).mappings()] if ids else []
+        items = (
+            [
+                dict(r)
+                for r in conn.execute(
+                    select(db.meal_items)
+                    .where(db.meal_items.c.user_id == s.user_id, db.meal_items.c.meal_id.in_(ids))
+                    .order_by(db.meal_items.c.meal_id, db.meal_items.c.position)
+                ).mappings()
+            ]
+            if ids
+            else []
+        )
     by_meal: dict[int, list[dict]] = {}
     for it in items:
         it.pop("user_id")
@@ -154,7 +198,13 @@ def change(s: db.Scope, meal_id: int, *, items: list[dict] | None = None, **fiel
             before = old.get(it.get("id"))
             if before is not None:
                 given = {k: v for k, v in it.items() if v is not None}
-                it = {**{k: before[k] for k in ("food_ref", "name", "grams", "grams_ai", "grams_low", "grams_high", "confidence", "grams_source")}, **given}
+                it = {
+                    **{
+                        k: before[k]
+                        for k in ("food_ref", "name", "grams", "grams_ai", "grams_low", "grams_high", "confidence", "grams_source")
+                    },
+                    **given,
+                }
                 if it["food_ref"] != before["food_ref"] and "name" not in given:
                     it.pop("name")  # swapped for another food: take that food's name
                 if it["grams"] != before["grams"] and "grams_source" not in given:
@@ -189,8 +239,9 @@ def remove(s: db.Scope, meal_id: int) -> bool:
 def history(s: db.Scope) -> dict[str, int]:
     """How often the user logged each food: search ranks those higher."""
     with s.engine.connect() as conn:
-        rows = conn.execute(select(db.meal_items.c.food_ref, func.count()).where(db.meal_items.c.user_id == s.user_id)
-                            .group_by(db.meal_items.c.food_ref)).all()
+        rows = conn.execute(
+            select(db.meal_items.c.food_ref, func.count()).where(db.meal_items.c.user_id == s.user_id).group_by(db.meal_items.c.food_ref)
+        ).all()
     return {ref: n for ref, n in rows}
 
 
@@ -205,25 +256,44 @@ def learn(s: db.Scope, items: list[dict], day: str) -> None:
         return
     with s.engine.begin() as conn:
         for it in taught:
-            row = conn.execute(select(db.portion_memory).where(db.portion_memory.c.user_id == s.user_id,
-                                                               db.portion_memory.c.food_ref == it["food_ref"])).mappings().first()
+            row = (
+                conn.execute(
+                    select(db.portion_memory).where(
+                        db.portion_memory.c.user_id == s.user_id, db.portion_memory.c.food_ref == it["food_ref"]
+                    )
+                )
+                .mappings()
+                .first()
+            )
             if row is None:
-                conn.execute(insert(db.portion_memory).values(user_id=s.user_id, food_ref=it["food_ref"], grams_typical=it["grams"], uses=1, last_used=day))
+                conn.execute(
+                    insert(db.portion_memory).values(
+                        user_id=s.user_id, food_ref=it["food_ref"], grams_typical=it["grams"], uses=1, last_used=day
+                    )
+                )
             else:
                 typical = round((1 - MEMORY_WEIGHT) * row["grams_typical"] + MEMORY_WEIGHT * it["grams"], 1)
-                conn.execute(update(db.portion_memory).where(db.portion_memory.c.user_id == s.user_id, db.portion_memory.c.food_ref == it["food_ref"])
-                             .values(grams_typical=typical, uses=row["uses"] + 1, last_used=max(day, row["last_used"] or day)))
+                conn.execute(
+                    update(db.portion_memory)
+                    .where(db.portion_memory.c.user_id == s.user_id, db.portion_memory.c.food_ref == it["food_ref"])
+                    .values(grams_typical=typical, uses=row["uses"] + 1, last_used=max(day, row["last_used"] or day))
+                )
 
 
 def set_portion(s: db.Scope, ref: str, grams: float) -> None:
     """The user's own usual portion of a food, set by hand (Mijn voeding): it replaces what was learnt."""
     with s.engine.begin() as conn:
-        row = conn.execute(select(db.portion_memory).where(db.portion_memory.c.user_id == s.user_id, db.portion_memory.c.food_ref == ref)).first()
+        row = conn.execute(
+            select(db.portion_memory).where(db.portion_memory.c.user_id == s.user_id, db.portion_memory.c.food_ref == ref)
+        ).first()
         if row is None:
             conn.execute(insert(db.portion_memory).values(user_id=s.user_id, food_ref=ref, grams_typical=round(grams, 1), uses=0))
         else:
-            conn.execute(update(db.portion_memory).where(db.portion_memory.c.user_id == s.user_id, db.portion_memory.c.food_ref == ref)
-                         .values(grams_typical=round(grams, 1)))
+            conn.execute(
+                update(db.portion_memory)
+                .where(db.portion_memory.c.user_id == s.user_id, db.portion_memory.c.food_ref == ref)
+                .values(grams_typical=round(grams, 1))
+            )
 
 
 def reset_portion(s: db.Scope, ref: str) -> None:
@@ -251,7 +321,6 @@ def last_meal(meals: list[dict]) -> str | None:
     return max((m["eaten_at"] for m in meals), default=None)
 
 
-
 # --- favourites and "again" -----------------------------------------------------------------------------------
 
 MAX_TEMPLATES = 100
@@ -271,14 +340,23 @@ def _template_items(s: db.Scope, items: list[dict]) -> list[dict]:
         grams = float(it.get("grams") or 0)
         if not 0 < grams <= MAX_GRAMS:
             raise MealError("invalid_grams", max=int(MAX_GRAMS))
-        out.append({"food_ref": food["ref"], "name": str(it.get("name") or food["name"])[:200], "unit": food["unit"], "grams": round(grams, 1)})
+        out.append(
+            {"food_ref": food["ref"], "name": str(it.get("name") or food["name"])[:200], "unit": food["unit"], "grams": round(grams, 1)}
+        )
     return out
 
 
 def templates(s: db.Scope) -> list[dict]:
     with s.engine.connect() as conn:
-        rows = conn.execute(select(db.meal_templates).where(db.meal_templates.c.user_id == s.user_id)
-                            .order_by(db.meal_templates.c.position, db.meal_templates.c.id)).mappings().all()
+        rows = (
+            conn.execute(
+                select(db.meal_templates)
+                .where(db.meal_templates.c.user_id == s.user_id)
+                .order_by(db.meal_templates.c.position, db.meal_templates.c.id)
+            )
+            .mappings()
+            .all()
+        )
     return [{k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in r.items() if k != "user_id"} for r in rows]
 
 
@@ -293,13 +371,23 @@ def create_template(s: db.Scope, *, name: str, items: list[dict], moment: str | 
         raise MealError("too_many_templates", max=MAX_TEMPLATES)
     values = _template_items(s, items)
     with s.engine.begin() as conn:
-        tid = conn.execute(insert(db.meal_templates).values(user_id=s.user_id, name=name[:100], moment=moment, items=values,
-                                                            position=len(mine), created_at=_now())).inserted_primary_key[0]
+        tid = conn.execute(
+            insert(db.meal_templates).values(
+                user_id=s.user_id, name=name[:100], moment=moment, items=values, position=len(mine), created_at=_now()
+            )
+        ).inserted_primary_key[0]
     return next(t for t in templates(s) if t["id"] == tid)
 
 
-def change_template(s: db.Scope, tid: int, *, name: str | None = None, moment: str | None = None, items: list[dict] | None = None,
-                    position: int | None = None) -> dict | None:
+def change_template(
+    s: db.Scope,
+    tid: int,
+    *,
+    name: str | None = None,
+    moment: str | None = None,
+    items: list[dict] | None = None,
+    position: int | None = None,
+) -> dict | None:
     mine = templates(s)
     if not any(t["id"] == tid for t in mine):
         return None
@@ -316,18 +404,26 @@ def change_template(s: db.Scope, tid: int, *, name: str | None = None, moment: s
         values["items"] = _template_items(s, items)
     with s.engine.begin() as conn:
         if values:
-            conn.execute(update(db.meal_templates).where(db.meal_templates.c.user_id == s.user_id, db.meal_templates.c.id == tid).values(**values))
+            conn.execute(
+                update(db.meal_templates).where(db.meal_templates.c.user_id == s.user_id, db.meal_templates.c.id == tid).values(**values)
+            )
         if position is not None:  # move it, renumber the rest
             order = [t["id"] for t in mine if t["id"] != tid]
             order.insert(max(0, min(position, len(order))), tid)
             for i, t in enumerate(order):
-                conn.execute(update(db.meal_templates).where(db.meal_templates.c.user_id == s.user_id, db.meal_templates.c.id == t).values(position=i))
+                conn.execute(
+                    update(db.meal_templates)
+                    .where(db.meal_templates.c.user_id == s.user_id, db.meal_templates.c.id == t)
+                    .values(position=i)
+                )
     return next(t for t in templates(s) if t["id"] == tid)
 
 
 def delete_template(s: db.Scope, tid: int) -> bool:
     with s.engine.begin() as conn:
-        return bool(conn.execute(delete(db.meal_templates).where(db.meal_templates.c.user_id == s.user_id, db.meal_templates.c.id == tid)).rowcount)
+        return bool(
+            conn.execute(delete(db.meal_templates).where(db.meal_templates.c.user_id == s.user_id, db.meal_templates.c.id == tid)).rowcount
+        )
 
 
 def again(s: db.Scope, day: str, moment: str) -> dict:

@@ -29,7 +29,11 @@ export default function LoadCard({ load, wide = false, className = "" }: { load:
   ] as const;
   const known = load.acwr != null;
   return (
-    <Card title={t.title} className={className} action={<InfoPopover label={t.info}>{t.method(num(low), num(high), num(ramp_high, 0))}</InfoPopover>}>
+    <Card
+      title={t.title}
+      className={className}
+      action={<InfoPopover label={t.info}>{t.method(num(low), num(high), num(ramp_high, 0))}</InfoPopover>}
+    >
       <div className={wide && known ? "md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,380px)] md:items-center md:gap-x-8" : ""}>
         <div>
           <div className="flex items-center gap-2.5">
@@ -39,8 +43,17 @@ export default function LoadCard({ load, wide = false, className = "" }: { load:
           <p className="mt-1 text-[12.5px] leading-relaxed text-ink-muted">{explain}</p>
           {known && (
             <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-[12px] tabular-nums">
-              <div><dt className="text-ink-muted">{t.ratio}</dt><dd className="text-[15px]">{num(load.acwr ?? 0)}×</dd></div>
-              <div><dt className="text-ink-muted">{t.ramp}</dt><dd className="text-[15px]">{(load.ramp ?? 0) > 0 ? "+" : ""}{num(load.ramp ?? 0, 1)}</dd></div>
+              <div>
+                <dt className="text-ink-muted">{t.ratio}</dt>
+                <dd className="text-[15px]">{num(load.acwr ?? 0)}×</dd>
+              </div>
+              <div>
+                <dt className="text-ink-muted">{t.ramp}</dt>
+                <dd className="text-[15px]">
+                  {(load.ramp ?? 0) > 0 ? "+" : ""}
+                  {num(load.ramp ?? 0, 1)}
+                </dd>
+              </div>
             </dl>
           )}
         </div>
@@ -52,7 +65,11 @@ export default function LoadCard({ load, wide = false, className = "" }: { load:
                   <span
                     key={s.key}
                     className="h-full"
-                    style={{ width: `${((s.to - s.from) / (MAX - MIN)) * 100}%`, background: BAND_COLOUR[s.key], opacity: load.band === s.key ? 0.9 : 0.3 }}
+                    style={{
+                      width: `${((s.to - s.from) / (MAX - MIN)) * 100}%`,
+                      background: BAND_COLOUR[s.key],
+                      opacity: load.band === s.key ? 0.9 : 0.3,
+                    }}
                   />
                 ))}
               </div>
@@ -63,8 +80,12 @@ export default function LoadCard({ load, wide = false, className = "" }: { load:
               />
             </div>
             <div className="relative mt-1 h-4 text-[10.5px] tabular-nums text-ink-muted">
-              <span className="absolute -translate-x-1/2" style={{ left: pos(low) }}>{num(low)}</span>
-              <span className="absolute -translate-x-1/2" style={{ left: pos(high) }}>{num(high)}</span>
+              <span className="absolute -translate-x-1/2" style={{ left: pos(low) }}>
+                {num(low)}
+              </span>
+              <span className="absolute -translate-x-1/2" style={{ left: pos(high) }}>
+                {num(high)}
+              </span>
             </div>
             <div className="flex justify-between text-[10.5px] text-ink-muted">
               <span>{t.scale.low}</span>

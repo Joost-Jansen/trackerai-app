@@ -40,7 +40,9 @@ export default function DocEditor({ docKey }: { docKey: "profile" | "goals" }) {
         title={t.log.editTitle(title)}
         action={
           <span className="flex gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>{t.common.cancel}</Button>
+            <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
+              {t.common.cancel}
+            </Button>
             <Button
               size="sm"
               variant="primary"
@@ -60,7 +62,12 @@ export default function DocEditor({ docKey }: { docKey: "profile" | "goals" }) {
         }
       >
         <div className="grid items-start gap-4 lg:grid-cols-2">
-          <textarea className="ds-input h-[60vh] py-2 font-mono text-[12.5px]" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Markdown" />
+          <textarea
+            className="ds-input h-[60vh] py-2 font-mono text-[12.5px]"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            aria-label="Markdown"
+          />
           <div className="hidden max-h-[60vh] overflow-y-auto rounded border border-border p-3 lg:block">
             <Markdown text={draft} />
           </div>
@@ -71,7 +78,16 @@ export default function DocEditor({ docKey }: { docKey: "profile" | "goals" }) {
   }
 
   return (
-    <Card action={<span className="flex items-center gap-3"><span className="text-[11.5px] text-ink-muted">{stamp}</span><Button size="sm" onClick={() => setDraft(doc.body)}>{t.common.edit}</Button></span>}>
+    <Card
+      action={
+        <span className="flex items-center gap-3">
+          <span className="text-[11.5px] text-ink-muted">{stamp}</span>
+          <Button size="sm" onClick={() => setDraft(doc.body)}>
+            {t.common.edit}
+          </Button>
+        </span>
+      }
+    >
       {doc.body ? <Markdown text={doc.body} /> : <p className="text-[13px] text-ink-muted">{t.log.empty_doc}</p>}
     </Card>
   );

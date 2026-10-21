@@ -148,10 +148,7 @@ function Latest({ chart, format, hidden }: { chart: Chart; format: (v: number) =
       {rows.map((r) => (
         <span key={r.label} className="text-[12.5px]">
           <span className="text-ink-muted">{r.label} </span>
-          <b
-            className="num"
-            style={{ color: r.last.v >= base ? "var(--text-gain)" : "var(--text-loss)" }}
-          >
+          <b className="num" style={{ color: r.last.v >= base ? "var(--text-gain)" : "var(--text-loss)" }}>
             {trueMinus(format(r.last.v))}
           </b>
         </span>
@@ -162,17 +159,11 @@ function Latest({ chart, format, hidden }: { chart: Chart; format: (v: number) =
 
 function Pct({ value, big = false }: { value: number | null; big?: boolean }) {
   if (value === null) {
-    return (
-      <span className={`num text-ink-muted ${big ? "font-display text-[34px] font-light" : ""}`}>
-        –
-      </span>
-    );
+    return <span className={`num text-ink-muted ${big ? "font-display text-[34px] font-light" : ""}`}>–</span>;
   }
   return (
     <span
-      className={`num ${
-        big ? "font-display text-[34px] font-light leading-tight tracking-[-0.028em]" : "text-[15px]"
-      }`}
+      className={`num ${big ? "font-display text-[34px] font-light leading-tight tracking-[-0.028em]" : "text-[15px]"}`}
       style={{ color: value >= 0 ? "var(--text-gain)" : "var(--text-loss)" }}
     >
       {trueMinus(fmtPercent(value, { decimals: 1, plus: true }))}
@@ -192,14 +183,24 @@ export default function ReturnPage() {
   // Indexes switched off, by name; your portfolio always stays. Remembered here.
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   useEffect(() => {
-    try { setHidden(new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY) ?? "[]"))); } catch { /* no storage */ }
+    try {
+      setHidden(new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY) ?? "[]")));
+    } catch {
+      /* no storage */
+    }
   }, []);
-  const toggle = (label: string) => setHidden((old) => {
-    const next = new Set(old);
-    if (next.has(label)) next.delete(label); else next.add(label);
-    try { localStorage.setItem(HIDDEN_KEY, JSON.stringify([...next])); } catch { /* no storage */ }
-    return next;
-  });
+  const toggle = (label: string) =>
+    setHidden((old) => {
+      const next = new Set(old);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      try {
+        localStorage.setItem(HIDDEN_KEY, JSON.stringify([...next]));
+      } catch {
+        /* no storage */
+      }
+      return next;
+    });
 
   // The API works out a dragged window's figures as "Custom".
   const q = useQuery({
@@ -224,9 +225,14 @@ export default function ReturnPage() {
     return (
       <p className="max-w-measure py-6 text-sm leading-relaxed text-ink-muted">
         {q.data?.unavailable
-          ? tr("The price history could not be fetched from Yahoo Finance, so no return can be calculated right now. Your positions and amounts are fine. Try again in a few minutes.")
-          : bq.error && bq.error instanceof ApiError ? bq.error.message
-          : tr("Nothing to calculate yet. Upload your transactions and refresh the prices, then your time-weighted and money-weighted return appear here.")}
+          ? tr(
+              "The price history could not be fetched from Yahoo Finance, so no return can be calculated right now. Your positions and amounts are fine. Try again in a few minutes.",
+            )
+          : bq.error && bq.error instanceof ApiError
+            ? bq.error.message
+            : tr(
+                "Nothing to calculate yet. Upload your transactions and refresh the prices, then your time-weighted and money-weighted return appear here.",
+              )}
       </p>
     );
   }
@@ -238,13 +244,20 @@ export default function ReturnPage() {
   const label = labels.includes(rangeLabel) ? rangeLabel : "All";
   const sliced = days.length >= 2 ? sliceByRange(days, label as Range) : days;
   const period: ZoomWindow = zoom ?? { from: sliced[0]?.d ?? "", to: days[days.length - 1]?.d ?? "" };
-  const choose = (r: string) => { setZoom(null); setRangeLabel(r); };
+  const choose = (r: string) => {
+    setZoom(null);
+    setRangeLabel(r);
+  };
 
   const custom = zoom ? data?.ranges.find((r) => r.label === "Custom") : undefined;
-  const selected = data ? (zoom ? custom : data.ranges.find((r) => r.label === label) ?? data.ranges.find((r) => r.label === "All")) : undefined;
+  const selected = data
+    ? zoom
+      ? custom
+      : (data.ranges.find((r) => r.label === label) ?? data.ranges.find((r) => r.label === "All"))
+    : undefined;
   // What the figures show: the period's, or while a dragged window's figures load,
   // the last ones (dimmed).
-  const stat = selected ?? (data ? data.ranges.find((r) => r.label === label) ?? data.ranges[data.ranges.length - 1] : undefined);
+  const stat = selected ?? (data ? (data.ranges.find((r) => r.label === label) ?? data.ranges[data.ranges.length - 1]) : undefined);
   // While the figures of a dragged window load, the charts already show it.
   const pending = !!zoom && !!data && !custom;
   const gaps = data ? data.gaps.filter((g) => g.to >= period.from && g.from <= period.to) : [];
@@ -267,78 +280,132 @@ export default function ReturnPage() {
 
       {stat ? (
         <>
-      {/* The two numbers as supporting figures under an ink line — no tiles with a border around
+          {/* The two numbers as supporting figures under an ink line — no tiles with a border around
           them. Two denominators, two questions, so two figures. */}
-      <div
-        className="-mt-6 grid gap-x-12 gap-y-8 pt-3.5 transition-opacity sm:grid-cols-2"
-        style={{ borderTop: "1px solid var(--border-hairline)", opacity: pending ? 0.35 : 1 }}
-        aria-busy={pending}
-      >
-        <div className="flex flex-col gap-1.5">
-          <span className="flex items-center gap-1">
-            <Eyebrow>{tr("Time-weighted (TWR)")}</Eyebrow>
-            <InfoPopover label={tr("Explanation time-weighted return")}>{trx("{0}{1}{2}This number pretends you invested one amount at the start and never touched it again. Deposits and withdrawals are taken out, so only how the funds and shares did remains.{3}{4}{5} The MSCI World has no savings account money comes from every month; you do. Without that correction a good month in which you happened to deposit a lot would make you look better than you were, and the other way round.{6}{7}{8} the question how much you earned. TWR weighs every year equally, also the years in which you had hardly invested anything. That's why it can come out much higher than what's in your account in euros.", <b>{tr("How good were the investments themselves?")}</b>, <br />, <br />, <br />, <br />, <b>{tr("Use this when you compare yourself with an index.")}</b>, <br />, <br />, <b>{tr("What not to use it for:")}</b>)}</InfoPopover>
-          </span>
-          <Pct value={stat.twr_pct} big />
-          <span className="text-xs text-ink-muted">{trx("over this whole period, since {0}", <span className="num">{fmtDayMonthYear(zoom ? period.from : stat.from)}</span>)}</span>
-        </div>
+          <div
+            className="-mt-6 grid gap-x-12 gap-y-8 pt-3.5 transition-opacity sm:grid-cols-2"
+            style={{ borderTop: "1px solid var(--border-hairline)", opacity: pending ? 0.35 : 1 }}
+            aria-busy={pending}
+          >
+            <div className="flex flex-col gap-1.5">
+              <span className="flex items-center gap-1">
+                <Eyebrow>{tr("Time-weighted (TWR)")}</Eyebrow>
+                <InfoPopover label={tr("Explanation time-weighted return")}>
+                  {trx(
+                    "{0}{1}{2}This number pretends you invested one amount at the start and never touched it again. Deposits and withdrawals are taken out, so only how the funds and shares did remains.{3}{4}{5} The MSCI World has no savings account money comes from every month; you do. Without that correction a good month in which you happened to deposit a lot would make you look better than you were, and the other way round.{6}{7}{8} the question how much you earned. TWR weighs every year equally, also the years in which you had hardly invested anything. That's why it can come out much higher than what's in your account in euros.",
+                    <b>{tr("How good were the investments themselves?")}</b>,
+                    <br />,
+                    <br />,
+                    <br />,
+                    <br />,
+                    <b>{tr("Use this when you compare yourself with an index.")}</b>,
+                    <br />,
+                    <br />,
+                    <b>{tr("What not to use it for:")}</b>,
+                  )}
+                </InfoPopover>
+              </span>
+              <Pct value={stat.twr_pct} big />
+              <span className="text-xs text-ink-muted">
+                {trx("over this whole period, since {0}", <span className="num">{fmtDayMonthYear(zoom ? period.from : stat.from)}</span>)}
+              </span>
+            </div>
 
-        <div className="flex flex-col gap-1.5">
-          <span className="flex items-center gap-1">
-            <Eyebrow>{tr("Money-weighted (IRR)")}</Eyebrow>
-            <InfoPopover label={tr("Explanation money-weighted return")}>{trx("{0}{1}{2}This does count when you put money in. If you deposited a lot just before a rise, this number goes up. If you deposited a lot just before a fall, it goes down. It's the return a savings account would have had to give you to end up at the same amount, with exactly your deposits.{3}{4}{5}: investing and timing together.{6}{7}It is {8}, not over the whole period. That's why short periods show a dash: converting two good weeks to a yearly rate gives numbers like \"+400% per year\", and those mean nothing.", <b>{tr("What did your money really yield?")}</b>, <br />, <br />, <br />, <br />, <b>{tr("Use this when you want to know how you did")}</b>, <br />, <br />, <b>{tr("per year")}</b>)}</InfoPopover>
-          </span>
-          <Pct value={stat.irr_pct} big />
-          <span className="text-xs text-ink-muted">
-            {stat.irr_pct === null
-              ? tr("period too short to express per year")
-              : tr("per year, with your deposits")}
-          </span>
-        </div>
-      </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="flex items-center gap-1">
+                <Eyebrow>{tr("Money-weighted (IRR)")}</Eyebrow>
+                <InfoPopover label={tr("Explanation money-weighted return")}>
+                  {trx(
+                    "{0}{1}{2}This does count when you put money in. If you deposited a lot just before a rise, this number goes up. If you deposited a lot just before a fall, it goes down. It's the return a savings account would have had to give you to end up at the same amount, with exactly your deposits.{3}{4}{5}: investing and timing together.{6}{7}It is {8}, not over the whole period. That's why short periods show a dash: converting two good weeks to a yearly rate gives numbers like \"+400% per year\", and those mean nothing.",
+                    <b>{tr("What did your money really yield?")}</b>,
+                    <br />,
+                    <br />,
+                    <br />,
+                    <br />,
+                    <b>{tr("Use this when you want to know how you did")}</b>,
+                    <br />,
+                    <br />,
+                    <b>{tr("per year")}</b>,
+                  )}
+                </InfoPopover>
+              </span>
+              <Pct value={stat.irr_pct} big />
+              <span className="text-xs text-ink-muted">
+                {stat.irr_pct === null ? tr("period too short to express per year") : tr("per year, with your deposits")}
+              </span>
+            </div>
+          </div>
 
-      <Section
-        tone="quiet"
-        label={tr("What your money did")}
-        info={
-          <>{trx("The number that is also on Today: the gain in euros, and that gain divided by the money that was in it during this period (the starting value plus what you deposited along the way).{0}{1}The simplest of the three and the only one that fits the amount in euros neatly. Rougher than IRR, because it doesn't take into account that money that came in yesterday hasn't had a year to grow.", <br />, <br />)}</>
-        }
-      >
-        <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1.5 text-[13px] transition-opacity" style={{ opacity: pending ? 0.35 : 1 }}>
-          <span className="num" style={{ color: stat.gain_eur >= 0 ? "var(--text-gain)" : "var(--text-loss)" }}>
-            {trueMinus(fmtEuro(stat.gain_eur, { plus: true }))}
-          </span>
-          <Pct value={stat.simple_pct} />
-          {Math.abs(stat.contrib_eur) >= 0.005 && (
-            <span className="num text-xs text-ink-muted">{trx("deposits {0} in this period", trueMinus(fmtEuro(stat.contrib_eur, { plus: true })))}</span>
-          )}
-        </div>
-      </Section>
-
+          <Section
+            tone="quiet"
+            label={tr("What your money did")}
+            info={
+              <>
+                {trx(
+                  "The number that is also on Today: the gain in euros, and that gain divided by the money that was in it during this period (the starting value plus what you deposited along the way).{0}{1}The simplest of the three and the only one that fits the amount in euros neatly. Rougher than IRR, because it doesn't take into account that money that came in yesterday hasn't had a year to grow.",
+                  <br />,
+                  <br />,
+                )}
+              </>
+            }
+          >
+            <div
+              className="flex flex-wrap items-baseline gap-x-5 gap-y-1.5 text-[13px] transition-opacity"
+              style={{ opacity: pending ? 0.35 : 1 }}
+            >
+              <span className="num" style={{ color: stat.gain_eur >= 0 ? "var(--text-gain)" : "var(--text-loss)" }}>
+                {trueMinus(fmtEuro(stat.gain_eur, { plus: true }))}
+              </span>
+              <Pct value={stat.simple_pct} />
+              {Math.abs(stat.contrib_eur) >= 0.005 && (
+                <span className="num text-xs text-ink-muted">
+                  {trx("deposits {0} in this period", trueMinus(fmtEuro(stat.contrib_eur, { plus: true })))}
+                </span>
+              )}
+            </div>
+          </Section>
         </>
       ) : null}
 
       {indexed && (
         <Section
           label={tr("Your portfolio next to the market")}
-          info={<>{tr("Everything starts at 100 on the first day of the period, so you compare the shape of the lines rather than their level. If your line ends above an index, you did better over this period.")}</>}
+          info={
+            <>
+              {tr(
+                "Everything starts at 100 on the first day of the period, so you compare the shape of the lines rather than their level. If your line ends above an index, you did better over this period.",
+              )}
+            </>
+          }
         >
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
             <span className="text-ink-muted">{tr("Compare with:")}</span>
             {benchmarks.map((b) => {
               const on = !hidden.has(b.label);
               return (
-                <button key={b.label} type="button" aria-pressed={on} onClick={() => toggle(b.label)}
+                <button
+                  key={b.label}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => toggle(b.label)}
                   className="inline-flex items-center gap-1.5 rounded-sm px-0.5 py-0.5 text-ink-muted hover:text-text"
-                  style={{ opacity: on ? 1 : 0.45, textDecoration: on ? undefined : "line-through" }}>
-                  <span className="h-0 w-3.5 flex-none" style={{ borderTop: `2px ${b.dash === "dashed" ? "dashed" : "solid"} ${on ? b.colour : "var(--border-strong)"}` }} />
+                  style={{ opacity: on ? 1 : 0.45, textDecoration: on ? undefined : "line-through" }}
+                >
+                  <span
+                    className="h-0 w-3.5 flex-none"
+                    style={{ borderTop: `2px ${b.dash === "dashed" ? "dashed" : "solid"} ${on ? b.colour : "var(--border-strong)"}` }}
+                  />
                   {b.label}
                 </button>
               );
             })}
             <label className="ml-auto flex items-center gap-2">
               <Checkbox checked={excludeBonds} onChange={setExcludeBonds} label={tr("Leave bonds out")} />
-              <InfoPopover label={tr("Explanation excluding bonds")}>{tr("Bond ETF’s behave like savings. Leaving them out shows how your shares are doing, which compares more fairly with an equity index.")}</InfoPopover>
+              <InfoPopover label={tr("Explanation excluding bonds")}>
+                {tr(
+                  "Bond ETF’s behave like savings. Leaving them out shows how your shares are doing, which compares more fairly with an equity index.",
+                )}
+              </InfoPopover>
             </label>
           </div>
           <Latest chart={indexed} format={index100} hidden={hidden} />
@@ -351,14 +418,25 @@ export default function ReturnPage() {
             onSelect={setZoom}
           />
           {gaps.length > 0 && (
-            <p className="max-w-measure text-xs leading-relaxed text-ink-muted">{trx("{0} in this chart in which your portfolio was empty ({1}). The line runs flat there. {2}", gaps.length === 1 ? tr("Note: there is a period") : tr("Note: there are periods"), gaps.map((g, i) => (
-                <span key={g.from}>
-                  {i > 0 && ", "}
-                  <span className="num">
-                    {fmtDayMonthYear(g.from)} – {fmtDayMonthYear(g.to)}
+            <p className="max-w-measure text-xs leading-relaxed text-ink-muted">
+              {trx(
+                "{0} in this chart in which your portfolio was empty ({1}). The line runs flat there. {2}",
+                gaps.length === 1 ? tr("Note: there is a period") : tr("Note: there are periods"),
+                gaps.map((g, i) => (
+                  <span key={g.from}>
+                    {i > 0 && ", "}
+                    <span className="num">
+                      {fmtDayMonthYear(g.from)} – {fmtDayMonthYear(g.to)}
+                    </span>
                   </span>
-                </span>
-              )), <InfoPopover label={tr("Explanation empty periods in the chart")}>{tr("Time-weighted return glues together the pieces in which you were invested. You earned or lost nothing in those months, and the chart doesn't count them as a loss either.")}</InfoPopover>)}</p>
+                )),
+                <InfoPopover label={tr("Explanation empty periods in the chart")}>
+                  {tr(
+                    "Time-weighted return glues together the pieces in which you were invested. You earned or lost nothing in those months, and the chart doesn't count them as a loss either.",
+                  )}
+                </InfoPopover>,
+              )}
+            </p>
           )}
         </Section>
       )}
@@ -368,7 +446,15 @@ export default function ReturnPage() {
           label={tr("Return over the last 3 months")}
           infoLabel={tr("Explanation rolling return")}
           info={
-            <>{trx("Each point asks the same question: {0}{1}{2}The window of {3} days moves along day by day. So the line shows how your recent form changed, not the gain since one fixed starting point. Above 0% the last quarter was positive.", <i>{tr("if I had held this for the 3 months up to that day, what would my return have been?")}</i>, <br />, <br />, <span className="num">{bench!.rolling_window_days}</span>)}</>
+            <>
+              {trx(
+                "Each point asks the same question: {0}{1}{2}The window of {3} days moves along day by day. So the line shows how your recent form changed, not the gain since one fixed starting point. Above 0% the last quarter was positive.",
+                <i>{tr("if I had held this for the 3 months up to that day, what would my return have been?")}</i>,
+                <br />,
+                <br />,
+                <span className="num">{bench!.rolling_window_days}</span>,
+              )}
+            </>
           }
         >
           <Latest chart={rolling} format={pct} hidden={hidden} />

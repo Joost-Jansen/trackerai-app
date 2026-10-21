@@ -18,7 +18,6 @@ below values the USD position at 10 x $110 = 2100 and the assertion drops.
 """
 
 import datetime
-
 import os
 import sys
 
@@ -29,23 +28,19 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirna
 
 from domain.portfolio import series as charts  # noqa: E402
 
-
 FIRST_BUY = datetime.date.today() - datetime.timedelta(days=6)
 
 
 @pytest.fixture
 def closes(monkeypatch):
     """Installs a flat daily frame as yf.download's answer, per ticker."""
+
     def install(**by_ticker):
-        days = pd.DatetimeIndex(
-            [FIRST_BUY + datetime.timedelta(days=i) for i in range(7)]
-        )
-        data = {
-            ("Close", ticker.replace("_", ".")): [price] * len(days)
-            for ticker, price in by_ticker.items()
-        }
+        days = pd.DatetimeIndex([FIRST_BUY + datetime.timedelta(days=i) for i in range(7)])
+        data = {("Close", ticker.replace("_", ".")): [price] * len(days) for ticker, price in by_ticker.items()}
         frame = pd.DataFrame(data, index=days)
         monkeypatch.setattr(charts.yf, "download", lambda tickers, **kw: frame)
+
     return install
 
 
@@ -100,13 +95,9 @@ def test_the_euro_leg_still_moves_with_its_price(closes):
 def test_it_agrees_with_the_value_series_it_shares_a_screen_with(closes):
     """The whole point: one portfolio, one valuation, two series."""
     closes(AAA_AS=100.0, TSM=110.0)
-    _dates, _invested, series_values, _with_divs = charts.portfolio_history_series(
-        TRANSACTIONS, PRICES, []
-    )
+    _dates, _invested, series_values, _with_divs = charts.portfolio_history_series(TRANSACTIONS, PRICES, [])
 
     closes(AAA_AS=100.0, TSM=110.0)
-    _seg_dates, segment_values, _cf = charts.build_portfolio_segments(
-        TRANSACTIONS, PRICES, []
-    )[0]
+    _seg_dates, segment_values, _cf = charts.build_portfolio_segments(TRANSACTIONS, PRICES, [])[0]
 
     assert segment_values[-1] == pytest.approx(series_values[-1])

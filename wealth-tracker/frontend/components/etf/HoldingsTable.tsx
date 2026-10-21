@@ -58,9 +58,7 @@ export default function HoldingsTable({
                 <td>{h.name || h.symbol}</td>
                 <td className="num text-ink-muted">{h.symbol}</td>
                 <td className="num">{fmtEuro(h.value)}</td>
-                <td className="num">
-                  {total > 0 ? fmtEu((h.value / total) * 100, { decimals: 2, suffix: "%" }) : "–"}
-                </td>
+                <td className="num">{total > 0 ? fmtEu((h.value / total) * 100, { decimals: 2, suffix: "%" }) : "–"}</td>
                 <td className="text-ink-muted">{h.sources.join(", ")}</td>
               </tr>
             ))}
@@ -68,20 +66,18 @@ export default function HoldingsTable({
         </table>
       </div>
       {left > 0 && (
-        <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 pt-2.5"
-        style={{ borderTop: "1px solid var(--border-hairline)" }}>
-          <button
-            type="button"
-            onClick={() => setShown(shown + PAGE)}
-            className="ds-link -my-1 inline-block py-1 text-xs"
-          >{trx("Show {0} more", Math.min(PAGE, left))}</button>
+        <div
+          className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 pt-2.5"
+          style={{ borderTop: "1px solid var(--border-hairline)" }}
+        >
+          <button type="button" onClick={() => setShown(shown + PAGE)} className="ds-link -my-1 inline-block py-1 text-xs">
+            {trx("Show {0} more", Math.min(PAGE, left))}
+          </button>
           <span className="num text-[11px] text-ink-muted">{trx("{0} of {1} shown", rows.length, sorted.length)}</span>
           {left > PAGE && (
-            <button
-              type="button"
-              onClick={() => setShown(sorted.length)}
-              className="-my-1 py-1 text-[11px] text-ink-muted hover:underline"
-            >{trx("all ({0})", sorted.length)}</button>
+            <button type="button" onClick={() => setShown(sorted.length)} className="-my-1 py-1 text-[11px] text-ink-muted hover:underline">
+              {trx("all ({0})", sorted.length)}
+            </button>
           )}
         </div>
       )}

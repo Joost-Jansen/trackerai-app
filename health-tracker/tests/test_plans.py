@@ -37,7 +37,14 @@ def test_small_parsers():
 
 
 def act(aid, day, sport="run", km=10.0, zones=None):
-    return {"id": aid, "start_local": f"{day}T08:00:00", "sport": sport, "distance_km": km, "moving_time_s": 3000, "hr_zones_s": zones or {}}
+    return {
+        "id": aid,
+        "start_local": f"{day}T08:00:00",
+        "sport": sport,
+        "distance_km": km,
+        "moving_time_s": 3000,
+        "hr_zones_s": zones or {},
+    }
 
 
 def test_match_statuses_and_split_runs():
@@ -101,7 +108,12 @@ def test_links_by_hand_overrule_the_automatic_match():
 
 def test_weeks_count_every_activity_of_a_plan_sport():
     sessions = [{"date": "2026-10-06", "sport": "run", "distance_km": 10}, {"date": "2026-10-20", "sport": "swim", "distance_km": 2}]
-    acts = [act("a", "2026-10-06", km=10), act("b", "2026-10-08", km=6), act("s", "2026-10-14", sport="swim", km=1), act("x", "2026-10-07", sport="ride", km=40)]
+    acts = [
+        act("a", "2026-10-06", km=10),
+        act("b", "2026-10-08", km=6),
+        act("s", "2026-10-14", sport="swim", km=1),
+        act("x", "2026-10-07", sport="ride", km=40),
+    ]
     weeks = weekly_summary(match_sessions(sessions, acts, date(2026, 10, 21)), acts)
     assert [w["week"] for w in weeks] == ["2026-10-05", "2026-10-12", "2026-10-19"]  # the week in between too
     assert weeks[0]["done_km"] == 16 and weeks[0]["sports"] == {"run": {"planned_km": 10, "done_km": 16}}  # no ride in the plan
@@ -120,7 +132,16 @@ def test_route_suggestions_follow_the_session_sport():
     from api.plans import suggest_routes
 
     def route(rid, sport, km):
-        return {"id": rid, "name": rid, "sport": sport, "distance_km": km, "is_loop": True, "last_run": "2026-09-01", "start": [52.0, 5.0], "end": [52.0, 5.0]}
+        return {
+            "id": rid,
+            "name": rid,
+            "sport": sport,
+            "distance_km": km,
+            "is_loop": True,
+            "last_run": "2026-09-01",
+            "start": [52.0, 5.0],
+            "end": [52.0, 5.0],
+        }
 
     routes = [route("r1", "run", 10.0), route("f1", "ride", 40.0)]
     sessions = [
@@ -140,8 +161,26 @@ def test_chosen_route_replaces_the_suggestion():
     from api.plans import suggest_routes
 
     routes = [
-        {"id": "r1", "name": "Park", "sport": "run", "distance_km": 10.0, "is_loop": True, "last_run": "2026-09-01", "start": [52.0, 5.0], "end": [52.0, 5.0]},
-        {"id": "r2", "name": "Dijk", "sport": "run", "distance_km": 14.2, "is_loop": True, "last_run": "2026-09-01", "start": [52.0, 5.0], "end": [52.0, 5.0]},
+        {
+            "id": "r1",
+            "name": "Park",
+            "sport": "run",
+            "distance_km": 10.0,
+            "is_loop": True,
+            "last_run": "2026-09-01",
+            "start": [52.0, 5.0],
+            "end": [52.0, 5.0],
+        },
+        {
+            "id": "r2",
+            "name": "Dijk",
+            "sport": "run",
+            "distance_km": 14.2,
+            "is_loop": True,
+            "last_run": "2026-09-01",
+            "start": [52.0, 5.0],
+            "end": [52.0, 5.0],
+        },
     ]
     sessions = [
         {"date": "2026-10-05", "sport": "run", "distance_km": 10.0, "status": "planned", "route_id": "r2"},

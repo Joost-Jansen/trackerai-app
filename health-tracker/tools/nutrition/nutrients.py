@@ -8,19 +8,57 @@ from __future__ import annotations
 
 # The one key set, in display order. Units are in the key: _g, _mg, _ug (micrograms), energy in kcal.
 KEYS: tuple[str, ...] = (
-    "energy_kcal", "carbs_g", "sugars_g", "fiber_g", "protein_g", "fat_g", "sat_fat_g", "mufa_g", "pufa_g", "omega3_g",
-    "trans_fat_g", "alcohol_g", "salt_g", "sodium_mg", "iron_mg", "calcium_mg", "magnesium_mg", "potassium_mg", "zinc_mg",
-    "vit_c_mg", "vit_d_ug", "vit_b12_ug", "folate_ug",
+    "energy_kcal",
+    "carbs_g",
+    "sugars_g",
+    "fiber_g",
+    "protein_g",
+    "fat_g",
+    "sat_fat_g",
+    "mufa_g",
+    "pufa_g",
+    "omega3_g",
+    "trans_fat_g",
+    "alcohol_g",
+    "salt_g",
+    "sodium_mg",
+    "iron_mg",
+    "calcium_mg",
+    "magnesium_mg",
+    "potassium_mg",
+    "zinc_mg",
+    "vit_c_mg",
+    "vit_d_ug",
+    "vit_b12_ug",
+    "folate_ug",
 )
 MACROS = ("energy_kcal", "carbs_g", "protein_g", "fat_g", "fiber_g", "alcohol_g", "salt_g")
 
 # NEVO-online 2025/9.0 column codes (NEVO2025_v9.0_Nutrienten_Nutrients.csv): CHO is available carbohydrate, FOL
 # dietary folate equivalents, FAMSCIS monounsaturated cis. NEVO has no salt column: salt is sodium x 2.5 (SALT_PER_NA).
 NEVO_CODES: dict[str, str] = {
-    "energy_kcal": "ENERCC", "carbs_g": "CHO", "sugars_g": "SUGAR", "fiber_g": "FIBT", "protein_g": "PROT", "fat_g": "FAT",
-    "sat_fat_g": "FASAT", "mufa_g": "FAMSCIS", "pufa_g": "FAPU", "omega3_g": "FAPUN3", "trans_fat_g": "FATRS",
-    "alcohol_g": "ALC", "sodium_mg": "NA", "iron_mg": "FE", "calcium_mg": "CA", "magnesium_mg": "MG", "potassium_mg": "K",
-    "zinc_mg": "ZN", "vit_c_mg": "VITC", "vit_d_ug": "VITD", "vit_b12_ug": "VITB12", "folate_ug": "FOL",
+    "energy_kcal": "ENERCC",
+    "carbs_g": "CHO",
+    "sugars_g": "SUGAR",
+    "fiber_g": "FIBT",
+    "protein_g": "PROT",
+    "fat_g": "FAT",
+    "sat_fat_g": "FASAT",
+    "mufa_g": "FAMSCIS",
+    "pufa_g": "FAPU",
+    "omega3_g": "FAPUN3",
+    "trans_fat_g": "FATRS",
+    "alcohol_g": "ALC",
+    "sodium_mg": "NA",
+    "iron_mg": "FE",
+    "calcium_mg": "CA",
+    "magnesium_mg": "MG",
+    "potassium_mg": "K",
+    "zinc_mg": "ZN",
+    "vit_c_mg": "VITC",
+    "vit_d_ug": "VITD",
+    "vit_b12_ug": "VITB12",
+    "folate_ug": "FOL",
 }
 SALT_PER_NA = 2.5 / 1000  # g salt per mg sodium (NaCl is 39.3% sodium; the factor food labels use)
 

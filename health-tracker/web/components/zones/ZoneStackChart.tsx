@@ -56,74 +56,88 @@ export default function ZoneStackChart({
 
       {/* Z1 and Z2 sit at the bottom, so where their top meets the dashed line the 80/20 aim is met. */}
       <div className="relative">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 z-10 border-t border-dashed border-[var(--text-primary)] opacity-70" style={{ bottom: `${EASY_TARGET}%` }}>
-        <span className="absolute -top-[9px] right-0 rounded bg-surface px-1 text-[10.5px] leading-[16px] text-[var(--text-primary)]">{EASY_TARGET}%</span>
-      </div>
-      <div role="group" aria-label={ariaLabel} className="flex h-[150px] items-stretch gap-[3px] sm:h-[180px]" onMouseLeave={() => setActive(null)}>
-        {bars.map((bar, i) => (
-          <button
-            key={bar.start}
-            type="button"
-            onFocus={() => setActive(i)}
-            onBlur={() => setActive(null)}
-            onMouseEnter={() => setActive(i)}
-            onClick={() => setActive(i)}
-            aria-label={`${bar.label}: ${bar.total_s ? ZONES.map((z) => `${z} ${Math.round(bar.pct[z])}%`).join(", ") : t.zones.noHr}`}
-            className="flex min-w-0 flex-1 flex-col justify-end overflow-hidden rounded-[4px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)]"
-          >
-            {bar.total_s > 0 ? (
-              // Z5 at the top, Z1 against the baseline.
-              [...ZONES].reverse().map((z) =>
-                bar.pct[z] > 0 ? (
-                  <span
-                    key={z}
-                    aria-hidden="true"
-                    className="block w-full"
-                    style={{
-                      height: `${bar.pct[z]}%`,
-                      background: ZONE_COLOUR[z],
-                      opacity: bar.partial ? 0.6 : 1,
-                    }}
-                  />
-                ) : null,
-              )
-            ) : (
-              <span aria-hidden="true" className="block h-[2px] w-full bg-border-strong" />
-            )}
-          </button>
-        ))}
-      </div>
-      {shown && active != null && (
         <div
-          className="ds-chart__tip"
-          aria-live="polite"
-          style={{
-            left: `calc(${((active + 0.5) / bars.length) * 100}% ${active >= bars.length / 2 ? "- 10px" : "+ 10px"})`,
-            top: 8,
-            transform: active >= bars.length / 2 ? "translateX(-100%)" : "none",
-            zIndex: 20,
-          }}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 z-10 border-t border-dashed border-[var(--text-primary)] opacity-70"
+          style={{ bottom: `${EASY_TARGET}%` }}
         >
-          <div className="font-semibold">{shown.label}</div>
-          <div className="opacity-80">
-            {shown.total_s ? f.hours(shown.total_s) : t.zones.noHr}
-            {shown.partial ? ` · ${t.zones.running}` : ""}
-          </div>
-          {shown.total_s > 0 && (
-            <>
-              <div className="flex justify-between gap-3"><span className="opacity-80">{t.zones.easyShort}</span><span className="font-semibold">{Math.round(easyPct(shown.pct))}%</span></div>
-              {ZONES.map((z) => (
-                <div key={z} className="flex items-center gap-1.5">
-                  <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ background: ZONE_COLOUR[z] }} />
-                  <span className="opacity-80">{z}</span>
-                  <span className="ml-auto pl-3 font-semibold">{Math.round(shown.pct[z])}%</span>
-                  <span className="w-10 text-right opacity-80">{f.duration(shown.seconds[z])}</span>
-                </div>
-              ))}
-            </>
-          )}
+          <span className="absolute -top-[9px] right-0 rounded bg-surface px-1 text-[10.5px] leading-[16px] text-[var(--text-primary)]">
+            {EASY_TARGET}%
+          </span>
         </div>
-      )}
+        <div
+          role="group"
+          aria-label={ariaLabel}
+          className="flex h-[150px] items-stretch gap-[3px] sm:h-[180px]"
+          onMouseLeave={() => setActive(null)}
+        >
+          {bars.map((bar, i) => (
+            <button
+              key={bar.start}
+              type="button"
+              onFocus={() => setActive(i)}
+              onBlur={() => setActive(null)}
+              onMouseEnter={() => setActive(i)}
+              onClick={() => setActive(i)}
+              aria-label={`${bar.label}: ${bar.total_s ? ZONES.map((z) => `${z} ${Math.round(bar.pct[z])}%`).join(", ") : t.zones.noHr}`}
+              className="flex min-w-0 flex-1 flex-col justify-end overflow-hidden rounded-[4px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)]"
+            >
+              {bar.total_s > 0 ? (
+                // Z5 at the top, Z1 against the baseline.
+                [...ZONES].reverse().map((z) =>
+                  bar.pct[z] > 0 ? (
+                    <span
+                      key={z}
+                      aria-hidden="true"
+                      className="block w-full"
+                      style={{
+                        height: `${bar.pct[z]}%`,
+                        background: ZONE_COLOUR[z],
+                        opacity: bar.partial ? 0.6 : 1,
+                      }}
+                    />
+                  ) : null,
+                )
+              ) : (
+                <span aria-hidden="true" className="block h-[2px] w-full bg-border-strong" />
+              )}
+            </button>
+          ))}
+        </div>
+        {shown && active != null && (
+          <div
+            className="ds-chart__tip"
+            aria-live="polite"
+            style={{
+              left: `calc(${((active + 0.5) / bars.length) * 100}% ${active >= bars.length / 2 ? "- 10px" : "+ 10px"})`,
+              top: 8,
+              transform: active >= bars.length / 2 ? "translateX(-100%)" : "none",
+              zIndex: 20,
+            }}
+          >
+            <div className="font-semibold">{shown.label}</div>
+            <div className="opacity-80">
+              {shown.total_s ? f.hours(shown.total_s) : t.zones.noHr}
+              {shown.partial ? ` · ${t.zones.running}` : ""}
+            </div>
+            {shown.total_s > 0 && (
+              <>
+                <div className="flex justify-between gap-3">
+                  <span className="opacity-80">{t.zones.easyShort}</span>
+                  <span className="font-semibold">{Math.round(easyPct(shown.pct))}%</span>
+                </div>
+                {ZONES.map((z) => (
+                  <div key={z} className="flex items-center gap-1.5">
+                    <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ background: ZONE_COLOUR[z] }} />
+                    <span className="opacity-80">{z}</span>
+                    <span className="ml-auto pl-3 font-semibold">{Math.round(shown.pct[z])}%</span>
+                    <span className="w-10 text-right opacity-80">{f.duration(shown.seconds[z])}</span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Flex instead of text-center: a label wider than its bar then sticks out equally on both sides
@@ -133,7 +147,10 @@ export default function ZoneStackChart({
           const label = (bars.length - 1 - i) % every === 0;
           const edge = i === 0 ? "justify-start" : i === bars.length - 1 ? "justify-end" : "justify-center";
           return (
-            <span key={bar.start} className={`flex min-w-0 flex-1 ${edge} whitespace-nowrap text-[11px] leading-tight ${i === active ? "font-semibold text-text" : "text-ink-muted"}`}>
+            <span
+              key={bar.start}
+              className={`flex min-w-0 flex-1 ${edge} whitespace-nowrap text-[11px] leading-tight ${i === active ? "font-semibold text-text" : "text-ink-muted"}`}
+            >
               <span className="flex-none">{label ? bar.short : ""}</span>
             </span>
           );

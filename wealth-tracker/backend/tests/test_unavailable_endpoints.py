@@ -14,9 +14,9 @@ import datetime
 
 import pytest
 
-from domain.portfolio import series as charts
-from domain import database
 from app.services import dashboard_service as ds
+from domain import database
+from domain.portfolio import series as charts
 
 
 def _login(client, user="alice", pw="alicepw"):
@@ -26,18 +26,29 @@ def _login(client, user="alice", pw="alicepw"):
 def _seed(username, isins=("NL0000001",)):
     conn = database.connect(username)
     database.init_db(conn)
-    database.save_transactions(conn, [
-        {
-            "date": "2025-01-02", "time": "10:00", "isin": isin, "name": f"Fund {i}",
-            "transaction_type": "BUY", "quantity": 10.0, "price": 100.0,
-            "total_eur": 1000.0, "order_ref": f"o{i}", "currency": "EUR",
-            "exchange": "EAM", "transaction_fee": 1.0, "autofx_cost": 0.0,
-        }
-        for i, isin in enumerate(isins)
-    ])
+    database.save_transactions(
+        conn,
+        [
+            {
+                "date": "2025-01-02",
+                "time": "10:00",
+                "isin": isin,
+                "name": f"Fund {i}",
+                "transaction_type": "BUY",
+                "quantity": 10.0,
+                "price": 100.0,
+                "total_eur": 1000.0,
+                "order_ref": f"o{i}",
+                "currency": "EUR",
+                "exchange": "EAM",
+                "transaction_fee": 1.0,
+                "autofx_cost": 0.0,
+            }
+            for i, isin in enumerate(isins)
+        ],
+    )
     for i, isin in enumerate(isins):
-        database.save_price(conn, isin=isin, name=f"Fund {i}", ticker=f"T{i}.AS",
-                            price=110.0, currency="EUR", previous_close=100.0)
+        database.save_price(conn, isin=isin, name=f"Fund {i}", ticker=f"T{i}.AS", price=110.0, currency="EUR", previous_close=100.0)
     conn.close()
 
 
@@ -45,12 +56,14 @@ def _seed(username, isins=("NL0000001",)):
 def outage(monkeypatch):
     """Every yfinance download comes back empty, as a real outage does."""
     import pandas as pd
+
     monkeypatch.setattr(charts.yf, "download", lambda tickers, **kw: pd.DataFrame())
 
 
 # ---------------------------------------------------------------------------
 # The dashboard's value card
 # ---------------------------------------------------------------------------
+
 
 def test_value_history_says_unavailable_instead_of_a_flat_line(client, outage):
     _login(client)
@@ -71,13 +84,12 @@ def test_a_failed_value_history_is_not_cached(client, monkeypatch):
     _seed("alice")
 
     calls = {"n": 0}
-    days = pd.DatetimeIndex([datetime.date(2025, 1, 2) + datetime.timedelta(days=i)
-                             for i in range(5)])
+    days = pd.DatetimeIndex([datetime.date(2025, 1, 2) + datetime.timedelta(days=i) for i in range(5)])
 
     def flaky(tickers, **kw):
         calls["n"] += 1
         if calls["n"] == 1:
-            return pd.DataFrame()                      # the outage
+            return pd.DataFrame()  # the outage
         return pd.DataFrame({("Close", "T0.AS"): [100.0] * 5}, index=days)
 
     monkeypatch.setattr(charts.yf, "download", flaky)
@@ -99,6 +111,7 @@ def test_the_sparkline_hides_rather_than_draws_a_straight_line(client, outage):
 # ---------------------------------------------------------------------------
 # The Returns tab
 # ---------------------------------------------------------------------------
+
 
 def test_returns_says_unavailable_instead_of_zero_percent(client, outage):
     from app.core import auth_store
@@ -122,6 +135,7 @@ def test_returns_says_unavailable_instead_of_zero_percent(client, outage):
 # ---------------------------------------------------------------------------
 # The Benchmarks tab
 # ---------------------------------------------------------------------------
+
 
 def test_benchmarks_answers_with_its_error_and_caches_nothing(client, monkeypatch):
     import pandas as pd
@@ -152,13 +166,11 @@ def test_benchmarks_answers_with_its_error_and_caches_nothing(client, monkeypatc
 # Partial data is still drawn, and still named
 # ---------------------------------------------------------------------------
 
+
 def test_a_substituted_holding_is_reported_beside_the_line():
-    txns = [{"date": "2026-07-01", "isin": "X1", "name": "Een fonds",
-             "quantity": 10.0, "transaction_type": "BUY", "total_eur": 1000.0}]
+    txns = [{"date": "2026-07-01", "isin": "X1", "name": "Een fonds", "quantity": 10.0, "transaction_type": "BUY", "total_eur": 1000.0}]
     # No ticker: nothing is downloaded, so every day is the cached price.
     out = ds._build_value_history(txns, {"X1": {"price": 110.0, "currency": "EUR"}}, [])
 
     assert out["points"]
-    assert out["estimated"] == [
-        {"isin": "X1", "name": "Een fonds", "base": "huidige koers"}
-    ]
+    assert out["estimated"] == [{"isin": "X1", "name": "Een fonds", "base": "huidige koers"}]

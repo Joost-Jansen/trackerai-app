@@ -21,8 +21,12 @@ const SHOWN = 3;
 
 function label(s: RouteCandidateSide, done: string, t: Messages, f: Format): { title: string; meta: string } {
   const c = t.routes.candidates;
-  if (s.kind === "activity") return { title: s.name || c.single(f.day(s.date)), meta: c.metaSingle(f.km(s.distance_km), done, f.day(s.date)) };
-  return { title: routeName(s.name, s.id, t, f), meta: c.meta(f.km(s.distance_km), s.runs ?? 0, done, s.last_run ? f.day(s.last_run) : null) };
+  if (s.kind === "activity")
+    return { title: s.name || c.single(f.day(s.date)), meta: c.metaSingle(f.km(s.distance_km), done, f.day(s.date)) };
+  return {
+    title: routeName(s.name, s.id, t, f),
+    meta: c.meta(f.km(s.distance_km), s.runs ?? 0, done, s.last_run ? f.day(s.last_run) : null),
+  };
 }
 
 function Pair({ c, done, onAnswer, busy }: { c: RouteCandidate; done: string; onAnswer: (same: boolean) => void; busy: boolean }) {
@@ -31,10 +35,7 @@ function Pair({ c, done, onAnswer, busy }: { c: RouteCandidate; done: string; on
   const sides = [c.a, c.b];
   return (
     <li className="grid gap-3 border-t border-border pt-3 first:border-t-0 first:pt-0 md:grid-cols-[1.1fr_1fr]">
-      <RoutesMap
-        height={220}
-        lines={sides.map((s) => ({ id: `${s.kind}:${s.id}`, label: label(s, done, t, f).title, points: s.track }))}
-      />
+      <RoutesMap height={220} lines={sides.map((s) => ({ id: `${s.kind}:${s.id}`, label: label(s, done, t, f).title, points: s.track }))} />
       <div className="flex min-w-0 flex-col gap-2 text-[12.5px]">
         {sides.map((s, i) => {
           const l = label(s, done, t, f);
@@ -50,8 +51,12 @@ function Pair({ c, done, onAnswer, busy }: { c: RouteCandidate; done: string; on
         })}
         <p className="text-ink-muted">{(c.reason_code && t.texts.routes.reason[c.reason_code]) || c.reason}</p>
         <div className="mt-auto flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" disabled={busy} onClick={() => onAnswer(true)}>{t.routes.candidates.yes}</Button>
-          <Button size="sm" variant="ghost" disabled={busy} onClick={() => onAnswer(false)}>{t.routes.candidates.no}</Button>
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => onAnswer(true)}>
+            {t.routes.candidates.yes}
+          </Button>
+          <Button size="sm" variant="ghost" disabled={busy} onClick={() => onAnswer(false)}>
+            {t.routes.candidates.no}
+          </Button>
         </div>
       </div>
     </li>
@@ -90,10 +95,12 @@ export default function RouteCandidates({ sport, candidates, done }: { sport: Ro
         )
       }
     >
-      {note && <p className="mb-2 text-[12.5px] text-ink-muted" role="status">{note}</p>}
-      {candidates.length > 0 && !open && (
-        <p className="text-[12.5px] text-ink-muted">{T.routes.pending(candidates.length, sport)}</p>
+      {note && (
+        <p className="mb-2 text-[12.5px] text-ink-muted" role="status">
+          {note}
+        </p>
       )}
+      {candidates.length > 0 && !open && <p className="text-[12.5px] text-ink-muted">{T.routes.pending(candidates.length, sport)}</p>}
       {open && candidates.length > 0 && (
         <>
           <p className="mb-3 text-[12.5px] text-ink-muted">{T.routes.reviewIntro}</p>

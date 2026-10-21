@@ -27,7 +27,6 @@ import datetime
 
 from domain.portfolio import series as charts
 
-
 # An annualised rate over a few weeks is arithmetic, not information: two good
 # days become "+400% per year". Below this many days the tab shows a dash and
 # says why.
@@ -87,9 +86,7 @@ def irr(flows: list[tuple[datetime.date, float]]) -> float | None:
     return (lo + hi) / 2.0
 
 
-def cash_flows(
-    dates: list, invested: list[float], values: list[float], lo: int, hi: int
-) -> list[tuple[datetime.date, float]]:
+def cash_flows(dates: list, invested: list[float], values: list[float], lo: int, hi: int) -> list[tuple[datetime.date, float]]:
     """The flows for window [lo, hi] of the daily series, IRR's sign convention.
 
     The opening value is an outflow (you already had that much at work) and the
@@ -126,9 +123,7 @@ def build(transactions, prices, dividends, window: tuple[str, str] | None = None
     line claims no gain or loss over months in which you held nothing, and the
     tab says so where the gap is.
     """
-    dates, invested, values, values_divs = charts.portfolio_history_series(
-        transactions, prices, dividends
-    )
+    dates, invested, values, values_divs = charts.portfolio_history_series(transactions, prices, dividends)
     if len(dates) < 2:
         return {"points": [], "gaps": [], "ranges": []}
 
@@ -154,8 +149,9 @@ def build(transactions, prices, dividends, window: tuple[str, str] | None = None
     # money.
     total = [round(v, 2) for v in values_divs]
 
-    ranges = [_range_stat(label, dates, invested, total, index, lo, len(dates) - 1)
-              for label, lo in _range_starts(dates) if lo < len(dates) - 1]
+    ranges = [
+        _range_stat(label, dates, invested, total, index, lo, len(dates) - 1) for label, lo in _range_starts(dates) if lo < len(dates) - 1
+    ]
     if window is not None:
         custom = _custom(dates, invested, total, index, window)
         if custom is not None:

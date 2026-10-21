@@ -112,7 +112,7 @@ const NL: Record<string, string> = {
 
 /** A sector, continent or country as the issuers name it, in the reader's language. */
 export const localName = (name: string) =>
-  name === "Other" ? tr("Other") : name === "Unknown" ? tr("Unknown") : locale === "nl" ? NL[name] ?? name : name;
+  name === "Other" ? tr("Other") : name === "Unknown" ? tr("Unknown") : locale === "nl" ? (NL[name] ?? name) : name;
 
 export type Slice = { name: string; pct: number; colour: string };
 

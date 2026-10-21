@@ -15,7 +15,8 @@ import json
 import os
 import posixpath
 import zipfile
-from typing import AsyncIterator, BinaryIO, Iterable
+from collections.abc import AsyncIterator, Iterable
+from typing import BinaryIO
 
 CHUNK = 1024 * 1024
 
@@ -94,8 +95,14 @@ def safe_member_name(name: str) -> bool:
     return ".." not in posixpath.normpath(norm).split("/")
 
 
-def check_zip(source: str | os.PathLike | BinaryIO, max_members: int = 10_000, max_total_uncompressed: int = 1024**3,
-              max_ratio: float = 200, max_member: int | None = None, verify: bool = False) -> list[zipfile.ZipInfo]:
+def check_zip(
+    source: str | os.PathLike | BinaryIO,
+    max_members: int = 10_000,
+    max_total_uncompressed: int = 1024**3,
+    max_ratio: float = 200,
+    max_member: int | None = None,
+    verify: bool = False,
+) -> list[zipfile.ZipInfo]:
     """Refuse (ZipRejected) a zip that would unpack to too much, before unpacking it. Returns the members.
 
     The ratio is checked per member that unpacks to more than 1 MB (small files compress wildly without being
@@ -170,9 +177,24 @@ class BodyLimitMiddleware:
 
     @staticmethod
     async def _refuse(send, limit: int) -> None:
-        body = json.dumps({"detail": f"request body larger than {limit // (1024 * 1024)} MB", "code": "upload_too_large",
-                           "params": {"max_mb": limit // (1024 * 1024)}}).encode()
-        await send({"type": "http.response.start", "status": 413, "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode()), (b"connection", b"close")]})
+        body = json.dumps(
+            {
+                "detail": f"request body larger than {limit // (1024 * 1024)} MB",
+                "code": "upload_too_large",
+                "params": {"max_mb": limit // (1024 * 1024)},
+            }
+        ).encode()
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 413,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(body)).encode()),
+                    (b"connection", b"close"),
+                ],
+            }
+        )
         await send({"type": "http.response.body", "body": body})
 
     async def __call__(self, scope, receive, send):

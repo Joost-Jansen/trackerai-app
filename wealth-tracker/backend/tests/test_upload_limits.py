@@ -6,7 +6,6 @@ import zipfile
 
 from app.core import config
 from domain import database
-
 from tests.test_bank_upload import PAY
 
 
@@ -22,8 +21,9 @@ def test_a_file_over_the_limit_is_refused_and_not_kept(client, monkeypatch):
     _login(client)
     monkeypatch.setattr(config, "MAX_UPLOAD_MB", 1)
     big = b"x" * (1024 * 1024 + 10)
-    r = client.post("/api/uploads/transactions", files=[("files", ("big.xlsx", big, "application/octet-stream"))],
-                    headers={"X-Locale": "en"})
+    r = client.post(
+        "/api/uploads/transactions", files=[("files", ("big.xlsx", big, "application/octet-stream"))], headers={"X-Locale": "en"}
+    )
     assert r.status_code == 413
     assert r.json()["code"] == "upload_too_large"
     assert "1 MB" in r.json()["detail"]
@@ -45,8 +45,11 @@ def test_the_request_body_is_limited_before_parsing(client, monkeypatch):
     r = client.post("/api/uploads/bank", files=[("files", ("a.csv", b"x" * (3 * 1024 * 1024), "text/csv"))])
     assert r.status_code == 413 and r.json()["code"] == "upload_too_large"
     monkeypatch.setattr(config, "MAX_BODY_MB", 1)
-    r = client.post("/api/feedback", content=b'{"kind":"bug","message":"' + b"a" * (2 * 1024 * 1024) + b'"}',
-                    headers={"Content-Type": "application/json"})
+    r = client.post(
+        "/api/feedback",
+        content=b'{"kind":"bug","message":"' + b"a" * (2 * 1024 * 1024) + b'"}',
+        headers={"Content-Type": "application/json"},
+    )
     assert r.status_code == 413
 
 

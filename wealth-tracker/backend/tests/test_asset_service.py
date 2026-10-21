@@ -16,8 +16,8 @@ import sqlite3
 
 import pytest
 
-from domain import database
 from app.services import asset_service
+from domain import database
 
 
 @pytest.fixture()
@@ -42,9 +42,11 @@ def _bars(*closes, prev=None):
 # Daily closes
 # ---------------------------------------------------------------------------
 
+
 def test_no_ticker_means_an_empty_chart_not_a_download(conn, monkeypatch):
     monkeypatch.setattr(
-        asset_service, "_fetch_daily",
+        asset_service,
+        "_fetch_daily",
         lambda t: pytest.fail("a position without a ticker must not be downloaded"),
     )
     assert asset_service.daily_closes(conn, None) == {"points": []}
@@ -61,9 +63,9 @@ def test_daily_closes_are_cached_per_ticker(conn, monkeypatch):
 
     assert asset_service.daily_closes(conn, "AAPL")["points"][0]["c"] == 10.0
     asset_service.daily_closes(conn, "AAPL")
-    assert calls == ["AAPL"]                      # second read came from the cache
+    assert calls == ["AAPL"]  # second read came from the cache
 
-    asset_service.daily_closes(conn, "IWDA.AS")   # a different ticker is a different key
+    asset_service.daily_closes(conn, "IWDA.AS")  # a different ticker is a different key
     assert calls == ["AAPL", "IWDA.AS"]
 
 
@@ -89,6 +91,7 @@ def test_a_failed_download_is_not_cached(conn, monkeypatch):
 # Intraday, and the two anchors
 # ---------------------------------------------------------------------------
 
+
 def test_the_last_bar_becomes_the_live_price(conn, monkeypatch):
     """The five-minute feed runs about a quarter of an hour behind the quote,
     so the bars give the day its shape and the price cache its endpoint."""
@@ -97,7 +100,7 @@ def test_the_last_bar_becomes_the_live_price(conn, monkeypatch):
     data = asset_service.intraday_closes(conn, "X1.AS", live_price=102.4, previous_close=100.0)
 
     assert data["points"][-1]["c"] == 102.4
-    assert data["points"][1]["c"] == 101.0        # the shape in between is untouched
+    assert data["points"][1]["c"] == 101.0  # the shape in between is untouched
 
 
 def test_the_first_bar_is_the_previous_close_and_moves_with_it(conn, monkeypatch):
@@ -119,7 +122,7 @@ def test_without_a_previous_close_the_bars_keep_their_own(conn, monkeypatch):
 
     assert data["prev_close"] is None
     assert data["points"][-1]["c"] == 102.5
-    assert data["points"][0]["c"] == 101.0        # nothing to anchor the start to
+    assert data["points"][0]["c"] == 101.0  # nothing to anchor the start to
 
 
 def test_no_bars_at_all_is_an_ordinary_answer(conn, monkeypatch):
@@ -128,6 +131,4 @@ def test_no_bars_at_all_is_an_ordinary_answer(conn, monkeypatch):
     a flat day that never happened."""
     monkeypatch.setattr(asset_service, "_fetch_intraday", lambda t: {"points": [], "prev_close": None})
 
-    assert asset_service.intraday_closes(conn, "X1.AS", live_price=102.5) == {
-        "points": [], "prev_close": None
-    }
+    assert asset_service.intraday_closes(conn, "X1.AS", live_price=102.5) == {"points": [], "prev_close": None}

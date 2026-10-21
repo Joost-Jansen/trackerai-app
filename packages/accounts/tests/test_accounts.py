@@ -14,8 +14,13 @@ PASSWORD = "a long enough passphrase"
 
 
 def config(tmp_path, **kw) -> Config:
-    base = dict(database_url=f"sqlite:///{tmp_path}/accounts.db", session_secret="s" * 40, encryption_key=crypto.new_key(),
-                cookie_domain=None, cookie_secure=False)
+    base = dict(
+        database_url=f"sqlite:///{tmp_path}/accounts.db",
+        session_secret="s" * 40,
+        encryption_key=crypto.new_key(),
+        cookie_domain=None,
+        cookie_secure=False,
+    )
     return Config(**{**base, **kw})
 
 
@@ -131,7 +136,9 @@ def test_two_step_login(health, accounts):
     # a backup code once too
     assert again.post("/api/auth/login", json={"username": "anna", "password": PASSWORD, "totp": backup[0]}).status_code == 200
     third = TestClient(health.app)
-    assert third.post("/api/auth/login", json={"username": "anna", "password": PASSWORD, "totp": backup[0]}).json()["code"] == "totp_invalid"
+    assert (
+        third.post("/api/auth/login", json={"username": "anna", "password": PASSWORD, "totp": backup[0]}).json()["code"] == "totp_invalid"
+    )
 
 
 def test_enabling_two_step_login_ends_other_sessions(health, accounts):
@@ -227,7 +234,9 @@ def test_leaving_an_app_and_the_purge(accounts, health):
     bid = accounts.by_username("bob")["id"]
     accounts.set_local_key(bid, "health", "42")
     assert accounts.account_for_local_key("health", "42")["username"] == "bob"
-    assert bob.request("DELETE", "/api/account/apps/health", json={"password": "wrong passphrase"}).json()["code"] == "wrong_current_password"
+    assert (
+        bob.request("DELETE", "/api/account/apps/health", json={"password": "wrong passphrase"}).json()["code"] == "wrong_current_password"
+    )
     assert bob.request("DELETE", "/api/account/apps/health", json={"password": PASSWORD}).status_code == 200
     assert accounts.pending_purges("health") == [{"account_id": bid, "local_key": "42"}]
     assert accounts.account_for_local_key("health", "42") is None
@@ -246,7 +255,9 @@ def test_deleting_the_account_in_every_app(accounts, health):
     code = code_for(accounts, "bob", 30)
     assert bob.request("DELETE", "/api/account", json={"password": PASSWORD, "totp": code}).status_code == 200
     assert bob.get("/api/auth/account").status_code == 401
-    assert TestClient(health.app).post("/api/auth/login", json={"username": "bob", "password": PASSWORD}).json()["code"] == "bad_credentials"
+    assert (
+        TestClient(health.app).post("/api/auth/login", json={"username": "bob", "password": PASSWORD}).json()["code"] == "bad_credentials"
+    )
     assert {p["account_id"] for p in accounts.pending_purges("health")} == {bid}
     accounts.purged(bid, "health")
     assert accounts.get(bid) is not None  # wealth still has to delete its part
@@ -292,7 +303,9 @@ def test_legacy_password_opens_the_account_until_changed(accounts, health):
     assert c.post("/api/auth/login", json={"username": "anna", "password": "the old wealth password"}).status_code == 200
     c.post("/api/account/password", json={"current": "the old wealth password", "new": "a brand new passphrase"})
     again = TestClient(health.app)
-    assert again.post("/api/auth/login", json={"username": "anna", "password": "the old wealth password"}).json()["code"] == "bad_credentials"
+    assert (
+        again.post("/api/auth/login", json={"username": "anna", "password": "the old wealth password"}).json()["code"] == "bad_credentials"
+    )
     assert again.post("/api/auth/login", json={"username": "anna", "password": PASSWORD}).json()["code"] == "bad_credentials"
 
 
@@ -314,8 +327,10 @@ def test_aliases_answer_the_old_paths(accounts):
     router, _ = make_router(accounts, "health", aliases={"/api/login": "/api/auth/login", "/api/register": "/api/auth/register"})
     api.include_router(router)
     c = TestClient(api)
-    assert c.post("/api/register", json={"username": "anna", "password": PASSWORD, "consent": True,
-                                         "email": "anna@example.org"}).status_code == 200
+    assert (
+        c.post("/api/register", json={"username": "anna", "password": PASSWORD, "consent": True, "email": "anna@example.org"}).status_code
+        == 200
+    )
     assert TestClient(api).post("/api/login", json={"username": "anna", "password": PASSWORD}).status_code == 200
 
 
@@ -378,8 +393,9 @@ def test_before_login_can_bring_in_an_old_login(accounts):
 
 
 def test_create_linked_brings_two_step_login(accounts):
-    a = accounts.create_linked("tess", hash_password(PASSWORD), "wealth", "Tess", display_name="Tess", locale="nl",
-                               totp_secret="JBSWY3DPEHPK3PXP", totp_backup=[])
+    a = accounts.create_linked(
+        "tess", hash_password(PASSWORD), "wealth", "Tess", display_name="Tess", locale="nl", totp_secret="JBSWY3DPEHPK3PXP", totp_backup=[]
+    )
     assert a["locale"] == "nl" and a["display_name"] == "Tess" and a["totp_enabled_at"]
     with pytest.raises(Exception):
         accounts.login("tess", PASSWORD)  # the code is asked for
@@ -400,13 +416,17 @@ def test_stay_logged_in_or_a_browser_session(health, accounts):
 
 def test_registration_status_tells_the_front_door(tmp_path, health):
     assert health.get("/api/auth/registration-status").json()["front_door_url"] is None
-    for kw, url in (({"cookie_domain": "trackerai.nl"}, "https://www.trackerai.nl"),
-                    ({"cookie_domain": "trackerai.nl", "front_door": "https://trackerai.example/"}, "https://trackerai.example")):
+    for kw, url in (
+        ({"cookie_domain": "trackerai.nl"}, "https://www.trackerai.nl"),
+        ({"cookie_domain": "trackerai.nl", "front_door": "https://trackerai.example/"}, "https://trackerai.example"),
+    ):
         cfg = config(tmp_path, **kw)
         c = TestClient(make_app(Accounts(connect(cfg.database_url), cfg), "wealth"))
         assert c.get("/api/auth/registration-status").json()["front_door_url"] == url
-    assert c.get("/api/auth/registration-status").json()["tracker_urls"] == {"health": "https://health.trackerai.nl",
-                                                                              "wealth": "https://wealth.trackerai.nl"}
+    assert c.get("/api/auth/registration-status").json()["tracker_urls"] == {
+        "health": "https://health.trackerai.nl",
+        "wealth": "https://wealth.trackerai.nl",
+    }
 
 
 def test_a_remembered_device_is_not_asked_for_the_code_again(health, accounts):
@@ -426,8 +446,18 @@ def test_a_remembered_device_is_not_asked_for_the_code_again(health, accounts):
     forged = TestClient(health.app, cookies={session.DEVICE_COOKIE: phone.cookies.get(session.DEVICE_COOKIE)})
     accounts.set_registration_mode(accounts.by_username("anna"), "open")
     register(TestClient(health.app), "bob")
-    bob_secret, _ = enable_totp(TestClient(health.app, cookies={session.COOKIE: TestClient(health.app).post(
-        "/api/auth/login", json={"username": "bob", "password": PASSWORD}).cookies.get(session.COOKIE)}), accounts, "bob")
+    bob_secret, _ = enable_totp(
+        TestClient(
+            health.app,
+            cookies={
+                session.COOKIE: TestClient(health.app)
+                .post("/api/auth/login", json={"username": "bob", "password": PASSWORD})
+                .cookies.get(session.COOKIE)
+            },
+        ),
+        accounts,
+        "bob",
+    )
     assert forged.post("/api/auth/login", json={"username": "bob", "password": PASSWORD}).json()["code"] == "totp_required"
     # a password change ends the remembered device
     phone.post("/api/account/password", json={"current": PASSWORD, "new": "another long passphrase"})
@@ -472,8 +502,9 @@ def test_the_admin_routes_also_answer_under_trackerai(accounts, health):
 
 def test_front_door_router_has_no_default_app(accounts):
     """The front door's own API (trackerai-api) mounts the routes without an app: sign-up names the trackers."""
-    accounts.config = replace(accounts.config, oauth_issuer="https://trackerai.example",
-                              oauth_resources=json.dumps({"wealth": "https://wealth.example/api/mcp"}))
+    accounts.config = replace(
+        accounts.config, oauth_issuer="https://trackerai.example", oauth_resources=json.dumps({"wealth": "https://wealth.example/api/mcp"})
+    )
     door = TestClient(make_app(accounts, None), base_url="https://trackerai.example")
     r = register(door)
     assert r.status_code == 422 and r.json()["code"] == "unknown_app"

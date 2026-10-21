@@ -18,7 +18,8 @@ const problems = [];
 
 // ── 1. parity ─────────────────────────────────────────────────────────────────
 
-const kind = (v) => (Array.isArray(v) ? "list" : typeof v === "function" ? `function(${v.length})` : v !== null && typeof v === "object" ? "group" : typeof v);
+const kind = (v) =>
+  Array.isArray(v) ? "list" : typeof v === "function" ? `function(${v.length})` : v !== null && typeof v === "object" ? "group" : typeof v;
 
 function compare(a, b, path, nameA, nameB) {
   for (const k of Object.keys(a)) {
@@ -77,7 +78,8 @@ const CONVERTED = [
   "lib/onboarding.ts",
 ];
 
-const DUTCH = /\b(de|het|een|je|jouw|jij|niet|nog|geen|voor|naar|met|van|bij|wordt|zijn|deze|dit|dat|wat|hoe|waar|ook|maar|uit|tot|keer|dagen|laden|opslaan|annuleren|bewerken|verwijderen|volgende|vorige|gebruiker|wachtwoord|instellingen|kies|vul|bekijk|zoek|gelopen|gefietst|hartslag|snelheid|afstand|uitleg|klaar|gekoppeld|koppelen)\b/i;
+const DUTCH =
+  /\b(de|het|een|je|jouw|jij|niet|nog|geen|voor|naar|met|van|bij|wordt|zijn|deze|dit|dat|wat|hoe|waar|ook|maar|uit|tot|keer|dagen|laden|opslaan|annuleren|bewerken|verwijderen|volgende|vorige|gebruiker|wachtwoord|instellingen|kies|vul|bekijk|zoek|gelopen|gefietst|hartslag|snelheid|afstand|uitleg|klaar|gekoppeld|koppelen)\b/i;
 
 function files(p) {
   const full = join(WEB, p);

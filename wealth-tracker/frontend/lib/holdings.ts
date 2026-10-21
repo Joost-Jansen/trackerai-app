@@ -211,8 +211,7 @@ export type PriceIntraday = { points: PricePoint[]; prev_close: number | null };
  *  stretch between two fingers. Rendered by the card's header rather than by a
  *  tooltip — see PriceChart for why. */
 export type PriceProbe =
-  | { kind: "point"; point: PricePoint }
-  | ({ kind: "span"; a: PricePoint; b: PricePoint } & ReturnType<typeof priceChange>);
+  { kind: "point"; point: PricePoint } | ({ kind: "span"; a: PricePoint; b: PricePoint } & ReturnType<typeof priceChange>);
 
 /** The move between two closes, in currency and percent.
  *

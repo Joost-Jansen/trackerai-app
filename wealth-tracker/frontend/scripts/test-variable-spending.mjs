@@ -14,5 +14,8 @@ test("largest items contain no fixed costs, own transfers or receipts", () => {
     row(6, "EXPENSE", -25, "Terugboeking"),
   ];
   const off = variableSpending(rows, (name) => name === "Huur", new Set(["NL12ABCD1234567890"]));
-  assert.deepEqual(off.map((r) => r.id), [1]);
+  assert.deepEqual(
+    off.map((r) => r.id),
+    [1],
+  );
 });

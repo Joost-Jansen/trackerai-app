@@ -36,7 +36,7 @@ import os
 import random
 import secrets
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _BACKEND = os.path.join(_ROOT, "backend")
@@ -46,12 +46,16 @@ if _BACKEND not in sys.path:
 import bcrypt  # noqa: E402
 import yaml  # noqa: E402
 
-from domain.money import budget  # noqa: E402
-from domain.money import categorization  # noqa: E402
-from domain import database  # noqa: E402
-from domain import onboarding  # noqa: E402
-from domain.money import accounts  # noqa: E402
-from domain.money import bank_transactions  # noqa: E402
+from domain import (
+    database,  # noqa: E402
+    onboarding,  # noqa: E402
+)
+from domain.money import (
+    accounts,  # noqa: E402
+    bank_transactions,  # noqa: E402
+    budget,  # noqa: E402
+    categorization,  # noqa: E402
+)
 from domain.money.bank_providers.base import dedup_hash  # noqa: E402
 
 USER = "demo"
@@ -74,9 +78,14 @@ FUNDS = [
 MONTHLY = {"IE00BK5BQT80": 300, "IE00BKM4GZ66": 60, "IE00B4WXJJ64": 40}
 # Single purchases: (months after the start, ISIN, amount in euros).
 LOOSE = [
-    (2, "NL0010273215", 1400), (5, "IE00B8GKDB10", 900), (7, "NL0011794037", 600),
-    (9, "GB00B10RZP78", 700), (14, "IE00B4L5Y983", 1500), (20, "NL0010273215", 800),
-    (26, "IE00B8GKDB10", 600), (30, "IE00B4L5Y983", 1000),
+    (2, "NL0010273215", 1400),
+    (5, "IE00B8GKDB10", 900),
+    (7, "NL0011794037", 600),
+    (9, "GB00B10RZP78", 700),
+    (14, "IE00B4L5Y983", 1500),
+    (20, "NL0010273215", 800),
+    (26, "IE00B8GKDB10", 600),
+    (30, "IE00B4L5Y983", 1000),
 ]
 SALE = (24, "NL0011794037", 0.5)  # after two years half of Ahold sold
 
@@ -179,7 +188,7 @@ def make_account(password: str, reset: bool) -> bool:
         "name": "Demo",
         "email": f"{USER}@local",
         "password": bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode(),
-        "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "created_at": datetime.now(UTC).replace(microsecond=0).isoformat(),
     }
     if first:
         cfg["admins"] = [USER]
@@ -225,16 +234,26 @@ def fill_portfolio(conn, start: date, final: date, offline: bool) -> dict:
         value = round(count * price, 2) * (1 if sale else -1)
         costs = -1.0 if isin in MONTHLY and not sale else -3.0  # core selection vs. single order
         sequence_number += 1
-        transactions.append({
-            "order_ref": f"demo-{sequence_number:05d}",
-            "date": day.isoformat(),
-            "time": f"{rnd.randint(9, 16):02d}:{rnd.randint(0, 59):02d}",
-            "name": name, "isin": isin, "exchange": exchange, "execution_venue": exchange,
-            "transaction_type": "SELL" if sale else "BUY",
-            "quantity": float(count), "price": price,
-            "local_value": value, "value_eur": value, "exchange_rate": None,
-            "autofx_cost": None, "transaction_fee": costs, "total_eur": round(value + costs, 2),
-        })
+        transactions.append(
+            {
+                "order_ref": f"demo-{sequence_number:05d}",
+                "date": day.isoformat(),
+                "time": f"{rnd.randint(9, 16):02d}:{rnd.randint(0, 59):02d}",
+                "name": name,
+                "isin": isin,
+                "exchange": exchange,
+                "execution_venue": exchange,
+                "transaction_type": "SELL" if sale else "BUY",
+                "quantity": float(count),
+                "price": price,
+                "local_value": value,
+                "value_eur": value,
+                "exchange_rate": None,
+                "autofx_cost": None,
+                "transaction_fee": costs,
+                "total_eur": round(value + costs, 2),
+            }
+        )
         return count
 
     months = (final.year - start.year) * 12 + final.month - start.month
@@ -265,22 +284,33 @@ def fill_portfolio(conn, start: date, final: date, offline: bool) -> dict:
             day = _month(start, n, 20)
             if day > final:
                 break
-            units = sum(t["quantity"] * (1 if t["transaction_type"] == "BUY" else -1)
-                        for t in transactions if t["isin"] == isin and t["date"] < day.isoformat())
+            units = sum(
+                t["quantity"] * (1 if t["transaction_type"] == "BUY" else -1)
+                for t in transactions
+                if t["isin"] == isin and t["date"] < day.isoformat()
+            )
             if units <= 0:
                 continue
             gross = round(units * per_piece, 2)
             tax = round(gross * 0.15, 2)
-            dividends.append({"date": day.isoformat(), "isin": isin, "name": name, "currency_original": "EUR",
-                               "amount_original": gross, "gross_eur": gross, "tax_eur": tax,
-                               "net_eur": round(gross - tax, 2)})
+            dividends.append(
+                {
+                    "date": day.isoformat(),
+                    "isin": isin,
+                    "name": name,
+                    "currency_original": "EUR",
+                    "amount_original": gross,
+                    "gross_eur": gross,
+                    "tax_eur": tax,
+                    "net_eur": round(gross - tax, 2),
+                }
+            )
     database.save_dividends(conn, dividends)
 
     for isin, name, ticker, *_ in FUNDS:
         series = series_list[isin]
         days = sorted(series)
-        database.save_price(conn, isin, name, ticker, series[days[-1]], "EUR",
-                            previous_close=series[days[-2]], quote_currency="EUR")
+        database.save_price(conn, isin, name, ticker, series[days[-1]], "EUR", previous_close=series[days[-2]], quote_currency="EUR")
     for isin, *_ in FUNDS:
         database.save_asset_category(conn, isin, "Bonds" if isin == "IE00B4WXJJ64" else "Stocks")
     return {"transactions": len(transactions), "dividends": len(dividends), "real_prices": bool(real)}
@@ -326,8 +356,20 @@ def fill_money(conn, final: date) -> dict:
     debt = accounts.make_bank_account(conn, kind="debt", provider="manual", name="Studieschuld")
 
     start = date(final.year - 1, final.month, 1)
-    month_names = ["januari", "februari", "march", "april", "mei", "juni", "july", "augustus", "september",
-                  "oktober", "november", "december"]
+    month_names = [
+        "januari",
+        "februari",
+        "march",
+        "april",
+        "mei",
+        "juni",
+        "july",
+        "augustus",
+        "september",
+        "oktober",
+        "november",
+        "december",
+    ]
     rules = []
     d = start
     while d <= final:
@@ -344,12 +386,22 @@ def fill_money(conn, final: date) -> dict:
     rows = []
     for i, (day, name, description, amount) in enumerate(rules):
         on_date = day.isoformat()
-        rows.append({
-            "date": on_date, "interest_date": None, "amount": amount, "currency": "EUR", "name": name,
-            "counterparty_iban": IBAN_SAVINGS if "SAVINGS" in name else None, "description": description,
-            "account_iban": IBAN_PAY, "code": "BA" if amount > 0 else "GT", "kind": None,
-            "dedup_hash": dedup_hash(on_date, amount, name, description, i), "raw": {},
-        })
+        rows.append(
+            {
+                "date": on_date,
+                "interest_date": None,
+                "amount": amount,
+                "currency": "EUR",
+                "name": name,
+                "counterparty_iban": IBAN_SAVINGS if "SAVINGS" in name else None,
+                "description": description,
+                "account_iban": IBAN_PAY,
+                "code": "BA" if amount > 0 else "GT",
+                "kind": None,
+                "dedup_hash": dedup_hash(on_date, amount, name, description, i),
+                "raw": {},
+            }
+        )
     bank_transactions.save(conn, pay, rows)
 
     # Balances that match the transactions exactly: at the end of every month.
@@ -380,8 +432,16 @@ def fill_money(conn, final: date) -> dict:
 
     labelled = categorization.relabel(conn, everything=True)
     groups = budget.spending_groups(conn)
-    wishes = {"Boodschappen": 450, "Wonen": 1400, "Vervoer": 150, "Eten & vrije tijd": 250, "Abonnementen": 80,
-              "Shoppen": 200, "Verzekering & zorg": 170, "Vakantie": 150}
+    wishes = {
+        "Boodschappen": 450,
+        "Wonen": 1400,
+        "Vervoer": 150,
+        "Eten & vrije tijd": 250,
+        "Abonnementen": 80,
+        "Shoppen": 200,
+        "Verzekering & zorg": 170,
+        "Vakantie": 150,
+    }
     for group_name in groups:
         if group_name in wishes:
             budget.put(conn, group_name, wishes[group_name])

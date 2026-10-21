@@ -20,17 +20,32 @@ DEVICE_COOKIE = "trackerai_device"  # this browser gave the two-step code and as
 ALGORITHM = "HS256"
 
 
-def issue(response: Response, config: Config, account_id: int, session_version: int, auth_time: int | None = None,
-          remember: bool = True) -> None:
+def issue(
+    response: Response, config: Config, account_id: int, session_version: int, auth_time: int | None = None, remember: bool = True
+) -> None:
     """`remember` ("stay logged in"): the cookie lasts SESSION_DAYS after its last use. Without: a browser session,
     gone when the browser closes, and never longer than SHORT_SESSION_HOURS on the server."""
     now = int(time.time())
     lasts = config.session_days * 86400 if remember else config.short_session_hours * 3600
-    claims = {"sub": f"a:{account_id}", "sv": session_version, "iat": now, "auth": int(auth_time or now),
-              "exp": now + lasts, "rm": 1 if remember else 0}
+    claims = {
+        "sub": f"a:{account_id}",
+        "sv": session_version,
+        "iat": now,
+        "auth": int(auth_time or now),
+        "exp": now + lasts,
+        "rm": 1 if remember else 0,
+    }
     token = jwt.encode(claims, config.session_secret, algorithm=ALGORITHM)
-    response.set_cookie(COOKIE, token, max_age=lasts if remember else None, httponly=True, secure=config.cookie_secure,
-                        samesite="lax", path="/", domain=config.cookie_domain)
+    response.set_cookie(
+        COOKIE,
+        token,
+        max_age=lasts if remember else None,
+        httponly=True,
+        secure=config.cookie_secure,
+        samesite="lax",
+        path="/",
+        domain=config.cookie_domain,
+    )
 
 
 def remembered(c: dict) -> bool:
@@ -42,23 +57,39 @@ def issue_device(response: Response, config: Config, account_id: int, session_ve
     login on or off and an admin reset (the session version) end it."""
     now = int(time.time())
     lasts = config.session_days * 86400
-    token = jwt.encode({"sub": f"a:{account_id}", "sv": session_version, "typ": "device", "iat": now, "exp": now + lasts},
-                       config.session_secret, algorithm=ALGORITHM)
-    response.set_cookie(DEVICE_COOKIE, token, max_age=lasts, httponly=True, secure=config.cookie_secure, samesite="lax",
-                        path="/", domain=config.cookie_domain)
+    token = jwt.encode(
+        {"sub": f"a:{account_id}", "sv": session_version, "typ": "device", "iat": now, "exp": now + lasts},
+        config.session_secret,
+        algorithm=ALGORITHM,
+    )
+    response.set_cookie(
+        DEVICE_COOKIE,
+        token,
+        max_age=lasts,
+        httponly=True,
+        secure=config.cookie_secure,
+        samesite="lax",
+        path="/",
+        domain=config.cookie_domain,
+    )
 
 
 def device_trusted(token: str | None, config: Config, account: dict) -> bool:
     c = claims(token, config)
-    return bool(c and c.get("typ") == "device" and c.get("sub") == f"a:{account['id']}"
-                and int(c.get("sv") or 0) == (account.get("session_version") or 0))
+    return bool(
+        c
+        and c.get("typ") == "device"
+        and c.get("sub") == f"a:{account['id']}"
+        and int(c.get("sv") or 0) == (account.get("session_version") or 0)
+    )
 
 
 def clear(response: Response, config: Config, device: bool = False) -> None:
     """Logging out keeps the device cookie (the code is not asked again here); deleting the account does not."""
     if device:
-        response.delete_cookie(DEVICE_COOKIE, path="/", domain=config.cookie_domain, secure=config.cookie_secure, httponly=True,
-                               samesite="lax")
+        response.delete_cookie(
+            DEVICE_COOKIE, path="/", domain=config.cookie_domain, secure=config.cookie_secure, httponly=True, samesite="lax"
+        )
     response.delete_cookie(COOKIE, path="/", domain=config.cookie_domain, secure=config.cookie_secure, httponly=True, samesite="lax")
 
 

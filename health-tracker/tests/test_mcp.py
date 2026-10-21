@@ -32,9 +32,13 @@ def test_requires_token(client):
 
 
 def test_initialize_and_list(client):
-    init = rpc(client, "initialize", {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}).json()["result"]
+    init = rpc(
+        client, "initialize", {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}
+    ).json()["result"]
     assert init["protocolVersion"] == "2025-03-26" and "tools" in init["capabilities"]
-    note = client.post("/api/mcp", headers={"Authorization": f"Bearer {TOKEN}"}, json={"jsonrpc": "2.0", "method": "notifications/initialized"})
+    note = client.post(
+        "/api/mcp", headers={"Authorization": f"Bearer {TOKEN}"}, json={"jsonrpc": "2.0", "method": "notifications/initialized"}
+    )
     assert note.status_code == 202
     names = {t["name"] for t in rpc(client, "tools/list").json()["result"]["tools"]}
     assert {"get_context", "get_plan", "create_plan", "replace_plan_sessions", "add_log", "update_doc"} <= names
@@ -75,7 +79,11 @@ def test_tools_read_and_write(client):
 
 
 def test_batch(client):
-    res = client.post("/api/mcp", headers={"Authorization": f"Bearer {TOKEN}"}, json=[{"jsonrpc": "2.0", "id": 1, "method": "ping"}, {"jsonrpc": "2.0", "method": "notifications/initialized"}])
+    res = client.post(
+        "/api/mcp",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        json=[{"jsonrpc": "2.0", "id": 1, "method": "ping"}, {"jsonrpc": "2.0", "method": "notifications/initialized"}],
+    )
     assert res.json() == [{"jsonrpc": "2.0", "id": 1, "result": {}}]
 
 
@@ -84,7 +92,9 @@ def test_token_in_path_is_redacted_in_access_log():
 
     from trackerai_websec.log_redact import RedactFilter
 
-    rec = logging.LogRecord("uvicorn.access", logging.INFO, "", 0, '%s - "%s %s HTTP/%s" %d', ("1.2.3.4", "POST", "/api/mcp/geheim123", "1.1", 200), None)
+    rec = logging.LogRecord(
+        "uvicorn.access", logging.INFO, "", 0, '%s - "%s %s HTTP/%s" %d', ("1.2.3.4", "POST", "/api/mcp/geheim123", "1.1", 200), None
+    )
     RedactFilter().filter(rec)
     assert "geheim123" not in rec.getMessage() and "/api/mcp/***" in rec.getMessage()
 

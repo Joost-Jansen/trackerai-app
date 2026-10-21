@@ -54,8 +54,22 @@ function topRounded(x: number, y: number, w: number, h: number, r: number): stri
   return `M${x},${b}V${y + rr}Q${x},${y} ${x + rr},${y}H${x + w - rr}Q${x + w},${y} ${x + w},${y + rr}V${b}Z`;
 }
 
-export function WeekChart({ title, icon, weeks, series, kind, locale, extra, empty }: {
-  title: string; icon?: React.ReactNode; weeks: string[]; series: Series[]; kind: "bars" | "line"; locale: Locale;
+export function WeekChart({
+  title,
+  icon,
+  weeks,
+  series,
+  kind,
+  locale,
+  extra,
+  empty,
+}: {
+  title: string;
+  icon?: React.ReactNode;
+  weeks: string[];
+  series: Series[];
+  kind: "bars" | "line";
+  locale: Locale;
   /** One more line in the tooltip for week i. */
   extra?: (i: number) => string | null;
   /** Shown instead of the chart when every value is 0. */
@@ -98,73 +112,124 @@ export function WeekChart({ title, icon, weeks, series, kind, locale, extra, emp
 
   return (
     <figure className="mk-ad-chart">
-      <figcaption className="mk-ad-chart-title">{icon}{title}</figcaption>
+      <figcaption className="mk-ad-chart-title">
+        {icon}
+        {title}
+      </figcaption>
       {/* Keep a legend row even for one series so neighbouring plots start at the same height. */}
       <div className="mk-ad-legend">
-        {series.length > 1 && series.map((s) => <span key={s.id}><i style={{ background: s.color }} />{s.label}</span>)}
+        {series.length > 1 &&
+          series.map((s) => (
+            <span key={s.id}>
+              <i style={{ background: s.color }} />
+              {s.label}
+            </span>
+          ))}
       </div>
       <div ref={ref} className="mk-ad-chart-plot">
-        {nothing ? <p className="mk-ad-muted mk-ad-chart-empty">{empty}</p> : width > 0 && (
-          <svg width="100%" height={H} viewBox={`0 0 ${width} ${H}`} role="img" aria-label={title} tabIndex={0}
-            onPointerLeave={() => setHover(null)} onBlur={() => setHover(null)} onFocus={() => setHover(n - 1)}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowLeft") { e.preventDefault(); setHover((h) => Math.max(0, (h ?? n) - 1)); }
-              if (e.key === "ArrowRight") { e.preventDefault(); setHover((h) => Math.min(n - 1, (h ?? -1) + 1)); }
-            }}>
-            {ticks.map((t) => (
-              <g key={t}>
-                <line x1={M.left} x2={width - right} y1={y(t)} y2={y(t)} className={t === 0 ? "mk-ad-axis" : "mk-ad-grid"} />
-                <text x={M.left - 6} y={y(t)} dy="0.32em" textAnchor="end" className="mk-ad-tick">{num(t)}</text>
-              </g>
-            ))}
-            {[0, Math.floor((n - 1) / 2), n - 1].filter((i, k, a) => n > 0 && a.indexOf(i) === k).map((i) => (
-              <text key={i} x={cx(i)} y={H - 6} textAnchor="middle" className="mk-ad-tick">{fmtWeek(weeks[i])}</text>
-            ))}
-            {hover !== null && <rect x={cx(hover) - band / 2} y={M.top} width={band} height={ph} className="mk-ad-hoverband" />}
-
-            {kind === "bars" && weeks.map((_, i) => {
-              let base = 0;
-              const parts = series.map((s) => ({ s, v: s.values[i] ?? 0 })).filter((p) => p.v > 0);
-              return parts.map(({ s, v }, k) => {
-                const y0 = y(base);
-                base += v;
-                const isTop = k === parts.length - 1;
-                // A 2px gap in the surface colour between stacked segments.
-                const y1 = y(base) + (isTop ? 0 : 2);
-                const h = Math.max(0, y0 - y1);
-                if (h <= 0) return null;
-                return isTop
-                  ? <path key={s.id} d={topRounded(cx(i) - bw / 2, y1, bw, h, 4)} fill={s.color} />
-                  : <rect key={s.id} x={cx(i) - bw / 2} y={y1} width={bw} height={h} fill={s.color} />;
-              });
-            })}
-
-            {kind === "line" && series.map((s, k) => {
-              const pts = s.values.map((v, i) => `${cx(i)},${y(v)}`);
-              const last = s.values[n - 1] ?? 0;
-              const labelY = endLabels[k];
-              return (
-                <g key={s.id}>
-                  <path d={`M${cx(0)},${y(0)}L${pts.join("L")}L${cx(n - 1)},${y(0)}Z`} fill={s.color} fillOpacity={0.1} />
-                  <path d={`M${pts.join("L")}`} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-                  <circle cx={cx(n - 1)} cy={y(last)} r={4} fill={s.color} className="mk-ad-dot" />
-                  <text x={cx(n - 1) + 9} y={labelY} dy="0.32em" className="mk-ad-endlabel">{num(last)}</text>
-                  {hover !== null && hover !== n - 1 && <circle cx={cx(hover)} cy={y(s.values[hover] ?? 0)} r={4} fill={s.color} className="mk-ad-dot" />}
+        {nothing ? (
+          <p className="mk-ad-muted mk-ad-chart-empty">{empty}</p>
+        ) : (
+          width > 0 && (
+            <svg
+              width="100%"
+              height={H}
+              viewBox={`0 0 ${width} ${H}`}
+              role="img"
+              aria-label={title}
+              tabIndex={0}
+              onPointerLeave={() => setHover(null)}
+              onBlur={() => setHover(null)}
+              onFocus={() => setHover(n - 1)}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowLeft") {
+                  e.preventDefault();
+                  setHover((h) => Math.max(0, (h ?? n) - 1));
+                }
+                if (e.key === "ArrowRight") {
+                  e.preventDefault();
+                  setHover((h) => Math.min(n - 1, (h ?? -1) + 1));
+                }
+              }}
+            >
+              {ticks.map((t) => (
+                <g key={t}>
+                  <line x1={M.left} x2={width - right} y1={y(t)} y2={y(t)} className={t === 0 ? "mk-ad-axis" : "mk-ad-grid"} />
+                  <text x={M.left - 6} y={y(t)} dy="0.32em" textAnchor="end" className="mk-ad-tick">
+                    {num(t)}
+                  </text>
                 </g>
-              );
-            })}
+              ))}
+              {[0, Math.floor((n - 1) / 2), n - 1]
+                .filter((i, k, a) => n > 0 && a.indexOf(i) === k)
+                .map((i) => (
+                  <text key={i} x={cx(i)} y={H - 6} textAnchor="middle" className="mk-ad-tick">
+                    {fmtWeek(weeks[i])}
+                  </text>
+                ))}
+              {hover !== null && <rect x={cx(hover) - band / 2} y={M.top} width={band} height={ph} className="mk-ad-hoverband" />}
 
-            {weeks.map((_, i) => (
-              <rect key={i} x={cx(i) - band / 2} y={0} width={band} height={H} fill="transparent" onPointerEnter={() => setHover(i)} />
-            ))}
-          </svg>
+              {kind === "bars" &&
+                weeks.map((_, i) => {
+                  let base = 0;
+                  const parts = series.map((s) => ({ s, v: s.values[i] ?? 0 })).filter((p) => p.v > 0);
+                  return parts.map(({ s, v }, k) => {
+                    const y0 = y(base);
+                    base += v;
+                    const isTop = k === parts.length - 1;
+                    // A 2px gap in the surface colour between stacked segments.
+                    const y1 = y(base) + (isTop ? 0 : 2);
+                    const h = Math.max(0, y0 - y1);
+                    if (h <= 0) return null;
+                    return isTop ? (
+                      <path key={s.id} d={topRounded(cx(i) - bw / 2, y1, bw, h, 4)} fill={s.color} />
+                    ) : (
+                      <rect key={s.id} x={cx(i) - bw / 2} y={y1} width={bw} height={h} fill={s.color} />
+                    );
+                  });
+                })}
+
+              {kind === "line" &&
+                series.map((s, k) => {
+                  const pts = s.values.map((v, i) => `${cx(i)},${y(v)}`);
+                  const last = s.values[n - 1] ?? 0;
+                  const labelY = endLabels[k];
+                  return (
+                    <g key={s.id}>
+                      <path d={`M${cx(0)},${y(0)}L${pts.join("L")}L${cx(n - 1)},${y(0)}Z`} fill={s.color} fillOpacity={0.1} />
+                      <path
+                        d={`M${pts.join("L")}`}
+                        fill="none"
+                        stroke={s.color}
+                        strokeWidth={2}
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                      />
+                      <circle cx={cx(n - 1)} cy={y(last)} r={4} fill={s.color} className="mk-ad-dot" />
+                      <text x={cx(n - 1) + 9} y={labelY} dy="0.32em" className="mk-ad-endlabel">
+                        {num(last)}
+                      </text>
+                      {hover !== null && hover !== n - 1 && (
+                        <circle cx={cx(hover)} cy={y(s.values[hover] ?? 0)} r={4} fill={s.color} className="mk-ad-dot" />
+                      )}
+                    </g>
+                  );
+                })}
+
+              {weeks.map((_, i) => (
+                <rect key={i} x={cx(i) - band / 2} y={0} width={band} height={H} fill="transparent" onPointerEnter={() => setHover(i)} />
+              ))}
+            </svg>
+          )
         )}
         {hover !== null && !nothing && (
           <div className="mk-ad-tip" style={{ left: tipLeft }}>
             <span className="mk-ad-muted">{fmtWeek(weeks[hover])}</span>
             {series.map((s) => (
               <span key={s.id} className="mk-ad-tip-row">
-                <i style={{ background: s.color }} /><b>{num(s.values[hover] ?? 0)}</b><span className="mk-ad-muted">{s.label}</span>
+                <i style={{ background: s.color }} />
+                <b>{num(s.values[hover] ?? 0)}</b>
+                <span className="mk-ad-muted">{s.label}</span>
               </span>
             ))}
             {extra?.(hover) && <span className="mk-ad-muted">{extra(hover)}</span>}
@@ -173,10 +238,24 @@ export function WeekChart({ title, icon, weeks, series, kind, locale, extra, emp
       </div>
       <table className="mk-ad-sr">
         <caption>{title}</caption>
-        <thead><tr><th scope="col" />{series.map((s) => <th key={s.id} scope="col">{s.label}</th>)}</tr></thead>
+        <thead>
+          <tr>
+            <th scope="col" />
+            {series.map((s) => (
+              <th key={s.id} scope="col">
+                {s.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
         <tbody>
           {weeks.map((w, i) => (
-            <tr key={w}><th scope="row">{fmtWeek(w)}</th>{series.map((s) => <td key={s.id}>{s.values[i] ?? 0}</td>)}</tr>
+            <tr key={w}>
+              <th scope="row">{fmtWeek(w)}</th>
+              {series.map((s) => (
+                <td key={s.id}>{s.values[i] ?? 0}</td>
+              ))}
+            </tr>
           ))}
         </tbody>
       </table>

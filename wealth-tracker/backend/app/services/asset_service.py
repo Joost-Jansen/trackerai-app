@@ -43,6 +43,7 @@ _INTRADAY_TTL_SECONDS = 300
 # Daily closes — every range but 1D
 # ---------------------------------------------------------------------------
 
+
 def _fetch_daily(ticker: str) -> dict:
     """{"points": [{d, c}]} over the ticker's whole listed history, or raises.
 
@@ -60,12 +61,7 @@ def _fetch_daily(ticker: str) -> dict:
     close = raw["Close"].dropna()
     if close.empty:
         raise RuntimeError(f"empty close series for {ticker}")
-    return {
-        "points": [
-            {"d": idx.date().isoformat(), "c": round(float(v), 4)}
-            for idx, v in close.items()
-        ]
-    }
+    return {"points": [{"d": idx.date().isoformat(), "c": round(float(v), 4)} for idx, v in close.items()]}
 
 
 def daily_closes(conn: sqlite3.Connection, ticker: str | None) -> dict:
@@ -87,6 +83,7 @@ def daily_closes(conn: sqlite3.Connection, ticker: str | None) -> dict:
 # ---------------------------------------------------------------------------
 # Five-minute bars — the 1D range
 # ---------------------------------------------------------------------------
+
 
 def _fetch_intraday(ticker: str) -> dict:
     """Today's bars plus the previous session's close, or raises.
@@ -124,10 +121,7 @@ def _fetch_intraday(ticker: str) -> dict:
             )
 
     today = close[[ts.date() == last_session for ts in close.index]]
-    points = [
-        {"d": ts.to_pydatetime().isoformat(timespec="minutes"), "c": round(float(v), 4)}
-        for ts, v in today.items()
-    ]
+    points = [{"d": ts.to_pydatetime().isoformat(timespec="minutes"), "c": round(float(v), 4)} for ts, v in today.items()]
     # The previous close is the line's first point, not a dashed rule behind it:
     # a day drawn from the opening price leaves the overnight gap outside the
     # line, so selecting the whole chart would answer a different question than

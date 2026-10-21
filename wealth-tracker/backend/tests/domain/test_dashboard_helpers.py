@@ -102,12 +102,14 @@ def _value_points(start: datetime.date, end: datetime.date):
     day, i = start, 0
     while day <= end:
         value = 1000.0 + i
-        points.append({
-            "d": day.isoformat(),
-            "invested": 1000.0 if i < 200 else 1500.0,
-            "value": value,
-            "value_divs": value + (100.0 if i >= 50 else 0.0),
-        })
+        points.append(
+            {
+                "d": day.isoformat(),
+                "invested": 1000.0 if i < 200 else 1500.0,
+                "value": value,
+                "value_divs": value + (100.0 if i >= 50 else 0.0),
+            }
+        )
         day += datetime.timedelta(days=1)
         i += 1
     return points
@@ -116,6 +118,7 @@ def _value_points(start: datetime.date, end: datetime.date):
 # ---------------------------------------------------------------------------
 # One label, one window — here and on the Returns tab
 # ---------------------------------------------------------------------------
+
 
 @needs_node
 def test_the_ranges_start_where_the_calendar_says(tmp_path):
@@ -161,7 +164,10 @@ def _available(series, tmp_path):
     )
     proc = subprocess.run(
         [shutil.which("node"), "--import", _TS_RESOLVE, str(driver)],
-        capture_output=True, text=True, encoding="utf-8", timeout=120,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=120,
     )
     assert proc.returncode == 0, f"node failed:\n{proc.stderr}"
     return json.loads(proc.stdout.strip().splitlines()[-1])
@@ -228,6 +234,7 @@ def test_the_windows_match_the_backends_to_the_day(tmp_path, last):
 # What the card's header prints
 # ---------------------------------------------------------------------------
 
+
 @needs_node
 def test_the_percentage_divides_by_the_base_including_earlier_dividends(tmp_path):
     """The gain is measured on the with-dividends series, so the base is too.
@@ -250,13 +257,9 @@ def test_the_percentage_divides_by_the_base_including_earlier_dividends(tmp_path
 
         assert b["gain"] == pytest.approx(gain), label
         assert b["contrib"] == pytest.approx(contrib), label
-        assert b["pct"] == pytest.approx(
-            gain / (base["value_divs"] + max(contrib, 0.0)) * 100.0
-        ), label
+        assert b["pct"] == pytest.approx(gain / (base["value_divs"] + max(contrib, 0.0)) * 100.0), label
         # And demonstrably not the old base, which is EUR 100 smaller.
-        assert b["pct"] != pytest.approx(
-            gain / (base["value"] + max(contrib, 0.0)) * 100.0
-        ), label
+        assert b["pct"] != pytest.approx(gain / (base["value"] + max(contrib, 0.0)) * 100.0), label
 
 
 @needs_node
@@ -270,7 +273,7 @@ def test_a_window_reaching_inception_counts_the_first_purchase_as_invested(tmp_p
     b = out["All"]["breakdown"]
     end = points[-1]
 
-    assert b["contrib"] == pytest.approx(end["invested"])          # 1500, all of it
+    assert b["contrib"] == pytest.approx(end["invested"])  # 1500, all of it
     assert b["gain"] == pytest.approx(end["value_divs"] - end["invested"])
     assert b["pct"] == pytest.approx(b["gain"] / end["invested"] * 100.0)
 
@@ -291,14 +294,13 @@ def test_the_two_finger_measurement_measures_its_own_line(tmp_path):
     assert span["market"] == pytest.approx(market)
     assert span["pct"] == pytest.approx(market / (a["value"] + max(contrib, 0.0)) * 100.0)
     # The dividend is reported beside the split, never inside it.
-    assert span["dividends"] == pytest.approx(
-        (b["value_divs"] - b["value"]) - (a["value_divs"] - a["value"])
-    )
+    assert span["dividends"] == pytest.approx((b["value_divs"] - b["value"]) - (a["value_divs"] - a["value"]))
 
 
 # ---------------------------------------------------------------------------
 # The value series only sums euros
 # ---------------------------------------------------------------------------
+
 
 def test_a_non_eur_quote_is_not_summed_into_the_euro_value_series():
     """A quote in another currency used to go into the euro total unconverted:
@@ -307,37 +309,53 @@ def test_a_non_eur_quote_is_not_summed_into_the_euro_value_series():
     same position at all. The cost basis stands in instead, as the TWR series
     already did.
     """
-    from domain.portfolio import series as charts
     from domain.portfolio import positions as portfolio
+    from domain.portfolio import series as charts
 
-    txns = [{
-        "isin": "US1", "name": "A US stock", "date": "2026-07-01", "time": "09:00",
-        "exchange": "NDQ", "transaction_type": "BUY", "quantity": 100.0,
-        "total_eur": 9000.0, "value_eur": 9000.0,
-        "transaction_fee": 0.0, "autofx_cost": 0.0,
-    }]
-    prices = {"US1": {"isin": "US1", "ticker": None, "price": 110.0,
-                      "currency": "USD", "previous_close": 109.0}}
+    txns = [
+        {
+            "isin": "US1",
+            "name": "A US stock",
+            "date": "2026-07-01",
+            "time": "09:00",
+            "exchange": "NDQ",
+            "transaction_type": "BUY",
+            "quantity": 100.0,
+            "total_eur": 9000.0,
+            "value_eur": 9000.0,
+            "transaction_fee": 0.0,
+            "autofx_cost": 0.0,
+        }
+    ]
+    prices = {"US1": {"isin": "US1", "ticker": None, "price": 110.0, "currency": "USD", "previous_close": 109.0}}
 
     assert portfolio.calculate_positions(txns, prices)[0]["current_value"] is None
 
     _dates, invested, values, _vd = charts.portfolio_history_series(txns, prices, [])
     assert values, "the chart must still be drawable, not blanked"
-    assert values[-1] == 9000.0        # cost basis, not 100 x 110
+    assert values[-1] == 9000.0  # cost basis, not 100 x 110
     assert invested[-1] == 9000.0
 
 
 def test_a_eur_quote_still_prices_the_series_at_the_price():
     from domain.portfolio import series as charts
 
-    txns = [{
-        "isin": "NL1", "name": "ASML", "date": "2026-07-01", "time": "09:00",
-        "exchange": "EAM", "transaction_type": "BUY", "quantity": 10.0,
-        "total_eur": 7000.0, "value_eur": 7000.0,
-        "transaction_fee": 0.0, "autofx_cost": 0.0,
-    }]
-    prices = {"NL1": {"isin": "NL1", "ticker": None, "price": 750.0,
-                      "currency": "EUR", "previous_close": 740.0}}
+    txns = [
+        {
+            "isin": "NL1",
+            "name": "ASML",
+            "date": "2026-07-01",
+            "time": "09:00",
+            "exchange": "EAM",
+            "transaction_type": "BUY",
+            "quantity": 10.0,
+            "total_eur": 7000.0,
+            "value_eur": 7000.0,
+            "transaction_fee": 0.0,
+            "autofx_cost": 0.0,
+        }
+    ]
+    prices = {"NL1": {"isin": "NL1", "ticker": None, "price": 750.0, "currency": "EUR", "previous_close": 740.0}}
     _dates, invested, values, _vd = charts.portfolio_history_series(txns, prices, [])
     assert values[-1] == 7500.0
     assert invested[-1] == 7000.0
@@ -350,15 +368,32 @@ def test_the_total_return_percentage_is_none_once_more_came_out_than_went_in():
     from domain.portfolio import positions as portfolio
 
     txns = [
-        {"isin": "A", "name": "A", "date": "2020-01-01", "time": "09:00",
-         "transaction_type": "BUY", "quantity": 100.0, "total_eur": 1000.0,
-         "value_eur": 1000.0, "transaction_fee": 0.0, "autofx_cost": 0.0},
-        {"isin": "A", "name": "A", "date": "2024-01-01", "time": "09:00",
-         "transaction_type": "SELL", "quantity": 90.0, "total_eur": 4000.0,
-         "value_eur": 4000.0, "transaction_fee": 0.0, "autofx_cost": 0.0},
+        {
+            "isin": "A",
+            "name": "A",
+            "date": "2020-01-01",
+            "time": "09:00",
+            "transaction_type": "BUY",
+            "quantity": 100.0,
+            "total_eur": 1000.0,
+            "value_eur": 1000.0,
+            "transaction_fee": 0.0,
+            "autofx_cost": 0.0,
+        },
+        {
+            "isin": "A",
+            "name": "A",
+            "date": "2024-01-01",
+            "time": "09:00",
+            "transaction_type": "SELL",
+            "quantity": 90.0,
+            "total_eur": 4000.0,
+            "value_eur": 4000.0,
+            "transaction_fee": 0.0,
+            "autofx_cost": 0.0,
+        },
     ]
-    prices = {"A": {"isin": "A", "currency": "EUR", "price": 50.0,
-                    "ticker": "A.AS", "previous_close": 49.0}}
+    prices = {"A": {"isin": "A", "currency": "EUR", "price": 50.0, "ticker": "A.AS", "previous_close": 49.0}}
     positions = portfolio.calculate_positions(txns, prices)
     summary = portfolio.calculate_portfolio_summary(positions, txns, [])
 
@@ -370,11 +405,21 @@ def test_the_total_return_percentage_is_none_once_more_came_out_than_went_in():
 def test_the_total_return_percentage_is_still_a_number_in_the_normal_case():
     from domain.portfolio import positions as portfolio
 
-    txns = [{"isin": "A", "name": "A", "date": "2020-01-01", "time": "09:00",
-             "transaction_type": "BUY", "quantity": 10.0, "total_eur": 1000.0,
-             "value_eur": 1000.0, "transaction_fee": 0.0, "autofx_cost": 0.0}]
-    prices = {"A": {"isin": "A", "currency": "EUR", "price": 110.0,
-                    "ticker": "A.AS", "previous_close": 109.0}}
+    txns = [
+        {
+            "isin": "A",
+            "name": "A",
+            "date": "2020-01-01",
+            "time": "09:00",
+            "transaction_type": "BUY",
+            "quantity": 10.0,
+            "total_eur": 1000.0,
+            "value_eur": 1000.0,
+            "transaction_fee": 0.0,
+            "autofx_cost": 0.0,
+        }
+    ]
+    prices = {"A": {"isin": "A", "currency": "EUR", "price": 110.0, "ticker": "A.AS", "previous_close": 109.0}}
     positions = portfolio.calculate_positions(txns, prices)
     summary = portfolio.calculate_portfolio_summary(positions, txns, [])
     assert summary["total_return_pct"] == 10.0

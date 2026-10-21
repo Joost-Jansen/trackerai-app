@@ -8,7 +8,7 @@ from trackerai_ai import AiError, ask, available
 
 if available():  # ANTHROPIC_API_KEY is set
     result = ask(body, timeout=30, retries=1, fallbacks=True)
-    data = result.json()                # structured output (output_config.format)
+    data = result.json()  # structured output (output_config.format)
     labels = result.tool_input("labels")  # or what Claude filled in for a tool
     log(result.model, result.request_ms, result.tokens_in, result.tokens_out)
 ```

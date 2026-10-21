@@ -8,8 +8,8 @@ Values go to Railway via stdin of the Railway CLI, so they never appear in shell
 Setting a new signing key logs out every open session.
 """
 
-import os
 import getpass
+import os
 import secrets
 import subprocess
 

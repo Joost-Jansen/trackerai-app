@@ -157,7 +157,9 @@ export default function CalendarPage() {
   }
   if (q.isError) {
     return (
-      <p className="py-10 text-sm" style={{ color: "var(--text-loss)" }}>{tr("The calendar could not load. Try again.")}</p>
+      <p className="py-10 text-sm" style={{ color: "var(--text-loss)" }}>
+        {tr("The calendar could not load. Try again.")}
+      </p>
     );
   }
 
@@ -182,7 +184,13 @@ export default function CalendarPage() {
       <Section
         label={monthTitle(current)}
         info={
-          <>{trx("A box means the date is fixed: a payout that has happened, or a date the source itself gives.{0}{1}Expected payouts aren't in it but in the strip below. Those are derived from your own payout history and are known to the month, not the day.", <br />, <br />)}</>
+          <>
+            {trx(
+              "A box means the date is fixed: a payout that has happened, or a date the source itself gives.{0}{1}Expected payouts aren't in it but in the strip below. Those are derived from your own payout history and are known to the month, not the day.",
+              <br />,
+              <br />,
+            )}
+          </>
         }
         action={
           <div className="flex items-center gap-1">
@@ -195,11 +203,9 @@ export default function CalendarPage() {
             >
               <ChevronLeftIcon className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              className="ds-btn ds-btn--ghost ds-btn--sm"
-              onClick={() => goto(today.slice(0, 7))}
-            >{tr("Today")}</button>
+            <button type="button" className="ds-btn ds-btn--ghost ds-btn--sm" onClick={() => goto(today.slice(0, 7))}>
+              {tr("Today")}
+            </button>
             <button
               type="button"
               className="ds-iconbtn ds-iconbtn--sm"
@@ -223,12 +229,7 @@ export default function CalendarPage() {
         <Strip estimates={monthEstimates} month={current} />
       </Section>
 
-      <DayList
-        events={shown}
-        selected={selected}
-        total={monthEvents.length}
-        onClear={() => setSelected(null)}
-      />
+      <DayList events={shown} selected={selected} total={monthEvents.length} onClear={() => setSelected(null)} />
 
       <Legend />
     </div>
@@ -273,7 +274,9 @@ function Next({
       ) : (
         <p className="max-w-measure text-[15px] leading-relaxed text-ink-muted">
           {shareCount === 0
-            ? tr("You only own funds, and a fund doesn't publish results of its own. So what follows is about dividend: what has been paid, and what is still coming according to your own rhythm.")
+            ? tr(
+                "You only own funds, and a fund doesn't publish results of its own. So what follows is about dividend: what has been paid, and what is still coming according to your own rhythm.",
+              )
             : tr("There is no confirmed date in the calendar right now. As soon as a company fixes its publication date, it appears here.")}
         </p>
       )}
@@ -308,10 +311,7 @@ function Grid({
         ))}
       </div>
 
-      <div
-        className="grid grid-cols-7 gap-px overflow-hidden rounded-md"
-        style={{ background: "var(--border-hairline)" }}
-      >
+      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-md" style={{ background: "var(--border-hairline)" }}>
         {cells.map((day, i) => {
           if (!day) {
             return <div key={`pad-${i}`} style={{ background: "var(--surface)" }} />;
@@ -329,9 +329,7 @@ function Grid({
               type="button"
               disabled={!clickable}
               aria-pressed={isSelected}
-              aria-label={`${Number(day.slice(-2))}: ${
-                events.length ? events.map((e) => KIND[e.type].short).join(", ") : tr("nothing")
-              }`}
+              aria-label={`${Number(day.slice(-2))}: ${events.length ? events.map((e) => KIND[e.type].short).join(", ") : tr("nothing")}`}
               onClick={() => clickable && onSelect(day)}
               className={`flex min-h-[62px] flex-col items-start gap-1 p-1.5 text-left transition-colors ${
                 clickable ? "cursor-pointer hover:brightness-[0.97]" : "cursor-default"
@@ -379,7 +377,13 @@ function Strip({ estimates, month }: { estimates: Estimate[]; month: string }) {
     <div className="mt-5 flex flex-col gap-2.5">
       <span className="flex items-center gap-1">
         <Eyebrow>{trx("Sometime in {0}", fmtMonth(`${month}-01`))}</Eyebrow>
-        <InfoPopover label={tr("Explanation estimates")}>{trx("Expected, not announced. Derived from the rhythm and the usual amount of your own earlier payouts, extended to the next time.{0}{1}That's why there is a part of the month and no date: the rhythm is known, the day isn't. A fund without a recognisable rhythm isn't shown at all: left out, not guessed.", <br />, <br />)}</InfoPopover>
+        <InfoPopover label={tr("Explanation estimates")}>
+          {trx(
+            "Expected, not announced. Derived from the rhythm and the usual amount of your own earlier payouts, extended to the next time.{0}{1}That's why there is a part of the month and no date: the rhythm is known, the day isn't. A fund without a recognisable rhythm isn't shown at all: left out, not guessed.",
+            <br />,
+            <br />,
+          )}
+        </InfoPopover>
       </span>
 
       <ul className="flex flex-col">
@@ -390,10 +394,7 @@ function Strip({ estimates, month }: { estimates: Estimate[]; month: string }) {
             style={{ borderColor: "var(--border-hairline)" }}
           >
             <span className="flex min-w-0 items-baseline gap-2">
-              <span
-                className="mt-[1px] h-[5px] w-[5px] flex-none translate-y-[-2px] rounded-full"
-                style={{ background: ESTIMATE_COLOR }}
-              />
+              <span className="mt-[1px] h-[5px] w-[5px] flex-none translate-y-[-2px] rounded-full" style={{ background: ESTIMATE_COLOR }} />
               <span className="truncate text-sm">{e.name ?? e.isin}</span>
             </span>
             <span className="num flex flex-none items-baseline gap-2.5 text-sm text-ink-muted">
@@ -402,9 +403,7 @@ function Strip({ estimates, month }: { estimates: Estimate[]; month: string }) {
               ) : (
                 <>
                   <span>{e.part ? partLabel(e.part) : null}</span>
-                  {typeof e.expected_eur === "number" && (
-                    <span className="text-text">± {fmtEuro(e.expected_eur)}</span>
-                  )}
+                  {typeof e.expected_eur === "number" && <span className="text-text">± {fmtEuro(e.expected_eur)}</span>}
                 </>
               )}
             </span>
@@ -444,7 +443,9 @@ function DayList({
       meta={selected ? undefined : `${total} ${total === 1 ? "date" : "dates"}`}
       action={
         selected ? (
-          <button type="button" className="ds-btn ds-btn--ghost ds-btn--sm" onClick={onClear}>{tr("Whole month")}</button>
+          <button type="button" className="ds-btn ds-btn--ghost ds-btn--sm" onClick={onClear}>
+            {tr("Whole month")}
+          </button>
         ) : undefined
       }
     >
@@ -456,28 +457,19 @@ function DayList({
             style={{ borderColor: "var(--border-hairline)" }}
           >
             <span className="flex min-w-0 items-baseline gap-2.5">
-              <span
-                className="h-[6px] w-[6px] flex-none translate-y-[-2px] rounded-full"
-                style={{ background: KIND[e.type].color }}
-              />
-              <span className="num w-[52px] flex-none text-sm text-ink-muted">
-                {fmtDayMonth(e.date)}
-              </span>
+              <span className="h-[6px] w-[6px] flex-none translate-y-[-2px] rounded-full" style={{ background: KIND[e.type].color }} />
+              <span className="num w-[52px] flex-none text-sm text-ink-muted">{fmtDayMonth(e.date)}</span>
               <span className="min-w-0">
                 <span className="block truncate text-sm">{e.name ?? e.isin}</span>
                 <span className="block text-xs text-ink-muted">
                   {KIND[e.type].label}
-                  {e.type === "ex_dividend" && e.pay_date
-                    ? tr(" (payout {0})", fmtDayMonth(e.pay_date))
-                    : ""}
+                  {e.type === "ex_dividend" && e.pay_date ? tr(" (payout {0})", fmtDayMonth(e.pay_date)) : ""}
                 </span>
               </span>
             </span>
 
             <span className="flex flex-none items-baseline gap-3">
-              {typeof e.amount_eur === "number" && (
-                <span className="num text-sm">{fmtEuro(e.amount_eur)}</span>
-              )}
+              {typeof e.amount_eur === "number" && <span className="num text-sm">{fmtEuro(e.amount_eur)}</span>}
               {e.type === "earnings" && <ReportLink report={e.report ?? null} />}
             </span>
           </li>
@@ -503,12 +495,7 @@ function ReportLink({ report }: { report: Report | null }) {
 
   if (report.kind === "filing") {
     return (
-      <a
-        href={report.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="ds-btn ds-btn--secondary ds-btn--sm"
-      >
+      <a href={report.url} target="_blank" rel="noopener noreferrer" className="ds-btn ds-btn--secondary ds-btn--sm">
         <DownloadIcon className="ds-btn__icon" />
         {report.label ?? tr("Report")}
       </a>
@@ -521,7 +508,9 @@ function ReportLink({ report }: { report: Report | null }) {
       target="_blank"
       rel="noopener noreferrer"
       className="text-xs text-ink-muted underline decoration-dotted underline-offset-2 hover:text-brand"
-    >{tr("company website")}</a>
+    >
+      {tr("company website")}
+    </a>
   );
 }
 
@@ -532,10 +521,7 @@ function Legend() {
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
       {(Object.keys(KIND) as EventType[]).map((k) => (
         <span key={k} className="flex items-center gap-2">
-          <span
-            className="h-[6px] w-[6px] rounded-full"
-            style={{ background: KIND[k].color }}
-          />
+          <span className="h-[6px] w-[6px] rounded-full" style={{ background: KIND[k].color }} />
           <span className="text-xs text-ink-muted">{KIND[k].label}</span>
         </span>
       ))}

@@ -63,8 +63,7 @@ export default function TradegateQuote({
 }) {
   const q = useQuery({
     queryKey: ["tradegate", isin, exchange],
-    queryFn: () =>
-      api.get<Quote>(`/api/holdings/${isin}/tradegate${exchange ? `?exchange=${encodeURIComponent(exchange)}` : ""}`),
+    queryFn: () => api.get<Quote>(`/api/holdings/${isin}/tradegate${exchange ? `?exchange=${encodeURIComponent(exchange)}` : ""}`),
     refetchInterval: REFETCH_MS,
     staleTime: 60 * 1000,
     retry: false,
@@ -101,7 +100,9 @@ export default function TradegateQuote({
   if (d.status !== "ok") {
     return (
       <Section label={LABEL}>
-        <p className="max-w-measure text-sm text-ink-muted">{trx("{0} So no Tradegate price is shown; the price at the top comes from Yahoo Finance.", d.message)}</p>
+        <p className="max-w-measure text-sm text-ink-muted">
+          {trx("{0} So no Tradegate price is shown; the price at the top comes from Yahoo Finance.", d.message)}
+        </p>
       </Section>
     );
   }
@@ -111,14 +112,12 @@ export default function TradegateQuote({
 
 function QuoteBody({ d, usedForValue }: { d: TradegateQuoteOk; usedForValue: boolean }) {
   const price = (v: number | null) =>
-    d.currency === "EUR"
-      ? fmtEuro(v, { decimals: decimalsFor(v) })
-      : fmtEu(v, { decimals: decimalsFor(v), suffix: ` ${d.currency}` });
+    d.currency === "EUR" ? fmtEuro(v, { decimals: decimalsFor(v) }) : fmtEu(v, { decimals: decimalsFor(v), suffix: ` ${d.currency}` });
 
   const warnings: string[] = [];
   if (d.stale) {
     warnings.push(
-      tr("Outdated: Tradegate couldn't be reached at the last attempt. This is the price from {0}.", fmtRelative(d.fetched_at))
+      tr("Outdated: Tradegate couldn't be reached at the last attempt. This is the price from {0}.", fmtRelative(d.fetched_at)),
     );
   }
   if (!d.session_open) {
@@ -144,7 +143,11 @@ function QuoteBody({ d, usedForValue }: { d: TradegateQuoteOk; usedForValue: boo
                 : undefined
           }
           info={
-            <>{tr("The price of the last trade on Tradegate. Not the bid, not the ask and not the middle between them. Tradegate doesn't say when that trade was.")}</>
+            <>
+              {tr(
+                "The price of the last trade on Tradegate. Not the bid, not the ask and not the middle between them. Tradegate doesn't say when that trade was.",
+              )}
+            </>
           }
         />
         <Figure label={tr("Bid")} value={price(d.bid)} note={tr("highest buying price")} />
@@ -152,11 +155,15 @@ function QuoteBody({ d, usedForValue }: { d: TradegateQuoteOk; usedForValue: boo
         <Figure label={tr("Previous day's close")} value={price(d.previous_close)} note={tr("on Tradegate")} />
       </div>
 
-      <p className="text-xs text-ink-muted">{trx("Day range {0} – {1}{2}{3}", price(d.low), price(d.high), d.volume !== null && (
-          <>{" "}{trx("· {0} units", <span className="num">{fmtNumber(d.volume, { decimals: 0 })}</span>)}</>
-        ), d.executions !== null && (
-          <>{" "}{trx("in {0} trades", <span className="num">{fmtNumber(d.executions, { decimals: 0 })}</span>)}</>
-        ))}</p>
+      <p className="text-xs text-ink-muted">
+        {trx(
+          "Day range {0} – {1}{2}{3}",
+          price(d.low),
+          price(d.high),
+          d.volume !== null && <> {trx("· {0} units", <span className="num">{fmtNumber(d.volume, { decimals: 0 })}</span>)}</>,
+          d.executions !== null && <> {trx("in {0} trades", <span className="num">{fmtNumber(d.executions, { decimals: 0 })}</span>)}</>,
+        )}
+      </p>
 
       {warnings.length > 0 && (
         <ul className="flex flex-col gap-1 text-[12.5px] text-approx">

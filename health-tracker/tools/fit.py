@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import zipfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from tools.sports import fit_sport
@@ -22,7 +22,7 @@ FIELDS = {
 
 
 def _utc(t: datetime) -> datetime:
-    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+    return t if t.tzinfo else t.replace(tzinfo=UTC)
 
 
 def streams_from_records(records, start: datetime | None = None, end: datetime | None = None) -> dict:
@@ -78,13 +78,13 @@ def read_fit_streams(data: bytes, start: datetime | None = None, end: datetime |
     return streams_from_records(records, start, end)
 
 
-FIT_EPOCH = datetime(1989, 12, 31, tzinfo=timezone.utc)
+FIT_EPOCH = datetime(1989, 12, 31, tzinfo=UTC)
 LOCAL_TZ = ZoneInfo("Europe/Amsterdam")  # only when the file carries no local time of its own
 
 
 def _as_utc(value) -> datetime | None:
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
     if isinstance(value, (int, float)):
         return FIT_EPOCH + timedelta(seconds=value)
     return None
@@ -142,9 +142,13 @@ def read_fit_activity(data: bytes) -> dict:
     # Local time: the device's own offset when the file has it (activity.local_timestamp), else Amsterdam.
     ts, local_ts = _as_utc(activity.get("timestamp")), activity.get("local_timestamp")
     if ts is not None and local_ts is not None:
-        local_naive = local_ts.replace(tzinfo=None) if isinstance(local_ts, datetime) else (FIT_EPOCH + timedelta(seconds=local_ts)).replace(tzinfo=None)
+        local_naive = (
+            local_ts.replace(tzinfo=None)
+            if isinstance(local_ts, datetime)
+            else (FIT_EPOCH + timedelta(seconds=local_ts)).replace(tzinfo=None)
+        )
         offset = local_naive - ts.replace(tzinfo=None)
-        start_local = (start.replace(tzinfo=None) + offset)
+        start_local = start.replace(tzinfo=None) + offset
     else:
         start_local = start.astimezone(LOCAL_TZ).replace(tzinfo=None)
 
@@ -166,7 +170,12 @@ def read_fit_activity(data: bytes) -> dict:
         "avg_cadence": session.get("avg_cadence"),
         "avg_power": session.get("avg_power"),
         "laps": [
-            {"distance_m": lap.get("total_distance"), "time_s": lap.get("total_timer_time"), "avg_hr": lap.get("avg_heart_rate"), "ascent_m": lap.get("total_ascent")}
+            {
+                "distance_m": lap.get("total_distance"),
+                "time_s": lap.get("total_timer_time"),
+                "avg_hr": lap.get("avg_heart_rate"),
+                "ascent_m": lap.get("total_ascent"),
+            }
             for lap in laps
         ],
         "streams": streams_from_records(records),

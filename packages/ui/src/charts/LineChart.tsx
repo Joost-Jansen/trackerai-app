@@ -217,7 +217,10 @@ export default function LineChart({
         setHover((i) => Math.min(dates.length - 1, Math.max(0, (i ?? dates.length - 1) + (e.key === "ArrowRight" ? 1 : -1))));
       }}
       onMouseMove={(e) => locate(e.clientX)}
-      onMouseLeave={() => { setHover(null); setDragFrom(null); }}
+      onMouseLeave={() => {
+        setHover(null);
+        setDragFrom(null);
+      }}
       onMouseDown={(e) => {
         if (!onSelect || e.button !== 0) return;
         e.preventDefault();
@@ -250,46 +253,37 @@ export default function LineChart({
           ))}
           {dateAxis
             ? tickFractions(dates, plotW, locale).map((t, i) => (
-              <text key={i} x={t.f * plotW} y={height - 3}
-                textAnchor={t.f < 0.04 ? "start" : t.f > 0.96 ? "end" : "middle"}>
-                {t.label}
-              </text>
-            ))
+                <text key={i} x={t.f * plotW} y={height - 3} textAnchor={t.f < 0.04 ? "start" : t.f > 0.96 ? "end" : "middle"}>
+                  {t.label}
+                </text>
+              ))
             : [...new Set([0, Math.floor((dates.length - 1) / 2), dates.length - 1])].map((i) => (
-            <text
-              key={i}
-              x={x(i)}
-              y={height - 3}
-              textAnchor={i === 0 ? "start" : i === dates.length - 1 ? "end" : "middle"}
-            >
-              {showDate(dates[i])}
-            </text>
-          ))}
+                <text key={i} x={x(i)} y={height - 3} textAnchor={i === 0 ? "start" : i === dates.length - 1 ? "end" : "middle"}>
+                  {showDate(dates[i])}
+                </text>
+              ))}
         </g>
 
         {baseline !== undefined && baseline >= lo && baseline <= hi && (
-          <line
-            x1="0"
-            x2={plotW}
-            y1={y(baseline)}
-            y2={y(baseline)}
-            stroke="var(--border-strong)"
-            strokeWidth="1"
-            strokeDasharray="2 3"
-          />
+          <line x1="0" x2={plotW} y1={y(baseline)} y2={y(baseline)} stroke="var(--border-strong)" strokeWidth="1" strokeDasharray="2 3" />
         )}
 
         {references.map((r) => (
-          <line key={r.label || r.value} x1="0" x2={plotW} y1={y(r.value)} y2={y(r.value)} stroke={r.colour} strokeWidth="1.5" strokeDasharray={r.dash ?? "6 4"} />
+          <line
+            key={r.label || r.value}
+            x1="0"
+            x2={plotW}
+            y1={y(r.value)}
+            y2={y(r.value)}
+            stroke={r.colour}
+            strokeWidth="1.5"
+            strokeDasharray={r.dash ?? "6 4"}
+          />
         ))}
 
         {series.map((s, si) => {
           if (s.points.length < 2) return null;
-          const d = s.points
-            .map(
-              (p, i) => `${i === 0 ? "M" : "L"}${x(index.get(p.d)!).toFixed(2)} ${y(p.v).toFixed(2)}`
-            )
-            .join(" ");
+          const d = s.points.map((p, i) => `${i === 0 ? "M" : "L"}${x(index.get(p.d)!).toFixed(2)} ${y(p.v).toFixed(2)}`).join(" ");
           const first = index.get(s.points[0].d)!;
           const last = index.get(s.points[s.points.length - 1].d)!;
           return (
@@ -336,8 +330,16 @@ export default function LineChart({
 
         {/* The stretch being dragged over. */}
         {dragging && (
-          <rect x={Math.min(x(dragFrom!), x(hover!))} width={Math.abs(x(hover!) - x(dragFrom!))}
-            y={PAD.top} height={plotH} fill="var(--chart-1)" fillOpacity={0.12} stroke="var(--chart-1)" strokeOpacity={0.5} />
+          <rect
+            x={Math.min(x(dragFrom!), x(hover!))}
+            width={Math.abs(x(hover!) - x(dragFrom!))}
+            y={PAD.top}
+            height={plotH}
+            fill="var(--chart-1)"
+            fillOpacity={0.12}
+            stroke="var(--chart-1)"
+            strokeOpacity={0.5}
+          />
         )}
 
         {hover !== null && (
@@ -358,7 +360,18 @@ export default function LineChart({
         {/* goal labels last, with a halo in the card's colour, so no line runs through them */}
         {references.map((r) =>
           r.label ? (
-            <text key={r.label} x="4" y={y(r.value) - 5} fontSize="11" fontWeight="600" fill={r.colour} stroke="var(--surface-card)" strokeWidth="4" paintOrder="stroke" strokeLinejoin="round">
+            <text
+              key={r.label}
+              x="4"
+              y={y(r.value) - 5}
+              fontSize="11"
+              fontWeight="600"
+              fill={r.colour}
+              stroke="var(--surface-card)"
+              strokeWidth="4"
+              paintOrder="stroke"
+              strokeLinejoin="round"
+            >
               {r.label}
             </text>
           ) : null,
@@ -376,15 +389,18 @@ export default function LineChart({
           }}
         >
           <div style={{ color: "var(--text-on-ink-muted)" }}>
-            {dragging ? `${showDate(dates[Math.min(dragFrom!, hover)])} – ${showDate(dates[Math.max(dragFrom!, hover)])}` : showDate(hoveredDate)}
+            {dragging
+              ? `${showDate(dates[Math.min(dragFrom!, hover)])} – ${showDate(dates[Math.max(dragFrom!, hover)])}`
+              : showDate(hoveredDate)}
           </div>
           {dragging && <div>{tr("let go to show this period")}</div>}
-          {!dragging && readings.map(({ s, point }) => (
-            <div key={s.label}>
-              {series.length > 1 ? `${s.label} · ` : ""}
-              {trueMinus(format(point.v))}
-            </div>
-          ))}
+          {!dragging &&
+            readings.map(({ s, point }) => (
+              <div key={s.label}>
+                {series.length > 1 ? `${s.label} · ` : ""}
+                {trueMinus(format(point.v))}
+              </div>
+            ))}
         </div>
       )}
     </div>

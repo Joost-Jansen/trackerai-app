@@ -10,8 +10,8 @@ import csv
 import io
 import re
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import date, timedelta
-from typing import Callable
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -50,7 +50,23 @@ SPORTS = {
     "resort_skiing": ("skiing", "skien", "skiën"),
     "rest": ("rest", "rust", "rustdag", "vrij", "off"),
 }
-MONTHS = {"jan": 1, "feb": 2, "mrt": 3, "mar": 3, "apr": 4, "mei": 5, "may": 5, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "okt": 10, "oct": 10, "nov": 11, "dec": 12}
+MONTHS = {
+    "jan": 1,
+    "feb": 2,
+    "mrt": 3,
+    "mar": 3,
+    "apr": 4,
+    "mei": 5,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "okt": 10,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
+}
 STATUSES = ("active", "finished", "stopped")
 
 
@@ -258,7 +274,9 @@ def match_sessions(sessions: list[dict], activities: list[dict], today: date, li
         a = by_id.get(aid)
         if not a or day is None:
             continue
-        idx = [i for i in open_of(a["sport"], day) if i not in manual] or [i for i in manual if ordered[i]["date"] == day and ordered[i]["sport"] == a["sport"]]
+        idx = [i for i in open_of(a["sport"], day) if i not in manual] or [
+            i for i in manual if ordered[i]["date"] == day and ordered[i]["sport"] == a["sport"]
+        ]
         if idx:
             manual[closest(idx, a)].append(a)
             used.add(aid)
@@ -322,9 +340,13 @@ def match_sessions(sessions: list[dict], activities: list[dict], today: date, li
         else:
             day = date.fromisoformat(s["date"])
             row["status"] = "missed" if day < today else "today" if day == today else "planned"
-            near = sorted((a for a in activities if a["sport"] == s["sport"] and a["id"] not in used and _day_gap(a, s["date"]) <= CANDIDATE_DAYS), key=lambda a: (_day_gap(a, s["date"]), a["start_local"]))
+            near = sorted(
+                (a for a in activities if a["sport"] == s["sport"] and a["id"] not in used and _day_gap(a, s["date"]) <= CANDIDATE_DAYS),
+                key=lambda a: (_day_gap(a, s["date"]), a["start_local"]),
+            )
             row["candidates"] = [
-                {"id": a["id"], "date": a["start_local"][:10], "distance_km": a.get("distance_km"), "moving_time_s": a.get("moving_time_s")} for a in near
+                {"id": a["id"], "date": a["start_local"][:10], "distance_km": a.get("distance_km"), "moving_time_s": a.get("moving_time_s")}
+                for a in near
             ]
         out.append(row)
     return out

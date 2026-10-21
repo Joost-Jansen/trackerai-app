@@ -27,22 +27,32 @@ def _xlsx(rows: list[dict]) -> bytes:
     return buf.getvalue()
 
 
-def _tx(isin="IE00B4L5Y983", name="iShares Core MSCI World", qty=10, price=80.5,
-        order="order-1", date="05-01-2026", fee=-1.0, exchange="EAM"):
+def _tx(
+    isin="IE00B4L5Y983", name="iShares Core MSCI World", qty=10, price=80.5, order="order-1", date="05-01-2026", fee=-1.0, exchange="EAM"
+):
     value = -(qty * price)
     return {
-        "Datum": date, "Tijd": "09:30", "Product": name, "ISIN": isin,
-        "Beurs": exchange, "Uitvoeringsplaats": exchange, "Aantal": qty, "Koers": price,
-        "Lokale waarde": value, "Waarde": value, "Wisselkoers": 1.0,
-        "Transactiekosten": fee, "Totaal": value + fee, "Order Id": order,
+        "Datum": date,
+        "Tijd": "09:30",
+        "Product": name,
+        "ISIN": isin,
+        "Beurs": exchange,
+        "Uitvoeringsplaats": exchange,
+        "Aantal": qty,
+        "Koers": price,
+        "Lokale waarde": value,
+        "Waarde": value,
+        "Wisselkoers": 1.0,
+        "Transactiekosten": fee,
+        "Totaal": value + fee,
+        "Order Id": order,
     }
 
 
 def _upload_tx(client, rows):
     resp = client.post(
         "/api/uploads/transactions",
-        files={"files": ("tx.xlsx", _xlsx(rows),
-                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={"files": ("tx.xlsx", _xlsx(rows), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
     )
     assert resp.status_code == 200, resp.text
 
@@ -50,16 +60,16 @@ def _upload_tx(client, rows):
 @pytest.fixture()
 def no_network(monkeypatch):
     """Both downloads stubbed: these tests are about routing, not about Yahoo."""
-    monkeypatch.setattr(asset_service, "_fetch_daily",
-                        lambda t: {"points": [{"d": "2026-08-03", "c": 81.0}]})
-    monkeypatch.setattr(asset_service, "_fetch_intraday",
-                        lambda t: {"points": [{"d": "2026-08-04T10:00+00:00", "c": 81.0}],
-                                   "prev_close": None})
+    monkeypatch.setattr(asset_service, "_fetch_daily", lambda t: {"points": [{"d": "2026-08-03", "c": 81.0}]})
+    monkeypatch.setattr(
+        asset_service, "_fetch_intraday", lambda t: {"points": [{"d": "2026-08-04T10:00+00:00", "c": 81.0}], "prev_close": None}
+    )
 
 
 # ---------------------------------------------------------------------------
 # The position payload
 # ---------------------------------------------------------------------------
+
 
 def test_detail_requires_auth(client):
     assert client.get("/api/holdings/IE00B4L5Y983").status_code == 401
@@ -94,10 +104,13 @@ def test_two_venues_are_two_positions_with_their_own_avg_cost(client):
     """The same fund on Amsterdam and Tradegate is two rows in DeGiro, each
     with its own average price — so ?beurs= has to pick one, not merge them."""
     _login(client)
-    _upload_tx(client, [
-        _tx(qty=10, price=80.0, order="a", exchange="EAM"),
-        _tx(qty=10, price=90.0, order="b", exchange="TDG"),
-    ])
+    _upload_tx(
+        client,
+        [
+            _tx(qty=10, price=80.0, order="a", exchange="EAM"),
+            _tx(qty=10, price=90.0, order="b", exchange="TDG"),
+        ],
+    )
 
     eam = client.get("/api/holdings/IE00B4L5Y983?exchange=EAM").json()
     tdg = client.get("/api/holdings/IE00B4L5Y983?exchange=TDG").json()
@@ -129,6 +142,7 @@ def test_detail_is_scoped_to_the_logged_in_user(client):
 # The chart routes
 # ---------------------------------------------------------------------------
 
+
 def test_charts_are_empty_without_a_price_row(client, no_network):
     """No price was ever fetched here (no network in the tests), so there is no
     ticker to ask Yahoo about. That is a chartless position, not an error."""
@@ -136,9 +150,7 @@ def test_charts_are_empty_without_a_price_row(client, no_network):
     _upload_tx(client, [_tx()])
 
     assert client.get("/api/holdings/IE00B4L5Y983/history").json() == {"points": []}
-    assert client.get("/api/holdings/IE00B4L5Y983/intraday").json() == {
-        "points": [], "prev_close": None
-    }
+    assert client.get("/api/holdings/IE00B4L5Y983/intraday").json() == {"points": [], "prev_close": None}
 
 
 def test_charts_follow_the_stored_ticker(client, no_network):
@@ -146,12 +158,10 @@ def test_charts_follow_the_stored_ticker(client, no_network):
     _upload_tx(client, [_tx()])
 
     from domain import database
-    with database.user_db("alice") as conn:
-        database.save_price(conn, isin="IE00B4L5Y983", name="iShares Core MSCI World",
-                            ticker="IWDA.AS", price=81.5, currency="EUR")
 
-    assert client.get("/api/holdings/IE00B4L5Y983/history").json()["points"] == [
-        {"d": "2026-08-03", "c": 81.0}
-    ]
+    with database.user_db("alice") as conn:
+        database.save_price(conn, isin="IE00B4L5Y983", name="iShares Core MSCI World", ticker="IWDA.AS", price=81.5, currency="EUR")
+
+    assert client.get("/api/holdings/IE00B4L5Y983/history").json()["points"] == [{"d": "2026-08-03", "c": 81.0}]
     # The last bar is the cached quote, not the feed's own last print.
     assert client.get("/api/holdings/IE00B4L5Y983/intraday").json()["points"][-1]["c"] == 81.5

@@ -53,14 +53,19 @@ export function Progress({ count, current }: { count: number; current: number })
   return (
     <div className="mb-1 flex gap-1">
       {Array.from({ length: count }, (_, i) => (
-        <span key={i} className="h-1 flex-1 rounded-full"
-          style={{ background: i <= current ? "var(--n-800)" : "var(--surface-inset)" }} />
+        <span key={i} className="h-1 flex-1 rounded-full" style={{ background: i <= current ? "var(--n-800)" : "var(--surface-inset)" }} />
       ))}
     </div>
   );
 }
 
-export function StepPlan({ routes, begin, chooseLabel = tr("I'm doing this on:"), phone, done }: {
+export function StepPlan({
+  routes,
+  begin,
+  chooseLabel = tr("I'm doing this on:"),
+  phone,
+  done,
+}: {
   routes: Route[];
   /** The route the plan opens with. */
   begin?: string;
@@ -91,12 +96,17 @@ export function StepPlan({ routes, begin, chooseLabel = tr("I'm doing this on:")
         {routes.length > 1 && (
           <span className="flex items-center gap-2">
             <span className="text-[11.5px] text-ink-muted">{chooseLabel}</span>
-            <Tabs variant="segmented" ariaLabel={chooseLabel} items={routes.map((r) => ({ id: r.id, label: r.label }))}
-              value={route.id} onChange={(v) => {
+            <Tabs
+              variant="segmented"
+              ariaLabel={chooseLabel}
+              items={routes.map((r) => ({ id: r.id, label: r.label }))}
+              value={route.id}
+              onChange={(v) => {
                 setRouteId(v);
                 // The routes are not equally long; stay within range.
                 setStep((s) => Math.min(s, (routes.find((r) => r.id === v)?.steps.length ?? 1) - 1));
-              }} />
+              }}
+            />
           </span>
         )}
       </div>
@@ -104,12 +114,20 @@ export function StepPlan({ routes, begin, chooseLabel = tr("I'm doing this on:")
       {/* Knoppen van ruim formaat: iemand tikt ze vier keer achter elkaar aan op een telefoon. */}
       <div className="flex items-center justify-end gap-2 pt-1">
         {current > 0 && (
-          <Button onClick={() => setStep(current - 1)} icon={<ChevronLeftIcon className="h-3.5 w-3.5" />}>{tr("Previous")}</Button>
+          <Button onClick={() => setStep(current - 1)} icon={<ChevronLeftIcon className="h-3.5 w-3.5" />}>
+            {tr("Previous")}
+          </Button>
         )}
         {!last ? (
-          <Button variant="primary" onClick={() => setStep(current + 1)} iconAfter={<ChevronRightIcon className="h-3.5 w-3.5" />}>{tr("Next")}</Button>
-        ) : done && (
-          <Button variant="primary" onClick={done.onClick}>{done.label}</Button>
+          <Button variant="primary" onClick={() => setStep(current + 1)} iconAfter={<ChevronRightIcon className="h-3.5 w-3.5" />}>
+            {tr("Next")}
+          </Button>
+        ) : (
+          done && (
+            <Button variant="primary" onClick={done.onClick}>
+              {done.label}
+            </Button>
+          )
         )}
       </div>
     </div>
@@ -117,16 +135,25 @@ export function StepPlan({ routes, begin, chooseLabel = tr("I'm doing this on:")
 }
 
 /** A step-by-step plan as a dialog, for example behind "How do I export this?". */
-export function StepPlanDialog({ open, onClose, title, ...plan }: {
-  open: boolean; onClose: () => void; title: string;
+export function StepPlanDialog({
+  open,
+  onClose,
+  title,
+  ...plan
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
 } & React.ComponentProps<typeof StepPlan>) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0" style={{ background: "rgba(20,18,14,0.36)" }} onClick={onClose} />
       {/* dvh, not vh: on a phone the buttons otherwise fell under the address bar. */}
-      <div className="relative flex max-h-[90dvh] w-full max-w-[440px] flex-col overflow-y-auto overscroll-contain rounded-xl p-6"
-        style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-4)" }}>
+      <div
+        className="relative flex max-h-[90dvh] w-full max-w-[440px] flex-col overflow-y-auto overscroll-contain rounded-xl p-6"
+        style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-4)" }}
+      >
         <div className="mb-3 flex items-center justify-between">
           <span className="text-[13px] font-semibold">{title}</span>
           <IconButton label={tr("Close")} onClick={onClose} icon={<CloseIcon className="h-4 w-4" />} className="-mr-2 flex-none" />
@@ -160,7 +187,9 @@ export function MockBrowser({ url, children }: { url: string; children: React.Re
 export function MockPhone({ title, colour = "#1a1a1a", children }: { title: string; colour?: string; children: React.ReactNode }) {
   return (
     <div className="mx-auto w-[210px] overflow-hidden rounded-[22px] border-[5px] border-[#1a1a1a] bg-white text-[#1a1a1a] shadow-sm">
-      <div className="px-3 py-2 text-[11px] font-semibold text-white" style={{ background: colour }}>{title}</div>
+      <div className="px-3 py-2 text-[11px] font-semibold text-white" style={{ background: colour }}>
+        {title}
+      </div>
       <div className="flex flex-col gap-1.5 p-3 text-[10.5px]">{children}</div>
     </div>
   );
@@ -184,8 +213,10 @@ export function MockField({ label, value, mark = false }: { label: string; value
 /** A button in a redrawn screen. */
 export function MockButton({ children, mark = false, colour = "#1a1a1a" }: { children: React.ReactNode; mark?: boolean; colour?: string }) {
   return (
-    <span className={`inline-block rounded px-2.5 py-1 text-[10.5px] font-semibold text-white ${mark ? "ring-2 ring-[#e0b400] ring-offset-1" : ""}`}
-      style={{ background: colour }}>
+    <span
+      className={`inline-block rounded px-2.5 py-1 text-[10.5px] font-semibold text-white ${mark ? "ring-2 ring-[#e0b400] ring-offset-1" : ""}`}
+      style={{ background: colour }}
+    >
       {children}
     </span>
   );

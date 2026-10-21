@@ -6,8 +6,9 @@ own sport's zones, so "all" is a plain sum (same rule as the dashboard)."""
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import date, timedelta
-from typing import Callable, Literal
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 
