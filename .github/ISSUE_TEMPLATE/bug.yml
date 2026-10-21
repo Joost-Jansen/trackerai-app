@@ -1,0 +1,31 @@
+name: Bug
+description: Something does not work as it should.
+labels: [bug]
+body:
+  - type: dropdown
+    id: app
+    attributes:
+      label: App
+      options: [health-tracker, wealth-tracker, trackerai.nl, other]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Open Spending\n2. ..."
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: trackerai.nl or your own installation, and the browser.
+  - type: markdown
+    attributes:
+      value: Please leave out personal data such as bank transactions or health numbers.
