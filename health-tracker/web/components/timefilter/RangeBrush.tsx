@@ -7,7 +7,17 @@
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useT } from "@/lib/i18n";
-import { clampRange, dayNumber, fmtWindow, timeTicks, toRange, toWindow, type DateWindow, type DayPoint, type DayRange } from "@/lib/timeline";
+import {
+  clampRange,
+  dayNumber,
+  fmtWindow,
+  timeTicks,
+  toRange,
+  toWindow,
+  type DateWindow,
+  type DayPoint,
+  type DayRange,
+} from "@/lib/timeline";
 
 const H = 46;
 const AXIS = 14;
@@ -132,13 +142,39 @@ export default function RangeBrush({
           {/* Dimmed outside the window, bright inside with a sage border. */}
           <rect x="0" y="0" width={Math.max(ax, 0)} height={plotH} fill="var(--surface-page)" fillOpacity="0.55" />
           <rect x={bx} y="0" width={Math.max(w - bx, 0)} height={plotH} fill="var(--surface-page)" fillOpacity="0.55" />
-          <rect x={ax} y="0.5" width={Math.max(bx - ax, 1)} height={plotH - 1} rx="3" fill="none" stroke="var(--brand-500)" strokeWidth="1.5" />
+          <rect
+            x={ax}
+            y="0.5"
+            width={Math.max(bx - ax, 1)}
+            height={plotH - 1}
+            rx="3"
+            fill="none"
+            stroke="var(--brand-500)"
+            strokeWidth="1.5"
+          />
           {[ax, bx].map((hx, i) => (
-            <rect key={i} x={hx - 3} y={plotH / 2 - 9} width="6" height="18" rx="3" fill="var(--surface-card)" stroke="var(--brand-500)" strokeWidth="1.5" className="cursor-ew-resize" />
+            <rect
+              key={i}
+              x={hx - 3}
+              y={plotH / 2 - 9}
+              width="6"
+              height="18"
+              rx="3"
+              fill="var(--surface-card)"
+              stroke="var(--brand-500)"
+              strokeWidth="1.5"
+              className="cursor-ew-resize"
+            />
           ))}
           <g className="ds-chart__axis">
             {ticks.map((t) => (
-              <text key={t.day} x={x(t.day)} y={H - 2} textAnchor={x(t.day) < 16 ? "start" : x(t.day) > w - 16 ? "end" : "middle"} style={t.major ? { fill: "var(--text-primary)" } : undefined}>
+              <text
+                key={t.day}
+                x={x(t.day)}
+                y={H - 2}
+                textAnchor={x(t.day) < 16 ? "start" : x(t.day) > w - 16 ? "end" : "middle"}
+                style={t.major ? { fill: "var(--text-primary)" } : undefined}
+              >
                 {t.label}
               </text>
             ))}

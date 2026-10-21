@@ -49,7 +49,7 @@ export function Dialog({
       // Keep focus inside the panel: without this the user tabs out of the dialog to
       // the page below, which they cannot see and must not operate.
       const focusables = panel.current.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
       );
       if (focusables.length === 0) return;
       const first = focusables[0];
@@ -82,14 +82,7 @@ export function Dialog({
         if (e.target === e.currentTarget) close();
       }}
     >
-      <div
-        ref={panel}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={labelledBy}
-        className="ds-dialog outline-none"
-      >
+      <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={labelledBy} className="ds-dialog outline-none">
         <div className="ds-dialog__body">
           {title && <h2 className="ds-dialog__title">{title}</h2>}
           {description && <p className="ds-dialog__desc">{description}</p>}
@@ -157,14 +150,6 @@ export function Tag({
 }
 
 /** A counter. Never red, never for "unread" — that is asking for attention. */
-export function Badge({
-  quiet = false,
-  className = "",
-  children,
-}: {
-  quiet?: boolean;
-  className?: string;
-  children: React.ReactNode;
-}) {
+export function Badge({ quiet = false, className = "", children }: { quiet?: boolean; className?: string; children: React.ReactNode }) {
   return <span className={`ds-badge ${quiet ? "ds-badge--quiet" : ""} ${className}`}>{children}</span>;
 }

@@ -132,7 +132,8 @@ export const nl = {
     stayLoggedInHint: "Op je eigen apparaat. Op een gedeelde computer zet je het uit: dan ben je uitgelogd als de browser sluit.",
     twoStepHelp: "Hoe werkt inloggen in twee stappen?",
     privacy: "Privacy",
-    consent: "Ik geef toestemming voor het verwerken van mijn gezondheidsgegevens (trainingen, hartslag, slaap en herstel) om mijn eigen overzicht te tonen, zoals beschreven in de <link>privacyverklaring</link>. Intrekken kan altijd door je account te verwijderen.",
+    consent:
+      "Ik geef toestemming voor het verwerken van mijn gezondheidsgegevens (trainingen, hartslag, slaap en herstel) om mijn eigen overzicht te tonen, zoals beschreven in de <link>privacyverklaring</link>. Intrekken kan altijd door je account te verwijderen.",
   },
 
   /** Feedback: something broken or an idea (components/feedback, settings/feedback). */
@@ -156,7 +157,8 @@ export const nl = {
   privacy: {
     title: "Privacy",
     updated: "Laatst bijgewerkt op 19 oktober 2026.",
-    intro: "health-tracker is een persoonlijk trainingsdashboard: je trainingen, slaap en herstel, je schema en je logboek. Deze installatie wordt beheerd door degene die hem host (\u201cde beheerder\u201d); die is de verwerkingsverantwoordelijke voor je gegevens. Hieronder staat welke gegevens de app gebruikt, waarvoor, op welke grond, hoe lang, en wat je ermee kunt.",
+    intro:
+      "health-tracker is een persoonlijk trainingsdashboard: je trainingen, slaap en herstel, je schema en je logboek. Deze installatie wordt beheerd door degene die hem host (\u201cde beheerder\u201d); die is de verwerkingsverantwoordelijke voor je gegevens. Hieronder staat welke gegevens de app gebruikt, waarvoor, op welke grond, hoe lang, en wat je ermee kunt.",
     controllerTitle: "Wie is verantwoordelijk",
     controller: (name: string | null, contact: string | null) =>
       `Verwerkingsverantwoordelijke: ${name ?? "de beheerder van deze installatie"}${contact ? `, bereikbaar via ${contact}` : ""}. Vragen over je gegevens of deze verklaring stel je daar.`,
@@ -313,7 +315,8 @@ export const nl = {
     upload_empty: "Leeg bestand.",
     upload_too_large: (p: { max_mb: number }) => `Bestand groter dan ${p.max_mb} MB.`,
     fit_unreadable: "Geen leesbare activiteit in dit FIT-bestand.",
-    not_an_export: "Dit is geen export van Apple Gezondheid. Upload de export.zip uit de Gezondheid-app (profielfoto › Exporteer alle gezondheidsgegevens).",
+    not_an_export:
+      "Dit is geen export van Apple Gezondheid. Upload de export.zip uit de Gezondheid-app (profielfoto › Exporteer alle gezondheidsgegevens).",
     apple_import_running: "Er loopt al een import.",
     import_failed: "De import is mislukt. Probeer het opnieuw; blijft het mislukken, stuur dan feedback.",
     upload_not_found: "De upload is verlopen of niet gevonden. Kies het bestand opnieuw.",
@@ -383,7 +386,8 @@ export const nl = {
     twoStep: {
       title: "Inloggen in twee stappen",
       everywhere: "Eén instelling voor al je trackers: health-tracker en wealth-tracker gebruiken hetzelfde account.",
-      required: "Verplicht voor je account: je gebruikt meer dan één tracker of je bent beheerder, dus één wachtwoord opent meer dan je gezondheidsgegevens.",
+      required:
+        "Verplicht voor je account: je gebruikt meer dan één tracker of je bent beheerder, dus één wachtwoord opent meer dan je gezondheidsgegevens.",
       off: "Uit. Met inloggen in twee stappen is bij het inloggen ook een code nodig uit een authenticator-app op je telefoon (zoals Google Authenticator, Microsoft Authenticator, 1Password of Bitwarden), zodat een uitgelekt wachtwoord alleen niet genoeg is.",
       adminHint: "Sterk aangeraden voor beheerders: een beheerdersaccount kan andere accounts zien en wijzigen.",
       on: "Aan: inloggen vraagt een code uit je authenticator-app.",
@@ -395,7 +399,8 @@ export const nl = {
       confirm: "Bevestigen",
       cancel: "Annuleren",
       backupTitle: "Je reservecodes",
-      backupText: "Bewaar deze op een veilige plek, los van je telefoon (een wachtwoordmanager, of op papier). Elke code werkt één keer in plaats van een code uit de app, voor als je je telefoon kwijt bent. Ze worden alleen nu getoond.",
+      backupText:
+        "Bewaar deze op een veilige plek, los van je telefoon (een wachtwoordmanager, of op papier). Elke code werkt één keer in plaats van een code uit de app, voor als je je telefoon kwijt bent. Ze worden alleen nu getoond.",
       done: "Ik heb ze bewaard",
       turnOff: "Uitzetten",
       turnOffText: "Om het uit te zetten vul je je wachtwoord in en een code uit de app (of een reservecode).",
@@ -408,7 +413,8 @@ export const nl = {
       makeCodes: "Nieuwe codes maken",
       setUpAgain: "Opnieuw instellen (nieuwe telefoon)…",
       appOff: "De authenticator-app staat uit; je codes komen per e-mail. Je kunt de app er ook bij nemen.",
-      setUpAgainText: "Om naar een nieuwe telefoon te gaan: vul je wachtwoord en een code uit de app in (of een reservecode). Inloggen in twee stappen staat dan uit, en je stelt het meteen opnieuw in met je nieuwe telefoon.",
+      setUpAgainText:
+        "Om naar een nieuwe telefoon te gaan: vul je wachtwoord en een code uit de app in (of een reservecode). Inloggen in twee stappen staat dan uit, en je stelt het meteen opnieuw in met je nieuwe telefoon.",
       failed: "Dat lukte niet",
     },
     emailCodes: {
@@ -429,11 +435,13 @@ export const nl = {
     },
     data: {
       title: "Je gegevens",
-      exportText: "Download alles van je account: een zip met een JSON-bestand per tabel (activiteiten, streams, slaap en herstel, schema's, logboek, documenten, rondjes, instellingen, feedback) en je opgeslagen FIT-bestanden.",
+      exportText:
+        "Download alles van je account: een zip met een JSON-bestand per tabel (activiteiten, streams, slaap en herstel, schema's, logboek, documenten, rondjes, instellingen, feedback) en je opgeslagen FIT-bestanden.",
       export: "Mijn gegevens downloaden",
       exporting: "De download wordt klaargemaakt…",
       deleteTitle: "Account verwijderen",
-      deleteText: "Verwijdert je hele trackerai-account, in elke tracker die je gebruikt. Hier: activiteiten, FIT-bestanden, slaap en herstel, schema's, logboek, documenten, rondjes, agent-tokens, feedback en koppelingen (de toegang tot Wahoo wordt ingetrokken). Dit kan niet ongedaan worden gemaakt.",
+      deleteText:
+        "Verwijdert je hele trackerai-account, in elke tracker die je gebruikt. Hier: activiteiten, FIT-bestanden, slaap en herstel, schema's, logboek, documenten, rondjes, agent-tokens, feedback en koppelingen (de toegang tot Wahoo wordt ingetrokken). Dit kan niet ongedaan worden gemaakt.",
       deletePassword: "Je wachtwoord, ter bevestiging",
       deleteCode: "Code uit je app of e-mail (of een reservecode)",
       deleteConfirm: "Je account en al je gegevens definitief verwijderen?",
@@ -455,12 +463,14 @@ export const nl = {
     },
     gate: {
       totpTitle: "Stel inloggen in twee stappen in",
-      totpText: "Je account opent meer dan één tracker (of je bent beheerder). Daarom is naast je wachtwoord ook een code uit een authenticator-app nodig. Eén keer instellen, voor al je trackers.",
+      totpText:
+        "Je account opent meer dan één tracker (of je bent beheerder). Daarom is naast je wachtwoord ook een code uit een authenticator-app nodig. Eén keer instellen, voor al je trackers.",
       joinTitle: "health-tracker gebruiken",
       joinText: "Je hebt al een trackerai-account. Met health-tracker zie je je trainingen, slaap en herstel, met je eigen hartslagzones.",
       consentTitle: "Toestemming voor je gezondheidsgegevens",
       emailTitle: "Bevestig je e-mailadres",
-      emailText: (to: string) => `We hebben een code gestuurd naar ${to}. Vul die in om verder te gaan. Daarna mailt het inloggen je ook een code: dat is je inloggen in twee stappen.`,
+      emailText: (to: string) =>
+        `We hebben een code gestuurd naar ${to}. Vul die in om verder te gaan. Daarna mailt het inloggen je ook een code: dat is je inloggen in twee stappen.`,
       emailConfirm: "Bevestigen",
       emailAgain: "Stuur de code opnieuw",
       emailWrong: "Verkeerd adres?",
@@ -481,7 +491,8 @@ export const nl = {
     codeHint: "Garmin vraagt om een extra code (tweestapsverificatie).",
     connect: "Koppelen",
     confirm: "Bevestigen",
-    unreadable: "De opgeslagen koppeling kan niet meer gelezen worden (de server heeft een nieuwe sleutel). Koppel opnieuw; je data blijft staan.",
+    unreadable:
+      "De opgeslagen koppeling kan niet meer gelezen worden (de server heeft een nieuwe sleutel). Koppel opnieuw; je data blijft staan.",
     intro:
       "Koppel je Garmin-account om activiteiten (met GPS en hartslag), slaap, rusthartslag en Body Battery binnen te halen. De eerste keer haalt de site het afgelopen jaar op; daarna elke ochtend wat er nieuw is.",
     status: "Status",
@@ -510,7 +521,8 @@ export const nl = {
     apple: {
       title: "Apple Gezondheid (Apple Watch)",
       manual: "Handmatig exporteren en uploaden",
-      intro: "Heb je een Apple Watch? Apple heeft geen online account waar de site mee kan koppelen: je data staat in de Gezondheid-app op je iPhone. Dit gaat dus niet automatisch zoals bij Garmin: exporteer het daar en upload het bestand hier, en doe dat opnieuw elke keer dat je je laatste trainingen en nachten wilt hebben. Niets wordt dubbel geteld.",
+      intro:
+        "Heb je een Apple Watch? Apple heeft geen online account waar de site mee kan koppelen: je data staat in de Gezondheid-app op je iPhone. Dit gaat dus niet automatisch zoals bij Garmin: exporteer het daar en upload het bestand hier, en doe dat opnieuw elke keer dat je je laatste trainingen en nachten wilt hebben. Niets wordt dubbel geteld.",
       steps: [
         "Open op je iPhone de Gezondheid-app en tik rechtsboven op je profielfoto.",
         "Tik op ‘Exporteer alle gezondheidsgegevens’ en daarna op ‘Exporteer’. Met jaren aan data kan dat een paar minuten duren.",
@@ -519,12 +531,14 @@ export const nl = {
       ],
       choose: "Kies export.zip",
       again: "Importeer een nieuwere export",
-      againHint: "Exporteer opnieuw op je iPhone wanneer je je laatste trainingen en nachten hier wilt hebben. Trainingen die er al zijn worden herkend, niet dubbel toegevoegd.",
+      againHint:
+        "Exporteer opnieuw op je iPhone wanneer je je laatste trainingen en nachten hier wilt hebben. Trainingen die er al zijn worden herkend, niet dubbel toegevoegd.",
       uploading: "Uploaden",
       progress: {
         starting: "Import starten",
         read: "Je export lezen",
-        workouts: (done: number | null, total: number | null): string => (total ? `Trainingen opslaan (${done ?? 0} van ${total})` : "Trainingen opslaan"),
+        workouts: (done: number | null, total: number | null): string =>
+          total ? `Trainingen opslaan (${done ?? 0} van ${total})` : "Trainingen opslaan",
         days: "Slaap en herstel opslaan",
         derive: "Zones en rondjes berekenen",
       },
@@ -555,14 +569,21 @@ export const nl = {
     },
     wahoo: {
       title: "Wahoo",
-      intro: "Koppel je Wahoo-account om je ritten van een ELEMNT of KICKR binnen te halen, met hartslag, vermogen en GPS. Je logt in bij Wahoo zelf; de app leest alleen je workouts. De eerste keer haalt hij het afgelopen jaar op, daarna elke ochtend wat nieuw is. Een rit die ook op Garmin staat, wordt samengevoegd en niet dubbel geteld.",
+      intro:
+        "Koppel je Wahoo-account om je ritten van een ELEMNT of KICKR binnen te halen, met hartslag, vermogen en GPS. Je logt in bij Wahoo zelf; de app leest alleen je workouts. De eerste keer haalt hij het afgelopen jaar op, daarna elke ochtend wat nieuw is. Een rit die ook op Garmin staat, wordt samengevoegd en niet dubbel geteld.",
       connect: "Wahoo koppelen",
       notConfigured: "Wahoo is op deze server nog niet ingesteld.",
       lastWorkout: "Laatste workout",
       unreadable: "De opgeslagen Wahoo-koppeling is niet meer te lezen (de server heeft een nieuwe sleutel). Koppel opnieuw.",
-      disconnectConfirm: "Wahoo ontkoppelen? De toegang bij Wahoo wordt ingetrokken en alles wat via Wahoo binnenkwam wordt verwijderd: ritten die alleen van Wahoo kwamen, en het Wahoo-deel van ritten die ook op Garmin staan. FIT-bestanden die je zelf uploadde blijven.",
+      disconnectConfirm:
+        "Wahoo ontkoppelen? De toegang bij Wahoo wordt ingetrokken en alles wat via Wahoo binnenkwam wordt verwijderd: ritten die alleen van Wahoo kwamen, en het Wahoo-deel van ritten die ook op Garmin staan. FIT-bestanden die je zelf uploadde blijven.",
       disconnected: (n: number) => `Wahoo ontkoppeld; ${n === 1 ? "1 rit" : `${n} ritten`} die alleen van Wahoo kwamen verwijderd.`,
-      result: { connected: "Wahoo is gekoppeld. Het afgelopen jaar wordt opgehaald; dat kan een paar minuten duren.", denied: "Je gaf bij Wahoo geen toegang; er is niets gekoppeld.", expired: "Het inloggen bij Wahoo duurde te lang of klopte niet. Probeer het opnieuw.", failed: "Wahoo koppelen is mislukt. Probeer het later opnieuw." } as Record<string, string>,
+      result: {
+        connected: "Wahoo is gekoppeld. Het afgelopen jaar wordt opgehaald; dat kan een paar minuten duren.",
+        denied: "Je gaf bij Wahoo geen toegang; er is niets gekoppeld.",
+        expired: "Het inloggen bij Wahoo duurde te lang of klopte niet. Probeer het opnieuw.",
+        failed: "Wahoo koppelen is mislukt. Probeer het later opnieuw.",
+      } as Record<string, string>,
     },
     unofficial:
       "Garmin heeft geen openbare koppeling voor particulieren; de site logt in zoals de Garmin Connect-app dat doet. Dat kan een keer haperen als Garmin iets verandert.",
@@ -572,7 +593,7 @@ export const nl = {
     saved: "Opgeslagen. De tijd per zone van je activiteiten wordt opnieuw berekend; dat duurt even.",
     title: "Hartslagzones",
     intro:
-      "Zones als percentage van je maximale hartslag, per sport. Ken je je max niet, neem dan het voorstel uit je eigen data (je hoogste gemeten hartslag, zonder uitschieters) of schat fietsen en zwemmen vanaf je loopmax en vink \"schatting\" aan.",
+      'Zones als percentage van je maximale hartslag, per sport. Ken je je max niet, neem dan het voorstel uit je eigen data (je hoogste gemeten hartslag, zonder uitschieters) of schat fietsen en zwemmen vanaf je loopmax en vink "schatting" aan.',
     maxFor: (s: string) => `${sport(s)}: max hartslag`,
     estimate: "Schatting",
     suggestion: (bpm: number) => `Voorstel uit je data: ${bpm}`,
@@ -582,22 +603,30 @@ export const nl = {
     from: (zone: string) => `${zone} vanaf`,
     defaults: "Standaard",
     profile: "Profiel",
-    profileIntro: "Optioneel. Coachingagents gebruiken dit bij hun advies. De site gebruikt alleen de rusthartslag, en alleen als terugval.",
+    profileIntro:
+      "Optioneel. Coachingagents gebruiken dit bij hun advies. De site gebruikt alleen de rusthartslag, en alleen als terugval.",
     birthYear: "Geboortejaar",
     height: "Lengte (cm)",
     weight: "Gewicht (kg)",
     restingHr: "Rusthartslag (terugval)",
     restingHrHint: (value: number | null, source: string | null) =>
       `Alleen gebruikt als je horloge geen gemeten nachten heeft: je rusthartslag wordt berekend uit je nachten. ${
-        value == null ? "Nog niets om te berekenen." : `Nu berekend: ${value} bpm (${source === "60d" ? "mediaan van de laatste 60 dagen" : source === "recent" ? "mediaan van je laatste 7 gemeten nachten" : "deze terugvalwaarde"}).`
+        value == null
+          ? "Nog niets om te berekenen."
+          : `Nu berekend: ${value} bpm (${source === "60d" ? "mediaan van de laatste 60 dagen" : source === "recent" ? "mediaan van je laatste 7 gemeten nachten" : "deze terugvalwaarde"}).`
       }`,
     rhrSource: (source: string | null | undefined): string =>
-      source === "recent" ? "mediaan van je laatste 7 gemeten nachten" : source === "profile" ? "uit Instellingen, geen gemeten nachten" : "mediaan van de laatste 60 dagen",
+      source === "recent"
+        ? "mediaan van je laatste 7 gemeten nachten"
+        : source === "profile"
+          ? "uit Instellingen, geen gemeten nachten"
+          : "mediaan van de laatste 60 dagen",
   },
 
   agents: {
     title: "Toegang voor AI-assistenten (agents)",
-    intro1: "Een AI-assistent (Claude, ChatGPT, Codex, Copilot, Gemini of een andere MCP-client) kan je trainingsdata lezen en, als je dat toestaat, je schema, logboek en doelen bijwerken.",
+    intro1:
+      "Een AI-assistent (Claude, ChatGPT, Codex, Copilot, Gemini of een andere MCP-client) kan je trainingsdata lezen en, als je dat toestaat, je schema, logboek en doelen bijwerken.",
     intro2: "Kies hieronder je assistent om die te verbinden. Je kunt de toegang hier altijd weer intrekken.",
     tokenName: "Naam van het token",
     newToken: "Nieuw token",
@@ -605,20 +634,28 @@ export const nl = {
     token: "Token",
     assistant: "Assistent",
     assistantHint: "Alleen voor de uitleg: het token werkt in elke MCP-client.",
-    clients: { claude: "Claude (app, claude.ai, Claude Code)", copilot: "GitHub Copilot (VS Code, CLI)", other: "Een andere MCP-client (Cursor, Gemini CLI, …)" },
+    clients: {
+      claude: "Claude (app, claude.ai, Claude Code)",
+      copilot: "GitHub Copilot (VS Code, CLI)",
+      other: "Een andere MCP-client (Cursor, Gemini CLI, …)",
+    },
     otherAssistant: "Een andere assistent? Kies hem hierboven; dit token werkt daar ook.",
     appText:
-      "Op <link>claude.ai/customize/connectors</link>, \"Add custom connector\". Naam: health-tracker. Eén keer per account: daarna kan Claude in elk nieuw gesprek je data lezen en je schema, doelen en log bijwerken, in de Claude-app, op claude.ai en in Claude Code als die met dat account is ingelogd (ook in de cloud). URL (bevat het token, behandel hem als wachtwoord):",
+      'Op <link>claude.ai/customize/connectors</link>, "Add custom connector". Naam: health-tracker. Eén keer per account: daarna kan Claude in elk nieuw gesprek je data lezen en je schema, doelen en log bijwerken, in de Claude-app, op claude.ai en in Claude Code als die met dat account is ingelogd (ook in de cloud). URL (bevat het token, behandel hem als wachtwoord):',
     connectorUrl: "Connector-URL",
-    chatgpt: "Zet in ChatGPT op het web Developer mode aan onder Settings (Apps of Connectors, Advanced). Maak dan een connector met de naam health-tracker, deze URL en als authenticatie “No authentication”. De URL bevat het token, behandel hem als wachtwoord:",
+    chatgpt:
+      "Zet in ChatGPT op het web Developer mode aan onder Settings (Apps of Connectors, Advanced). Maak dan een connector met de naam health-tracker, deze URL en als authenticatie “No authentication”. De URL bevat het token, behandel hem als wachtwoord:",
     codex: "Zet dit in ~/.codex/config.toml. Het werkt voor de Codex CLI en de IDE-extensie:",
     apiKeyCode: "Alleen voor Claude Code met een API-key in plaats van een claude.ai-login, één keer in een terminal",
-    copilot: "VS Code en de Copilot CLI hebben elk een eigen lijst, dus voeg hem toe waar je Copilot gebruikt. In VS Code: Command Palette, “MCP: Open User Configuration”, en voeg deze server toe (binnen de bestaande “servers”, als die er al is).",
+    copilot:
+      "VS Code en de Copilot CLI hebben elk een eigen lijst, dus voeg hem toe waar je Copilot gebruikt. In VS Code: Command Palette, “MCP: Open User Configuration”, en voeg deze server toe (binnen de bestaande “servers”, als die er al is).",
     copilotCli: "Copilot CLI, één keer in een terminal",
-    other: "De server spreekt MCP via streamable HTTP (zonder sessie, antwoorden als JSON). Geef de client de URL en de header, of, als hij alleen een URL aanneemt, de URL met het token erin.",
+    other:
+      "De server spreekt MCP via streamable HTTP (zonder sessie, antwoorden als JSON). Geef de client de URL en de header, of, als hij alleen een URL aanneemt, de URL met het token erin.",
     urlWithToken: "URL met het token erin",
     cliTitle: "Alleen voor tools/tr.py (opdrachtregel)",
-    cliText: "Niet nodig als je de connector gebruikt. Zet deze twee als variabelen in je eigen shell en sta netwerktoegang tot <code>host</code> toe.",
+    cliText:
+      "Niet nodig als je de connector gebruikt. Zet deze twee als variabelen in je eigen shell en sta netwerktoegang tot <code>host</code> toe.",
     variables: "Variabelen",
     active: "Actieve tokens",
     none: "Nog geen tokens op de site gemaakt. (Een token uit tools/set_agent_token.py werkt ook en staat hier niet.)",
@@ -658,11 +695,13 @@ export const nl = {
   },
 
   gear: {
-    intro: "Hoeveel kilometer je schoenen en fiets erop hebben en wanneer ze aan vervanging toe zijn. Materiaal uit Garmin Connect komt mee met de sync; je kunt ook zelf iets toevoegen.",
+    intro:
+      "Hoeveel kilometer je schoenen en fiets erop hebben en wanneer ze aan vervanging toe zijn. Materiaal uit Garmin Connect komt mee met de sync; je kunt ook zelf iets toevoegen.",
     add: "Materiaal toevoegen",
     loadFailed: "Kon het materiaal niet laden.",
     emptyTitle: "Nog geen materiaal",
-    emptyBody: "Voeg je hardloopschoenen of fiets toe. Staat je materiaal in Garmin Connect, dan komt het bij de volgende sync hier met al zijn kilometers.",
+    emptyBody:
+      "Voeg je hardloopschoenen of fiets toe. Staat je materiaal in Garmin Connect, dan komt het bij de volgende sync hier met al zijn kilometers.",
     kinds: { shoes: "Schoenen", bike: "Fiets", other: "Overig" },
     states: { ok: "In gebruik", soon: "Bijna op", replace: "Vervangen", retired: "Met pensioen" },
     of: (limit: string) => `van ${limit}`,
@@ -703,7 +742,8 @@ export const nl = {
       sinceHint: "Activiteiten van daarvoor krijgen het niet als standaard.",
       retiredOn: "Met pensioen op",
       defaultFor: "Standaard voor",
-      defaultForHint: "Nieuwe en eerdere activiteiten van deze sport krijgen dit materiaal, tenzij je op een activiteit zelf iets kiest of Garmin het weet. Eén standaard per sport.",
+      defaultForHint:
+        "Nieuwe en eerdere activiteiten van deze sport krijgen dit materiaal, tenzij je op een activiteit zelf iets kiest of Garmin het weet. Eén standaard per sport.",
       takesOver: (name: string) => `neemt over van ${name}`,
       noSports: "Nog geen activiteiten, dus nog geen sporten om uit te kiezen.",
       notes: "Notities",
@@ -741,7 +781,8 @@ export const nl = {
     none: "Geen activiteit gekozen.",
     afterMultisport: "Na zwemmen of fietsen",
     distanceFix: {
-      doubtful: (gps: string, time: string) => `GPS mat ${gps} in ${time} zwemmen. Dat kan niet kloppen: GPS is onbetrouwbaar in open water, dus deze zwemtraining telt mee zonder afstand.`,
+      doubtful: (gps: string, time: string) =>
+        `GPS mat ${gps} in ${time} zwemmen. Dat kan niet kloppen: GPS is onbetrouwbaar in open water, dus deze zwemtraining telt mee zonder afstand.`,
       corrected: "Deze afstand heb je zelf gecorrigeerd.",
       openWater: "Gemeten met GPS in open water, dat kan ernaast zitten.",
       fix: "Vul de echte afstand in",
@@ -781,7 +822,8 @@ export const nl = {
     height: "Hoogte",
     earlier: (name: string) => `Eerdere keren: ${name} (hoger = sneller)`,
     paceAria: "Tempo op dit rondje door de tijd",
-    footer: (hours: string, kcal: number | null) => `Totale tijd bewegend ${hours}${kcal ? ` · ${kcal} kcal` : ""}. Hartslag van de pols: kijk bij een vreemd verloop naar de grafiek.`,
+    footer: (hours: string, kcal: number | null) =>
+      `Totale tijd bewegend ${hours}${kcal ? ` · ${kcal} kcal` : ""}. Hartslag van de pols: kijk bij een vreemd verloop naar de grafiek.`,
   },
 
   routes: {
@@ -808,7 +850,8 @@ export const nl = {
     emptyRun: "Nog geen vaste rondjes",
     emptyRide: "Nog geen vaste fietsrondjes",
     emptyRunBody: "Een loop telt als rondje zodra je dezelfde route minstens 3 keer met GPS loopt.",
-    emptyRideBody: "Een rit telt als rondje zodra je dezelfde route minstens 2 keer met GPS fietst. Ritten binnen (zonder GPS) tellen niet mee.",
+    emptyRideBody:
+      "Een rit telt als rondje zodra je dezelfde route minstens 2 keer met GPS fietst. Ritten binnen (zonder GPS) tellen niet mee.",
     loop: "rondje",
     line: "route",
     elevationShort: (m: number) => `${m} hm`,
@@ -817,7 +860,8 @@ export const nl = {
     typical: (typical: string, hr: string) => `typisch ${typical} · ${hr} bpm`,
     best: (effort: string, day: string) => `beste ${effort} (${day})`,
     /** A generated name ("5.2 km rondje (r3)"). */
-    defaultName: (km: string, loop: boolean, ride: boolean, id: string) => `${km} km ${ride ? "fiets" : ""}${loop ? "rondje" : "route"} (${id})`,
+    defaultName: (km: string, loop: boolean, ride: boolean, id: string) =>
+      `${km} km ${ride ? "fiets" : ""}${loop ? "rondje" : "route"} (${id})`,
     back: "← Rondjes",
     notFound: "Rondje niet gevonden.",
     noneChosen: "Geen rondje gekozen.",
@@ -827,7 +871,8 @@ export const nl = {
     map: "Kaart",
     mostTypical: "Meest typische keer",
     noTrack: "Geen GPS-spoor voor deze route.",
-    mapNote: (n: number) => `Dikke lijn: de meest typische keer (lijkt het meest op alle andere). Dun en licht: de ${n} andere keren, zodat je ziet waar je afweek of eerder of later begon.`,
+    mapNote: (n: number) =>
+      `Dikke lijn: de meest typische keer (lijkt het meest op alle andere). Dun en licht: de ${n} andere keren, zodat je ziet waar je afweek of eerder of later begon.`,
     mapAria: (n: number): string => (n ? `Kaart van de route met ${n} andere keren licht eronder` : "Kaart van de route"),
     speedTitle: "Snelheid op dit rondje",
     paceTitle: "Tempo op dit rondje",
@@ -867,9 +912,11 @@ export const nl = {
     restKind: "rust",
     race: "Wedstrijd",
     loadFailed: "Kon het schema niet laden.",
-    noDatabase: "Let op: de database is nog niet gekoppeld (DATABASE_URL). Schema's worden tijdelijk opgeslagen en verdwijnen bij een nieuwe deploy.",
+    noDatabase:
+      "Let op: de database is nog niet gekoppeld (DATABASE_URL). Schema's worden tijdelijk opgeslagen en verdwijnen bij een nieuwe deploy.",
     emptyTitle: "Nog geen actief schema",
-    emptyBody: "Maak er zelf een met de editor, plak een tabel uit een spreadsheet, of laat een coachingagent er een maken (die schrijft via dezelfde API).",
+    emptyBody:
+      "Maak er zelf een met de editor, plak een tabel uit een spreadsheet, of laat een coachingagent er een maken (die schrijft via dezelfde API).",
     create: "Schema maken",
     paste: "Plakken uit tabel",
     finishConfirm: "Schema afronden? Het verdwijnt dan van deze pagina en van Vandaag.",
@@ -1034,7 +1081,9 @@ export const nl = {
       kind === "log" ? f.plural(n, { one: "# entry", other: "# entries" }) : f.plural(n, { one: "# analyse", other: "# analyses" }),
     add: (kind: "log" | "analysis"): string => (kind === "log" ? "+ Logentry" : "+ Analyse"),
     empty: (kind: "log" | "analysis"): string =>
-      kind === "log" ? "Nog geen logentries." : "Nog geen analyses. Coachingagents schrijven ze met `tr.py`; je kunt er ook zelf een toevoegen.",
+      kind === "log"
+        ? "Nog geen logentries."
+        : "Nog geen analyses. Coachingagents schrijven ze met `tr.py`; je kunt er ook zelf een toevoegen.",
     docs: { goals: "Doelen", profile: "Profiel" },
     docLoadFailed: (title: string) => `Kon ${title.toLowerCase()} niet laden.`,
     updated: (when: string, who: string) => `Bijgewerkt ${when} door ${who}`,
@@ -1050,7 +1099,10 @@ export const nl = {
     devices: {
       question: "Welk horloge gebruik je?",
       garmin: { title: "Garmin", text: "Koppel je Garmin-account; elke ochtend haalt de site op wat er nieuw is." },
-      apple: { title: "Apple Watch", text: "Upload de export van de Gezondheid-app op je iPhone. Niet automatisch: upload elke keer een nieuwe export als je nieuwe data wilt." },
+      apple: {
+        title: "Apple Watch",
+        text: "Upload de export van de Gezondheid-app op je iPhone. Niet automatisch: upload elke keer een nieuwe export als je nieuwe data wilt.",
+      },
     },
     steps: {
       garmin: { title: "Garmin koppelen", link: "Koppelingen" },
@@ -1083,11 +1135,14 @@ export const nl = {
     todoSr: " (nog te doen)",
     card: {
       title: "Aan de slag",
-      requiredDone: "De basis staat: je trainingen komen binnen en alles rekent met je eigen zones. Wat hieronder nog open staat is optioneel.",
-      requiredTodo: "Drie stappen en de site werkt met jouw data: Garmin koppelen, de eerste sync, en je hartslagzones. De rest is optioneel.",
+      requiredDone:
+        "De basis staat: je trainingen komen binnen en alles rekent met je eigen zones. Wat hieronder nog open staat is optioneel.",
+      requiredTodo:
+        "Drie stappen en de site werkt met jouw data: Garmin koppelen, de eerste sync, en je hartslagzones. De rest is optioneel.",
       laterPrefix: "Daarna, optioneel: ",
       laterSuffix: "Alles staat ook onder <link>Help</link>.",
-      requiredTodoApple: "Twee snelle stappen en de site draait op je eigen data: importeer je Apple Gezondheid-export en stel je hartslagzones in. De rest is optioneel.",
+      requiredTodoApple:
+        "Twee snelle stappen en de site draait op je eigen data: importeer je Apple Gezondheid-export en stel je hartslagzones in. De rest is optioneel.",
     },
     banner: {
       notConnected: "Nog geen trainingen: koppel je Garmin-account, dan vult deze pagina zich vanzelf.",
@@ -1109,7 +1164,8 @@ export const nl = {
       welcomeTitle: "Welkom bij health-tracker",
       welcomeText: "Twee korte vragen, daarna loop je stap voor stap door wat erbij hoort. Je kunt beide later veranderen, onder Help.",
       example: "Voorbeelddata",
-      exampleNote: "Deze pagina's tonen verzonnen voorbeelddata, zodat je ziet hoe ze eruitzien. Na de rondleiding zie je weer je eigen data.",
+      exampleNote:
+        "Deze pagina's tonen verzonnen voorbeelddata, zodat je ziet hoe ze eruitzien. Na de rondleiding zie je weer je eigen data.",
       back: "Terug",
       skip: "Sla de rondleiding over",
       paused: (i: number, n: number) => `Rondleiding · stap ${i} van ${n}`,
@@ -1123,18 +1179,24 @@ export const nl = {
       otherChoice: "Andere keuze",
       optional: (title: string) => `${title} (optioneel)`,
       introTitle: "Zo werkt het",
-      intro: "health-tracker haalt je trainingen en herstel van Garmin en rekent alles door met je eigen hartslagzones. Drie stappen en de basis staat; de rest kan later.",
+      intro:
+        "health-tracker haalt je trainingen en herstel van Garmin en rekent alles door met je eigen hartslagzones. Drie stappen en de basis staat; de rest kan later.",
       introBullets: ["Elke stap vinkt vanzelf af zodra hij gedaan is", "Alles wat je hier ziet staat ook onder Help, in de zijbalk"],
       phases: ["Garmin koppelen", "De eerste sync afwachten", "Je hartslagzones instellen"],
       goalsPlan: "Doelen en schema",
       doneTitle: "Klaar",
       doneIntro: "Je weet nu waar alles zit. De checklist staat op Vandaag tot de basis staat, en altijd onder Help, Aan de slag.",
-      doneBullets: ["Rondleiding nog eens? Help, Aan de slag, Rondleiding opnieuw", "Onder veel blokken staat in kleine letters hoe het berekend is"],
-      introApple: "health-tracker leest de trainingen, slaap en herstel van je Apple Watch en analyseert alles met je eigen hartslagzones. Anders dan bij Garmin gaat dit niet automatisch: Apple laat de site je data niet ophalen, dus elke keer dat je je laatste trainingen en nachten hier wilt zien, exporteer je ze op je iPhone en upload je ze opnieuw. Twee snelle stappen en je bent op weg; de rest kan wachten.",
+      doneBullets: [
+        "Rondleiding nog eens? Help, Aan de slag, Rondleiding opnieuw",
+        "Onder veel blokken staat in kleine letters hoe het berekend is",
+      ],
+      introApple:
+        "health-tracker leest de trainingen, slaap en herstel van je Apple Watch en analyseert alles met je eigen hartslagzones. Anders dan bij Garmin gaat dit niet automatisch: Apple laat de site je data niet ophalen, dus elke keer dat je je laatste trainingen en nachten hier wilt zien, exporteer je ze op je iPhone en upload je ze opnieuw. Twee snelle stappen en je bent op weg; de rest kan wachten.",
       phasesApple: ["Exporteer uit de Gezondheid-app en upload het (opnieuw bij elke update)", "Stel je hartslagzones in"],
     },
     summary: {
-      garminConnected: (since: string | null) => `Gekoppeld${since ? ` sinds ${since}` : ""}. Je wachtwoord is niet bewaard, alleen de versleutelde sessie.`,
+      garminConnected: (since: string | null) =>
+        `Gekoppeld${since ? ` sinds ${since}` : ""}. Je wachtwoord is niet bewaard, alleen de versleutelde sessie.`,
       garminTodo: "Log in met je Garmin-account; je wachtwoord gaat alleen naar Garmin.",
       syncRunning: "Bezig met de eerste sync. Dat kan een paar minuten duren; deze stap vinkt vanzelf af.",
       syncDone: (n: number, first: string, last: string, lastSync: string, failed: string[]) =>
@@ -1145,7 +1207,10 @@ export const nl = {
       zonesTodo: "Je max hartslag per sport; de site rekent de vijf zones uit.",
       profileDone: (facts: string[]) => `Ingevuld: ${facts.join(", ")}.`,
       profileTodo: "Geboortejaar, gewicht, lengte en rusthartslag.",
-      facts: { birth_year: "geboortejaar", weight_kg: "gewicht", height_cm: "lengte", resting_hr: "rusthartslag" } as Record<string, string>,
+      facts: { birth_year: "geboortejaar", weight_kg: "gewicht", height_cm: "lengte", resting_hr: "rusthartslag" } as Record<
+        string,
+        string
+      >,
       exploreDone: "Vandaag, Trends, Rondjes en Historie bekeken.",
       exploreLeft: "Nog niet bekeken: ",
       agentDone: (n: number) => `${f.plural(n, { one: "# token", other: "# tokens" })} actief. Uitleg per Claude-versie staat bij Agents.`,
@@ -1163,7 +1228,8 @@ export const nl = {
     },
     explain: {
       garmin: {
-        intro: "Je trainingen komen van Garmin Connect. Je logt één keer in op de site; daarna haalt de site elke ochtend op wat er nieuw is.",
+        intro:
+          "Je trainingen komen van Garmin Connect. Je logt één keer in op de site; daarna haalt de site elke ochtend op wat er nieuw is.",
         bullets: [
           "Instellingen, Koppelingen: je Garmin-e-mail en -wachtwoord",
           "Vraagt Garmin om een code (tweestapsverificatie), dan vul je die daarna in",
@@ -1171,7 +1237,8 @@ export const nl = {
         ],
       },
       apple: {
-        intro: "Een Apple Watch bewaart je data in de Gezondheid-app op je iPhone; Apple heeft geen account waar de site mee kan koppelen. De site kan dus niet zelf nieuwe data ophalen: je uploadt een export met de hand, en opnieuw elke keer dat je je laatste trainingen en nachten hier wilt hebben.",
+        intro:
+          "Een Apple Watch bewaart je data in de Gezondheid-app op je iPhone; Apple heeft geen account waar de site mee kan koppelen. De site kan dus niet zelf nieuwe data ophalen: je uploadt een export met de hand, en opnieuw elke keer dat je je laatste trainingen en nachten hier wilt hebben.",
         bullets: [
           "Niet automatisch: er komt niets nieuws binnen tot je een nieuwe export uploadt. Eén keer per week, of voordat je naar je trends kijkt, is een goede gewoonte",
           "Op je iPhone: Gezondheid-app → je profielfoto (rechtsboven) → ‘Exporteer alle gezondheidsgegevens’ → Exporteer",
@@ -1198,12 +1265,16 @@ export const nl = {
         ],
       },
       goals: {
-        intro: "Je doelen in je eigen woorden: een wedstrijd met datum, een tijd, of hoe vaak je wilt trainen. Claude leest ze mee bij elke vraag.",
+        intro:
+          "Je doelen in je eigen woorden: een wedstrijd met datum, een tijd, of hoe vaak je wilt trainen. Claude leest ze mee bij elke vraag.",
         bullets: ["Logboek, Doelen: gewone tekst of markdown"],
       },
       plan: {
         intro: "Een trainingsschema per dag. De site legt je trainingen ernaast: gedaan, gemist, en of je in de goede zone zat.",
-        bullets: ["Schema: importeer een CSV of markdown-tabel, of bewerk het op de site", "Of vraag Claude een schema te maken op basis van je doelen en data"],
+        bullets: [
+          "Schema: importeer een CSV of markdown-tabel, of bewerk het op de site",
+          "Of vraag Claude een schema te maken op basis van je doelen en data",
+        ],
       },
     },
   },
@@ -1237,7 +1308,8 @@ export const nl = {
         "De site haalt je trainingen (met GPS en hartslag per seconde) en je herstel (slaap, rusthartslag, Body Battery) van Garmin, en rekent alles door met je eigen hartslagzones: tijd per zone, belasting, vorm, rondjes en records.",
       contentsAria: "Inhoud",
       stepGarmin: "<b>Garmin koppelen</b> bij <link>Instellingen, Koppelingen</link>.",
-      stepApple: "Met een Apple Watch: <b>Apple Gezondheid importeren</b> bij <link>Instellingen, Koppelingen</link> (exporteer het eerst uit de Gezondheid-app op je iPhone).",
+      stepApple:
+        "Met een Apple Watch: <b>Apple Gezondheid importeren</b> bij <link>Instellingen, Koppelingen</link> (exporteer het eerst uit de Gezondheid-app op je iPhone).",
       appleTitle: "Met een Apple Watch",
       stepSync: "<b>De eerste sync</b> afwachten: die begint vanzelf.",
       stepZones: "<b>Hartslagzones</b> instellen bij <link>Instellingen, Zones en profiel</link>.",
@@ -1285,11 +1357,18 @@ export const nl = {
     lastSync: (when: string) => `Laatste sync: ${when}`,
     lastImport: (when: string) => `Laatste Apple Gezondheid-import: ${when}`,
     importNewer: "importeer een nieuwere export",
-    importStale: (days: number): string => `Dat was ${days} dagen geleden: trainingen en nachten van daarna ontbreken, want een Apple Watch stuurt zijn data niet vanzelf. Exporteer opnieuw in de Gezondheid-app op je iPhone en upload het.`,
+    importStale: (days: number): string =>
+      `Dat was ${days} dagen geleden: trainingen en nachten van daarna ontbreken, want een Apple Watch stuurt zijn data niet vanzelf. Exporteer opnieuw in de Gezondheid-app op je iPhone en upload het.`,
     importNow: "Upload een nieuwe export",
     formTitle: "Vorm",
     allTrends: "Alle trends",
-    statuses: { transition: "Fitheid zakt weg", fresh: "Fris", neutral: "Neutraal", optimal: "Productief", high_risk: "Hoog risico" } as Record<string, string>,
+    statuses: {
+      transition: "Fitheid zakt weg",
+      fresh: "Fris",
+      neutral: "Neutraal",
+      optimal: "Productief",
+      high_risk: "Hoog risico",
+    } as Record<string, string>,
     fitness: "Fitheid",
     fatigue: "Vermoeidheid",
     form: "Vorm",
@@ -1300,7 +1379,8 @@ export const nl = {
     month: "Maand",
     thisWeek: "Deze week",
     thisMonth: "Deze maand",
-    noHrNow: (period: "week" | "month"): string => (period === "week" ? "Nog geen training met hartslag deze week." : "Nog geen training met hartslag deze maand."),
+    noHrNow: (period: "week" | "month"): string =>
+      period === "week" ? "Nog geen training met hartslag deze week." : "Nog geen training met hartslag deze maand.",
     noHrPeriod: "Geen training met hartslag in deze periode.",
     onlySport: (s: string) => `Alleen ${sport(s).toLowerCase()} in deze periode.`,
     volumeTitle: "Volume deze week",
@@ -1397,15 +1477,46 @@ export const nl = {
       before: (text: string) => `Avond ervoor: ${text}`,
     },
     nutrients: {
-      energy_kcal: "Energie", carbs_g: "Koolhydraten", sugars_g: "waarvan suikers", fiber_g: "Vezels", protein_g: "Eiwit", fat_g: "Vet",
-      sat_fat_g: "waarvan verzadigd", mufa_g: "waarvan enkelvoudig onverzadigd", pufa_g: "waarvan meervoudig onverzadigd", omega3_g: "Omega-3",
-      trans_fat_g: "Transvet", alcohol_g: "Alcohol", salt_g: "Zout", sodium_mg: "Natrium", iron_mg: "IJzer", calcium_mg: "Calcium",
-      magnesium_mg: "Magnesium", potassium_mg: "Kalium", zinc_mg: "Zink", vit_c_mg: "Vitamine C", vit_d_ug: "Vitamine D",
-      vit_b12_ug: "Vitamine B12", folate_ug: "Foliumzuur",
+      energy_kcal: "Energie",
+      carbs_g: "Koolhydraten",
+      sugars_g: "waarvan suikers",
+      fiber_g: "Vezels",
+      protein_g: "Eiwit",
+      fat_g: "Vet",
+      sat_fat_g: "waarvan verzadigd",
+      mufa_g: "waarvan enkelvoudig onverzadigd",
+      pufa_g: "waarvan meervoudig onverzadigd",
+      omega3_g: "Omega-3",
+      trans_fat_g: "Transvet",
+      alcohol_g: "Alcohol",
+      salt_g: "Zout",
+      sodium_mg: "Natrium",
+      iron_mg: "IJzer",
+      calcium_mg: "Calcium",
+      magnesium_mg: "Magnesium",
+      potassium_mg: "Kalium",
+      zinc_mg: "Zink",
+      vit_c_mg: "Vitamine C",
+      vit_d_ug: "Vitamine D",
+      vit_b12_ug: "Vitamine B12",
+      folate_ug: "Foliumzuur",
     },
     short: { saturated: "verzadigd", mono: "enkelv. onverz.", poly: "meerv. onverz.", sugars: "suikers" },
-    moments: { breakfast: "Ontbijt", lunch: "Lunch", dinner: "Diner", snack: "Tussendoor", training: "Tijdens training", drinks: "Drinken" },
-    dayTypes: { rest: "Rustdag", easy: "Rustige dag", moderate: "Matige trainingsdag", long: "Lange of zware training", race: "Wedstrijd of meer dan 3 uur" },
+    moments: {
+      breakfast: "Ontbijt",
+      lunch: "Lunch",
+      dinner: "Diner",
+      snack: "Tussendoor",
+      training: "Tijdens training",
+      drinks: "Drinken",
+    },
+    dayTypes: {
+      rest: "Rustdag",
+      easy: "Rustige dag",
+      moderate: "Matige trainingsdag",
+      long: "Lange of zware training",
+      race: "Wedstrijd of meer dan 3 uur",
+    },
     perKg: (v: string) => `${v} g/kg`,
     ofRange: (lo: string, hi: string) => `van ${lo}–${hi}`,
     inRange: "binnen je doel",
@@ -1474,7 +1585,8 @@ export const nl = {
       photoFailed: "Kon de foto niet lezen. Zoek zelf wat je at; de foto blijft bewaard.",
       photoAlt: "Je maaltijd",
       confidence: { high: "Claude is er vrij zeker van", medium: "Claude twijfelt een beetje", low: "Claude weet het niet zeker" },
-      confidenceHelp: "Hoe zeker Claude is van wat het is (niet van de hoeveelheid). Bij twijfel: kijk bij 'wissel' of het goede voedingsmiddel ertussen staat.",
+      confidenceHelp:
+        "Hoe zeker Claude is van wat het is (niet van de hoeveelheid). Bij twijfel: kijk bij 'wissel' of het goede voedingsmiddel ertussen staat.",
       sawAs: (label: string) => `Gezien als ${label}, wissel:`,
       swap: "Wissel",
       fromMemory: "Jouw gebruikelijke portie; Claude schatte anders.",
@@ -1513,7 +1625,8 @@ export const nl = {
     settings: {
       title: "Voeding",
       ai: "Foto's laten analyseren door Claude",
-      aiHelp: "Een foto van je maaltijd gaat, zonder locatie, naar Anthropic om voedingsmiddelen en grammen te herkennen. De voedingswaarden komen altijd uit de voedingstabel.",
+      aiHelp:
+        "Een foto van je maaltijd gaat, zonder locatie, naar Anthropic om voedingsmiddelen en grammen te herkennen. De voedingswaarden komen altijd uit de voedingstabel.",
       aiUnavailable: "Foto-analyse kan niet op deze server (er is geen sleutel voor Claude ingesteld).",
       photos: "Foto's bewaren",
       keep30: "30 dagen",
@@ -1565,7 +1678,8 @@ export const nl = {
     latest: "Laatste",
     none: "Nog geen gegevens van je horloge. Die komen binnen met de volgende sync (de eerste keer de laatste twee weken door de dag heen).",
     empty: "Geen gegevens van deze dag: horloge niet gedragen, nog niet gesynchroniseerd, of de data komt niet van Garmin.",
-    emptyToday: "Van vandaag staat nog niets bij Garmin. Je horloge stuurt zijn data via de Garmin Connect-app op je telefoon: open de app, wacht tot die gesynchroniseerd is en synchroniseer dan hier.",
+    emptyToday:
+      "Van vandaag staat nog niets bij Garmin. Je horloge stuurt zijn data via de Garmin Connect-app op je telefoon: open de app, wacht tot die gesynchroniseerd is en synchroniseer dan hier.",
     normal: (v: string) => `normaal ${v}`,
     bpm: (v: number) => `${v} bpm`,
     sleep: "Slaap",
@@ -1584,7 +1698,8 @@ export const nl = {
     sleepStress: "Stress in de slaap",
     spo2: "Zuurstof (SpO2)",
     bbCharged: "Body Battery opgeladen",
-    estimate: "Slaapfases zijn een schatting van het horloge uit hartslag en beweging, geen meting van hersengolven: één nacht kan ernaast zitten, het verloop over weken is betrouwbaarder.",
+    estimate:
+      "Slaapfases zijn een schatting van het horloge uit hartslag en beweging, geen meting van hersengolven: één nacht kan ernaast zitten, het verloop over weken is betrouwbaarder.",
     noNight: "Te weinig hartslagmetingen in de slaap voor een samenvatting van de nacht.",
     day: "Dag",
     restingHr: "Rusthartslag",
@@ -1600,12 +1715,14 @@ export const nl = {
     activeKcal: "Actieve calorieën",
     kcal: (v: string) => `${v} kcal`,
     timeline: "Door de nacht en de dag",
-    timelineAria: (day: string) => `Hartslag, stress, Body Battery, ademhaling en zuurstof op ${day}, met de nacht ervoor. Gebruik de pijltjes om de waarden te lezen.`,
+    timelineAria: (day: string) =>
+      `Hartslag, stress, Body Battery, ademhaling en zuurstof op ${day}, met de nacht ervoor. Gebruik de pijltjes om de waarden te lezen.`,
     series: { hr: "Hartslag", stress: "Stress", bb: "Body Battery", resp: "Ademhaling", spo2: "SpO2" },
     unit: { hr: "bpm", stress: "", bb: "", resp: "/min", spo2: "%" },
     range: (lo: string, hi: string) => `${lo}–${hi}`,
     normalLine: (v: number) => `normale rusthartslag ${v}`,
-    source: "Het horloge meet hartslag en ademhaling om de paar minuten (een Garmin ongeveer elke 2, een Apple Watch elke 5 tot 10 als je stil bent), stress en Body Battery elke 3 (alleen Garmin), zuurstof alleen als het horloge dat doet; een lijn breekt waar er geen meting is (horloge af, of tijdens een training). Normaal is de mediaan van de 60 dagen ervoor.",
+    source:
+      "Het horloge meet hartslag en ademhaling om de paar minuten (een Garmin ongeveer elke 2, een Apple Watch elke 5 tot 10 als je stil bent), stress en Body Battery elke 3 (alleen Garmin), zuurstof alleen als het horloge dat doet; een lijn breekt waar er geen meting is (horloge af, of tijdens een training). Normaal is de mediaan van de 60 dagen ervoor.",
   },
 
   zones: {
@@ -1616,7 +1733,8 @@ export const nl = {
     weekOrMonth: "Week of maand",
     loadFailed: "Kon de zones niet laden.",
     noHrYet: (s: string | null) => `Nog geen trainingen met hartslag${s ? ` voor ${sport(s).toLowerCase()}` : ""}.`,
-    aria: (p: "week" | "month", n: number, unit: string) => `Verdeling over hartslagzones per ${p === "week" ? "week" : "maand"}, ${n} ${unit}`,
+    aria: (p: "week" | "month", n: number, unit: string) =>
+      `Verdeling over hartslagzones per ${p === "week" ? "week" : "maand"}, ${n} ${unit}`,
     together: (n: number, unit: string, avg: string) => `${n} ${unit} samen: ${avg}`,
     noHrPeriod: "Geen hartslagdata in deze periode.",
     noData: "geen data",
@@ -1655,7 +1773,8 @@ export const nl = {
   },
 
   trendsPage: {
-    brushAria: (window: string) => `Venster op de hele geschiedenis: ${window}. Gebruik de datumvelden of de knoppen om het met het toetsenbord te wijzigen.`,
+    brushAria: (window: string) =>
+      `Venster op de hele geschiedenis: ${window}. Gebruik de datumvelden of de knoppen om het met het toetsenbord te wijzigen.`,
   },
 
   charts: {

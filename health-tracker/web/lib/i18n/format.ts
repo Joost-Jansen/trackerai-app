@@ -37,7 +37,12 @@ export function makeFormat(locale: Locale) {
     if (!iso) return "–";
     const d = toDate(iso);
     // en-GB writes "Sept"; the charts' time axis says "Sep", keep one spelling.
-    return Number.isNaN(d.getTime()) ? iso : d.toLocaleString(tag, o).replace(/\.(?=\s|$)/g, "").replace(/\bSept\b/, "Sep");
+    return Number.isNaN(d.getTime())
+      ? iso
+      : d
+          .toLocaleString(tag, o)
+          .replace(/\.(?=\s|$)/g, "")
+          .replace(/\bSept\b/, "Sep");
   };
   const clock = (seconds?: number | null) => {
     if (seconds == null) return "–";

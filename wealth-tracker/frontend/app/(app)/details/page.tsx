@@ -96,8 +96,7 @@ export default function DetailsPage() {
   });
   const dividends = useQuery({
     queryKey: ["dividends"],
-    queryFn: () =>
-      api.get<{ by_stock: DividendByStock[]; payments: DividendPayment[] }>("/api/dividends"),
+    queryFn: () => api.get<{ by_stock: DividendByStock[]; payments: DividendPayment[] }>("/api/dividends"),
   });
   const closed = useQuery({
     queryKey: ["closed-positions"],
@@ -107,8 +106,7 @@ export default function DetailsPage() {
   // Every table on this page reads prices, so a re-fetch invalidates all of
   // them — and the dashboard's totals behind it.
   const saveTicker = useMutation({
-    mutationFn: ({ isin, ticker }: { isin: string; ticker: string }) =>
-      api.put(`/api/ticker-overrides/${isin}`, { ticker }),
+    mutationFn: ({ isin, ticker }: { isin: string; ticker: string }) => api.put(`/api/ticker-overrides/${isin}`, { ticker }),
     onMutate: ({ isin }) => {
       setTickerError(null);
       setSavingIsin(isin);
@@ -137,9 +135,7 @@ export default function DetailsPage() {
   }
 
   const overrideMap = overrides.data?.overrides ?? {};
-  const txRows = [...(transactions.data?.transactions ?? [])].sort((a, b) =>
-    b.date.localeCompare(a.date),
-  );
+  const txRows = [...(transactions.data?.transactions ?? [])].sort((a, b) => b.date.localeCompare(a.date));
   const payments = [...(dividends.data?.payments ?? [])].sort((a, b) => b.date.localeCompare(a.date));
 
   return (
@@ -149,11 +145,23 @@ export default function DetailsPage() {
         label={tr("Current positions")}
         meta={tr("total {0}", fmtEuro(positions.data.priced_total))}
         info={
-          <>{trx("Exactly the prices behind every number on Today, with the moment each was fetched.{0}{1}A difference of cents per position with DeGiro is normal: Yahoo runs about a quarter of an hour behind and may quote a different exchange than the one you bought on.{2}{3}If a price is really wrong, click the ticker and enter the right one from finance.yahoo.com, for example {4} for XETRA or {5} for Amsterdam.", <br />, <br />, <br />, <br />, <code>IQQH.DE</code>, <code>VUSA.AS</code>)}</>
+          <>
+            {trx(
+              "Exactly the prices behind every number on Today, with the moment each was fetched.{0}{1}A difference of cents per position with DeGiro is normal: Yahoo runs about a quarter of an hour behind and may quote a different exchange than the one you bought on.{2}{3}If a price is really wrong, click the ticker and enter the right one from finance.yahoo.com, for example {4} for XETRA or {5} for Amsterdam.",
+              <br />,
+              <br />,
+              <br />,
+              <br />,
+              <code>IQQH.DE</code>,
+              <code>VUSA.AS</code>,
+            )}
+          </>
         }
       >
         {tickerError && (
-          <p className="text-sm" style={{ color: "var(--text-loss)" }}>{tickerError}</p>
+          <p className="text-sm" style={{ color: "var(--text-loss)" }}>
+            {tickerError}
+          </p>
         )}
 
         <div className="table-scroll">
@@ -187,11 +195,7 @@ export default function DetailsPage() {
                           pending={savingIsin === p.isin}
                           placeholder={tr("e.g. IQQH.DE")}
                           ariaLabel={tr("Yahoo ticker for {0}", p.name)}
-                          title={
-                            overridden
-                              ? tr("Set by hand. Click to change")
-                              : tr("Found automatically. Click to correct")
-                          }
+                          title={overridden ? tr("Set by hand. Click to change") : tr("Found automatically. Click to correct")}
                           onSave={(ticker) => saveTicker.mutate({ isin: p.isin, ticker })}
                         />
                         {overridden && (
@@ -213,8 +217,12 @@ export default function DetailsPage() {
                       {p.price_blended && (
                         <span
                           className="ml-1 text-xs text-ink-muted"
-                          title={tr("You hold this fund on more than one exchange: this is the price weighted by the number of units per exchange.")}
-                        >{tr("avg.")}</span>
+                          title={tr(
+                            "You hold this fund on more than one exchange: this is the price weighted by the number of units per exchange.",
+                          )}
+                        >
+                          {tr("avg.")}
+                        </span>
                       )}
                     </td>
                     <td className="num">{fmtEuro(p.current_value)}</td>
@@ -233,7 +241,6 @@ export default function DetailsPage() {
             </tbody>
           </table>
         </div>
-
       </Section>
 
       {/* --- Alle transacties (app.py:722-753) --- */}

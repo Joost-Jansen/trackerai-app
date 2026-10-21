@@ -71,4 +71,6 @@
 }
 
 /* Otherwise Leaflet's own light grey background flashes in the dark theme while the tiles load. */
-.leaflet-container { background: var(--surface-sunken); }
+.leaflet-container {
+  background: var(--surface-sunken);
+}

@@ -28,7 +28,12 @@ function Head({ f }: { f: FeedbackItem }) {
 function ScreenshotLink({ id }: { id: number }) {
   const t = useT();
   return (
-    <a className="self-start text-[12.5px] underline underline-offset-2" href={`/api/feedback/${id}/screenshot`} target="_blank" rel="noreferrer">
+    <a
+      className="self-start text-[12.5px] underline underline-offset-2"
+      href={`/api/feedback/${id}/screenshot`}
+      target="_blank"
+      rel="noreferrer"
+    >
       {t.feedback.screenshot}
     </a>
   );
@@ -39,7 +44,14 @@ function Mine() {
   const q = useQuery({ queryKey: ["feedback", "mine"], queryFn: () => api.get<FeedbackItem[]>("/api/feedback") });
   const [open, setOpen] = useState(false);
   return (
-    <Card title={t.feedback.mine} action={<Button size="sm" variant="primary" onClick={() => setOpen(true)}>{t.feedback.newOne}</Button>}>
+    <Card
+      title={t.feedback.mine}
+      action={
+        <Button size="sm" variant="primary" onClick={() => setOpen(true)}>
+          {t.feedback.newOne}
+        </Button>
+      }
+    >
       {!q.data ? (
         <p className="text-sm text-ink-muted">{t.common.loading}</p>
       ) : q.data.length === 0 ? (

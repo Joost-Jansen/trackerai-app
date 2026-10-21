@@ -56,15 +56,7 @@ function useUpload(endpoint: string) {
 
 /** The dashed upload target: click to pick files, or drop them on it. Shared by
  *  the DeGiro and the bank imports, which differ only in what they report. */
-function DropButton({
-  title,
-  subtitle,
-  onFiles,
-}: {
-  title: string;
-  subtitle: string;
-  onFiles: (files: FileList | File[]) => void;
-}) {
+function DropButton({ title, subtitle, onFiles }: { title: string; subtitle: string; onFiles: (files: FileList | File[]) => void }) {
   const input = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -151,20 +143,40 @@ function Dropzone({
     <div>
       <DropButton title={title} subtitle={subtitle} onFiles={onFiles} />
       {state.isPending && <p className="mb-2 text-xs text-ink-muted">{tr("Processing…")}</p>}
-      {state.isError && <p className="mb-2 text-xs" style={{ color: "var(--text-loss)" }}>{state.error.message}</p>}
+      {state.isError && (
+        <p className="mb-2 text-xs" style={{ color: "var(--text-loss)" }}>
+          {state.error.message}
+        </p>
+      )}
       {state.data && (
         <p className="mb-2 text-xs text-ink-muted">
           {state.data.results.map((r) => (
             <span key={r.filename} className="block">
               {r.filename}:{" "}
-              <b className="num" style={{ color: "var(--text-gain)" }}>{trx("{0} new", r.saved)}</b>
+              <b className="num" style={{ color: "var(--text-gain)" }}>
+                {trx("{0} new", r.saved)}
+              </b>
               {" · "}
               <span className="num">{trx("{0} skipped", r.skipped)}</span>
               {r.unparsed && r.unparsed.length > 0 && (
-                <span className="mt-0.5 block" style={{ color: "var(--text-loss)" }}>{trx("{0} {1} not read: the quantity is missing and can't be derived from the price: {2}.", <span className="num">{r.unparsed.length}</span>, r.unparsed.length === 1 ? tr("line") : tr("lines"), Array.from(new Set(r.unparsed.map((u) => u.name ?? u.isin))).join(", "))}</span>
+                <span className="mt-0.5 block" style={{ color: "var(--text-loss)" }}>
+                  {trx(
+                    "{0} {1} not read: the quantity is missing and can't be derived from the price: {2}.",
+                    <span className="num">{r.unparsed.length}</span>,
+                    r.unparsed.length === 1 ? tr("line") : tr("lines"),
+                    Array.from(new Set(r.unparsed.map((u) => u.name ?? u.isin))).join(", "),
+                  )}
+                </span>
               )}
               {r.unconverted && r.unconverted.length > 0 && (
-                <span className="mt-0.5 block" style={{ color: "var(--text-loss)" }}>{trx("{0} {1} in {2} not counted: the exchange rate isn't in this file. Export a period that also contains the currency exchange.", <span className="num">{r.unconverted.length}</span>, r.unconverted.length === 1 ? tr("payout") : tr("payouts"), Array.from(new Set(r.unconverted.map((u) => u.currency))).join(", "))}</span>
+                <span className="mt-0.5 block" style={{ color: "var(--text-loss)" }}>
+                  {trx(
+                    "{0} {1} in {2} not counted: the exchange rate isn't in this file. Export a period that also contains the currency exchange.",
+                    <span className="num">{r.unconverted.length}</span>,
+                    r.unconverted.length === 1 ? tr("payout") : tr("payouts"),
+                    Array.from(new Set(r.unconverted.map((u) => u.currency))).join(", "),
+                  )}
+                </span>
               )}
             </span>
           ))}
@@ -187,22 +199,36 @@ function BankRule({ r }: { r: BankImportResult }) {
     <span className="block">
       {r.file}:{" "}
       {r.kind === "balances" ? (
-        <>{trx("balance per day for {0} {1}", <b className="num text-text">{r.accounts.length}</b>, r.accounts.length === 1 ? tr("account") : tr("accounts"))}</>
+        <>
+          {trx(
+            "balance per day for {0} {1}",
+            <b className="num text-text">{r.accounts.length}</b>,
+            r.accounts.length === 1 ? tr("account") : tr("accounts"),
+          )}
+        </>
       ) : (
         <>
-          <b className="num" style={{ color: "var(--text-gain)" }}>{trx("{0} new", r.saved)}</b>
+          <b className="num" style={{ color: "var(--text-gain)" }}>
+            {trx("{0} new", r.saved)}
+          </b>
           {" · "}
           <span className="num">{trx("{0} skipped", r.skipped)}</span>
         </>
       )}
       {r.balances > 0 && (
-        <>{" "}{trx("· balance on {0} {1}", <span className="num">{r.balances}</span>, r.balances === 1 ? tr("day") : tr("days"))}</>
+        <> {trx("· balance on {0} {1}", <span className="num">{r.balances}</span>, r.balances === 1 ? tr("day") : tr("days"))}</>
       )}
-      {created > 0 && (
-        <>{" "}{trx("· {0} {1} created", created, created === 1 ? tr("account") : tr("accounts"))}</>
-      )}
+      {created > 0 && <> {trx("· {0} {1} created", created, created === 1 ? tr("account") : tr("accounts"))}</>}
       {r.unreadable.length > 0 && (
-        <span className="mt-0.5 block" style={{ color: "var(--text-loss)" }}>{trx("{0} {1} not read (first: line {2}, {3})", <span className="num">{r.unreadable.length}</span>, r.unreadable.length === 1 ? tr("line") : tr("lines"), r.unreadable[0].line_number, r.unreadable[0].reason)}</span>
+        <span className="mt-0.5 block" style={{ color: "var(--text-loss)" }}>
+          {trx(
+            "{0} {1} not read (first: line {2}, {3})",
+            <span className="num">{r.unreadable.length}</span>,
+            r.unreadable.length === 1 ? tr("line") : tr("lines"),
+            r.unreadable[0].line_number,
+            r.unreadable[0].reason,
+          )}
+        </span>
       )}
     </span>
   );
@@ -249,19 +275,28 @@ function BankImport() {
       </div>
       <p className="mb-3 text-xs text-ink-muted">
         {chosen.note}{" "}
-        <button type="button" onClick={() => setExplanation(true)}
-          className="underline decoration-[var(--border-strong)] underline-offset-2 hover:text-text">{tr("How do I export this?")}</button>
+        <button
+          type="button"
+          onClick={() => setExplanation(true)}
+          className="underline decoration-[var(--border-strong)] underline-offset-2 hover:text-text"
+        >
+          {tr("How do I export this?")}
+        </button>
       </p>
-      <StepPlanDialog open={explanation} onClose={() => setExplanation(false)} title={tr("Make a bank export")}
-        routes={EXPORT_ROUTES} begin={bank} chooseLabel="Mijn bank:" />
-      <DropButton
-        title={`${chosen.name}-export`}
-        subtitle={tr(".csv · several files at once is fine")}
-        onFiles={(f) => upload.mutate(f)}
+      <StepPlanDialog
+        open={explanation}
+        onClose={() => setExplanation(false)}
+        title={tr("Make a bank export")}
+        routes={EXPORT_ROUTES}
+        begin={bank}
+        chooseLabel="Mijn bank:"
       />
+      <DropButton title={`${chosen.name}-export`} subtitle={tr(".csv · several files at once is fine")} onFiles={(f) => upload.mutate(f)} />
       {upload.isPending && <p className="mb-2 text-xs text-ink-muted">{tr("Processing…")}</p>}
       {upload.isError && (
-        <p className="mb-2 text-xs" style={{ color: "var(--text-loss)" }}>{upload.error.message}</p>
+        <p className="mb-2 text-xs" style={{ color: "var(--text-loss)" }}>
+          {upload.error.message}
+        </p>
       )}
       {upload.data && (
         <p className="mb-2 text-xs text-ink-muted">
@@ -315,16 +350,37 @@ function ConnectionFetch({ onNavigate }: { onNavigate: () => void }) {
             {retrieve.isPending ? tr("Fetching…") : tr("Fetch now from {0}", banks)}
           </Button>
           {retrieve.data && (
-            <p className="mt-2 text-xs text-ink-muted">{trx("{0} · balance of {1} {2} updated{3}", <b className="num" style={{ color: "var(--text-gain)" }}>{trx("{0} new", retrieve.data.added)}</b>, retrieve.data.balances, retrieve.data.balances === 1 ? tr("account") : tr("accounts"), retrieve.data.errors.map((f) => (
-                <span key={f} className="mt-0.5 block" style={{ color: "var(--text-loss)" }}>{f}</span>
-              )))}</p>
+            <p className="mt-2 text-xs text-ink-muted">
+              {trx(
+                "{0} · balance of {1} {2} updated{3}",
+                <b className="num" style={{ color: "var(--text-gain)" }}>
+                  {trx("{0} new", retrieve.data.added)}
+                </b>,
+                retrieve.data.balances,
+                retrieve.data.balances === 1 ? tr("account") : tr("accounts"),
+                retrieve.data.errors.map((f) => (
+                  <span key={f} className="mt-0.5 block" style={{ color: "var(--text-loss)" }}>
+                    {f}
+                  </span>
+                )),
+              )}
+            </p>
           )}
           {retrieve.isError && (
-            <p className="mt-2 text-xs" style={{ color: "var(--text-loss)" }}>{(retrieve.error as Error).message}</p>
+            <p className="mt-2 text-xs" style={{ color: "var(--text-loss)" }}>
+              {(retrieve.error as Error).message}
+            </p>
           )}
         </>
       ) : (
-        <p className="text-xs text-ink-muted">{trx("Connect your bank to fetch transactions and balance automatically, without exports. {0}", <Link href="/accounts/connect" onClick={onNavigate} className="underline underline-offset-4">{tr("How it works →")}</Link>)}</p>
+        <p className="text-xs text-ink-muted">
+          {trx(
+            "Connect your bank to fetch transactions and balance automatically, without exports. {0}",
+            <Link href="/accounts/connect" onClick={onNavigate} className="underline underline-offset-4">
+              {tr("How it works →")}
+            </Link>,
+          )}
+        </p>
       )}
     </>
   );
@@ -397,12 +453,7 @@ export default function UpdateSheet({
       >
         <div className="mb-2 flex items-center justify-between gap-3">
           <h2 className="font-display text-[21px] font-normal tracking-[-0.014em]">{tr("Update data")}</h2>
-          <IconButton
-            label={tr("Close")}
-            onClick={close}
-            icon={<CloseIcon className="h-4 w-4" />}
-            className="-mr-2 flex-none"
-          />
+          <IconButton label={tr("Close")} onClick={close} icon={<CloseIcon className="h-4 w-4" />} className="-mr-2 flex-none" />
         </div>
 
         {/* Built on the oldest quote, not the newest: the totals are only as
@@ -412,13 +463,19 @@ export default function UpdateSheet({
             happened and the gap is the thing worth seeing. */}
         <p className="mb-4 text-xs text-ink-muted">
           {status?.oldest_price ? (
-            <>{trx("Prices updated {0}{1}", <b className="text-text">{fmtRelative(status.oldest_price)}</b>, status.last_updated && status.last_updated !== status.oldest_price && (
-                <>{" "}{trx("· newest {0}", fmtRelative(status.last_updated))}</>
-              ))}</>
+            <>
+              {trx(
+                "Prices updated {0}{1}",
+                <b className="text-text">{fmtRelative(status.oldest_price)}</b>,
+                status.last_updated && status.last_updated !== status.oldest_price && (
+                  <> {trx("· newest {0}", fmtRelative(status.last_updated))}</>
+                ),
+              )}
+            </>
           ) : (
             tr("No prices fetched yet")
           )}
-          {status?.last_import && <>{" "}{trx("· last import {0}", fmtRelative(status.last_import))}</>}
+          {status?.last_import && <> {trx("· last import {0}", fmtRelative(status.last_import))}</>}
         </p>
 
         <Button
@@ -432,26 +489,37 @@ export default function UpdateSheet({
           {refresh.isPending ? tr("Fetching prices…") : tr("Refresh prices")}
         </Button>
         {refresh.isError && (
-          <p className="mt-2 text-xs" style={{ color: "var(--text-loss)" }}>{tr("Refreshing failed. Try again later.")}</p>
+          <p className="mt-2 text-xs" style={{ color: "var(--text-loss)" }}>
+            {tr("Refreshing failed. Try again later.")}
+          </p>
         )}
         {/* A 200 is not the same as a refresh. The endpoint answers 200 for a
             round in which Yahoo returned nothing at all, so reporting success
             on `isSuccess` alone is what put a green "Koersen bijgewerkt."
             directly under a grey "Koersen bijgewerkt 4 dagen geleden". These
             three branches say which of the three things actually happened. */}
-        {refresh.isSuccess && refresh.data && (
-          refresh.data.updated_count === 0 ? (
-            <p className="mt-2 text-xs" style={{ color: "var(--text-loss)" }}>{tr("Not a single price fetched. The previous prices stay. Check the server's internet connection.")}</p>
+        {refresh.isSuccess &&
+          refresh.data &&
+          (refresh.data.updated_count === 0 ? (
+            <p className="mt-2 text-xs" style={{ color: "var(--text-loss)" }}>
+              {tr("Not a single price fetched. The previous prices stay. Check the server's internet connection.")}
+            </p>
           ) : refresh.data.complete ? (
-            <p className="mt-2 text-xs" style={{ color: "var(--text-gain)" }}>{refresh.data.updated_count === 1 ? tr("1 price updated.") : tr("{0} prices updated.", refresh.data.updated_count)}</p>
+            <p className="mt-2 text-xs" style={{ color: "var(--text-gain)" }}>
+              {refresh.data.updated_count === 1 ? tr("1 price updated.") : tr("{0} prices updated.", refresh.data.updated_count)}
+            </p>
           ) : (
-            <p className="mt-2 text-xs text-warn">{trx("{0} updated, {1} failed: those still show their previous price.{2}", refresh.data.updated_count, refresh.data.failed.length + refresh.data.skipped, refresh.data.failed.length > 0 && (
-                <span className="block text-ink-muted">
-                  {refresh.data.failed.map((f) => f.name).join(", ")}
-                </span>
-              ))}</p>
-          )
-        )}
+            <p className="mt-2 text-xs text-warn">
+              {trx(
+                "{0} updated, {1} failed: those still show their previous price.{2}",
+                refresh.data.updated_count,
+                refresh.data.failed.length + refresh.data.skipped,
+                refresh.data.failed.length > 0 && (
+                  <span className="block text-ink-muted">{refresh.data.failed.map((f) => f.name).join(", ")}</span>
+                ),
+              )}
+            </p>
+          ))}
 
         {/* Een gelijnde sectie, net als op elk ander scherm. */}
         <div className="ds-section__head mb-4 mt-7">
@@ -464,7 +532,9 @@ export default function UpdateSheet({
                 close();
               }}
               className="ds-section__meta underline decoration-[var(--border-strong)] underline-offset-2 hover:text-text"
-            >{tr("How do I export this?")}</button>
+            >
+              {tr("How do I export this?")}
+            </button>
           )}
         </div>
 
@@ -488,8 +558,18 @@ export default function UpdateSheet({
           </>
         )}
 
-        <p className="mt-3.5 text-xs text-ink-muted">{tr("Uploading again is safe: rows already saved are skipped, only new ones are added.")}</p>
-        <p className="mt-2 text-xs text-ink-muted">{trx("All explanations{0} are under {1}.", money ? tr(", for investments and money,") : "", <Link href="/help" onClick={close} className="underline underline-offset-4">Help</Link>)}</p>
+        <p className="mt-3.5 text-xs text-ink-muted">
+          {tr("Uploading again is safe: rows already saved are skipped, only new ones are added.")}
+        </p>
+        <p className="mt-2 text-xs text-ink-muted">
+          {trx(
+            "All explanations{0} are under {1}.",
+            money ? tr(", for investments and money,") : "",
+            <Link href="/help" onClick={close} className="underline underline-offset-4">
+              Help
+            </Link>,
+          )}
+        </p>
       </div>
     </div>
   );

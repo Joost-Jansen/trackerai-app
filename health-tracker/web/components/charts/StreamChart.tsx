@@ -80,19 +80,59 @@ export default function StreamChart({
   const n = time.length;
   const panels: Panel[] = [];
   if (heartrate?.some((v) => v)) {
-    panels.push({ key: "hr", label: t.charts.hr, values: smooth(heartrate.map((v) => v || null), 2), colour: "var(--n-800)", format: (v) => `${Math.round(v)}`, bands: bounds ?? undefined, height: 150 });
+    panels.push({
+      key: "hr",
+      label: t.charts.hr,
+      values: smooth(
+        heartrate.map((v) => v || null),
+        2,
+      ),
+      colour: "var(--n-800)",
+      format: (v) => `${Math.round(v)}`,
+      bands: bounds ?? undefined,
+      height: 150,
+    });
   }
   if (velocity?.some((v) => v)) {
     const kind = effortKind(sport);
     const moving = velocity.map((v) => (v && v > (kind === "speed" ? 1.5 : 1.2) ? v : null));
     if (kind === "speed") {
-      panels.push({ key: "speed", label: t.charts.speed, values: smooth(moving.map((v) => (v == null ? null : v * 3.6)), 3), colour: "var(--chart-1)", format: (v) => `${f.num(v)} ${f.kmhUnit}`, height: 110 });
+      panels.push({
+        key: "speed",
+        label: t.charts.speed,
+        values: smooth(
+          moving.map((v) => (v == null ? null : v * 3.6)),
+          3,
+        ),
+        colour: "var(--chart-1)",
+        format: (v) => `${f.num(v)} ${f.kmhUnit}`,
+        height: 110,
+      });
     } else if (kind === "pace") {
-      panels.push({ key: "pace", label: t.charts.pace, values: smooth(moving.map((v) => (v == null ? null : 1000 / v)), 3), colour: "var(--chart-1)", format: (v) => fmtClock(v), invert: true, height: 110 });
+      panels.push({
+        key: "pace",
+        label: t.charts.pace,
+        values: smooth(
+          moving.map((v) => (v == null ? null : 1000 / v)),
+          3,
+        ),
+        colour: "var(--chart-1)",
+        format: (v) => fmtClock(v),
+        invert: true,
+        height: 110,
+      });
     }
   }
   if (altitude?.some((v) => v != null) && sport !== "swim") {
-    panels.push({ key: "alt", label: t.charts.altitude, values: altitude, colour: "var(--chart-3)", format: (v) => `${Math.round(v)} m`, fill: true, height: 70 });
+    panels.push({
+      key: "alt",
+      label: t.charts.altitude,
+      values: altitude,
+      colour: "var(--chart-3)",
+      format: (v) => `${Math.round(v)} m`,
+      fill: true,
+      height: 70,
+    });
   }
   if (n < 2 || panels.length === 0) return null;
 
@@ -153,7 +193,13 @@ export default function StreamChart({
           <div key={p.key}>
             <div className="flex items-baseline justify-between text-[11.5px] text-ink-muted">
               <span>{p.label}</span>
-              <span className="tabular-nums">{hv != null ? p.format(hv) : avg != null ? t.charts.avg(p.format(p.key === "pace" ? 1000 / (vals.reduce((s, v) => s + 1000 / v, 0) / vals.length) : avg)) : ""}</span>
+              <span className="tabular-nums">
+                {hv != null
+                  ? p.format(hv)
+                  : avg != null
+                    ? t.charts.avg(p.format(p.key === "pace" ? 1000 / (vals.reduce((s, v) => s + 1000 / v, 0) / vals.length) : avg))
+                    : ""}
+              </span>
             </div>
             <svg width={w} height={p.height} className="block overflow-visible" role="img" aria-label={p.label}>
               {p.bands &&
@@ -162,15 +208,31 @@ export default function StreamChart({
                   if (i >= ZONES.length || b1 <= lo || b0 >= hi) return null;
                   const yTop = y(Math.min(b1, hi));
                   const yBot = y(Math.max(b0, lo));
-                  return <rect key={i} x={0} width={plotW} y={yTop} height={Math.max(0, yBot - yTop)} fill={`var(--zone-${i + 1})`} opacity={0.28} />;
+                  return (
+                    <rect
+                      key={i}
+                      x={0}
+                      width={plotW}
+                      y={yTop}
+                      height={Math.max(0, yBot - yTop)}
+                      fill={`var(--zone-${i + 1})`}
+                      opacity={0.28}
+                    />
+                  );
                 })}
               {p.fill && d && <path d={`${d} L${plotW} ${top + ph} L0 ${top + ph} Z`} fill={p.colour} opacity={0.18} />}
               <path d={d} fill="none" stroke={p.colour} strokeWidth={1.4} strokeLinejoin="round" />
               <g className="ds-chart__axis" fontSize={10.5} fill="var(--data-axis)">
-                <text x={plotW + 6} y={top + 8}>{p.format(p.invert ? lo : hi)}</text>
-                <text x={plotW + 6} y={top + ph}>{p.format(p.invert ? hi : lo)}</text>
+                <text x={plotW + 6} y={top + 8}>
+                  {p.format(p.invert ? lo : hi)}
+                </text>
+                <text x={plotW + 6} y={top + ph}>
+                  {p.format(p.invert ? hi : lo)}
+                </text>
               </g>
-              {hover != null && <line x1={x(hover)} x2={x(hover)} y1={0} y2={p.height} stroke="var(--border-strong)" strokeDasharray="2 3" />}
+              {hover != null && (
+                <line x1={x(hover)} x2={x(hover)} y1={0} y2={p.height} stroke="var(--border-strong)" strokeDasharray="2 3" />
+              )}
               {hover != null && hv != null && <circle cx={x(hover)} cy={y(hv)} r={3} fill={p.colour} />}
             </svg>
           </div>
@@ -180,7 +242,11 @@ export default function StreamChart({
         <div
           className="ds-chart__tip"
           aria-live="polite"
-          style={{ left: x(hover) + (x(hover) > plotW / 2 ? -12 : 12), top: 22, transform: x(hover) > plotW / 2 ? "translateX(-100%)" : "none" }}
+          style={{
+            left: x(hover) + (x(hover) > plotW / 2 ? -12 : 12),
+            top: 22,
+            transform: x(hover) > plotW / 2 ? "translateX(-100%)" : "none",
+          }}
         >
           <div className="font-semibold">{fmtClock(time[hover] - time[0])}</div>
           {panels.map((p) => {
@@ -189,7 +255,11 @@ export default function StreamChart({
             const zone = p.bands && v != null ? ZONES[p.bands.filter((b) => v >= b).length] : null;
             return (
               <div key={p.key} className="flex items-center gap-1.5">
-                <span aria-hidden className="inline-block h-[3px] w-2.5 rounded-full" style={{ background: zone ? `var(--zone-${ZONES.indexOf(zone) + 1})` : p.colour }} />
+                <span
+                  aria-hidden
+                  className="inline-block h-[3px] w-2.5 rounded-full"
+                  style={{ background: zone ? `var(--zone-${ZONES.indexOf(zone) + 1})` : p.colour }}
+                />
                 <span className="opacity-80">{p.label}</span>
                 <span className="ml-auto pl-3 font-semibold">
                   {v != null ? p.format(v) : "–"}

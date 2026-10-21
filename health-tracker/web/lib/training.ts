@@ -111,7 +111,12 @@ export type Readiness = {
   date: string | null;
   /** No sleep or resting heart rate from last night. */
   no_night: boolean;
-  signals: { key: "resting_hr" | "respiration" | "sleep_h" | "body_battery" | "tsb"; value: number; note: ReadinessNote; level: "ok" | "attention" | "warn" }[];
+  signals: {
+    key: "resting_hr" | "respiration" | "sleep_h" | "body_battery" | "tsb";
+    value: number;
+    note: ReadinessNote;
+    level: "ok" | "attention" | "warn";
+  }[];
   /** Resting HR, heart rate while asleep and night breathing all above normal together: a cold may be coming on. */
   illness_hint?: boolean;
 };
@@ -138,10 +143,23 @@ export type HealthDay = {
   sleep: { start: number; end: number; stages: { start: number; end: number; stage: SleepStage }[] } | null;
   next_sleep_start: number | null;
   summary: Partial<Record<string, number | string>>;
-  normals: Partial<Record<"resting_hr" | "sleep_hr" | "sleep_h" | "sleep_resp" | "sleep_stress" | "bb_charged_sleep" | "spo2_avg" | "stress_avg", number | null>>;
+  normals: Partial<
+    Record<
+      "resting_hr" | "sleep_hr" | "sleep_h" | "sleep_resp" | "sleep_stress" | "bb_charged_sleep" | "spo2_avg" | "stress_avg",
+      number | null
+    >
+  >;
   hr_min: number | null;
   hr_max: number | null;
-  night: { lowest: number; lowest_at: number; avg: number; last_avg: number | null; before_avg: number | null; rise: number | null; minutes: number } | null;
+  night: {
+    lowest: number;
+    lowest_at: number;
+    avg: number;
+    last_avg: number | null;
+    before_avg: number | null;
+    rise: number | null;
+    minutes: number;
+  } | null;
 };
 
 export function fmtDuration(seconds?: number): string {
@@ -190,7 +208,14 @@ export type ActivityListItem = ActivitySummary & { has_gps?: boolean };
 
 export type Lap = { distance_km?: number; time_s?: number; avg_hr?: number; pace?: string; elevation_gain_m?: number };
 export type KmSplit = { km: number; seconds: number; avg_hr: number | null; elevation_m?: number };
-export type RouteRun = { id: string; date: string; moving_time_s?: number; distance_km?: number; avg_hr?: number; pace_s_per_km: number | null };
+export type RouteRun = {
+  id: string;
+  date: string;
+  moving_time_s?: number;
+  distance_km?: number;
+  avg_hr?: number;
+  pace_s_per_km: number | null;
+};
 
 export type ActivityDetail = ActivitySummary & {
   elapsed_time_s?: number;
@@ -201,7 +226,14 @@ export type ActivityDetail = ActivitySummary & {
   zone_bounds: number[] | null;
   zone_estimate: boolean;
   track: { latlng: [number, number][]; zone: (Zone | null)[] } | null;
-  series: { time: number[]; heartrate?: (number | null)[]; velocity?: (number | null)[]; altitude?: (number | null)[]; cadence?: (number | null)[]; distance?: (number | null)[] } | null;
+  series: {
+    time: number[];
+    heartrate?: (number | null)[];
+    velocity?: (number | null)[];
+    altitude?: (number | null)[];
+    cadence?: (number | null)[];
+    distance?: (number | null)[];
+  } | null;
   splits: KmSplit[];
   decoupling_pct: number | null;
   same_day: { id: string; start_local: string; sport: string; name?: string; distance_km?: number; moving_time_s?: number }[];
@@ -238,8 +270,20 @@ export const fmtPaceS = (s?: number | null) => (s ? `${fmtClock(s)}/km` : "–")
 // ── Trends (T5) ──────────────────────────────────────────────────────────────
 
 export type RecordRow = { date: string; seconds: number; activity_id: string };
-export type Race = { date: string; name: string; sport: string; seconds: number; distance_km: number; activity_ids: string[]; detected?: "name" | "heart_rate" };
-export type Prediction = { seconds: number; pace_s_per_km: number; from: { date: string; km: number; seconds: number; activity_id: string; source: "split" | "race" } };
+export type Race = {
+  date: string;
+  name: string;
+  sport: string;
+  seconds: number;
+  distance_km: number;
+  activity_ids: string[];
+  detected?: "name" | "heart_rate";
+};
+export type Prediction = {
+  seconds: number;
+  pace_s_per_km: number;
+  from: { date: string; km: number; seconds: number; activity_id: string; source: "split" | "race" };
+};
 export type Insight = { level: "good" | "watch" | "info"; title: string; text: string };
 
 export type Trends = {
@@ -248,11 +292,31 @@ export type Trends = {
   /** One row per day with any recovery value, oldest first (T17). */
   /** Per night with sleep stages, in hours (api/trends.py sleep_stages). */
   sleep_stages?: SleepNight[];
-  recovery_daily?: { date: string; resting_hr?: number | null; sleep_h?: number | null; body_battery_high?: number | null; stress_avg?: number | null; hrv?: number | null }[];
+  recovery_daily?: {
+    date: string;
+    resting_hr?: number | null;
+    sleep_h?: number | null;
+    body_battery_high?: number | null;
+    stress_avg?: number | null;
+    hrv?: number | null;
+  }[];
   weekly: { week: string; sports: Record<string, Volume> }[];
   z2_pace: { week: string; pace_s_per_km: number; runs: number; z2_seconds: number }[];
   vo2max: { date: string; value: number }[];
-  recovery_weekly: ({ week: string } & Partial<Record<"resting_hr" | "sleep_h" | "body_battery_high" | "stress_avg" | "hrv" | "sleep_resp" | "sleep_stress" | "bb_charged_sleep" | "spo2_avg", number | null>>)[];
+  recovery_weekly: ({ week: string } & Partial<
+    Record<
+      | "resting_hr"
+      | "sleep_h"
+      | "body_battery_high"
+      | "stress_avg"
+      | "hrv"
+      | "sleep_resp"
+      | "sleep_stress"
+      | "bb_charged_sleep"
+      | "spo2_avg",
+      number | null
+    >
+  >)[];
   records: Record<"1k" | "5k" | "10k" | "21k", RecordRow[]>;
   races: Race[];
   rules?: { race_min_km: number; race_hard_pct: number; predict_days: number; riegel: number };
@@ -282,7 +346,14 @@ export type PlanSession = {
   done?: { date: string; distance_km: number; moving_time_s: number; avg_hr?: number; zone_pct: number | null };
   /** Open sessions: unused activities of the same sport within a week, to link by hand. */
   candidates?: { id: string; date: string; distance_km?: number | null; moving_time_s?: number | null }[];
-  route_suggestion?: { parts: string[]; names: string[]; total_km: number; deviation_km: number; within_tolerance: boolean; days_since: number };
+  route_suggestion?: {
+    parts: string[];
+    names: string[];
+    total_km: number;
+    deviation_km: number;
+    within_tolerance: boolean;
+    days_since: number;
+  };
   /** The loop chosen in the plan (`route_id`), when it is one of the user's loops (T24). */
   route?: { id: string; name: string; distance_km?: number | null };
 };
@@ -347,7 +418,16 @@ export type RouteSummary = {
 };
 
 export type RouteDetail = RouteSummary & {
-  history: { id: string; date: string; distance_km?: number; moving_time_s?: number; avg_hr?: number; pace_s_per_km: number | null; m_per_beat: number | null; hr_zones_s?: ZoneSeconds }[];
+  history: {
+    id: string;
+    date: string;
+    distance_km?: number;
+    moving_time_s?: number;
+    avg_hr?: number;
+    pace_s_per_km: number | null;
+    m_per_beat: number | null;
+    hr_zones_s?: ZoneSeconds;
+  }[];
 };
 
 export type RouteOption = {
@@ -387,7 +467,6 @@ export type ZoneHistory = {
   sports: string[];
   items: ZoneHistoryItem[];
 };
-
 
 // ── Accounts (T19) ───────────────────────────────────────────────────────────
 
@@ -478,7 +557,14 @@ export type RecentItem = ActivitySummary & { parts?: number; activity_ids?: stri
 export type RecordKey = "1k" | "5k" | "10k" | "21k";
 /** A record row: from a split or from a race the watch measured slightly short (then with distance_km). */
 export type RecordRowPlus = RecordRow & { source?: "split" | "race"; distance_km?: number };
-export type RecentRecord = { key: RecordKey; date: string; seconds: number; previous_seconds: number; activity_id: string; source: "split" | "race" };
+export type RecentRecord = {
+  key: RecordKey;
+  date: string;
+  seconds: number;
+  previous_seconds: number;
+  activity_id: string;
+  source: "split" | "race";
+};
 /** The goal from the active plan (api/trends.py goal_from_plan). */
 export type TrendsGoal = { km: number; seconds: number | null; date: string | null; text: string };
 export type LongestRun = { week: string; date: string; km: number; seconds: number; parts: number; activity_id: string };
@@ -487,14 +573,22 @@ export type HrFlag = { id: string; date: string; name: string; reasons: HrFlagRe
 
 /** Insight as a code with numbers; the text comes from lib/texts.ts (T.trends.insight). */
 export type InsightCode =
-  | { level: Insight["level"]; code: "record_set"; params: { key: RecordKey; seconds: number; previous_seconds: number; date: string; activity_id: string } }
+  | {
+      level: Insight["level"];
+      code: "record_set";
+      params: { key: RecordKey; seconds: number; previous_seconds: number; date: string; activity_id: string };
+    }
   | { level: Insight["level"]; code: "acwr_high"; params: { atl: number; ctl: number; ratio: number } }
   | { level: Insight["level"]; code: "ramp_fast"; params: { ramp: number } }
   | { level: Insight["level"]; code: "fresh"; params: { tsb: number; pct: number } }
   | { level: Insight["level"]; code: "easy_share"; params: { easy_pct: number; grey_pct: number; hard_pct: number } }
   | { level: Insight["level"]; code: "longest_run"; params: { km: number } }
   | { level: Insight["level"]; code: "long_run_goal"; params: { km: number; target_km: number; goal_km: number } }
-  | { level: Insight["level"]; code: "goal_prediction"; params: { goal_km: number; goal_seconds: number; predicted_seconds: number; from_km: number; from_date: string } }
+  | {
+      level: Insight["level"];
+      code: "goal_prediction";
+      params: { goal_km: number; goal_seconds: number; predicted_seconds: number; from_km: number; from_date: string };
+    }
   | { level: Insight["level"]; code: "run_volume"; params: { avg_km: number; week_km: number; week_start: string } };
 
 export type RecoveryDay = {
@@ -536,7 +630,14 @@ export type TrendsPlus = Omit<Trends, "insights" | "records" | "rules" | "recove
   /** Swimming and cycling: bests, longest per week, pace (swim, s/100m) or speed (ride, km/h) per week (api/trends.py). */
   sport_performance?: Record<string, SportPerformance>;
   hr_flags?: HrFlag[];
-  rules?: { race_min_km: number; race_hard_pct: number; predict_days: number; riegel: number; race_short_pct?: number; recent_record_days?: number };
+  rules?: {
+    race_min_km: number;
+    race_hard_pct: number;
+    predict_days: number;
+    riegel: number;
+    race_short_pct?: number;
+    recent_record_days?: number;
+  };
 };
 
 /** ActivitySummary with the flag for unreliable wrist heart rate (GET /api/activities, when the API includes it). */
@@ -551,7 +652,15 @@ export type FeedbackItem = {
   kind: "bug" | "idea";
   message: string;
   page: string | null;
-  context: { site?: string; browser?: string; screen?: string; language?: string; theme?: string; version?: string | null; errors?: { message: string; where?: string; status?: number; at?: string }[] } | null;
+  context: {
+    site?: string;
+    browser?: string;
+    screen?: string;
+    language?: string;
+    theme?: string;
+    version?: string | null;
+    errors?: { message: string; where?: string; status?: number; at?: string }[];
+  } | null;
   status: FeedbackStatus;
   reply: string | null;
   has_screenshot: boolean;

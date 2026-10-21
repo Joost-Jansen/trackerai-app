@@ -6,14 +6,7 @@
 //
 // Used by Help → Portfolio, the tour and Update; see StepPlan.tsx.
 
-import {
-  CalendarIcon,
-  ChevronRightIcon,
-  DownloadIcon,
-  FolderIcon,
-  InboxIcon,
-  UploadIcon,
-} from "@trackerai/ui/icons";
+import { CalendarIcon, ChevronRightIcon, DownloadIcon, FolderIcon, InboxIcon, UploadIcon } from "@trackerai/ui/icons";
 import type { Route } from "./StepPlan";
 import { tr } from "@/lib/i18n";
 
@@ -35,15 +28,7 @@ function MockWindow({ children }: { children: React.ReactNode }) {
 }
 
 function Highlight({ children, active = true }: { children: React.ReactNode; active?: boolean }) {
-  return (
-    <span
-      className={`rounded-[4px] px-1.5 py-0.5 ${
-        active ? "bg-[#fce97a]/70 ring-1 ring-[#e0b400]" : ""
-      }`}
-    >
-      {children}
-    </span>
-  );
+  return <span className={`rounded-[4px] px-1.5 py-0.5 ${active ? "bg-[#fce97a]/70 ring-1 ring-[#e0b400]" : ""}`}>{children}</span>;
 }
 
 function MockSidebar({ activeInbox }: { activeInbox: boolean }) {
@@ -63,11 +48,7 @@ function MockSidebar({ activeInbox }: { activeInbox: boolean }) {
           ) : (
             <span className="h-2 w-2 rounded-full bg-white/25" />
           )}
-          <span
-            className={`text-[7px] leading-none ${
-              label === "Inbox" && activeInbox ? "font-bold text-[#fce97a]" : "text-white/40"
-            }`}
-          >
+          <span className={`text-[7px] leading-none ${label === "Inbox" && activeInbox ? "font-bold text-[#fce97a]" : "text-white/40"}`}>
             {label}
           </span>
         </div>
@@ -84,9 +65,7 @@ function MockTabBar({ active }: { active: "Transacties" | "Rekeningoverzicht" })
         <span
           key={tab}
           className={`whitespace-nowrap pb-1.5 ${
-            tab === active
-              ? "border-b-2 border-[#0057ff] font-bold text-[#0057ff]"
-              : "text-black/40"
+            tab === active ? "border-b-2 border-[#0057ff] font-bold text-[#0057ff]" : "text-black/40"
           }`}
         >
           {tab}
@@ -130,14 +109,7 @@ function MockExportScreen({ tab }: { tab: "Transacties" | "Rekeningoverzicht" })
 }
 
 function MockInboxMenu() {
-  const items = [
-    "Berichten",
-    "Orders",
-    "Transacties",
-    "Rekeningoverzicht",
-    "Waardedaling Portefeuille",
-    "Documenten",
-  ];
+  const items = ["Berichten", "Orders", "Transacties", "Rekeningoverzicht", "Waardedaling Portefeuille", "Documenten"];
   return (
     <MockWindow>
       <div className="flex">
@@ -149,16 +121,10 @@ function MockInboxMenu() {
               <span
                 key={item}
                 className={`text-[8.5px] ${
-                  item === "Transacties" || item === "Rekeningoverzicht"
-                    ? "font-bold text-[#0057ff]"
-                    : "text-black/60"
+                  item === "Transacties" || item === "Rekeningoverzicht" ? "font-bold text-[#0057ff]" : "text-black/60"
                 }`}
               >
-                {item === "Transacties" || item === "Rekeningoverzicht" ? (
-                  <Highlight>{item}</Highlight>
-                ) : (
-                  item
-                )}
+                {item === "Transacties" || item === "Rekeningoverzicht" ? <Highlight>{item}</Highlight> : item}
               </span>
             ))}
           </div>
@@ -191,24 +157,12 @@ function MockPhone({ children, bottomBar = true }: { children: React.ReactNode; 
             <span key={label} className="flex flex-col items-center gap-0.5">
               <span
                 className={`grid h-3.5 w-3.5 place-items-center rounded ${
-                  label === "Inbox"
-                    ? "bg-[#fce97a] text-[#1e2a38] ring-2 ring-[#e0b400]"
-                    : "text-white/40"
+                  label === "Inbox" ? "bg-[#fce97a] text-[#1e2a38] ring-2 ring-[#e0b400]" : "text-white/40"
                 }`}
               >
-                {label === "Inbox" ? (
-                  <InboxIcon className="h-2.5 w-2.5" />
-                ) : (
-                  <span className="h-1.5 w-1.5 rounded-full bg-white/25" />
-                )}
+                {label === "Inbox" ? <InboxIcon className="h-2.5 w-2.5" /> : <span className="h-1.5 w-1.5 rounded-full bg-white/25" />}
               </span>
-              <span
-                className={`text-[6px] leading-none ${
-                  label === "Inbox" ? "font-bold text-[#fce97a]" : "text-white/40"
-                }`}
-              >
-                {label}
-              </span>
+              <span className={`text-[6px] leading-none ${label === "Inbox" ? "font-bold text-[#fce97a]" : "text-white/40"}`}>{label}</span>
             </span>
           ))}
         </div>
@@ -230,9 +184,7 @@ function MockMobileTabBar({ active }: { active: "Transacties" | "Rekeningoverzic
       {tabs.map((tab) => (
         <span
           key={tab}
-          className={`whitespace-nowrap pb-1 ${
-            tab === active ? "border-b-2 border-[#0057ff] font-bold text-[#0057ff]" : "text-black/40"
-          }`}
+          className={`whitespace-nowrap pb-1 ${tab === active ? "border-b-2 border-[#0057ff] font-bold text-[#0057ff]" : "text-black/40"}`}
         >
           {tab === active ? <Highlight>{tab}</Highlight> : tab}
         </span>
@@ -328,10 +280,7 @@ function MockUploadStep() {
     <div className="space-y-2 rounded-lg border border-black/10 bg-white p-3 text-[#1a1a1a] shadow-sm">
       <div className="text-[10px] font-semibold">{tr("Update data")}</div>
       {(["Transacties", "Rekeningoverzicht"] as const).map((label) => (
-        <div
-          key={label}
-          className="flex items-center gap-2 rounded-md border-[1.5px] border-dashed border-[#e0b400] bg-[#fce97a]/25 p-2"
-        >
+        <div key={label} className="flex items-center gap-2 rounded-md border-[1.5px] border-dashed border-[#e0b400] bg-[#fce97a]/25 p-2">
           <span className="grid h-6 w-6 flex-none place-items-center rounded-md bg-black/5 text-black/50">
             <UploadIcon className="h-3.5 w-3.5" />
           </span>
@@ -353,10 +302,7 @@ export const MOBILE_STEPS: Step[] = [
   {
     title: tr("Step 1: Open your Inbox in the DeGiro app"),
     intro: tr("Tap Inbox in the bar at the bottom. That's the same place where your messages are."),
-    bullets: [
-      tr("Then tap the Transacties (Transactions) tab at the top"),
-      tr("You'll need that tab first"),
-    ],
+    bullets: [tr("Then tap the Transacties (Transactions) tab at the top"), tr("You'll need that tab first")],
     visual: <MockMobileInbox />,
   },
   {
@@ -372,25 +318,23 @@ export const MOBILE_STEPS: Step[] = [
   {
     title: tr("Step 3: Export your Account statement"),
     intro: tr("Same route, other tab: Inbox → Rekeningoverzicht (Account statement)."),
-    bullets: [
-      tr("Same start and end date as for Transactions"),
-      tr("Download this file too with the download icon"),
-    ],
+    bullets: [tr("Same start and end date as for Transactions"), tr("Download this file too with the download icon")],
     visual: <MockMobileExport tab="Rekeningoverzicht" />,
   },
   {
     title: tr("Step 4: The files are now in Downloads"),
-    intro:
-      tr("Your phone keeps them in the Downloads folder, in the Files app. That's where you get them again in a moment."),
+    intro: tr("Your phone keeps them in the Downloads folder, in the Files app. That's where you get them again in a moment."),
     bullets: [
-      tr("Had you downloaded the same file before? Then your phone adds a number, such as \"Transactions.xlsx 2\". The highest is the newest"),
+      tr(
+        'Had you downloaded the same file before? Then your phone adds a number, such as "Transactions.xlsx 2". The highest is the newest',
+      ),
       tr("You don't need to open it. If you do, it opens read-only; that's normal and not broken"),
     ],
     visual: <MockFilesApp />,
   },
   {
     title: tr("Step 5: Upload both files here"),
-    intro: tr("Go back to this app and tap \"Update\" at the top right."),
+    intro: tr('Go back to this app and tap "Update" at the top right.'),
     bullets: [
       tr("Tap the Transactions box and your phone opens the Files app right away"),
       tr("Go to Browse → Downloads and tap the Transactions file"),
@@ -405,10 +349,7 @@ export const DESKTOP_STEPS: Step[] = [
   {
     title: tr("Step 1: Open your Inbox at DeGiro"),
     intro: tr("Log in at trader.degiro.nl and click Inbox in the menu on the left."),
-    bullets: [
-      tr("Then click the Transacties (Transactions) tab"),
-      tr("You'll need that tab first"),
-    ],
+    bullets: [tr("Then click the Transacties (Transactions) tab"), tr("You'll need that tab first")],
     visual: <MockInboxMenu />,
   },
   {
@@ -424,15 +365,12 @@ export const DESKTOP_STEPS: Step[] = [
   {
     title: tr("Step 3: Export your Account statement"),
     intro: tr("Same route, other tab: Inbox → Rekeningoverzicht (Account statement)."),
-    bullets: [
-      tr("Same start and end date as for Transactions"),
-      tr("Download this file as .xlsx too"),
-    ],
+    bullets: [tr("Same start and end date as for Transactions"), tr("Download this file as .xlsx too")],
     visual: <MockExportScreen tab="Rekeningoverzicht" />,
   },
   {
     title: tr("Step 4: Upload both files here"),
-    intro: tr("Go back to this app and click \"Update\" at the top right."),
+    intro: tr('Go back to this app and click "Update" at the top right.'),
     bullets: [
       tr("Drag the Transactions file to the Transactions box"),
       tr("Drag the Account statement file to the Account statement box"),

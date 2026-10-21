@@ -42,7 +42,7 @@ export default function OnTrack({ ctx, inst, put, editing }: ChartProps) {
   const length = dayNumber(month.end) - dayNumber(month.start) + 1;
   const days = Math.min(length, dayNumber(final) - dayNumber(month.start) + 1);
   const now = cumulative(month, final).slice(0, days);
-  const first = ctx.allRows.reduce((d, r) => r.date < d ? r.date : d, today());
+  const first = ctx.allRows.reduce((d, r) => (r.date < d ? r.date : d), today());
   const series_list = earlier.filter((m) => m.start >= first && m.end < month.start).map((m) => cumulative(m, m.end));
   const normal = series_list.length
     ? Array.from({ length: length }, (_, k) => series_list.reduce((a, r) => a + r[Math.min(k, r.length - 1)], 0) / series_list.length)
@@ -57,43 +57,109 @@ export default function OnTrack({ ctx, inst, put, editing }: ChartProps) {
 
   const change = (d: number) => (
     <span className="num" style={{ color: d > 5 ? "var(--text-loss)" : d < -5 ? "var(--text-gain)" : undefined }}>
-      ({d >= 0 ? "+" : "−"}{percent(Math.abs(d))})
+      ({d >= 0 ? "+" : "−"}
+      {percent(Math.abs(d))})
     </span>
   );
   const title = ctx.running ? tr("Are you on track?") : tr("On track in {0}?", monthName(month.key));
   const settings = (
     <>
       <MonthSetting ctx={ctx} />
-      <Setting label={tr("Compare with")} value={i.compare} onChange={(w) => put("compare", w)}
-        options={[["3", tr("3 months")], ["6", tr("6 months")], ["12", tr("12 months")]]} />
-      <Setting label={tr("Spending")} value={i.spending} onChange={(w) => put("spending", w)}
-        options={[["everything", tr("Everything")], ["variable", tr("Only variable")], ["is_fixed", tr("Only fixed")]]} />
+      <Setting
+        label={tr("Compare with")}
+        value={i.compare}
+        onChange={(w) => put("compare", w)}
+        options={[
+          ["3", tr("3 months")],
+          ["6", tr("6 months")],
+          ["12", tr("12 months")],
+        ]}
+      />
+      <Setting
+        label={tr("Spending")}
+        value={i.spending}
+        onChange={(w) => put("spending", w)}
+        options={[
+          ["everything", tr("Everything")],
+          ["variable", tr("Only variable")],
+          ["is_fixed", tr("Only fixed")],
+        ]}
+      />
     </>
   );
 
   return (
-    <ChartCard title={title} editing={editing} settings={settings}
-      meta={<span className="num text-xs text-ink-muted">{fmtDayMonth(month.start)} – {fmtDayMonth(month.end)}</span>}
-      info={<>{trx("Your spending in the {0} from {1} up to and including {2}, added up day by day, next to your normal {3}: the average of the {4} {5} before.{6}", ctx.monthWord, fmtDayMonth(month.start), fmtDayMonth(month.end), ctx.monthWord, i.compare, ctx.boundaries ? tr("salary months") : tr("months"), i.spending !== "everything" ? tr(" Only {0}.", i.spending === "is_fixed" ? tr("recognised fixed costs") : tr("variable spending")) : "")}</>}>
+    <ChartCard
+      title={title}
+      editing={editing}
+      settings={settings}
+      meta={
+        <span className="num text-xs text-ink-muted">
+          {fmtDayMonth(month.start)} – {fmtDayMonth(month.end)}
+        </span>
+      }
+      info={
+        <>
+          {trx(
+            "Your spending in the {0} from {1} up to and including {2}, added up day by day, next to your normal {3}: the average of the {4} {5} before.{6}",
+            ctx.monthWord,
+            fmtDayMonth(month.start),
+            fmtDayMonth(month.end),
+            ctx.monthWord,
+            i.compare,
+            ctx.boundaries ? tr("salary months") : tr("months"),
+            i.spending !== "everything"
+              ? tr(" Only {0}.", i.spending === "is_fixed" ? tr("recognised fixed costs") : tr("variable spending"))
+              : "",
+          )}
+        </>
+      }
+    >
       {i.spending === "is_fixed" && ctx.fixedNames.size === 0 ? (
         <p className="py-4 text-sm text-ink-muted">{tr("No fixed costs recognised yet to compare.")}</p>
       ) : series_list.length === 0 ? (
         <p className="py-4 text-sm text-ink-muted">{tr("No earlier months to compare with yet.")}</p>
       ) : (
         <>
-          <p className="pb-3 text-sm">{trx("Up to and including {0}: {1} spent{2}.{3}", fmtDayMonth(final), <b className="num">{fmtEuro(todayNow)}</b>, difference !== null && (
-              <>{" "}{days < length
-                ? trx("(usually around this day {0} {1})", <span className="num">{fmtEuro(todayNormal)}</span>, change(difference))
-                : trx("(usually {0} {1})", <span className="num">{fmtEuro(todayNormal)}</span>, change(difference))}</>
-            ), expected !== null && days < length && (
-              <span className="text-ink-muted">{" "}{trx("At this pace you'll end up around {0}; usually {1}.", <span className="num">{fmtEuro(expected)}</span>, <span className="num">{fmtEuro(normalEnd)}</span>)}</span>
-            ))}</p>
-          <LineChart format={fmtEuro} ariaLabel={tr("Spending in {0}, added up, next to a normal month", monthName(month.key))} height={230}
+          <p className="pb-3 text-sm">
+            {trx(
+              "Up to and including {0}: {1} spent{2}.{3}",
+              fmtDayMonth(final),
+              <b className="num">{fmtEuro(todayNow)}</b>,
+              difference !== null && (
+                <>
+                  {" "}
+                  {days < length
+                    ? trx("(usually around this day {0} {1})", <span className="num">{fmtEuro(todayNormal)}</span>, change(difference))
+                    : trx("(usually {0} {1})", <span className="num">{fmtEuro(todayNormal)}</span>, change(difference))}
+                </>
+              ),
+              expected !== null && days < length && (
+                <span className="text-ink-muted">
+                  {" "}
+                  {trx(
+                    "At this pace you'll end up around {0}; usually {1}.",
+                    <span className="num">{fmtEuro(expected)}</span>,
+                    <span className="num">{fmtEuro(normalEnd)}</span>,
+                  )}
+                </span>
+              ),
+            )}
+          </p>
+          <LineChart
+            format={fmtEuro}
+            ariaLabel={tr("Spending in {0}, added up, next to a normal month", monthName(month.key))}
+            height={230}
             xFormat={(d) => fmtDayMonth(d)}
             series={[
               { label: tr("Usual"), colour: "var(--chart-2)", dash: "dashed", points: normal.map((w, k) => ({ d: date(k), v: w })) },
-              { label: ctx.running ? tr("This month") : monthName(month.key), colour: "var(--chart-1)", points: now.map((w, k) => ({ d: date(k), v: w })) },
-            ]} />
+              {
+                label: ctx.running ? tr("This month") : monthName(month.key),
+                colour: "var(--chart-1)",
+                points: now.map((w, k) => ({ d: date(k), v: w })),
+              },
+            ]}
+          />
         </>
       )}
     </ChartCard>

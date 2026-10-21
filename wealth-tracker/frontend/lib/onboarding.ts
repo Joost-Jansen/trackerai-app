@@ -37,7 +37,8 @@ export function useOnboarding(enabled = true) {
 export function useSaveOnboarding() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (fields: { choice?: Choice | null; bank?: BankChoice | null; done?: boolean; step?: number }) => api.put<Onboarding>("/api/onboarding", fields),
+    mutationFn: (fields: { choice?: Choice | null; bank?: BankChoice | null; done?: boolean; step?: number }) =>
+      api.put<Onboarding>("/api/onboarding", fields),
     onSuccess: (d) => qc.setQueryData(["onboarding"], d),
   });
 }

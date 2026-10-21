@@ -99,7 +99,9 @@ export default function NewsFeed({ tab }: { tab: NewsTab }) {
           disabled={refresh.isPending}
           size="sm"
           icon={<RefreshIcon className={`h-[15px] w-[15px] ${refresh.isPending ? "animate-spin" : ""}`} />}
-        >{tr("Refresh")}</Button>
+        >
+          {tr("Refresh")}
+        </Button>
       </div>
 
       {/* On the ETF feed: name the five companies the news is about. */}
@@ -123,7 +125,9 @@ export default function NewsFeed({ tab }: { tab: NewsTab }) {
         {active.isLoading ? (
           <SkeletonRows />
         ) : active.isError ? (
-          <p className="py-10 text-sm" style={{ color: "var(--text-loss)" }}>{tr("The news could not load. Try again.")}</p>
+          <p className="py-10 text-sm" style={{ color: "var(--text-loss)" }}>
+            {tr("The news could not load. Try again.")}
+          </p>
         ) : items.length === 0 ? (
           <NothingHere tab={tab} />
         ) : (

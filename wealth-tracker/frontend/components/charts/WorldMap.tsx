@@ -50,10 +50,7 @@ const TIERS = [
  *  spot than a shade, and in the dark theme the series runs the other way by
  *  itself without a second colour definition.
  */
-const tint = (mix: number) =>
-  mix >= 100
-    ? "var(--chart-5)"
-    : `color-mix(in oklab, var(--chart-5) ${mix}%, var(--surface-page))`;
+const tint = (mix: number) => (mix >= 100 ? "var(--chart-5)" : `color-mix(in oklab, var(--chart-5) ${mix}%, var(--surface-page))`);
 
 const tierOf = (pct: number) => TIERS.find((t) => pct >= t.min) ?? TIERS[TIERS.length - 1];
 
@@ -86,10 +83,7 @@ export default function WorldMap({ slices, analysedValue, active, onActive }: Wo
   // `active` and then there is no mouse position: then no tooltip should appear.
   const [hovered, setHovered] = useState<string | null>(null);
 
-  const owned = useMemo(
-    () => new Map(slices.map((s) => [s.name, s.pct])),
-    [slices],
-  );
+  const owned = useMemo(() => new Map(slices.map((s) => [s.name, s.pct])), [slices]);
 
   // Countries too small to see or point at get a dot. Only if you hold something
   // there: a map strewn with dots on Andorra and Brunei says nothing, while the
@@ -105,9 +99,7 @@ export default function WorldMap({ slices, analysedValue, active, onActive }: Wo
   const dots = useMemo(() => {
     const small = COUNTRIES.filter((c) => c.area < TINY && owned.has(c.name));
     const only = POINT_COUNTRIES.filter((p) => owned.has(p.name));
-    return [...small, ...only]
-      .map((c) => ({ name: c.name, c: c.c, pct: owned.get(c.name) ?? 0 }))
-      .sort((a, b) => a.pct - b.pct);
+    return [...small, ...only].map((c) => ({ name: c.name, c: c.c, pct: owned.get(c.name) ?? 0 })).sort((a, b) => a.pct - b.pct);
   }, [owned]);
 
   const tip = hovered
@@ -149,12 +141,7 @@ export default function WorldMap({ slices, analysedValue, active, onActive }: Wo
           tapping next to a country (the ocean below) or by pointing at something else.
           pointercancel is the third case: then the tap has become a swipe and the page scrolls —
           then nothing should stay selected. */}
-      <div
-        ref={wrap}
-        className="relative"
-        onPointerLeave={(e) => e.pointerType === "mouse" && clear()}
-        onPointerCancel={clear}
-      >
+      <div ref={wrap} className="relative" onPointerLeave={(e) => e.pointerType === "mouse" && clear()} onPointerCancel={clear}>
         <svg
           viewBox={`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`}
           className="block w-full"
@@ -162,18 +149,14 @@ export default function WorldMap({ slices, analysedValue, active, onActive }: Wo
           // The map repeats what the bars next to it already list. For a screen reader
           // that list is the usable form, so that is what it gets: here only what the map
           // *adds*, and otherwise no 175 paths to tab through.
-          aria-label={tr("World map: the {0} countries where you have positions, darker as the share is larger. The same figures are in the list next to it.", slices.length)}
+          aria-label={tr(
+            "World map: the {0} countries where you have positions, darker as the share is larger. The same figures are in the list next to it.",
+            slices.length,
+          )}
         >
           {/* The ocean. Also catches dismissing on a phone: tap next to a country and the map lets
               go. */}
-          <rect
-            x={0}
-            y={0}
-            width={VIEWBOX.width}
-            height={VIEWBOX.height}
-            fill="transparent"
-            onPointerDown={clear}
-          />
+          <rect x={0} y={0} width={VIEWBOX.width} height={VIEWBOX.height} fill="transparent" onPointerDown={clear} />
           {COUNTRIES.map((c) => (
             <path
               key={c.name}
@@ -240,23 +223,19 @@ export default function WorldMap({ slices, analysedValue, active, onActive }: Wo
           >
             <span className="font-semibold text-text">{tip.name}</span>
             {tip.pct === undefined ? (
-              <span className="text-ink-muted">{" "}{tr("(no position)")}</span>
+              <span className="text-ink-muted"> {tr("(no position)")}</span>
             ) : (
               <>
                 <span className="num ml-1.5">
                   {/* The backend rounds to two decimals, so a position of a few cents arrives here
                       as 0. "0,00%" reads as an error; it is in the list, so it really is there. */}
-                  {tip.pct < 0.005
-                    ? "< 0,01%"
-                    : fmtEu(tip.pct, { decimals: tip.pct < 1 ? 2 : 1, suffix: "%" })}
+                  {tip.pct < 0.005 ? "< 0,01%" : fmtEu(tip.pct, { decimals: tip.pct < 1 ? 2 : 1, suffix: "%" })}
                 </span>
                 {/* The amount only when there is an amount to name: for a position of a few cents
                     it said "€ 0,00" next to "< 0,01%", and two zeros side by side read as broken
                     instead of small. */}
                 {analysedValue > 0 && (tip.pct / 100) * analysedValue >= 0.5 && (
-                  <span className="num ml-1.5 text-ink-muted">
-                    {fmtEuro((tip.pct / 100) * analysedValue)}
-                  </span>
+                  <span className="num ml-1.5 text-ink-muted">{fmtEuro((tip.pct / 100) * analysedValue)}</span>
                 )}
               </>
             )}
@@ -271,19 +250,16 @@ export default function WorldMap({ slices, analysedValue, active, onActive }: Wo
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-muted">
         {[...TIERS].reverse().map((t) => (
           <span key={t.label} className="flex items-center gap-1">
-            <span
-              aria-hidden="true"
-              className="h-2.5 w-2.5 flex-none rounded-[2px]"
-              style={{ background: tint(t.mix) }}
-            />
+            <span aria-hidden="true" className="h-2.5 w-2.5 flex-none rounded-[2px]" style={{ background: tint(t.mix) }} />
             <span className="num">{t.label}</span>
           </span>
         ))}
-        <span className="flex items-center gap-1">{trx("{0}no position", <span
-            aria-hidden="true"
-            className="h-2.5 w-2.5 flex-none rounded-[2px]"
-            style={{ background: "var(--surface-inset)" }}
-          />)}</span>
+        <span className="flex items-center gap-1">
+          {trx(
+            "{0}no position",
+            <span aria-hidden="true" className="h-2.5 w-2.5 flex-none rounded-[2px]" style={{ background: "var(--surface-inset)" }} />,
+          )}
+        </span>
       </div>
     </div>
   );

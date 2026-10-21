@@ -13,7 +13,12 @@ import { COPY } from "./copy";
 import { HealthMark, WealthMark } from "./marks";
 
 type Account = {
-  username: string; display_name: string | null; apps: string[]; email?: string | null; email_verify_required?: boolean; is_admin?: boolean;
+  username: string;
+  display_name: string | null;
+  apps: string[];
+  email?: string | null;
+  email_verify_required?: boolean;
+  is_admin?: boolean;
 };
 type State = { status: "loading" } | { status: "out" } | { status: "in"; account: Account };
 
@@ -49,12 +54,17 @@ function useAccount(): State {
       asked = true;
       refresh();
     }
-    return () => { listeners.delete(setState); };
+    return () => {
+      listeners.delete(setState);
+    };
   }, []);
   return state;
 }
 
-async function post(path: string, body: unknown): Promise<{ ok: boolean; code?: string; detail?: string; params?: Record<string, unknown> }> {
+async function post(
+  path: string,
+  body: unknown,
+): Promise<{ ok: boolean; code?: string; detail?: string; params?: Record<string, unknown> }> {
   const r = await fetch(path, {
     method: "POST",
     credentials: "same-origin",
@@ -71,7 +81,11 @@ export function NavAccount({ locale }: { locale: Locale }) {
   const c = COPY[locale];
   const state = useAccount();
   const name = state.status === "in" ? state.account.display_name || state.account.username : null;
-  return <a href="#login" className="mk-nav-cta">{name ?? c.nav.login}</a>;
+  return (
+    <a href="#login" className="mk-nav-cta">
+      {name ?? c.nav.login}
+    </a>
+  );
 }
 
 /** Confirming the address from sign-up: the code from the welcome mail. Then it is the two-step login. */
@@ -87,7 +101,9 @@ function ConfirmEmail({ locale, account }: { locale: Locale; account: Account })
     setMsg(null);
     setBusy(true);
     const r = await fetch("/api/account/email/resend", {
-      method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(address ? { email: address } : {}),
     }).catch(() => null);
     const data = r ? await r.json().catch(() => ({})) : {};
@@ -115,28 +131,64 @@ function ConfirmEmail({ locale, account }: { locale: Locale; account: Account })
     <div className="mk-account">
       <p className="mk-account-who">{a.confirmTitle}</p>
       {changing ? (
-        <form className="mk-form" onSubmit={(e) => { e.preventDefault(); resend(to); }}>
+        <form
+          className="mk-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            resend(to);
+          }}
+        >
           <label className="mk-field">
             <span>{a.email}</span>
             <input name="email" type="email" autoComplete="email" value={to} onChange={(e) => setTo(e.target.value)} autoFocus required />
           </label>
-          {msg && <p className={msg.ok ? "mk-small" : "mk-error"} role="alert">{msg.text}</p>}
-          <button type="submit" className="mk-btn mk-btn--accent mk-btn--lg mk-duo-accent" disabled={busy}>{a.sendHere}</button>
+          {msg && (
+            <p className={msg.ok ? "mk-small" : "mk-error"} role="alert">
+              {msg.text}
+            </p>
+          )}
+          <button type="submit" className="mk-btn mk-btn--accent mk-btn--lg mk-duo-accent" disabled={busy}>
+            {a.sendHere}
+          </button>
         </form>
       ) : (
         <form className="mk-form" onSubmit={confirm}>
           <p className="mk-small">{a.confirmText.replace("{to}", to)}</p>
           <label className="mk-field">
             <span>{a.emailCode}</span>
-            <input name="one-time-code" inputMode="numeric" autoComplete="one-time-code" value={code}
-              onChange={(e) => setCode(e.target.value)} autoFocus required />
+            <input
+              name="one-time-code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              autoFocus
+              required
+            />
           </label>
-          {msg && <p className={msg.ok ? "mk-small" : "mk-error"} role="alert">{msg.text}</p>}
-          <button type="submit" className="mk-btn mk-btn--accent mk-btn--lg mk-duo-accent" disabled={busy}>{a.confirm}</button>
+          {msg && (
+            <p className={msg.ok ? "mk-small" : "mk-error"} role="alert">
+              {msg.text}
+            </p>
+          )}
+          <button type="submit" className="mk-btn mk-btn--accent mk-btn--lg mk-duo-accent" disabled={busy}>
+            {a.confirm}
+          </button>
           <p className="mk-small">
-            <button type="button" className="mk-link" onClick={() => resend()}>{a.sendAgain}</button>
+            <button type="button" className="mk-link" onClick={() => resend()}>
+              {a.sendAgain}
+            </button>
             {" · "}
-            <button type="button" className="mk-link" onClick={() => { setMsg(null); setChanging(true); }}>{a.wrongAddress}</button>
+            <button
+              type="button"
+              className="mk-link"
+              onClick={() => {
+                setMsg(null);
+                setChanging(true);
+              }}
+            >
+              {a.wrongAddress}
+            </button>
           </p>
         </form>
       )}
@@ -153,7 +205,9 @@ function SignUp({ locale, urls, onLogin }: { locale: Locale; urls: Partial<Recor
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   // An invitation link from the admin page: trackerai.nl/?invite=CODE#signup
-  const [invite, setInvite] = useState(() => (typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("invite") ?? ""));
+  const [invite, setInvite] = useState(() =>
+    typeof window === "undefined" ? "" : (new URLSearchParams(window.location.search).get("invite") ?? ""),
+  );
   const [apps, setApps] = useState<BrandId[]>([]);
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -175,8 +229,15 @@ function SignUp({ locale, urls, onLogin }: { locale: Locale; urls: Partial<Recor
     setBusy(true);
     try {
       const r = await post("/api/auth/register", {
-        username, name, email, password, locale, apps, consent: apps.includes("health") && consent,
-        invite_code: invite, app: apps.includes("wealth") ? "money" : "",
+        username,
+        name,
+        email,
+        password,
+        locale,
+        apps,
+        consent: apps.includes("health") && consent,
+        invite_code: invite,
+        app: apps.includes("wealth") ? "money" : "",
       });
       if (r.ok) await refresh();
       else setError(r.detail ?? a.failed);
@@ -188,26 +249,55 @@ function SignUp({ locale, urls, onLogin }: { locale: Locale; urls: Partial<Recor
   }
 
   if (mode === null) return <div className="mk-account" aria-busy="true" />;
-  const back = <p className="mk-small"><button type="button" className="mk-link" onClick={onLogin}>{a.haveAccount}</button></p>;
-  if (mode === "closed") return <div className="mk-account"><p className="mk-small">{a.closed}</p>{back}</div>;
+  const back = (
+    <p className="mk-small">
+      <button type="button" className="mk-link" onClick={onLogin}>
+        {a.haveAccount}
+      </button>
+    </p>
+  );
+  if (mode === "closed")
+    return (
+      <div className="mk-account">
+        <p className="mk-small">{a.closed}</p>
+        {back}
+      </div>
+    );
 
   return (
     <div className="mk-account">
       <p className="mk-account-who">{a.signup}</p>
       <form className="mk-form" onSubmit={submit}>
-        <label className="mk-field"><span>{a.name}</span>
-          <input name="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required /></label>
-        <label className="mk-field"><span>{a.username}</span>
-          <input name="username" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required /></label>
-        <label className="mk-field"><span>{a.email}</span>
+        <label className="mk-field">
+          <span>{a.name}</span>
+          <input name="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required />
+        </label>
+        <label className="mk-field">
+          <span>{a.username}</span>
+          <input name="username" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+        </label>
+        <label className="mk-field">
+          <span>{a.email}</span>
           <input name="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <small>{a.emailNote}</small></label>
-        <label className="mk-field"><span>{a.password}</span>
-          <input name="password" type="password" autoComplete="new-password" minLength={10} value={password}
-            onChange={(e) => setPassword(e.target.value)} required /></label>
+          <small>{a.emailNote}</small>
+        </label>
+        <label className="mk-field">
+          <span>{a.password}</span>
+          <input
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            minLength={10}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </label>
         {mode === "invite" && (
-          <label className="mk-field"><span>{a.invite}</span>
-            <input name="invite" value={invite} onChange={(e) => setInvite(e.target.value)} required /></label>
+          <label className="mk-field">
+            <span>{a.invite}</span>
+            <input name="invite" value={invite} onChange={(e) => setInvite(e.target.value)} required />
+          </label>
         )}
         <fieldset className="mk-field">
           <span>{a.choose}</span>
@@ -222,12 +312,25 @@ function SignUp({ locale, urls, onLogin }: { locale: Locale; urls: Partial<Recor
         {apps.includes("health") && (
           <label className="mk-check mk-check--top">
             <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-            <span>{a.consentBefore}<a href={`${urls.health}/privacy`} target="_blank" rel="noreferrer">{a.consentLink}</a>{a.consentAfter}</span>
+            <span>
+              {a.consentBefore}
+              <a href={`${urls.health}/privacy`} target="_blank" rel="noreferrer">
+                {a.consentLink}
+              </a>
+              {a.consentAfter}
+            </span>
           </label>
         )}
-        {error && <p className="mk-error" role="alert">{error}</p>}
-        <button type="submit" className="mk-btn mk-btn--accent mk-btn--lg mk-duo-accent"
-          disabled={busy || apps.length === 0 || (apps.includes("health") && !consent)}>
+        {error && (
+          <p className="mk-error" role="alert">
+            {error}
+          </p>
+        )}
+        <button
+          type="submit"
+          className="mk-btn mk-btn--accent mk-btn--lg mk-duo-accent"
+          disabled={busy || apps.length === 0 || (apps.includes("health") && !consent)}
+        >
           {busy ? a.working : a.create}
         </button>
       </form>
@@ -253,7 +356,9 @@ export function AccountPanel({ locale, urls, days = 30 }: { locale: Locale; urls
   const [signingUp, setSigningUp] = useState(false);
   // "Create an account" anywhere on the page links to #signup.
   useEffect(() => {
-    const follow = () => { if (window.location.hash === "#signup") setSigningUp(true); };
+    const follow = () => {
+      if (window.location.hash === "#signup") setSigningUp(true);
+    };
     follow();
     window.addEventListener("hashchange", follow);
     return () => window.removeEventListener("hashchange", follow);
@@ -292,7 +397,7 @@ export function AccountPanel({ locale, urls, days = 30 }: { locale: Locale; urls
 
   async function mailCode() {
     setError(null);
-    const r = await post("/api/auth/login", { username, password, remember, send_email: true }).catch(() => ({ ok: false } as const));
+    const r = await post("/api/auth/login", { username, password, remember, send_email: true }).catch(() => ({ ok: false }) as const);
     if (!r.ok && "code" in r && r.code === "email_code_sent") setSentTo(String(r.params?.to ?? ""));
     else setError(("detail" in r && r.detail) || a.failed);
   }
@@ -319,16 +424,31 @@ export function AccountPanel({ locale, urls, days = 30 }: { locale: Locale; urls
             const uses = acc.apps.includes(id);
             const label = (uses ? c.open : a.start).replace("{name}", BRANDS[id].name);
             return (
-              <a key={id} href={`${urls[id]}/`} className={`mk-btn mk-btn--lg ${uses ? "mk-btn--accent" : "mk-btn--ghost"} ${BRANDS[id].className}`}>
+              <a
+                key={id}
+                href={`${urls[id]}/`}
+                className={`mk-btn mk-btn--lg ${uses ? "mk-btn--accent" : "mk-btn--ghost"} ${BRANDS[id].className}`}
+              >
                 <Mark size={18} /> {label}
               </a>
             );
           })}
         </div>
-        {error && <p className="mk-error" role="alert">{error}</p>}
+        {error && (
+          <p className="mk-error" role="alert">
+            {error}
+          </p>
+        )}
         <p className="mk-small">
-          {acc.is_admin && <><a href="/admin">{a.admin}</a>{" · "}</>}
-          <button type="button" className="mk-link" onClick={logout}>{a.logout}</button>
+          {acc.is_admin && (
+            <>
+              <a href="/admin">{a.admin}</a>
+              {" · "}
+            </>
+          )}
+          <button type="button" className="mk-link" onClick={logout}>
+            {a.logout}
+          </button>
         </p>
       </div>
     );
@@ -345,18 +465,43 @@ export function AccountPanel({ locale, urls, days = 30 }: { locale: Locale; urls
         </label>
         <label className="mk-field">
           <span>{a.password}</span>
-          <input name="password" type="password" autoComplete="current-password" value={password}
-            onChange={(e) => setPassword(e.target.value)} required />
+          <input
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
         </label>
         {needsCode && (
           <label className="mk-field">
             <span>{sentTo !== null ? a.emailCode : a.code}</span>
-            <input name="one-time-code" inputMode="numeric" autoComplete="one-time-code" value={code}
-              onChange={(e) => setCode(e.target.value)} autoFocus required />
+            <input
+              name="one-time-code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              autoFocus
+              required
+            />
             <small>
               {sentTo !== null ? a.emailHint.replace("{to}", sentTo) : a.codeHint}
-              {(canEmail || sentTo !== null) && <> <button type="button" className="mk-link" onClick={mailCode}>{sentTo !== null ? a.emailAgain : a.emailInstead}</button></>}
-              {help && <> <a href={`${help}/two-step`}>{a.twoStep}</a></>}
+              {(canEmail || sentTo !== null) && (
+                <>
+                  {" "}
+                  <button type="button" className="mk-link" onClick={mailCode}>
+                    {sentTo !== null ? a.emailAgain : a.emailInstead}
+                  </button>
+                </>
+              )}
+              {help && (
+                <>
+                  {" "}
+                  <a href={`${help}/two-step`}>{a.twoStep}</a>
+                </>
+              )}
             </small>
           </label>
         )}
@@ -364,7 +509,11 @@ export function AccountPanel({ locale, urls, days = 30 }: { locale: Locale; urls
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
           <span>{a.remember.replace("{days}", String(days))}</span>
         </label>
-        {error && <p className="mk-error" role="alert">{error}</p>}
+        {error && (
+          <p className="mk-error" role="alert">
+            {error}
+          </p>
+        )}
         <button type="submit" className="mk-btn mk-btn--accent mk-btn--lg mk-duo-accent" disabled={busy}>
           {busy ? a.working : a.submit}
         </button>
@@ -372,7 +521,16 @@ export function AccountPanel({ locale, urls, days = 30 }: { locale: Locale; urls
       {linked.length > 0 && (
         <p className="mk-small">
           {a.noAccount}{" "}
-          <button type="button" className="mk-link" onClick={() => { setError(null); setSigningUp(true); }}>{a.create}</button>
+          <button
+            type="button"
+            className="mk-link"
+            onClick={() => {
+              setError(null);
+              setSigningUp(true);
+            }}
+          >
+            {a.create}
+          </button>
         </p>
       )}
     </div>

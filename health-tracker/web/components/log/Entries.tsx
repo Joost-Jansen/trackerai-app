@@ -40,12 +40,28 @@ function NewEntry({ kind, onDone }: { kind: Entry["kind"]; onDone: () => void })
       >
         <div className="flex flex-wrap gap-2">
           <input type="date" className="ds-input w-[150px]" value={day} onChange={(e) => setDay(e.target.value)} aria-label={t.log.date} />
-          <input className="ds-input min-w-0 flex-1" placeholder={t.log.subject} value={title} onChange={(e) => setTitle(e.target.value)} required />
+          <input
+            className="ds-input min-w-0 flex-1"
+            placeholder={t.log.subject}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
         </div>
-        <textarea className="ds-input h-40 py-2 text-[13px]" placeholder={t.log.bodyPh} value={body} onChange={(e) => setBody(e.target.value)} required />
+        <textarea
+          className="ds-input h-40 py-2 text-[13px]"
+          placeholder={t.log.bodyPh}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          required
+        />
         <div className="flex items-center gap-2">
-          <Button type="submit" variant="primary" size="sm" disabled={busy || !title.trim() || !body.trim()}>{t.common.save}</Button>
-          <Button size="sm" variant="ghost" onClick={onDone}>{t.common.cancel}</Button>
+          <Button type="submit" variant="primary" size="sm" disabled={busy || !title.trim() || !body.trim()}>
+            {t.common.save}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onDone}>
+            {t.common.cancel}
+          </Button>
           {error && <span className="text-[12.5px] text-loss">{error}</span>}
         </div>
       </form>
@@ -64,7 +80,9 @@ export default function Entries({ kind }: { kind: Entry["kind"] }) {
 
   const groups = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    const items = (q.data ?? []).filter((e) => !needle || e.title.toLowerCase().includes(needle) || e.body.toLowerCase().includes(needle) || e.day.includes(needle));
+    const items = (q.data ?? []).filter(
+      (e) => !needle || e.title.toLowerCase().includes(needle) || e.body.toLowerCase().includes(needle) || e.day.includes(needle),
+    );
     const out: { month: string; items: Entry[] }[] = [];
     for (const e of items) {
       const m = e.day.slice(0, 7);
@@ -81,17 +99,30 @@ export default function Entries({ kind }: { kind: Entry["kind"] }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <input className="ds-input h-9 min-w-0 flex-1 text-[13px] sm:max-w-[280px]" placeholder={t.log.search} value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input
+          className="ds-input h-9 min-w-0 flex-1 text-[13px] sm:max-w-[280px]"
+          placeholder={t.log.search}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <span className="text-[12px] text-ink-muted tabular-nums">{t.log.count(q.data.length, kind)}</span>
         <span className="flex-1" />
-        {!adding && <Button size="sm" onClick={() => setAdding(true)}>{t.log.add(kind)}</Button>}
+        {!adding && (
+          <Button size="sm" onClick={() => setAdding(true)}>
+            {t.log.add(kind)}
+          </Button>
+        )}
       </div>
-      {adding && <NewEntry kind={kind} onDone={() => { setAdding(false); qc.invalidateQueries({ queryKey: ["entries", kind] }); }} />}
-      {q.data.length === 0 && (
-        <p className="text-[13px] text-ink-muted">
-          {t.log.empty(kind)}
-        </p>
+      {adding && (
+        <NewEntry
+          kind={kind}
+          onDone={() => {
+            setAdding(false);
+            qc.invalidateQueries({ queryKey: ["entries", kind] });
+          }}
+        />
       )}
+      {q.data.length === 0 && <p className="text-[13px] text-ink-muted">{t.log.empty(kind)}</p>}
       {groups.map((g) => (
         <section key={g.month} className="flex flex-col gap-3">
           <h2 className="text-[12px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{f.month(g.month)}</h2>
@@ -99,11 +130,22 @@ export default function Entries({ kind }: { kind: Entry["kind"] }) {
             const expanded = open[e.id] ?? (e.id === first || !!search);
             return (
               <Card key={e.id}>
-                <button type="button" className="flex w-full flex-wrap items-baseline justify-between gap-x-3 text-left" onClick={() => setOpen({ ...open, [e.id]: !expanded })} aria-expanded={expanded}>
+                <button
+                  type="button"
+                  className="flex w-full flex-wrap items-baseline justify-between gap-x-3 text-left"
+                  onClick={() => setOpen({ ...open, [e.id]: !expanded })}
+                  aria-expanded={expanded}
+                >
                   <span className="text-[14px] font-semibold">{e.title}</span>
-                  <span className="text-[12px] text-ink-muted">{f.weekdayDayYear(e.day)} · {e.author}</span>
+                  <span className="text-[12px] text-ink-muted">
+                    {f.weekdayDayYear(e.day)} · {e.author}
+                  </span>
                 </button>
-                {expanded ? <Markdown text={e.body} className="mt-3" /> : <p className="mt-1 line-clamp-2 text-[12.5px] text-ink-muted">{e.body.replace(/[#*|`>-]/g, " ").slice(0, 240)}</p>}
+                {expanded ? (
+                  <Markdown text={e.body} className="mt-3" />
+                ) : (
+                  <p className="mt-1 line-clamp-2 text-[12.5px] text-ink-muted">{e.body.replace(/[#*|`>-]/g, " ").slice(0, 240)}</p>
+                )}
               </Card>
             );
           })}

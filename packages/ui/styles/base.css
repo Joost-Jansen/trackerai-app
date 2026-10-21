@@ -46,7 +46,7 @@
      colours are per app: styles/brand-terracotta.css, styles/brand-sage.css. */
 
   /* ── green (gain) — was olive, see the head of this file ─ */
-  --moss-50:  #e2f3e8;
+  --moss-50: #e2f3e8;
   --moss-100: #c2e6cf;
   --moss-400: #2f9e5c;
   --moss-500: #157f3c;
@@ -54,50 +54,50 @@
 
   /* ── red (loss) — was oxblood ───────────────────────── */
   --oxblood-50: #fde8e8;
-  --oxblood-100:#f9cccc;
-  --oxblood-400:#d9484c;
-  --oxblood-500:#c81e26;
-  --oxblood-600:#ad141c;
+  --oxblood-100: #f9cccc;
+  --oxblood-400: #d9484c;
+  --oxblood-500: #c81e26;
+  --oxblood-600: #ad141c;
 
   /* ── ochre (warning, rare) ──────────────────────────── */
   --amber-50: #f4ecd9;
-  --amber-500:#96702a;
+  --amber-500: #96702a;
 
   /* ── semantic: surface ──────────────────────────────── */
-  --surface-page:      var(--n-25);
-  --surface-card:      var(--n-0);
-  --surface-sunken:    var(--n-50);
-  --surface-inset:     var(--n-100);
-  --surface-hover:     var(--n-100);
-  --surface-active:    var(--n-150);
-  --surface-inverse:   var(--n-800);
+  --surface-page: var(--n-25);
+  --surface-card: var(--n-0);
+  --surface-sunken: var(--n-50);
+  --surface-inset: var(--n-100);
+  --surface-hover: var(--n-100);
+  --surface-active: var(--n-150);
+  --surface-inverse: var(--n-800);
   /*
    * The fixed ink panel: does NOT follow the theme. The sidebar reads from
    *      this, and so stays dark at night too.
    */
-  --surface-brand:     var(--brand-500);
-  --surface-brand-soft:var(--brand-50);
+  --surface-brand: var(--brand-500);
+  --surface-brand-soft: var(--brand-50);
   --surface-gain-soft: var(--moss-50);
   --surface-loss-soft: var(--oxblood-50);
 
   /* ── semantic: text ─────────────────────────────────── */
-  --text-primary:   var(--n-900);
+  --text-primary: var(--n-900);
   --text-secondary: var(--n-600);
-  --text-muted:     var(--n-500);
-  --text-faint:     var(--n-400);
-  --text-inverse:   var(--n-25);
-  --text-brand:     var(--brand-600);
-  --text-gain:      var(--moss-600);
-  --text-loss:      var(--oxblood-500);
-  --text-link:      var(--n-900);
-  --text-link-hover:var(--brand-600);
+  --text-muted: var(--n-500);
+  --text-faint: var(--n-400);
+  --text-inverse: var(--n-25);
+  --text-brand: var(--brand-600);
+  --text-gain: var(--moss-600);
+  --text-loss: var(--oxblood-500);
+  --text-link: var(--n-900);
+  --text-link-hover: var(--brand-600);
 
   /* ── semantic: line ─────────────────────────────────── */
   --border-hairline: var(--n-200);
-  --border-subtle:   var(--n-150);
-  --border-strong:   var(--n-300);
-  --border-inverse:  var(--n-700);
-  --border-focus:    var(--n-800);
+  --border-subtle: var(--n-150);
+  --border-strong: var(--n-300);
+  --border-inverse: var(--n-700);
+  --border-focus: var(--n-800);
 
   /* ── semantic: data and charts ──────────────────────── */
   --data-gain: var(--moss-500);
@@ -118,73 +118,73 @@
   --font-sans: var(--font-sans-loaded), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-mono-loaded), ui-monospace, "SF Mono", Menlo, monospace;
 
-  --fs-hero:       68px;
+  --fs-hero: 68px;
   --fs-display-lg: 44px;
-  --fs-display:    34px;
-  --fs-h1:         27px;
-  --fs-h2:         21px;
-  --fs-h3:         17px;
-  --fs-body-lg:    16px;
-  --fs-body:       15px;
-  --fs-sm:         13.5px;
-  --fs-xs:         12px;
-  --fs-micro:      11px;
+  --fs-display: 34px;
+  --fs-h1: 27px;
+  --fs-h2: 21px;
+  --fs-h3: 17px;
+  --fs-body-lg: 16px;
+  --fs-body: 15px;
+  --fs-sm: 13.5px;
+  --fs-xs: 12px;
+  --fs-micro: 11px;
 
-  --lh-tight:   1.12;
-  --lh-snug:    1.3;
-  --lh-normal:  1.5;
+  --lh-tight: 1.12;
+  --lh-snug: 1.3;
+  --lh-normal: 1.5;
   --lh-relaxed: 1.65;
 
-  --fw-light:    300;
-  --fw-regular:  400;
-  --fw-text:     400;
-  --fw-medium:   500;
+  --fw-light: 300;
+  --fw-regular: 400;
+  --fw-text: 400;
+  --fw-medium: 500;
   --fw-semibold: 600;
 
   --ls-display: -0.028em;
   --ls-heading: -0.014em;
-  --ls-body:     0em;
-  --ls-caps:     0.09em;
+  --ls-body: 0em;
+  --ls-caps: 0.09em;
 
   --num-tabular: "tnum" 1, "lnum" 1;
   --measure: 68ch;
 
   /* ── space (4px grid) ───────────────────────────────── */
-  --sp-0:   0px;
-  --sp-1:   2px;
-  --sp-2:   4px;
-  --sp-3:   8px;
-  --sp-4:  12px;
-  --sp-5:  16px;
-  --sp-6:  20px;
-  --sp-7:  24px;
-  --sp-8:  32px;
-  --sp-9:  40px;
+  --sp-0: 0px;
+  --sp-1: 2px;
+  --sp-2: 4px;
+  --sp-3: 8px;
+  --sp-4: 12px;
+  --sp-5: 16px;
+  --sp-6: 20px;
+  --sp-7: 24px;
+  --sp-8: 32px;
+  --sp-9: 40px;
   --sp-10: 48px;
   --sp-11: 64px;
   --sp-12: 80px;
   --sp-13: 96px;
 
-  --gutter-page:   40px;
-  --gutter-card:   24px;
-  --gutter-dense:  16px;
+  --gutter-page: 40px;
+  --gutter-card: 24px;
+  --gutter-dense: 16px;
   --stack-section: 48px;
-  --stack-block:   24px;
-  --stack-tight:    8px;
-  --sidebar-w:    248px;
+  --stack-block: 24px;
+  --stack-tight: 8px;
+  --sidebar-w: 248px;
   /*
    * Wide enough for a laptop or monitor screen full of tables and charts; running
    *      text keeps its own, shorter line length.
    */
   --content-max: 1600px;
-  --row-h:         44px;
+  --row-h: 44px;
 
   /* ── corners — nothing above 10px, except pills ─────── */
-  --radius-xs:   2px;
-  --radius-sm:   4px;
-  --radius-md:   6px;
-  --radius-lg:   8px;
-  --radius-xl:  10px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
   --radius-pill: 999px;
 
   /* ── elevation: light, no lift. Warm tinted, short. ─── */
@@ -197,12 +197,12 @@
 
   /* ── motion: confirms, never performs ───────────────── */
   --dur-instant: 90ms;
-  --dur-fast:   150ms;
-  --dur-base:   220ms;
-  --dur-slow:   320ms;
-  --dur-chart:  480ms;
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --dur-slow: 320ms;
+  --dur-chart: 480ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --ease-exit:     cubic-bezier(0.4, 0, 1, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
   --ease-entrance: cubic-bezier(0, 0, 0.2, 1);
 }
 
@@ -222,26 +222,24 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-
-
-    --moss-50:  #12251a;
+    --moss-50: #12251a;
     --moss-100: #1a3826;
     --moss-500: #4ec97d;
     --moss-600: #6ad893;
 
     --oxblood-50: #2b1416;
-    --oxblood-100:#401c20;
-    --oxblood-500:#ff7a80;
-    --oxblood-600:#ff9195;
+    --oxblood-100: #401c20;
+    --oxblood-500: #ff7a80;
+    --oxblood-600: #ff9195;
 
-    --amber-50:  #2a2313;
+    --amber-50: #2a2313;
     --amber-500: #c1a165;
 
-    --surface-page:   var(--n-25);
-    --surface-card:   var(--n-50);
+    --surface-page: var(--n-25);
+    --surface-card: var(--n-50);
     --surface-sunken: var(--n-0);
-    --surface-inverse:var(--n-800);
-    --text-inverse:   var(--n-25);
+    --surface-inverse: var(--n-800);
+    --text-inverse: var(--n-25);
     --cat-1: #6a9a3a;
     --cat-2: #4a86dd;
     --cat-3: #b08a18;
@@ -259,26 +257,24 @@
 }
 
 :root[data-theme="dark"] {
-
-
-  --moss-50:  #12251a;
+  --moss-50: #12251a;
   --moss-100: #1a3826;
   --moss-500: #4ec97d;
   --moss-600: #6ad893;
 
   --oxblood-50: #2b1416;
-  --oxblood-100:#401c20;
-  --oxblood-500:#ff7a80;
-  --oxblood-600:#ff9195;
+  --oxblood-100: #401c20;
+  --oxblood-500: #ff7a80;
+  --oxblood-600: #ff9195;
 
-  --amber-50:  #2a2313;
+  --amber-50: #2a2313;
   --amber-500: #c1a165;
 
-  --surface-page:   var(--n-25);
-  --surface-card:   var(--n-50);
+  --surface-page: var(--n-25);
+  --surface-card: var(--n-50);
   --surface-sunken: var(--n-0);
-  --surface-inverse:var(--n-800);
-  --text-inverse:   var(--n-25);
+  --surface-inverse: var(--n-800);
+  --text-inverse: var(--n-25);
   --cat-1: #6a9a3a;
   --cat-2: #4a86dd;
   --cat-3: #b08a18;
@@ -324,26 +320,26 @@
  */
 
 :root {
-  --bg:           var(--surface-page);
-  --surface:      var(--surface-card);
-  --surface-2:    var(--n-100);
+  --bg: var(--surface-page);
+  --surface: var(--surface-card);
+  --surface-2: var(--n-100);
   --surface-sunk: var(--n-50);
-  --border:       var(--border-hairline);
-  --ink:          var(--n-900);
-  --ink-muted:    var(--text-muted);
-  --ink-faint:    var(--text-faint);
+  --border: var(--border-hairline);
+  --ink: var(--n-900);
+  --ink-muted: var(--text-muted);
+  --ink-faint: var(--text-faint);
 
-  --brand:      var(--brand-500);
-  --brand-2:    var(--brand-300);
+  --brand: var(--brand-500);
+  --brand-2: var(--brand-300);
   --brand-tint: var(--brand-50);
 
-  --pos:      var(--moss-500);
+  --pos: var(--moss-500);
   --pos-tint: var(--moss-50);
-  --neg:      var(--oxblood-500);
+  --neg: var(--oxblood-500);
   --neg-tint: var(--oxblood-50);
-  --warn:      var(--amber-500);
+  --warn: var(--amber-500);
   --warn-tint: var(--amber-50);
-  --info:      var(--chart-5);
+  --info: var(--chart-5);
   --info-tint: var(--n-100);
 
   /* Categorical palette: Meridian's six, in fixed order, never cycled. */
@@ -354,18 +350,18 @@
   --c5: var(--chart-6);
   --c6: var(--n-400);
 
-  --radius:    var(--radius-lg);
+  --radius: var(--radius-lg);
   --radius-sm: var(--radius-md);
-  --shadow:    var(--shadow-2);
+  --shadow: var(--shadow-2);
 
   /*
    * Tailwind cannot pass var() through its /50 opacity modifier — that form wants
    *      rgb(R G B / a). These triples are therefore real numbers, and must move
    *      along with the ladder above by hand.
    */
-  --ink-rgb: 20 18 14;   /* --n-900 */
-  --pos-rgb: 21 127 60;  /* --moss-500 */
-  --neg-rgb: 200 30 38;  /* --oxblood-500 */
+  --ink-rgb: 20 18 14; /* --n-900 */
+  --pos-rgb: 21 127 60; /* --moss-500 */
+  --neg-rgb: 200 30 38; /* --oxblood-500 */
   --approx-rgb: 150 112 42; /* --amber-500 */
 }
 
@@ -516,7 +512,8 @@ label,
 .ds-link {
   color: var(--text-link);
   border-bottom: 1px solid var(--border-strong);
-  transition: color var(--dur-fast) var(--ease-standard),
+  transition:
+    color var(--dur-fast) var(--ease-standard),
     border-color var(--dur-fast) var(--ease-standard);
 }
 .ds-link:hover {

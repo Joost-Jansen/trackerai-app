@@ -25,7 +25,8 @@ function Figure({ label, value, unit, detail }: { label: string; value: string; 
     <div className="flex flex-col gap-0.5">
       <span className="text-[12px] text-ink-muted">{label}</span>
       <span className="font-display text-[27px] font-light leading-none tabular-nums">
-        {value}{unit && <span className="ml-1 text-[13px] text-ink-muted">{unit}</span>}
+        {value}
+        {unit && <span className="ml-1 text-[13px] text-ink-muted">{unit}</span>}
       </span>
       {detail && <span className="text-[11.5px] tabular-nums text-ink-muted">{detail}</span>}
     </div>
@@ -38,24 +39,37 @@ function Totals({ d }: { d: NutritionDay }) {
   const f = useFormat();
   const v = d.totals;
   const g = (k: NutrientKey, digits = 0) => f.num(v[k], digits);
-  const missing = Object.entries(v.missing).filter(([k]) => ["energy_kcal", "carbs_g", "protein_g", "fat_g", "fiber_g", "salt_g"].includes(k));
+  const missing = Object.entries(v.missing).filter(([k]) =>
+    ["energy_kcal", "carbs_g", "protein_g", "fat_g", "fiber_g", "salt_g"].includes(k),
+  );
   return (
     <Card title={t.day.totals}>
       <div className="flex flex-col gap-4">
         <TargetBars totals={v} perKg={d.per_kg} targets={d.targets} />
         <div className="grid grid-cols-2 gap-x-4 gap-y-3.5 sm:grid-cols-3">
-          <Figure label={t.nutrients.energy_kcal} value={g("energy_kcal")} unit="kcal" detail={d.burn_kcal != null ? t.burn(f.num(d.burn_kcal)) : undefined} />
+          <Figure
+            label={t.nutrients.energy_kcal}
+            value={g("energy_kcal")}
+            unit="kcal"
+            detail={d.burn_kcal != null ? t.burn(f.num(d.burn_kcal)) : undefined}
+          />
           <Figure label={t.nutrients.carbs_g} value={g("carbs_g")} unit="g" detail={`${t.short.sugars} ${g("sugars_g")} g`} />
           <Figure label={t.nutrients.protein_g} value={g("protein_g")} unit="g" />
-          <Figure label={t.nutrients.fat_g} value={g("fat_g")} unit="g"
-            detail={`${t.short.saturated} ${g("sat_fat_g")} · ${t.short.mono} ${g("mufa_g")} · ${t.short.poly} ${g("pufa_g")}`} />
+          <Figure
+            label={t.nutrients.fat_g}
+            value={g("fat_g")}
+            unit="g"
+            detail={`${t.short.saturated} ${g("sat_fat_g")} · ${t.short.mono} ${g("mufa_g")} · ${t.short.poly} ${g("pufa_g")}`}
+          />
           <Figure label={t.nutrients.fiber_g} value={g("fiber_g")} unit="g" />
           <Figure label={t.nutrients.alcohol_g} value={g("alcohol_g")} unit="g" />
           <Figure label={t.nutrients.salt_g} value={g("salt_g", 1)} unit="g" />
         </div>
         <EnergySplit split={d.energy_split} />
         {missing.length > 0 && (
-          <p className="text-[11.5px] text-ink-muted">{missing.map(([k, n]) => t.day.missing(n!, t.nutrients[k as NutrientKey])).join(" · ")}</p>
+          <p className="text-[11.5px] text-ink-muted">
+            {missing.map(([k, n]) => t.day.missing(n!, t.nutrients[k as NutrientKey])).join(" · ")}
+          </p>
         )}
       </div>
     </Card>
@@ -90,31 +104,67 @@ function DayView() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 aria-live="polite" className={`font-display text-[21px] font-light transition-opacity ${q.isPlaceholderData ? "opacity-60" : ""}`}>
+          <h2
+            aria-live="polite"
+            className={`font-display text-[21px] font-light transition-opacity ${q.isPlaceholderData ? "opacity-60" : ""}`}
+          >
             {f.weekdayDayYear(d.day)}
           </h2>
           <p className="text-[12.5px] text-ink-muted">
             {[
-              ...training.map((s) => [s.kind || s.name || tt.sport(s.sport), s.distance_km ? f.km(s.distance_km) : null, s.minutes ? f.duration(s.minutes * 60) : null]
-                .filter(Boolean).join(" ")),
+              ...training.map((s) =>
+                [
+                  s.kind || s.name || tt.sport(s.sport),
+                  s.distance_km ? f.km(s.distance_km) : null,
+                  s.minutes ? f.duration(s.minutes * 60) : null,
+                ]
+                  .filter(Boolean)
+                  .join(" "),
+              ),
               t.dayTypes[d.targets.day_type],
             ].join(" · ")}
           </p>
         </div>
         <div className="flex items-center gap-1">
-          <IconButton label={tt.texts.trends.timeFilter.previous} size="sm" icon={<ChevronLeftIcon width={15} height={15} />} onClick={() => go(addDays(d.day, -1))} />
-          <input type="date" aria-label={t.day.pickDay} value={d.day} max={d.today}
+          <IconButton
+            label={tt.texts.trends.timeFilter.previous}
+            size="sm"
+            icon={<ChevronLeftIcon width={15} height={15} />}
+            onClick={() => go(addDays(d.day, -1))}
+          />
+          <input
+            type="date"
+            aria-label={t.day.pickDay}
+            value={d.day}
+            max={d.today}
             onChange={(e) => /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) && go(e.target.value)}
-            className="h-8 rounded border border-border bg-surface px-2 text-[13px] tabular-nums text-[var(--text-primary)]" />
-          <IconButton label={tt.texts.trends.timeFilter.next} size="sm" icon={<ChevronRightIcon width={15} height={15} />} disabled={d.day >= d.today}
-            onClick={() => go(addDays(d.day, 1))} />
-          <Button variant="primary" size="sm" className="ml-2" disabled={!d.foods_ready} onClick={() => setAdding("choose")} icon={<PlusIcon width={14} height={14} />}>
+            className="h-8 rounded border border-border bg-surface px-2 text-[13px] tabular-nums text-[var(--text-primary)]"
+          />
+          <IconButton
+            label={tt.texts.trends.timeFilter.next}
+            size="sm"
+            icon={<ChevronRightIcon width={15} height={15} />}
+            disabled={d.day >= d.today}
+            onClick={() => go(addDays(d.day, 1))}
+          />
+          <Button
+            variant="primary"
+            size="sm"
+            className="ml-2"
+            disabled={!d.foods_ready}
+            onClick={() => setAdding("choose")}
+            icon={<PlusIcon width={14} height={14} />}
+          >
             {t.today.add}
           </Button>
         </div>
       </div>
 
-      {!d.foods_ready && <Card><p className="text-[13px] text-ink-muted">{t.day.noFoods}</p></Card>}
+      {!d.foods_ready && (
+        <Card>
+          <p className="text-[13px] text-ink-muted">{t.day.noFoods}</p>
+        </Card>
+      )}
       <ContextLine context={d.context} />
 
       <Columns
@@ -128,7 +178,11 @@ function DayView() {
                 {byMoment.map((g) => (
                   <section key={g.moment}>
                     <h3 className="text-[12px] font-medium text-ink-muted">{t.moments[g.moment]}</h3>
-                    <ul className="flex flex-col">{g.meals.map((m) => <MealRow key={m.id} meal={m} onEdit={setEditing} showMoment={false} />)}</ul>
+                    <ul className="flex flex-col">
+                      {g.meals.map((m) => (
+                        <MealRow key={m.id} meal={m} onEdit={setEditing} showMoment={false} />
+                      ))}
+                    </ul>
                   </section>
                 ))}
               </div>
@@ -142,13 +196,27 @@ function DayView() {
       {d.ai && d.foods_ready && (
         // On a phone, logging is one tap from the page: the camera, bottom right above the safe area. The file input is
         // clicked inside the tap itself; iOS opens no camera for a click that comes later.
-        <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setAdding(f); }} />
+        <input
+          ref={camera}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (f) setAdding(f);
+          }}
+        />
       )}
       {d.ai && d.foods_ready && (
-        <button type="button" aria-label={t.add.photo} onClick={() => camera.current?.click()}
+        <button
+          type="button"
+          aria-label={t.add.photo}
+          onClick={() => camera.current?.click()}
           className="fixed right-4 z-30 grid h-14 w-14 place-items-center rounded-full bg-[var(--surface-brand)] text-[var(--text-inverse)] shadow-lg sm:hidden"
-          style={{ bottom: "calc(1rem + env(safe-area-inset-bottom))" }}>
+          style={{ bottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+        >
           <CameraIcon width={22} height={22} />
         </button>
       )}

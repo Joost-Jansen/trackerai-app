@@ -10,7 +10,17 @@ import { useEffect, useSyncExternalStore } from "react";
 import { useQueryClient, type Query, type QueryClient } from "@tanstack/react-query";
 import { exampleDataOn, setExampleData, subscribeExampleData } from "@/lib/api";
 
-const PERSONAL = new Set(["me", "onboarding", "connections", "agent-tokens", "feedback", "auth-config", "admin-overview", "admin-users", "admin-settings"]);
+const PERSONAL = new Set([
+  "me",
+  "onboarding",
+  "connections",
+  "agent-tokens",
+  "feedback",
+  "auth-config",
+  "admin-overview",
+  "admin-users",
+  "admin-settings",
+]);
 
 const isData = (q: Query) => !PERSONAL.has(String(q.queryKey[0]));
 

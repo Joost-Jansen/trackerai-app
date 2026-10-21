@@ -13,7 +13,12 @@ import { errorText, useT } from "@/lib/i18n";
 import { ZONE_COLOUR, ZONES, type Me } from "@/lib/training";
 
 type SportZone = { max_hr: number; bounds: number[]; estimate?: boolean };
-type ZonesResp = { percent: number[]; zones: Record<string, SportZone>; suggested_max: Record<string, number | null>; estimate_offset: Record<string, number> };
+type ZonesResp = {
+  percent: number[];
+  zones: Record<string, SportZone>;
+  suggested_max: Record<string, number | null>;
+  estimate_offset: Record<string, number>;
+};
 type Facts = { birth_year?: number; weight_kg?: number; height_cm?: number; resting_hr?: number };
 const SPORTS = ["run", "ride", "swim"] as const;
 
@@ -64,10 +69,15 @@ function ZonesCard({ data }: { data: ZonesResp }) {
   }
 
   return (
-    <Card title={t.zonesSettings.title} action={<Button size="sm" variant="primary" onClick={save}>{t.common.save}</Button>}>
-      <p className="mb-4 max-w-prose text-[12.5px] leading-relaxed text-ink-muted">
-        {t.zonesSettings.intro}
-      </p>
+    <Card
+      title={t.zonesSettings.title}
+      action={
+        <Button size="sm" variant="primary" onClick={save}>
+          {t.common.save}
+        </Button>
+      }
+    >
+      <p className="mb-4 max-w-prose text-[12.5px] leading-relaxed text-ink-muted">{t.zonesSettings.intro}</p>
       <div className="flex flex-col gap-5">
         {SPORTS.map((s) => {
           const suggestion = data.suggested_max[s];
@@ -76,18 +86,41 @@ function ZonesCard({ data }: { data: ZonesResp }) {
           return (
             <div key={s} className="flex flex-col gap-2 border-t border-border pt-4 first:border-t-0 first:pt-0">
               <div className="flex flex-wrap items-end gap-3">
-                <Input label={t.zonesSettings.maxFor(s)} inputMode="numeric" className="w-28" value={max[s] ?? ""} onChange={(e) => setMax({ ...max, [s]: e.target.value.replace(/\D/g, "") })} />
-                <Checkbox label={t.zonesSettings.estimate} checked={estimate[s] ?? false} onChange={(v) => setEstimate({ ...estimate, [s]: v })} />
+                <Input
+                  label={t.zonesSettings.maxFor(s)}
+                  inputMode="numeric"
+                  className="w-28"
+                  value={max[s] ?? ""}
+                  onChange={(e) => setMax({ ...max, [s]: e.target.value.replace(/\D/g, "") })}
+                />
+                <Checkbox
+                  label={t.zonesSettings.estimate}
+                  checked={estimate[s] ?? false}
+                  onChange={(v) => setEstimate({ ...estimate, [s]: v })}
+                />
                 {suggestion && String(suggestion) !== max[s] && (
-                  <Button size="sm" variant="ghost" onClick={() => setMax({ ...max, [s]: String(suggestion) })}>{t.zonesSettings.suggestion(suggestion)}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setMax({ ...max, [s]: String(suggestion) })}>
+                    {t.zonesSettings.suggestion(suggestion)}
+                  </Button>
                 )}
                 {!suggestion && fallback && !max[s] && (
-                  <Button size="sm" variant="ghost" onClick={() => { setMax({ ...max, [s]: String(fallback) }); setEstimate({ ...estimate, [s]: true }); }}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setMax({ ...max, [s]: String(fallback) });
+                      setEstimate({ ...estimate, [s]: true });
+                    }}
+                  >
                     {t.zonesSettings.fromRunning(fallback)}
                   </Button>
                 )}
               </div>
-              {m >= 100 && m <= 230 ? <ZonePreview max={m} percent={p} /> : <p className="text-[12px] text-ink-muted">{t.zonesSettings.noMax(s)}</p>}
+              {m >= 100 && m <= 230 ? (
+                <ZonePreview max={m} percent={p} />
+              ) : (
+                <p className="text-[12px] text-ink-muted">{t.zonesSettings.noMax(s)}</p>
+              )}
             </div>
           );
         })}
@@ -96,9 +129,18 @@ function ZonesCard({ data }: { data: ZonesResp }) {
         <summary className="cursor-pointer text-ink-muted">{t.zonesSettings.bounds}</summary>
         <div className="mt-3 flex flex-wrap items-end gap-3">
           {["Z2", "Z3", "Z4", "Z5"].map((z, i) => (
-            <Input key={z} label={t.zonesSettings.from(z)} inputMode="decimal" className="w-20" value={percent[i]} onChange={(e) => setPercent(percent.map((x, j) => (j === i ? e.target.value.replace(",", ".") : x)))} />
+            <Input
+              key={z}
+              label={t.zonesSettings.from(z)}
+              inputMode="decimal"
+              className="w-20"
+              value={percent[i]}
+              onChange={(e) => setPercent(percent.map((x, j) => (j === i ? e.target.value.replace(",", ".") : x)))}
+            />
           ))}
-          <Button size="sm" variant="ghost" onClick={() => setPercent(["70", "77", "85", "92.5"])}>{t.zonesSettings.defaults}</Button>
+          <Button size="sm" variant="ghost" onClick={() => setPercent(["70", "77", "85", "92.5"])}>
+            {t.zonesSettings.defaults}
+          </Button>
         </div>
       </details>
       {msg && <p className={`mt-3 text-[12.5px] ${msg.ok ? "text-gain" : "text-loss"}`}>{msg.text}</p>}
@@ -110,14 +152,23 @@ function FactsCard() {
   const t = useT();
   const q = useQuery({ queryKey: ["profile-facts"], queryFn: () => api.get<Facts>("/api/settings/profile") });
   // what the site calculates now: the entered resting HR is only a fallback for when there are no measured nights
-  const rhr = useQuery({ queryKey: ["resting-hr"], queryFn: () => api.get<{ value: number | null; source: string | null }>("/api/settings/resting-hr") });
+  const rhr = useQuery({
+    queryKey: ["resting-hr"],
+    queryFn: () => api.get<{ value: number | null; source: string | null }>("/api/settings/resting-hr"),
+  });
   const [f, setF] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
   useEffect(() => {
     if (q.data) setF(Object.fromEntries(Object.entries(q.data).map(([k, v]) => [k, String(v)])));
   }, [q.data]);
   const field = (k: keyof Facts, label: string) => (
-    <Input label={label} inputMode="decimal" className="w-28" value={f[k] ?? ""} onChange={(e) => setF({ ...f, [k]: e.target.value.replace(",", ".") })} />
+    <Input
+      label={label}
+      inputMode="decimal"
+      className="w-28"
+      value={f[k] ?? ""}
+      onChange={(e) => setF({ ...f, [k]: e.target.value.replace(",", ".") })}
+    />
   );
   return (
     <Card title={t.zonesSettings.profile}>
@@ -127,7 +178,11 @@ function FactsCard() {
         onSubmit={async (e) => {
           e.preventDefault();
           try {
-            const body = Object.fromEntries(Object.entries(f).filter(([, v]) => v !== "").map(([k, v]) => [k, Number(v)]));
+            const body = Object.fromEntries(
+              Object.entries(f)
+                .filter(([, v]) => v !== "")
+                .map(([k, v]) => [k, Number(v)]),
+            );
             await api.put("/api/settings/profile", body);
             setMsg(t.common.saved);
           } catch (err) {
@@ -139,10 +194,14 @@ function FactsCard() {
         {field("height_cm", t.zonesSettings.height)}
         {field("weight_kg", t.zonesSettings.weight)}
         {field("resting_hr", t.zonesSettings.restingHr)}
-        <Button type="submit" size="sm" variant="primary">{t.common.save}</Button>
+        <Button type="submit" size="sm" variant="primary">
+          {t.common.save}
+        </Button>
         {msg && <span className="text-[12.5px] text-ink-muted">{msg}</span>}
       </form>
-      {rhr.data && <p className="mt-3 max-w-prose text-[12px] text-ink-muted">{t.zonesSettings.restingHrHint(rhr.data.value, rhr.data.source)}</p>}
+      {rhr.data && (
+        <p className="mt-3 max-w-prose text-[12px] text-ink-muted">{t.zonesSettings.restingHrHint(rhr.data.value, rhr.data.source)}</p>
+      )}
     </Card>
   );
 }

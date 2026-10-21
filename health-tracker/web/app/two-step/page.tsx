@@ -18,7 +18,9 @@ export default function TwoStepPage() {
     <main className="mx-auto flex min-h-screen max-w-[680px] flex-col gap-8 p-6 py-12">
       <TwoStepHelp locale={locale} days={config.data?.session_days ?? 30} />
       <div className="flex flex-wrap items-center gap-4">
-        <Link href="/login/" className="text-[12.5px] text-ink-muted underline underline-offset-2">{t.auth.login}</Link>
+        <Link href="/login/" className="text-[12.5px] text-ink-muted underline underline-offset-2">
+          {t.auth.login}
+        </Link>
         <LanguageSwitch />
       </div>
     </main>

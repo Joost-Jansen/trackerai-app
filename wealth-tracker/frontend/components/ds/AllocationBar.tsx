@@ -64,19 +64,12 @@ export default function AllocationBar({
       {showLegend && (
         <div className="ds-alloc__legend">
           {segments.map((s, i) => (
-            <div
-              key={s.label}
-              className="ds-alloc__item"
-              onMouseEnter={() => setActive(i)}
-              onMouseLeave={() => setActive(null)}
-            >
+            <div key={s.label} className="ds-alloc__item" onMouseEnter={() => setActive(i)} onMouseLeave={() => setActive(null)}>
               <span className="ds-alloc__swatch" style={{ background: colourOf(s, i) }} />
               {/* min-w-0 + truncate: a sector name such as "Consumer (cycl.)" must not push the
                   percentage off the line. */}
               <span className="min-w-0 flex-1 truncate">{s.label}</span>
-              <span className="ds-alloc__pct">
-                {s.display ?? fmtEu(pct(s), { decimals: 1, suffix: "%" })}
-              </span>
+              <span className="ds-alloc__pct">{s.display ?? fmtEu(pct(s), { decimals: 1, suffix: "%" })}</span>
             </div>
           ))}
         </div>

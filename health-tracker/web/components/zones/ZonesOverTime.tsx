@@ -30,8 +30,12 @@ function MiniBar({ pct, label }: { pct: Record<Zone, number> | null; label: stri
   return (
     <>
       <span className="text-[12px] text-ink-muted">{label}</span>
-      <div className="flex h-2.5 overflow-hidden rounded-full" style={{ background: "var(--surface-inset)" }} role="img"
-        aria-label={pct ? ZONES.map((z) => `${z} ${Math.round(pct[z])}%`).join(", ") : t.zones.noData}>
+      <div
+        className="flex h-2.5 overflow-hidden rounded-full"
+        style={{ background: "var(--surface-inset)" }}
+        role="img"
+        aria-label={pct ? ZONES.map((z) => `${z} ${Math.round(pct[z])}%`).join(", ") : t.zones.noData}
+      >
         {pct && ZONES.map((z) => pct[z] > 0 && <div key={z} style={{ width: `${pct[z]}%`, background: ZONE_COLOUR[z] }} />)}
       </div>
     </>
@@ -58,7 +62,10 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
   });
   // The API's labels are Dutch; build them in the user's language from start and end.
   const h = useMemo<ZoneHistory | undefined>(
-    () => (q.data ? { ...q.data, items: q.data.items.map((it) => ({ ...it, label: periodLabel(q.data!.period, it.start, it.end, t, f) })) } : undefined),
+    () =>
+      q.data
+        ? { ...q.data, items: q.data.items.map((it) => ({ ...it, label: periodLabel(q.data!.period, it.start, it.end, t, f) })) }
+        : undefined,
     [q.data, t, f],
   );
 
@@ -66,9 +73,7 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
     if (!h) return [];
     const last = h.items[h.items.length - 1];
     // The periods that touch the chosen time span; without a time bar the last 12.
-    const items = win?.from && win?.to
-      ? h.items.filter((it) => it.end >= win.from && it.start <= win.to)
-      : h.items.slice(-FALLBACK_SHOWN);
+    const items = win?.from && win?.to ? h.items.filter((it) => it.end >= win.from && it.start <= win.to) : h.items.slice(-FALLBACK_SHOWN);
     return items.map((it) => ({ ...it, short: short(h.period, it.start), partial: it === last }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [h, win?.from, win?.to]);
@@ -111,18 +116,33 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
       action={
         <div className="flex flex-wrap items-center gap-2">
           {pageSport === undefined && (
-            <Select aria-label={t.history.sport} value={sport} onChange={(e) => setSport(e.target.value)} className="!h-[32px] !w-auto min-w-[9rem]">
+            <Select
+              aria-label={t.history.sport}
+              value={sport}
+              onChange={(e) => setSport(e.target.value)}
+              className="!h-[32px] !w-auto min-w-[9rem]"
+            >
               <option value="all">{t.sport("all")}</option>
               {(sports.includes(sport) || sport === "all" ? sports : [...sports, sport]).map((s) => (
-                <option key={s} value={s}>{t.sport(s)}</option>
+                <option key={s} value={s}>
+                  {t.sport(s)}
+                </option>
               ))}
             </Select>
           )}
-          <Tabs variant="segmented" items={[{ id: "week", label: t.dashboard.week }, { id: "month", label: t.dashboard.month }]} value={period} onChange={(v) => switchPeriod(v as ZonePeriod)} ariaLabel={z.weekOrMonth} />
+          <Tabs
+            variant="segmented"
+            items={[
+              { id: "week", label: t.dashboard.week },
+              { id: "month", label: t.dashboard.month },
+            ]}
+            value={period}
+            onChange={(v) => switchPeriod(v as ZonePeriod)}
+            ariaLabel={z.weekOrMonth}
+          />
         </div>
       }
     >
-
       {q.isLoading ? (
         <p className="py-6 text-center text-sm text-ink-muted">{t.common.loading}</p>
       ) : !h ? (
@@ -145,15 +165,30 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
                 <span className="text-[13px] font-medium">{z.easyOverTime}</span>
                 <span className="flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-muted">
                   <span className="inline-flex items-center gap-1.5">
-                    <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke="var(--zone-2)" strokeWidth="2" /></svg>
+                    <svg width="16" height="6" aria-hidden>
+                      <line x1="0" x2="16" y1="3" y2="3" stroke="var(--zone-2)" strokeWidth="2" />
+                    </svg>
                     {z.easyPer(period)}
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke="var(--text-primary)" strokeWidth="2" /></svg>
+                    <svg width="16" height="6" aria-hidden>
+                      <line x1="0" x2="16" y1="3" y2="3" stroke="var(--text-primary)" strokeWidth="2" />
+                    </svg>
                     {z.easyAvg(ROLL, unit(period, ROLL))}
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke="var(--text-faint)" strokeWidth="1.5" strokeDasharray="1 4" strokeLinecap="round" /></svg>
+                    <svg width="16" height="6" aria-hidden>
+                      <line
+                        x1="0"
+                        x2="16"
+                        y1="3"
+                        y2="3"
+                        stroke="var(--text-faint)"
+                        strokeWidth="1.5"
+                        strokeDasharray="1 4"
+                        strokeLinecap="round"
+                      />
+                    </svg>
                     {z.easyTarget(EASY_TARGET)}
                   </span>
                 </span>
@@ -178,15 +213,27 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
                 <Tabs
                   variant="segmented"
-                  items={[{ id: "current", label: z.current[period] }, { id: "previous", label: z.previous[period] }]}
+                  items={[
+                    { id: "current", label: z.current[period] },
+                    { id: "previous", label: z.previous[period] },
+                  ]}
                   value={which}
                   onChange={(v) => setWhich(v as "current" | "previous")}
                   ariaLabel={z.whichAria}
                 />
                 <label className="flex items-center gap-2 text-[12.5px] text-ink-muted">
                   {z.compareWith}
-                  <Select aria-label={z.countAria} value={String(x)} onChange={(e) => setX(Number(e.target.value))} className="!h-[32px] !w-auto">
-                    {CHOICES[period].map((n) => <option key={n} value={n}>{n} {unit(period, n)}</option>)}
+                  <Select
+                    aria-label={z.countAria}
+                    value={String(x)}
+                    onChange={(e) => setX(Number(e.target.value))}
+                    className="!h-[32px] !w-auto"
+                  >
+                    {CHOICES[period].map((n) => (
+                      <option key={n} value={n}>
+                        {n} {unit(period, n)}
+                      </option>
+                    ))}
                   </Select>
                 </label>
               </div>
@@ -203,10 +250,14 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
                     <tr className="text-left text-[11.5px] text-ink-muted">
                       <th className="pb-2 font-normal">{z.zone}</th>
                       <th className="pb-2 text-right font-normal">{thisName}</th>
-                      <th className="pb-2 text-right font-normal" title={avgName}>{z.avg}</th>
+                      <th className="pb-2 text-right font-normal" title={avgName}>
+                        {z.avg}
+                      </th>
                       <th className="pb-2 text-right font-normal">{z.diff}</th>
                       <th className="pb-2 text-right font-normal">{z.hours}</th>
-                      <th className="pb-2 text-right font-normal" title={z.avgHoursTitle(period)}>{z.avgHours}</th>
+                      <th className="pb-2 text-right font-normal" title={z.avgHoursTitle(period)}>
+                        {z.avgHours}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -217,7 +268,11 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
                         <tr key={r.zone} className="border-t border-border">
                           <td className="py-1.5">
                             <span className="inline-flex items-center gap-1.5">
-                              <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ background: ZONE_COLOUR[r.zone] }} />
+                              <span
+                                aria-hidden="true"
+                                className="inline-block h-2 w-2 rounded-full"
+                                style={{ background: ZONE_COLOUR[r.zone] }}
+                              />
                               {r.zone}
                             </span>
                           </td>
@@ -239,7 +294,9 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
                           <td className="py-1.5 text-right text-ink-muted">{fmtPct(avg)}</td>
                           <td className="py-1.5 text-right">{fmtPp(now != null && avg != null ? now - avg : null, f)}</td>
                           <td className="py-1.5 text-right">{f.duration(cmp.rows[0].seconds + cmp.rows[1].seconds)}</td>
-                          <td className="py-1.5 text-right text-ink-muted">{f.duration(cmp.rows[0].avgSeconds + cmp.rows[1].avgSeconds)}</td>
+                          <td className="py-1.5 text-right text-ink-muted">
+                            {f.duration(cmp.rows[0].avgSeconds + cmp.rows[1].avgSeconds)}
+                          </td>
                         </tr>
                       );
                     })()}
@@ -258,8 +315,7 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
               <p className="mt-2 text-[11.5px] text-ink-muted">
                 {cmp.target.label.charAt(0).toUpperCase() + cmp.target.label.slice(1)}
                 {which === "current" ? z.runningNote : "."}
-                {cmp.target.total_s === 0 && ` ${z.noHrPeriod}`}
-                {" "}{z.method(cmp.periods, unit(period, cmp.periods), cmp.withData, period)}
+                {cmp.target.total_s === 0 && ` ${z.noHrPeriod}`} {z.method(cmp.periods, unit(period, cmp.periods), cmp.withData, period)}
                 {sport === "all" && ` ${z.allSports}`}
               </p>
             </div>

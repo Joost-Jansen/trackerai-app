@@ -304,9 +304,12 @@ export default function TimeChart({
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, [commit, el]);
-  useEffect(() => () => {
-    if (commitTimer.current) clearTimeout(commitTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (commitTimer.current) clearTimeout(commitTimer.current);
+    },
+    [],
+  );
 
   // ── Scales
   const a = view?.a ?? 0;
@@ -336,7 +339,8 @@ export default function TimeChart({
         anyBar = true;
         continue;
       }
-      const [i0, i1] = s.kind === "step" ? [Math.max(0, lowerBound(s.days, a) - 1), lowerBound(s.days, b + 0.5) - 1] : strictlyVisible(s.days);
+      const [i0, i1] =
+        s.kind === "step" ? [Math.max(0, lowerBound(s.days, a) - 1), lowerBound(s.days, b + 0.5) - 1] : strictlyVisible(s.days);
       for (let i = i0; i <= i1; i++) if (i >= 0) vals.push(s.points[i].v);
       if (s.trend) {
         // The ends of the trend line can fall outside the points (with a few widely spread measurements);
@@ -381,7 +385,16 @@ export default function TimeChart({
   // ── Paths (only the visible part; when dragging and zooming that is what each frame costs)
   const paths = useMemo(() => {
     if (!view) return [];
-    const out: { key: string; d: string; dots: [number, number][]; colour: string; width: number; dash?: string; opacity: number; fill?: string }[] = [];
+    const out: {
+      key: string;
+      d: string;
+      dots: [number, number][];
+      colour: string;
+      width: number;
+      dash?: string;
+      opacity: number;
+      fill?: string;
+    }[] = [];
     const line = (s: { points: DayPoint[]; days: number[]; step: number }, stepKind: boolean, extendTo?: number) => {
       const [i0, i1] = visible(s.days, s.step);
       const gap = Math.max(s.step * 3, s.step + 7);
@@ -416,7 +429,16 @@ export default function TimeChart({
         const [i0, i1] = visible(s.days, s.step);
         fill = `${d}L${x(s.days[i1]).toFixed(1)} ${PAD.top + plotH}L${x(s.days[i0]).toFixed(1)} ${PAD.top + plotH}Z`;
       }
-      out.push({ key: s.key, d, dots, colour: s.colour, width: dim ? 1.25 : s.width ?? 1.75, dash: DASH[s.dash ?? "solid"], opacity: dim ? 0.5 : 1, fill });
+      out.push({
+        key: s.key,
+        d,
+        dots,
+        colour: s.colour,
+        width: dim ? 1.25 : (s.width ?? 1.75),
+        dash: DASH[s.dash ?? "solid"],
+        opacity: dim ? 0.5 : 1,
+        fill,
+      });
       if (s.avg.length) {
         const avg = line({ points: s.avg, days: s.avgDays, step: s.step }, false);
         out.push({ key: `${s.key}-avg`, d: avg.d, dots: [], colour: s.colour, width: 2.5, opacity: 1 });
@@ -442,7 +464,10 @@ export default function TimeChart({
       if (i >= 0 && s.days[i] >= a - 0.5 && s.days[i] <= b + 0.5) consider(s.days[i]);
     }
     if (bars.length) {
-      const i = nearestIndex(stack.days.map((d) => d + barDays / 2), day);
+      const i = nearestIndex(
+        stack.days.map((d) => d + barDays / 2),
+        day,
+      );
       if (i >= 0) consider(stack.days[i] + barDays / 2);
     }
     return best ?? Math.round(day);
@@ -450,9 +475,7 @@ export default function TimeChart({
 
   const pointers = useRef(new Map<number, number>());
   const gesture = useRef<
-    | { kind: "pan"; x0: number; r0: DayRange; moved: boolean }
-    | { kind: "pinch"; d0: number; c0: number; r0: DayRange }
-    | null
+    { kind: "pan"; x0: number; r0: DayRange; moved: boolean } | { kind: "pinch"; d0: number; c0: number; r0: DayRange } | null
   >(null);
 
   const localX = (clientX: number) => {
@@ -570,12 +593,25 @@ export default function TimeChart({
         if (j >= 0 && Math.abs(s.days[j] - readDay) <= Math.max(s.step * 0.6, 0.5)) i = j;
       }
       // With one series the name is already above the chart: then only "value" and "avg. 7 d".
-      if (i >= 0) rows.push({ key: s.key, label: solo ? tc.value : s.label, colour: s.colour, value: `${format(s.points[i].v)}${unit}`, at: s.kind === "step" ? undefined : s.days[i] });
+      if (i >= 0)
+        rows.push({
+          key: s.key,
+          label: solo ? tc.value : s.label,
+          colour: s.colour,
+          value: `${format(s.points[i].v)}${unit}`,
+          at: s.kind === "step" ? undefined : s.days[i],
+        });
       if (s.avg.length) {
         const j = nearestIndex(s.avgDays, readDay);
         if (j >= 0 && Math.abs(s.avgDays[j] - readDay) <= Math.max(s.step * 0.6, 0.5)) {
           const opt = maOptions?.find((o) => o.days === maDays);
-          rows.push({ key: `${s.key}-avg`, label: `${solo ? "" : `${s.label} · `}${tc.avg(opt ? maLabel(opt) : `${maDays} d`)}`, colour: s.colour, value: `${format(s.avg[j].v)}${unit}`, strong: true });
+          rows.push({
+            key: `${s.key}-avg`,
+            label: `${solo ? "" : `${s.label} · `}${tc.avg(opt ? maLabel(opt) : `${maDays} d`)}`,
+            colour: s.colour,
+            value: `${format(s.avg[j].v)}${unit}`,
+            strong: true,
+          });
         }
       }
     }
@@ -583,13 +619,20 @@ export default function TimeChart({
     if (cell) {
       for (const s of [...bars].reverse()) {
         const part = cell.parts.get(s.key);
-        if (part && part[1] - part[0] > 0) rows.push({ key: s.key, label: s.label, colour: s.colour, value: `${format(part[1] - part[0])}${unit}` });
+        if (part && part[1] - part[0] > 0)
+          rows.push({ key: s.key, label: s.label, colour: s.colour, value: `${format(part[1] - part[0])}${unit}` });
       }
-      if (bars.length > 1) rows.push({ key: "total", label: totalLabel, colour: "transparent", value: `${format(cell.total)}${unit}`, strong: true });
+      if (bars.length > 1)
+        rows.push({ key: "total", label: totalLabel, colour: "transparent", value: `${format(cell.total)}${unit}`, strong: true });
       const j = stack.avgDays.indexOf(readDay);
       if (j >= 0) {
         const opt = maOptions?.find((o) => o.days === maDays);
-        rows.push({ key: "stack-avg", label: tc.avg(maLabel(opt)).trim(), colour: MA_COLOUR_BARS, value: `${format(stack.avg[j].v)}${unit}` });
+        rows.push({
+          key: "stack-avg",
+          label: tc.avg(maLabel(opt)).trim(),
+          colour: MA_COLOUR_BARS,
+          value: `${format(stack.avg[j].v)}${unit}`,
+        });
       }
     }
   }
@@ -597,7 +640,8 @@ export default function TimeChart({
   const halfStepPx = hoverIsBar ? (barDays / 2 / span) * plotW : 6;
   const hoverMarkers = hover === null ? [] : markers.filter((m) => Math.abs(x(dayNumber(m.d)) - x(hover)) <= Math.max(6, halfStepPx));
   const weekly = hoverIsBar || (shown.length > 0 && shown.every((s) => s.kind === "bar" || (s.kind !== "step" && s.step >= 6)));
-  const readLabel = readDay === null ? "" : weekly ? tc.weekOf(fmtDate(isoDay(readDay), true, locale)) : fmtWeekday(isoDay(readDay), locale);
+  const readLabel =
+    readDay === null ? "" : weekly ? tc.weekOf(fmtDate(isoDay(readDay), true, locale)) : fmtWeekday(isoDay(readDay), locale);
 
   // ── Markers: peak, last point, trend
   const extras = useMemo(() => {
@@ -612,13 +656,24 @@ export default function TimeChart({
       if (s.peak) {
         let best = i0;
         for (let i = i0; i <= i1; i++) if (s.peak === "max" ? s.points[i].v > s.points[best].v : s.points[i].v < s.points[best].v) best = i;
-        peaks.push({ key: s.key, px: x(s.days[best]), py: y(s.points[best].v), colour: s.colour, text: `${s.peakLabel ?? (s.peak === "max" ? tc.peak : tc.best)} ${format(s.points[best].v)}` });
+        peaks.push({
+          key: s.key,
+          px: x(s.days[best]),
+          py: y(s.points[best].v),
+          colour: s.colour,
+          text: `${s.peakLabel ?? (s.peak === "max" ? tc.peak : tc.best)} ${format(s.points[best].v)}`,
+        });
       }
       if (s.trend) {
         const t = linearTrend(s.points.slice(i0, i1 + 1));
-        if (t.length) trends.push({ key: s.key, d: `M${x(dayNumber(t[0].d)).toFixed(1)} ${y(t[0].v).toFixed(1)}L${x(dayNumber(t[1].d)).toFixed(1)} ${y(t[1].v).toFixed(1)}` });
+        if (t.length)
+          trends.push({
+            key: s.key,
+            d: `M${x(dayNumber(t[0].d)).toFixed(1)} ${y(t[0].v).toFixed(1)}L${x(dayNumber(t[1].d)).toFixed(1)} ${y(t[1].v).toFixed(1)}`,
+          });
       }
-      if (s.kind !== "step" && i1 === s.points.length - 1) lasts.push({ key: s.key, px: x(s.days[i1]), py: y(s.points[i1].v), colour: s.colour });
+      if (s.kind !== "step" && i1 === s.points.length - 1)
+        lasts.push({ key: s.key, px: x(s.days[i1]), py: y(s.points[i1].v), colour: s.colour });
     }
     return { peaks, trends, lasts };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -671,7 +726,11 @@ export default function TimeChart({
                     <span
                       aria-hidden
                       className="inline-block h-[3px] w-3 rounded-full"
-                      style={{ background: s.colour, opacity: off ? 0.35 : 1, ...(s.kind === "bar" ? { height: 9, width: 9, borderRadius: 2 } : {}) }}
+                      style={{
+                        background: s.colour,
+                        opacity: off ? 0.35 : 1,
+                        ...(s.kind === "bar" ? { height: 9, width: 9, borderRadius: 2 } : {}),
+                      }}
                     />
                     {legendLabel(s)}
                   </button>
@@ -683,7 +742,9 @@ export default function TimeChart({
           )}
           {hasMa && (
             <div className="flex items-center gap-2">
-              <span className="text-[11.5px] text-ink-muted">{partialMa ? tc.averageOf(maSeries.map((s) => s.label).join(", ")) : tc.average}</span>
+              <span className="text-[11.5px] text-ink-muted">
+                {partialMa ? tc.averageOf(maSeries.map((s) => s.label).join(", ")) : tc.average}
+              </span>
               <Tabs
                 variant="segmented"
                 items={maOptions!.map((o) => ({ id: String(o.days), label: maLabel(o) }))}
@@ -746,8 +807,20 @@ export default function TimeChart({
               const anchor = px < 18 ? "start" : px > plotW - 18 ? "end" : "middle";
               return (
                 <g key={t.day}>
-                  <line x1={px} x2={px} y1={height - PAD.bottom} y2={height - PAD.bottom + (t.major ? 5 : 3)} stroke="var(--data-axis)" strokeOpacity={t.major ? 0.8 : 0.45} />
-                  <text x={px} y={height - 4} textAnchor={anchor} style={t.major ? { fill: "var(--text-primary)", fontWeight: 500 } : undefined}>
+                  <line
+                    x1={px}
+                    x2={px}
+                    y1={height - PAD.bottom}
+                    y2={height - PAD.bottom + (t.major ? 5 : 3)}
+                    stroke="var(--data-axis)"
+                    strokeOpacity={t.major ? 0.8 : 0.45}
+                  />
+                  <text
+                    x={px}
+                    y={height - 4}
+                    textAnchor={anchor}
+                    style={t.major ? { fill: "var(--text-primary)", fontWeight: 500 } : undefined}
+                  >
                     {t.label}
                   </text>
                 </g>
@@ -765,7 +838,15 @@ export default function TimeChart({
               if (px < 0 || px > plotW) return null;
               return (
                 <g key={m.d + m.label}>
-                  <line x1={px} x2={px} y1={PAD.top - 6} y2={height - PAD.bottom} stroke="var(--chart-6)" strokeOpacity="0.55" strokeDasharray="2 3" />
+                  <line
+                    x1={px}
+                    x2={px}
+                    y1={PAD.top - 6}
+                    y2={height - PAD.bottom}
+                    stroke="var(--chart-6)"
+                    strokeOpacity="0.55"
+                    strokeDasharray="2 3"
+                  />
                   <path d={`M${px} ${PAD.top - 10}l4 4l-4 4l-4 -4z`} fill="var(--chart-6)" />
                 </g>
               );
@@ -785,7 +866,17 @@ export default function TimeChart({
                       if (!part || part[1] <= part[0]) return null;
                       const top = y(part[1]);
                       const bottom = y(part[0]);
-                      return <rect key={s.key} x={cx - barW / 2} y={Math.min(top, bottom)} width={barW} height={Math.max(Math.abs(bottom - top) - 0.75, 0.75)} rx={Math.min(2.5, barW / 3)} fill={s.colour} />;
+                      return (
+                        <rect
+                          key={s.key}
+                          x={cx - barW / 2}
+                          y={Math.min(top, bottom)}
+                          width={barW}
+                          height={Math.max(Math.abs(bottom - top) - 0.75, 0.75)}
+                          rx={Math.min(2.5, barW / 3)}
+                          fill={s.colour}
+                        />
+                      );
                     })}
                   </g>
                 );
@@ -795,7 +886,15 @@ export default function TimeChart({
               p.fill ? <path key={`${p.key}-fill`} className="ds-chart__area" d={p.fill} fill="var(--chart-band)" /> : null,
             )}
             {extras.trends.map((t) => (
-              <path key={`trend-${t.key}`} d={t.d} fill="none" stroke="var(--chart-2)" strokeOpacity="0.7" strokeWidth="1.25" strokeDasharray="5 4" />
+              <path
+                key={`trend-${t.key}`}
+                d={t.d}
+                fill="none"
+                stroke="var(--chart-2)"
+                strokeOpacity="0.7"
+                strokeWidth="1.25"
+                strokeDasharray="5 4"
+              />
             ))}
             {paths.map((p) => (
               <g key={p.key} opacity={p.opacity}>
@@ -821,7 +920,14 @@ export default function TimeChart({
                   y={above ? p.py - 9 : p.py + 17}
                   textAnchor={anchor}
                   fill={p.colour}
-                  style={{ fontFamily: "var(--font-sans)", fontSize: 10.5, fontWeight: 600, paintOrder: "stroke", stroke: "var(--surface-card)", strokeWidth: 3 }}
+                  style={{
+                    fontFamily: "var(--font-sans)",
+                    fontSize: 10.5,
+                    fontWeight: 600,
+                    paintOrder: "stroke",
+                    stroke: "var(--surface-card)",
+                    strokeWidth: 3,
+                  }}
                 >
                   {trueMinus(p.text)}
                 </text>
@@ -832,7 +938,15 @@ export default function TimeChart({
           {hover !== null && (
             <g pointerEvents="none">
               {hoverIsBar ? (
-                <rect x={hx - barW / 2 - 2} y={PAD.top - 4} width={barW + 4} height={height - PAD.bottom - PAD.top + 4} fill="var(--n-400)" fillOpacity="0.08" rx="3" />
+                <rect
+                  x={hx - barW / 2 - 2}
+                  y={PAD.top - 4}
+                  width={barW + 4}
+                  height={height - PAD.bottom - PAD.top + 4}
+                  fill="var(--n-400)"
+                  fillOpacity="0.08"
+                  rx="3"
+                />
               ) : (
                 <line className="ds-chart__cursor" x1={hx} x2={hx} y1={PAD.top - 4} y2={height - PAD.bottom} />
               )}
@@ -864,7 +978,10 @@ export default function TimeChart({
         </svg>
 
         {yModel.empty && (
-          <p className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[12.5px] text-ink-muted" style={{ paddingRight: PAD.right }}>
+          <p
+            className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[12.5px] text-ink-muted"
+            style={{ paddingRight: PAD.right }}
+          >
             {tc.noData}
           </p>
         )}

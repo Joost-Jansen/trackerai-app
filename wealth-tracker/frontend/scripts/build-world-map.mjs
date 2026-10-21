@@ -168,10 +168,7 @@ function project([lon, lat]) {
   const t = Math.asin(M * Math.sin((lat * Math.PI) / 180));
   const t2 = t * t;
   const t6 = t2 * t2 * t2;
-  return [
-    (l * Math.cos(t)) / (M * (A1 + 3 * A2 * t2 + t6 * (7 * A3 + 9 * A4 * t2))),
-    t * (A1 + A2 * t2 + t6 * (A3 + A4 * t2)),
-  ];
+  return [(l * Math.cos(t)) / (M * (A1 + 3 * A2 * t2 + t6 * (7 * A3 + 9 * A4 * t2))), t * (A1 + A2 * t2 + t6 * (A3 + A4 * t2))];
 }
 
 // ---------------------------------------------------------------------------
@@ -254,9 +251,7 @@ for (const geom of topology.objects.countries.geometries) {
   const atlasName = geom.properties.name;
   if (DROP.has(atlasName)) continue;
   const polygons = geom.type === "Polygon" ? [geom.arcs] : geom.arcs;
-  const rings = polygons.flatMap((poly) =>
-    poly.flatMap((r) => splitAtDateline(ringOf(r, arcs)).map((part) => part.map(project))),
-  );
+  const rings = polygons.flatMap((poly) => poly.flatMap((r) => splitAtDateline(ringOf(r, arcs)).map((part) => part.map(project))));
   if (rings.length === 0) continue;
   countries.push({ name: ATLAS_TO_APP[atlasName] ?? atlasName, rings });
 }
@@ -289,9 +284,7 @@ for (const { name, rings } of countries) {
   const screen = rings.map((r) => r.map(toScreen));
   const areas = screen.map(ringArea);
   const biggest = areas.indexOf(Math.max(...areas));
-  const kept = screen
-    .map((r, i) => ({ ring: r, area: areas[i], main: i === biggest }))
-    .filter((r) => r.main || r.area >= MIN_RING_AREA);
+  const kept = screen.map((r, i) => ({ ring: r, area: areas[i], main: i === biggest })).filter((r) => r.main || r.area >= MIN_RING_AREA);
 
   const d = kept
     .map(({ ring }) => {
@@ -335,15 +328,17 @@ export const VIEWBOX = { width: ${WIDTH}, height: ${HEIGHT} };
  *  een muisaanwijzer. Die landen krijgen een stip als aanwijspunt. */
 export const TINY = ${TINY};
 
-export const COUNTRIES: Country[] = ${JSON.stringify(
-  out.map(({ name, d, c, area }) => ({ name, d, c, area })),
-).replace(/},{/g, "},\n  {").replace(/^\[/, "[\n  ").replace(/\]$/, ",\n]")};
+export const COUNTRIES: Country[] = ${JSON.stringify(out.map(({ name, d, c, area }) => ({ name, d, c, area })))
+  .replace(/},{/g, "},\n  {")
+  .replace(/^\[/, "[\n  ")
+  .replace(/\]$/, ",\n]")};
 
 /** Landen die op 110m geen eigen vorm hebben maar wel in een portefeuille kunnen
  *  zitten. Alleen een aanwijspunt. */
-export const POINT_COUNTRIES: { name: string; c: [number, number] }[] = ${JSON.stringify(
-  points,
-).replace(/},{/g, "},\n  {").replace(/^\[/, "[\n  ").replace(/\]$/, ",\n]")};
+export const POINT_COUNTRIES: { name: string; c: [number, number] }[] = ${JSON.stringify(points)
+  .replace(/},{/g, "},\n  {")
+  .replace(/^\[/, "[\n  ")
+  .replace(/\]$/, ",\n]")};
 `;
 
 writeFileSync(OUT, body);

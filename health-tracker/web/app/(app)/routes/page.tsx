@@ -59,11 +59,25 @@ function Suggest({ sport, routes }: { sport: RouteSport; routes: RouteSummary[] 
           if (v > 0) go(v);
         }}
       >
-        <input className="ds-input w-24" inputMode="decimal" placeholder="km" value={km} onChange={(e) => setKm(e.target.value)} aria-label={t.routes.distanceAria} />
-        <Button type="submit" variant="primary" size="sm">{t.routes.find}</Button>
+        <input
+          className="ds-input w-24"
+          inputMode="decimal"
+          placeholder="km"
+          value={km}
+          onChange={(e) => setKm(e.target.value)}
+          aria-label={t.routes.distanceAria}
+        />
+        <Button type="submit" variant="primary" size="sm">
+          {t.routes.find}
+        </Button>
         <span className="flex flex-wrap gap-1.5">
           {PRESETS[sport].presets.map((p) => (
-            <button key={p} type="button" className="rounded-full border border-border px-2.5 py-0.5 text-[12px] tabular-nums text-ink-muted hover:bg-[var(--surface-hover)]" onClick={() => go(p)}>
+            <button
+              key={p}
+              type="button"
+              className="rounded-full border border-border px-2.5 py-0.5 text-[12px] tabular-nums text-ink-muted hover:bg-[var(--surface-hover)]"
+              onClick={() => go(p)}
+            >
               {f.trim(p)}
             </button>
           ))}
@@ -85,7 +99,12 @@ function Suggest({ sport, routes }: { sport: RouteSport; routes: RouteSummary[] 
                 >
                   <span className="font-medium">{describe(o, t, f)}</span>
                   <span className="block text-[12px] tabular-nums text-ink-muted">
-                    {t.routes.option(f.km(o.total_km), `${o.deviation_km >= 0 ? "+" : "−"}${f.num(Math.abs(o.deviation_km), 1)}`, o.days_since, words.notDone)}
+                    {t.routes.option(
+                      f.km(o.total_km),
+                      `${o.deviation_km >= 0 ? "+" : "−"}${f.num(Math.abs(o.deviation_km), 1)}`,
+                      o.days_since,
+                      words.notDone,
+                    )}
                   </span>
                 </button>
               </li>
@@ -96,14 +115,26 @@ function Suggest({ sport, routes }: { sport: RouteSport; routes: RouteSummary[] 
                   const r = routes.find((x) => x.id === p);
                   return r ? (
                     <span key={p} className="mr-3">
-                      <Link href={href(p)} className="underline underline-offset-2">{routeName(r.name, p, t, f)}</Link>{t.routes.typicalAt(fmtTypical(f, r), String(r.median_hr ?? "–"))}
+                      <Link href={href(p)} className="underline underline-offset-2">
+                        {routeName(r.name, p, t, f)}
+                      </Link>
+                      {t.routes.typicalAt(fmtTypical(f, r), String(r.median_hr ?? "–"))}
                     </span>
                   ) : null;
                 })}
               </li>
             )}
           </ul>
-          {chosen && <RoutesMap lines={[...new Set(chosen.parts)].map((p) => ({ id: p, label: routeName(chosen.names[chosen.parts.indexOf(p)], p, t, f), points: chosen.tracks[p] ?? [] }))} height={300} />}
+          {chosen && (
+            <RoutesMap
+              lines={[...new Set(chosen.parts)].map((p) => ({
+                id: p,
+                label: routeName(chosen.names[chosen.parts.indexOf(p)], p, t, f),
+                points: chosen.tracks[p] ?? [],
+              }))}
+              height={300}
+            />
+          )}
         </div>
       )}
     </>
@@ -118,30 +149,59 @@ function Trend({ r }: { r: RouteSummary }) {
   if (r.recent_efficiency && r.earlier_efficiency) {
     const pct = ((r.recent_efficiency - r.earlier_efficiency) / r.earlier_efficiency) * 100;
     if (Math.abs(pct) < 1.5) return <span className="text-ink-muted">{t.routes.efficiencySame}</span>;
-    return <span className={pct > 0 ? "text-gain" : "text-loss"}>{pct > 0 ? t.routes.moreEfficient : t.routes.lessEfficient} ({pct > 0 ? "+" : "−"}{f.num(Math.abs(pct))}% {t.routes.perBeat})</span>;
+    return (
+      <span className={pct > 0 ? "text-gain" : "text-loss"}>
+        {pct > 0 ? t.routes.moreEfficient : t.routes.lessEfficient} ({pct > 0 ? "+" : "−"}
+        {f.num(Math.abs(pct))}% {t.routes.perBeat})
+      </span>
+    );
   }
   if (!r.recent_pace_s_per_km || !r.earlier_pace_s_per_km) return null;
   if (asSport(r.sport) === "ride") {
     const d = kmhFromPace(r.recent_pace_s_per_km)! - kmhFromPace(r.earlier_pace_s_per_km)!;
     if (Math.abs(d) < 0.3) return <span className="text-ink-muted">{t.routes.same}</span>;
-    return <span className={d > 0 ? "text-gain" : "text-loss"}>{d > 0 ? t.routes.faster : t.routes.slower} ({d > 0 ? "+" : "−"}{f.num(Math.abs(d), 1)} {f.kmhUnit})</span>;
+    return (
+      <span className={d > 0 ? "text-gain" : "text-loss"}>
+        {d > 0 ? t.routes.faster : t.routes.slower} ({d > 0 ? "+" : "−"}
+        {f.num(Math.abs(d), 1)} {f.kmhUnit})
+      </span>
+    );
   }
   const diff = r.recent_pace_s_per_km - r.earlier_pace_s_per_km;
   if (Math.abs(diff) < 3) return <span className="text-ink-muted">{t.routes.same}</span>;
-  return <span className={diff < 0 ? "text-gain" : "text-loss"}>{diff < 0 ? t.routes.faster : t.routes.slower} ({diff < 0 ? "−" : "+"}{Math.abs(diff)} s/km)</span>;
+  return (
+    <span className={diff < 0 ? "text-gain" : "text-loss"}>
+      {diff < 0 ? t.routes.faster : t.routes.slower} ({diff < 0 ? "−" : "+"}
+      {Math.abs(diff)} s/km)
+    </span>
+  );
 }
 
 function Routes({ sport, onSport }: { sport: RouteSport; onSport: (s: RouteSport) => void }) {
   const t = useT();
   const f = useFormat();
   const q = useQuery({ queryKey: ["routes", sport], queryFn: () => api.get<RouteWithVariants[]>(`/api/routes?sport=${sport}`) });
-  const cands = useQuery({ queryKey: ["route-candidates", sport], queryFn: () => api.get<Candidates>(`/api/routes/candidates?sport=${sport}`) });
+  const cands = useQuery({
+    queryKey: ["route-candidates", sport],
+    queryFn: () => api.get<Candidates>(`/api/routes/candidates?sport=${sport}`),
+  });
   const words = t.routes.words[sport];
   const routes = q.data ?? [];
 
   return (
     <div className="flex flex-col gap-4">
-      <Card title={words.suggestTitle} action={<Tabs variant="segmented" items={ROUTE_SPORTS.map((id) => ({ id, label: t.routes.tabs[id] }))} value={sport} onChange={(v) => onSport(asSport(v))} ariaLabel={t.history.sport} />}>
+      <Card
+        title={words.suggestTitle}
+        action={
+          <Tabs
+            variant="segmented"
+            items={ROUTE_SPORTS.map((id) => ({ id, label: t.routes.tabs[id] }))}
+            value={sport}
+            onChange={(v) => onSport(asSport(v))}
+            ariaLabel={t.history.sport}
+          />
+        }
+      >
         {q.isLoading ? (
           <p className="text-sm text-ink-muted">{t.common.loading}</p>
         ) : !q.data ? (
@@ -175,12 +235,19 @@ function Routes({ sport, onSport }: { sport: RouteSport; onSport: (s: RouteSport
                     </div>
                     <div className="min-w-0 text-[12.5px]">
                       <div className="truncate text-[14px] font-semibold">{routeName(r.name, r.id, t, f)}</div>
-                      <div className="tabular-nums text-ink-muted">{f.km(r.distance_km)} · {r.is_loop ? t.routes.loop : t.routes.line}{r.elevation_gain_m ? ` · ${t.routes.elevationShort(Math.round(r.elevation_gain_m))}` : ""}</div>
+                      <div className="tabular-nums text-ink-muted">
+                        {f.km(r.distance_km)} · {r.is_loop ? t.routes.loop : t.routes.line}
+                        {r.elevation_gain_m ? ` · ${t.routes.elevationShort(Math.round(r.elevation_gain_m))}` : ""}
+                      </div>
                       <LengthVariants variants={r.distance_variants} className="block text-ink-muted" />
                       <div className="mt-1.5 tabular-nums">{t.routes.timesDone(r.runs, words.done, f.day(r.last_run))}</div>
                       <div className="tabular-nums text-ink-muted">{t.routes.typical(fmtTypical(f, r), String(r.median_hr ?? "–"))}</div>
-                      {r.best && <div className="tabular-nums">{t.routes.best(fmtEffort(f, sport, r.best.pace_s_per_km), f.day(r.best.date))}</div>}
-                      <div className="text-[12px]"><Trend r={r} /></div>
+                      {r.best && (
+                        <div className="tabular-nums">{t.routes.best(fmtEffort(f, sport, r.best.pace_s_per_km), f.day(r.best.date))}</div>
+                      )}
+                      <div className="text-[12px]">
+                        <Trend r={r} />
+                      </div>
                     </div>
                   </div>
                 </Card>
@@ -192,7 +259,9 @@ function Routes({ sport, onSport }: { sport: RouteSport; onSport: (s: RouteSport
           </p>
         </>
       )}
-      <p className="text-[11.5px] text-ink-muted">{t.texts.routes.auto(cands.data?.last_sync ? f.dateTime(cands.data.last_sync.split(";")[0]) : null)}</p>
+      <p className="text-[11.5px] text-ink-muted">
+        {t.texts.routes.auto(cands.data?.last_sync ? f.dateTime(cands.data.last_sync.split(";")[0]) : null)}
+      </p>
     </div>
   );
 }

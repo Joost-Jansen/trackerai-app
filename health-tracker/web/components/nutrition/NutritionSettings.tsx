@@ -48,21 +48,49 @@ export default function NutritionSettings() {
           <option value="keep">{t.keepAlways}</option>
           <option value="never">{t.keepNever}</option>
         </Select>
-        <Select label={t.norms} hint={t.normsHint} value={s.norms ?? "none"} onChange={(e) => put({ norms: e.target.value })} className="max-w-xs">
+        <Select
+          label={t.norms}
+          hint={t.normsHint}
+          value={s.norms ?? "none"}
+          onChange={(e) => put({ norms: e.target.value })}
+          className="max-w-xs"
+        >
           <option value="none">{t.normsNone}</option>
           <option value="men">{t.normsMen}</option>
           <option value="women">{t.normsWomen}</option>
         </Select>
-        <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); const v = f.parse(kcal ?? ""); put(v ? { kcal_target: Math.round(v) } : { clear_kcal_target: true }); setKcal(null); }}>
-          <Input label={t.kcalTarget} hint={t.kcalHint} inputMode="numeric" className="w-40" value={kcal ?? (s.kcal_target != null ? String(s.kcal_target) : "")}
-            onChange={(e) => setKcal(e.target.value)} />
-          {kcal != null && <Button type="submit" variant="secondary" size="sm">{tt.common.save}</Button>}
+        <form
+          className="flex flex-wrap items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const v = f.parse(kcal ?? "");
+            put(v ? { kcal_target: Math.round(v) } : { clear_kcal_target: true });
+            setKcal(null);
+          }}
+        >
+          <Input
+            label={t.kcalTarget}
+            hint={t.kcalHint}
+            inputMode="numeric"
+            className="w-40"
+            value={kcal ?? (s.kcal_target != null ? String(s.kcal_target) : "")}
+            onChange={(e) => setKcal(e.target.value)}
+          />
+          {kcal != null && (
+            <Button type="submit" variant="secondary" size="sm">
+              {tt.common.save}
+            </Button>
+          )}
         </form>
         <div className="flex flex-col gap-1.5">
           <span className="text-[12.5px] font-medium">{s.weight_kg ? t.targetsFor(f.num(s.weight_kg)) : t.targets}</span>
           <table className="text-[12.5px] tabular-nums">
             <thead>
-              <tr className="text-left text-ink-muted"><th className="py-1 pr-4 font-normal">{t.dayType}</th><th className="py-1 pr-4 font-normal">{tt.nutrition.nutrients.carbs_g}</th><th className="py-1 font-normal">{tt.nutrition.nutrients.protein_g}</th></tr>
+              <tr className="text-left text-ink-muted">
+                <th className="py-1 pr-4 font-normal">{t.dayType}</th>
+                <th className="py-1 pr-4 font-normal">{tt.nutrition.nutrients.carbs_g}</th>
+                <th className="py-1 font-normal">{tt.nutrition.nutrients.protein_g}</th>
+              </tr>
             </thead>
             <tbody>
               {ORDER.map((d) => (
@@ -76,7 +104,11 @@ export default function NutritionSettings() {
           </table>
           <p className="text-[11.5px] text-ink-muted">{t.targetsNote}</p>
         </div>
-        {error && <p className="text-[12.5px] text-loss" role="alert">{error}</p>}
+        {error && (
+          <p className="text-[12.5px] text-loss" role="alert">
+            {error}
+          </p>
+        )}
       </div>
     </Card>
   );

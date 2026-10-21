@@ -48,9 +48,7 @@ function Amounts({ row }: { row: HBar }) {
   return (
     <span className="flex flex-none items-baseline gap-2">
       {row.secondary && <span className="num text-[11px] text-ink-muted">{row.secondary}</span>}
-      <span className="num font-semibold">
-        {row.display ?? fmtEu(row.value, { decimals: 1, suffix: "%" })}
-      </span>
+      <span className="num font-semibold">{row.display ?? fmtEu(row.value, { decimals: 1, suffix: "%" })}</span>
     </span>
   );
 }
@@ -103,9 +101,7 @@ function Row({
       // colour of the bar is the distribution it belongs to, and changing it to say "I
       // am pointing here" makes two things speak the same language. The negative
       // margin keeps the bars themselves aligned.
-      className={
-        active ? "-mx-1.5 rounded-sm px-1.5" : onActive && row.id ? "-mx-1.5 px-1.5" : undefined
-      }
+      className={active ? "-mx-1.5 rounded-sm px-1.5" : onActive && row.id ? "-mx-1.5 px-1.5" : undefined}
       style={active ? { background: "var(--surface-hover)" } : undefined}
     >
       {row.meta ? (
@@ -119,9 +115,7 @@ function Row({
           <span className="flex min-w-0 items-baseline gap-1">
             <span className="min-w-0 truncate">{row.label}</span>
             <ChevronDownIcon
-              className={`h-3 w-3 flex-none translate-y-[1px] text-ink-muted transition-transform ${
-                open ? "rotate-180" : ""
-              }`}
+              className={`h-3 w-3 flex-none translate-y-[1px] text-ink-muted transition-transform ${open ? "rotate-180" : ""}`}
             />
           </span>
           <Amounts row={row} />
@@ -130,8 +124,7 @@ function Row({
         <div className="flex items-baseline justify-between gap-3 text-[12.5px]">{line}</div>
       )}
       {/* aria-hidden: the length says nothing the number next to it doesn't already say literally. */}
-      <div aria-hidden="true" className="mt-1 h-2 rounded-full"
-        style={{ background: "var(--surface-inset)" }}>
+      <div aria-hidden="true" className="mt-1 h-2 rounded-full" style={{ background: "var(--surface-inset)" }}>
         <div
           className="h-full rounded-full"
           style={{
@@ -206,8 +199,7 @@ export default function HBars({
   // Never against 0 — then the width becomes NaN. `total` only counts when it is
   // positive: an empty portfolio passes 0, and then the sum of the rows is still a
   // better denominator than dividing by nothing.
-  const whole =
-    total && total > 0 ? total : sorted.reduce((s, r) => s + Math.abs(r.value), 0);
+  const whole = total && total > 0 ? total : sorted.reduce((s, r) => s + Math.abs(r.value), 0);
   const peak =
     scale === "total" || (total && total > 0)
       ? Math.max(whole, Number.EPSILON)
@@ -237,8 +229,7 @@ export default function HBars({
         // Never cut off silently: a list that stops at 20 without saying so reads as
         // "this is everything".
         <p className="mt-2.5 border-t border-border pt-2 text-[11px] text-ink-muted">
-          <span className="num">{hidden}</span>{" "}
-          {hidden === 1 ? tr("smaller item not shown") : tr("smaller items not shown")}
+          <span className="num">{hidden}</span> {hidden === 1 ? tr("smaller item not shown") : tr("smaller items not shown")}
         </p>
       )}
     </div>

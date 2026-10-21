@@ -28,11 +28,20 @@ export default function AccountGate({ me, onReady }: { me: Me; onReady?: () => v
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const refresh = async () => { await qc.invalidateQueries({ queryKey: ["me"] }); onReady?.(); };
+  const refresh = async () => {
+    await qc.invalidateQueries({ queryKey: ["me"] });
+    onReady?.();
+  };
 
   const logout = (
-    <button type="button" className="self-start text-[12.5px] text-ink-muted underline underline-offset-4"
-      onClick={async () => { await api.post("/api/logout"); router.replace("/login/"); }}>
+    <button
+      type="button"
+      className="self-start text-[12.5px] text-ink-muted underline underline-offset-4"
+      onClick={async () => {
+        await api.post("/api/logout");
+        router.replace("/login/");
+      }}
+    >
       {g.logout}
     </button>
   );
@@ -90,10 +99,18 @@ export default function AccountGate({ me, onReady }: { me: Me; onReady?: () => v
           checked={consent}
           onChange={setConsent}
           className="items-start text-[12.5px] leading-relaxed text-ink-muted"
-          label={rich(t.auth.consent, { link: (c) => <Link href="/privacy/" target="_blank" className="underline underline-offset-2">{c}</Link> })}
+          label={rich(t.auth.consent, {
+            link: (c) => (
+              <Link href="/privacy/" target="_blank" className="underline underline-offset-2">
+                {c}
+              </Link>
+            ),
+          })}
         />
         {error && <p className="text-[12.5px] text-loss">{error}</p>}
-        <Button type="submit" variant="primary" size="lg" block disabled={busy || !consent}>{busy ? t.common.busy : g.join}</Button>
+        <Button type="submit" variant="primary" size="lg" block disabled={busy || !consent}>
+          {busy ? t.common.busy : g.join}
+        </Button>
         {logout}
       </form>
     </main>
@@ -112,39 +129,82 @@ function ConfirmEmail({ email, onDone }: { email: string; onDone: () => void }) 
   const run = async (f: () => Promise<void>) => {
     setMsg(null);
     setBusy(true);
-    try { await f(); } catch (err) { setMsg({ ok: false, text: errorText(err, t, t.common.failed) }); } finally { setBusy(false); }
+    try {
+      await f();
+    } catch (err) {
+      setMsg({ ok: false, text: errorText(err, t, t.common.failed) });
+    } finally {
+      setBusy(false);
+    }
   };
-  const resend = (address?: string) => run(async () => {
-    const r = await api.post<{ sent_to: string }>("/api/account/email/resend", address ? { email: address } : {});
-    setTo(r.sent_to);
-    setChanging(false);
-    setMsg({ ok: true, text: g.emailSent(r.sent_to) });
-  });
+  const resend = (address?: string) =>
+    run(async () => {
+      const r = await api.post<{ sent_to: string }>("/api/account/email/resend", address ? { email: address } : {});
+      setTo(r.sent_to);
+      setChanging(false);
+      setMsg({ ok: true, text: g.emailSent(r.sent_to) });
+    });
 
   if (changing) {
     return (
-      <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); resend(to); }}>
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          resend(to);
+        }}
+      >
         <Input type="email" autoComplete="email" label={g.emailAddress} value={to} onChange={(e) => setTo(e.target.value)} autoFocus />
         {msg && <p className={`text-[12.5px] ${msg.ok ? "text-ink-muted" : "text-loss"}`}>{msg.text}</p>}
         <div className="flex items-center gap-3">
-          <Button type="submit" variant="primary" disabled={busy || !to}>{g.emailSendHere}</Button>
-          <Button type="button" variant="ghost" onClick={() => setChanging(false)}>{t.account.twoStep.cancel}</Button>
+          <Button type="submit" variant="primary" disabled={busy || !to}>
+            {g.emailSendHere}
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => setChanging(false)}>
+            {t.account.twoStep.cancel}
+          </Button>
         </div>
       </form>
     );
   }
   return (
-    <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); run(async () => {
-      await api.post("/api/account/email/confirm", { code });
-      onDone();
-    }); }}>
+    <form
+      className="flex flex-col gap-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        run(async () => {
+          await api.post("/api/account/email/confirm", { code });
+          onDone();
+        });
+      }}
+    >
       <p className="text-[13px] leading-relaxed text-ink-muted">{g.emailText(to)}</p>
-      <Input inputMode="numeric" autoComplete="one-time-code" label={t.account.emailCodes.code} value={code} onChange={(e) => setCode(e.target.value)} autoFocus />
+      <Input
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        label={t.account.emailCodes.code}
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        autoFocus
+      />
       {msg && <p className={`text-[12.5px] ${msg.ok ? "text-ink-muted" : "text-loss"}`}>{msg.text}</p>}
-      <Button type="submit" variant="primary" size="lg" block disabled={busy || code.trim().length < 6}>{busy ? t.common.busy : g.emailConfirm}</Button>
+      <Button type="submit" variant="primary" size="lg" block disabled={busy || code.trim().length < 6}>
+        {busy ? t.common.busy : g.emailConfirm}
+      </Button>
       <div className="flex flex-wrap items-center gap-4 text-[12.5px] text-ink-muted">
-        <button type="button" className="underline underline-offset-2" onClick={() => resend()}>{g.emailAgain}</button>
-        <button type="button" className="underline underline-offset-2" onClick={() => { setMsg(null); setChanging(true); }}>{g.emailWrong}</button>
+        <button type="button" className="underline underline-offset-2" onClick={() => resend()}>
+          {g.emailAgain}
+        </button>
+        <button
+          type="button"
+          className="underline underline-offset-2"
+          onClick={() => {
+            setMsg(null);
+            setChanging(true);
+          }}
+        >
+          {g.emailWrong}
+        </button>
       </div>
     </form>
   );

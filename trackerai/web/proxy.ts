@@ -36,7 +36,10 @@ export function proxy(request: NextRequest) {
       : back.toString();
     const response = NextResponse.redirect(target, 303);
     response.cookies.set(LOCALE_COOKIE, lang, {
-      path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax", secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
     });
     return response;
   }

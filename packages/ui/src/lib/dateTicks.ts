@@ -30,17 +30,24 @@ export function dateTicks(first: string, last: string, width: number, locale: Lo
   let year = firstDate.getUTCFullYear();
   let month = months ? firstDate.getUTCMonth() + 1 : 0;
   for (let i = 0; i < 400; i++) {
-    if (months) { month += 1; if (month > 12) { month = 1; year += 1; } }
-    else year += 1;
+    if (months) {
+      month += 1;
+      if (month > 12) {
+        month = 1;
+        year += 1;
+      }
+    } else year += 1;
     const d = `${year}-${String(months ? month : 1).padStart(2, "0")}-01`;
     if (dayNumber(d) > end) break;
     const index = months ? year * 12 + month : year;
     if (index % every) continue;
-    out.push({ d, label: months ? (month === 1 || out.length === 0 ? `${monthAbbr(month)} '${String(year).slice(2)}` : monthAbbr(month)) : String(year) });
+    out.push({
+      d,
+      label: months ? (month === 1 || out.length === 0 ? `${monthAbbr(month)} '${String(year).slice(2)}` : monthAbbr(month)) : String(year),
+    });
   }
   return out;
 }
-
 
 /**
  * Where each tick lands on a chart whose x follows the index of its points (not

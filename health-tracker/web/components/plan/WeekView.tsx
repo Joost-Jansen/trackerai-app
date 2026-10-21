@@ -23,7 +23,10 @@ const linkBtn = "whitespace-nowrap font-medium text-ink-muted underline-offset-2
 
 function amount(s: PlanSession, f: Format) {
   if (s.distance_km) return `${f.trim(s.distance_km)} km`;
-  if (s.duration_min) return s.duration_min >= 90 ? `${Math.floor(s.duration_min / 60)}:${String(s.duration_min % 60).padStart(2, "0")} ${f.hourUnit}` : `${s.duration_min} min`;
+  if (s.duration_min)
+    return s.duration_min >= 90
+      ? `${Math.floor(s.duration_min / 60)}:${String(s.duration_min % 60).padStart(2, "0")} ${f.hourUnit}`
+      : `${s.duration_min} min`;
   return null;
 }
 
@@ -35,7 +38,9 @@ function StatusTag({ s }: { s: PlanSession }) {
   return (
     <Tag tone={tone} outline={tone === "neutral"} className="flex-none">
       {s.status === "done" && (
-        <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M2.5 6.2 4.8 8.5 9.5 3.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+          <path d="M2.5 6.2 4.8 8.5 9.5 3.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       )}
       {t.plan.statuses[s.status]}
     </Tag>
@@ -52,22 +57,34 @@ function Done({ s, onLink }: { s: PlanSession; onLink?: OnLink }) {
   const bits = [
     d.distance_km ? `${f.trim(d.distance_km, 2)} km` : null,
     d.moving_time_s ? f.clock(d.moving_time_s) : null,
-    d.distance_km && d.moving_time_s && s.sport !== "strength_training" ? f.intensity({ sport: s.sport, moving_time_s: d.moving_time_s, distance_km: d.distance_km }) : null,
+    d.distance_km && d.moving_time_s && s.sport !== "strength_training"
+      ? f.intensity({ sport: s.sport, moving_time_s: d.moving_time_s, distance_km: d.distance_km })
+      : null,
     d.avg_hr ? `${d.avg_hr} bpm` : null,
   ].filter(Boolean);
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md bg-[var(--surface-gain-soft)] px-2.5 py-1.5 text-[12px] tabular-nums">
       <span className="font-semibold text-gain">{t.plan.week.done}</span>
       <span>{bits.join(" · ")}</span>
-      {zone && <span className={zoneTone} title={T.plan.zoneFitMethod}>· {zone}</span>}
+      {zone && (
+        <span className={zoneTone} title={T.plan.zoneFitMethod}>
+          · {zone}
+        </span>
+      )}
       {d.date && d.date !== s.date && (
         <span className="text-ink-muted" title={s.match === "near" ? t.plan.week.nearHint : undefined}>
-          · {t.plan.week.doneOn(f.weekdayDay(d.date))}{s.match === "near" ? ` (${t.plan.week.auto})` : ""}
+          · {t.plan.week.doneOn(f.weekdayDay(d.date))}
+          {s.match === "near" ? ` (${t.plan.week.auto})` : ""}
         </span>
       )}
       <span className="ml-auto flex items-center gap-3">
         {onLink && s.activity_ids?.length ? (
-          <button type="button" className={linkBtn} title={t.plan.week.unlinkHint} onClick={() => s.activity_ids!.forEach((id) => onLink(id, null))}>
+          <button
+            type="button"
+            className={linkBtn}
+            title={t.plan.week.unlinkHint}
+            onClick={() => s.activity_ids!.forEach((id) => onLink(id, null))}
+          >
             {t.plan.week.unlink}
           </button>
         ) : null}
@@ -84,13 +101,17 @@ function Done({ s, onLink }: { s: PlanSession; onLink?: OnLink }) {
 function Route({ s }: { s: PlanSession }) {
   const t = useT();
   const f = useFormat();
-  const link = "underline decoration-[var(--border-strong)] underline-offset-2 hover:text-[var(--text-link-hover)] hover:decoration-current";
+  const link =
+    "underline decoration-[var(--border-strong)] underline-offset-2 hover:text-[var(--text-link-hover)] hover:decoration-current";
   if (s.route) {
     return (
       <p className="mt-1 flex items-center gap-1.5 text-[12px] text-ink-muted">
         <RouteIcon width={13} height={13} className="flex-none" />
         <span>
-          {t.plan.week.routeLabel}<Link className={link} href={routeHref(s.route.id)}>{routeName(s.route.name, s.route.id, t, f)}</Link>
+          {t.plan.week.routeLabel}
+          <Link className={link} href={routeHref(s.route.id)}>
+            {routeName(s.route.name, s.route.id, t, f)}
+          </Link>
           {s.route.distance_km ? ` · ${f.trim(s.route.distance_km)} km` : ""}
         </span>
       </p>
@@ -106,7 +127,9 @@ function Route({ s }: { s: PlanSession }) {
         {r.parts.map((id, i) => (
           <span key={`${id}-${i}`}>
             {i > 0 && " + "}
-            <Link className={link} href={routeHref(id)}>{routeName(r.names[i], id, t, f)}</Link>
+            <Link className={link} href={routeHref(id)}>
+              {routeName(r.names[i], id, t, f)}
+            </Link>
           </span>
         ))}
         {r.parts.length > 1 || !r.within_tolerance ? ` · ${f.trim(r.total_km)} km${r.within_tolerance ? "" : t.plan.week.closest}` : ""}
@@ -131,7 +154,13 @@ function LinkPicker({ s, onLink }: { s: PlanSession; onLink: OnLink }) {
         <option value="">{t.plan.week.linkPick}</option>
         {s.candidates.map((c) => (
           <option key={c.id} value={c.id}>
-            {[f.weekdayDay(c.date), c.distance_km ? `${f.trim(c.distance_km, 2)} km` : null, c.moving_time_s ? f.clock(c.moving_time_s) : null].filter(Boolean).join(" · ")}
+            {[
+              f.weekdayDay(c.date),
+              c.distance_km ? `${f.trim(c.distance_km, 2)} km` : null,
+              c.moving_time_s ? f.clock(c.moving_time_s) : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </option>
         ))}
       </select>
@@ -151,7 +180,11 @@ function SessionItem({ s, onLink }: { s: PlanSession; onLink?: OnLink }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 pt-[3px]">
-            <span className={`text-[14px] font-semibold ${s.status === "missed" ? "line-through decoration-[var(--text-loss)] decoration-1" : ""}`}>{title}</span>
+            <span
+              className={`text-[14px] font-semibold ${s.status === "missed" ? "line-through decoration-[var(--text-loss)] decoration-1" : ""}`}
+            >
+              {title}
+            </span>
             {amt && <span className="text-[14px] tabular-nums">{amt}</span>}
             {s.kind && <span className="text-[12px] text-ink-muted">{t.sport(s.sport)}</span>}
             <ZoneChip zone={s.target_zone} />
@@ -183,7 +216,9 @@ function DateCell({ date, today, compact }: { date: string; today: boolean; comp
   return (
     <span className={`flex flex-col leading-none ${tone}`}>
       <span className="text-[11px] font-semibold uppercase tracking-[0.08em]">{f.weekday(date)}</span>
-      <span className={`mt-1 font-display text-[24px] font-light tabular-nums ${today ? "" : "text-[var(--text-primary)]"}`}>{d.getDate()}</span>
+      <span className={`mt-1 font-display text-[24px] font-light tabular-nums ${today ? "" : "text-[var(--text-primary)]"}`}>
+        {d.getDate()}
+      </span>
       <span className="mt-0.5 text-[11px]">{f.monthShort(date)}</span>
     </span>
   );
@@ -196,7 +231,10 @@ function DayRow({ date, sessions, today, onLink }: { date: string; sessions: Pla
   const base = "grid grid-cols-[48px_1fr] gap-x-3 sm:grid-cols-[64px_1fr] sm:gap-x-4";
   const todayCls = isToday ? "relative -mx-3 rounded-md bg-[var(--surface-brand-soft)] px-3 sm:-mx-4 sm:px-4" : "";
   if (rest) {
-    const note = sessions.map((s) => s.description).filter(Boolean).join(" ");
+    const note = sessions
+      .map((s) => s.description)
+      .filter(Boolean)
+      .join(" ");
     return (
       <li className={`${base} items-center border-t border-[var(--border-subtle)] py-2 first:border-t-0 ${todayCls}`}>
         <DateCell date={date} today={isToday} compact />
@@ -213,7 +251,11 @@ function DayRow({ date, sessions, today, onLink }: { date: string; sessions: Pla
       <DateCell date={date} today={isToday} />
       <div className="flex min-w-0 flex-col gap-3.5">
         {isToday && <span className="-mb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-brand">{t.plan.week.today}</span>}
-        {sessions.filter((s) => s.sport !== "rest").map((s, i) => <SessionItem key={s.id ?? i} s={s} onLink={onLink} />)}
+        {sessions
+          .filter((s) => s.sport !== "rest")
+          .map((s, i) => (
+            <SessionItem key={s.id ?? i} s={s} onLink={onLink} />
+          ))}
       </div>
     </li>
   );
@@ -230,7 +272,9 @@ function Strip({ sessions }: { sessions: PlanSession[] }) {
   };
   return (
     <span className="flex h-[6px] w-full max-w-[220px] gap-[3px]" aria-hidden>
-      {items.map((s, i) => <span key={i} className="flex-1 rounded-full" style={{ background: colour[s.status ?? "planned"] ?? "var(--surface-inset)" }} />)}
+      {items.map((s, i) => (
+        <span key={i} className="flex-1 rounded-full" style={{ background: colour[s.status ?? "planned"] ?? "var(--surface-inset)" }} />
+      ))}
     </span>
   );
 }
@@ -312,7 +356,11 @@ export default function WeekCard({
       </button>
       {open && (
         <ul className="border-t border-border px-4 pb-1 sm:px-[18px]">
-          {week.days.filter((d) => !d.outside).map((d) => <DayRow key={d.date} date={d.date} sessions={d.sessions} today={today} onLink={onLink} />)}
+          {week.days
+            .filter((d) => !d.outside)
+            .map((d) => (
+              <DayRow key={d.date} date={d.date} sessions={d.sessions} today={today} onLink={onLink} />
+            ))}
         </ul>
       )}
     </section>

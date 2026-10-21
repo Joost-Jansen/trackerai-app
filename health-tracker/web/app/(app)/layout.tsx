@@ -74,35 +74,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         footer={
           <div className="flex flex-col gap-2 px-2 pb-1 text-xs leading-normal" style={{ color: "var(--text-on-ink-muted)" }}>
             <div className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              className="underline underline-offset-4"
-              onClick={() => {
-                setNavOpen(false);
-                setFeedbackOpen(true);
-              }}
-            >
-              {t.nav.feedback}
-            </button>
-            {wealthUrl && (
-              <a href={wealthUrl} className="inline-flex items-center gap-1 underline underline-offset-4">
-                <SwapIcon className="h-3 w-3" />
-                wealth-tracker
-              </a>
-            )}
+              <button
+                type="button"
+                className="underline underline-offset-4"
+                onClick={() => {
+                  setNavOpen(false);
+                  setFeedbackOpen(true);
+                }}
+              >
+                {t.nav.feedback}
+              </button>
+              {wealthUrl && (
+                <a href={wealthUrl} className="inline-flex items-center gap-1 underline underline-offset-4">
+                  <SwapIcon className="h-3 w-3" />
+                  wealth-tracker
+                </a>
+              )}
             </div>
             <div className="flex items-center justify-between gap-3">
-            <span className="min-w-0 truncate">{t.nav.loggedInAs(me.data.display_name || me.data.username)}</span>
-            <button
-              type="button"
-              className="flex-none underline underline-offset-4"
-              onClick={async () => {
-                await api.post("/api/logout");
-                router.replace("/login/");
-              }}
-            >
-              {t.nav.logout}
-            </button>
+              <span className="min-w-0 truncate">{t.nav.loggedInAs(me.data.display_name || me.data.username)}</span>
+              <button
+                type="button"
+                className="flex-none underline underline-offset-4"
+                onClick={async () => {
+                  await api.post("/api/logout");
+                  router.replace("/login/");
+                }}
+              >
+                {t.nav.logout}
+              </button>
             </div>
           </div>
         }
@@ -111,10 +111,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* One sticky block: the bar, and on a phone the tabs as a row of their own under it, wide enough to tap. */}
         <div className="sticky top-0 z-30">
           <header className="ds-topbar ds-topbar--flush !gap-3 !px-4 sm:!px-6 lg:!px-page">
-            <IconButton label={t.nav.openMenu} onClick={() => setNavOpen(true)} icon={<MenuIcon className="h-[18px] w-[18px]" />} className="-ml-2 lg:hidden" />
+            <IconButton
+              label={t.nav.openMenu}
+              onClick={() => setNavOpen(true)}
+              icon={<MenuIcon className="h-[18px] w-[18px]" />}
+              className="-ml-2 lg:hidden"
+            />
             <h1 className="ds-topbar__title truncate">{item?.label ?? t.common.appName}</h1>
             {tabs.length > 1 ? (
-              <nav className="ds-topbar__tabs ml-2 hidden min-w-0 flex-1 self-stretch overflow-x-auto no-scrollbar lg:block" aria-label={t.nav.views(item?.label ?? "")}>
+              <nav
+                className="ds-topbar__tabs ml-2 hidden min-w-0 flex-1 self-stretch overflow-x-auto no-scrollbar lg:block"
+                aria-label={t.nav.views(item?.label ?? "")}
+              >
                 <Tabs items={tabs} value={active} ariaLabel={t.nav.views(item?.label ?? "")} className="h-full whitespace-nowrap" />
               </nav>
             ) : null}
@@ -124,9 +132,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <ThemeToggle />
             </div>
           </header>
-          {tabs.length > 1 && (
-            <SubNav label={t.nav.views(item?.label ?? "")} items={tabs} value={active} />
-          )}
+          {tabs.length > 1 && <SubNav label={t.nav.views(item?.label ?? "")} items={tabs} value={active} />}
         </div>
         <main className="w-full max-w-content flex-1 px-4 pb-20 pt-4 sm:px-6 lg:px-page lg:pt-5">
           {/* Only above a page that is still empty, and until you dismiss it. */}

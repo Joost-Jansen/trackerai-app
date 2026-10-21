@@ -10,9 +10,13 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const catalogSrc = readFileSync(path.join(ROOT, "src/i18n/nl.ts"), "utf8");
-const catalog = new Map([...catalogSrc.matchAll(/^  ("(?:[^"\\]|\\.)*"): ("(?:[^"\\]|\\.)*"),$/gm)].map((m) => [JSON.parse(m[1]), JSON.parse(m[2])]));
+const catalog = new Map(
+  [...catalogSrc.matchAll(/^  ("(?:[^"\\]|\\.)*"): ("(?:[^"\\]|\\.)*"),$/gm)].map((m) => [JSON.parse(m[1]), JSON.parse(m[2])]),
+);
 
-const files = execSync("git ls-files --cached --others --exclude-standard '*.ts' '*.tsx'", { cwd: ROOT, encoding: "utf8" }).trim().split("\n");
+const files = execSync("git ls-files --cached --others --exclude-standard '*.ts' '*.tsx'", { cwd: ROOT, encoding: "utf8" })
+  .trim()
+  .split("\n");
 const used = new Map(); // text -> first place
 const dynamic = [];
 for (const f of files) {
@@ -23,8 +27,9 @@ for (const f of files) {
     if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && (n.expression.text === "tr" || n.expression.text === "trx")) {
       const a = n.arguments[0];
       const where = `${f}:${sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1}`;
-      if (a && (ts.isStringLiteral(a) || ts.isNoSubstitutionTemplateLiteral(a))) { if (!used.has(a.text)) used.set(a.text, where); }
-      else if (!f.startsWith("src/i18n/")) dynamic.push(where);
+      if (a && (ts.isStringLiteral(a) || ts.isNoSubstitutionTemplateLiteral(a))) {
+        if (!used.has(a.text)) used.set(a.text, where);
+      } else if (!f.startsWith("src/i18n/")) dynamic.push(where);
     }
     ts.forEachChild(n, visit);
   };
@@ -34,7 +39,8 @@ const placeholders = (s) => [...new Set(s.match(/\{\d+\}/g) ?? [])].sort().join(
 const problems = [];
 for (const [text, where] of used) {
   if (!catalog.has(text)) problems.push(`missing in nl.ts: ${JSON.stringify(text)} (${where})`);
-  else if (placeholders(text) !== placeholders(catalog.get(text))) problems.push(`placeholders differ: ${JSON.stringify(text)} → ${JSON.stringify(catalog.get(text))}`);
+  else if (placeholders(text) !== placeholders(catalog.get(text)))
+    problems.push(`placeholders differ: ${JSON.stringify(text)} → ${JSON.stringify(catalog.get(text))}`);
 }
 for (const text of catalog.keys()) if (!used.has(text)) problems.push(`unused in nl.ts: ${JSON.stringify(text)}`);
 for (const where of dynamic) problems.push(`tr() with a text that is not a literal, the check can't see it: ${where}`);

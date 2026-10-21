@@ -2,9 +2,29 @@
 // tools/nutrition/nutrients.py; values per 100 g or 100 ml (a food's `unit`), None where the source has none.
 
 export const NUTRIENT_KEYS = [
-  "energy_kcal", "carbs_g", "sugars_g", "fiber_g", "protein_g", "fat_g", "sat_fat_g", "mufa_g", "pufa_g", "omega3_g",
-  "trans_fat_g", "alcohol_g", "salt_g", "sodium_mg", "iron_mg", "calcium_mg", "magnesium_mg", "potassium_mg", "zinc_mg",
-  "vit_c_mg", "vit_d_ug", "vit_b12_ug", "folate_ug",
+  "energy_kcal",
+  "carbs_g",
+  "sugars_g",
+  "fiber_g",
+  "protein_g",
+  "fat_g",
+  "sat_fat_g",
+  "mufa_g",
+  "pufa_g",
+  "omega3_g",
+  "trans_fat_g",
+  "alcohol_g",
+  "salt_g",
+  "sodium_mg",
+  "iron_mg",
+  "calcium_mg",
+  "magnesium_mg",
+  "potassium_mg",
+  "zinc_mg",
+  "vit_c_mg",
+  "vit_d_ug",
+  "vit_b12_ug",
+  "folate_ug",
 ] as const;
 export type NutrientKey = (typeof NUTRIENT_KEYS)[number];
 export type Nutrients = Partial<Record<NutrientKey, number | null>>;
@@ -44,7 +64,16 @@ export type Meal = {
 
 export type DayType = "rest" | "easy" | "moderate" | "long" | "race";
 
-export type TargetSession = { minutes: number; hard: boolean; race: boolean; sport: string; distance_km: number | null; kind?: string | null; name?: string | null; done: boolean };
+export type TargetSession = {
+  minutes: number;
+  hard: boolean;
+  race: boolean;
+  sport: string;
+  distance_km: number | null;
+  kind?: string | null;
+  name?: string | null;
+  done: boolean;
+};
 
 export type Targets = {
   day: string;
@@ -60,7 +89,15 @@ export type Targets = {
 };
 
 export type NutritionContext =
-  | { line: "tomorrow"; day_type: DayType; sport: string; kind: string | null; distance_km: number | null; minutes: number; carbs_per_kg: [number, number] }
+  | {
+      line: "tomorrow";
+      day_type: DayType;
+      sport: string;
+      kind: string | null;
+      distance_km: number | null;
+      minutes: number;
+      carbs_per_kg: [number, number];
+    }
   | { line: "after_training" };
 
 export type NutritionDay = {
@@ -83,14 +120,24 @@ export type NutritionDay = {
   /** Vitamins and minerals against the Dutch norms (tools/nutrition/references.py). */
   micros: {
     group: "men" | "women" | null;
-    rows: { key: NutrientKey; amount: number | null; kind: "ADH" | "AI" | null; reference: number | null; pct: number | null; missing: number }[];
+    rows: {
+      key: NutrientKey;
+      amount: number | null;
+      kind: "ADH" | "AI" | null;
+      reference: number | null;
+      pct: number | null;
+      missing: number;
+    }[];
     source: { nl: string; en: string; url: string };
   };
 };
 
 /** The Voeding vandaag card on /api/dashboard (`nutrition`): null without the beta. */
 export type NutritionBlock =
-  | ({ empty: false } & Pick<NutritionDay, "today" | "meals" | "totals" | "per_kg" | "targets" | "context" | "last_meal" | "burn_kcal" | "ai">)
+  | ({ empty: false } & Pick<
+      NutritionDay,
+      "today" | "meals" | "totals" | "per_kg" | "targets" | "context" | "last_meal" | "burn_kcal" | "ai"
+    >)
   | { empty: true; today: string; targets: Targets; context: NutritionContext | null; ai: boolean };
 
 export type Food = {
@@ -237,4 +284,3 @@ export const MACRO_COLOUR: Partial<Record<NutrientKey, string>> = {
   alcohol_g: "var(--macro-alcohol)",
   fiber_g: "var(--macro-fiber)",
 };
-

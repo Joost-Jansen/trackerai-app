@@ -31,7 +31,9 @@ import { tr, trx } from "@/lib/i18n";
 
 type Part = "money" | "around";
 type TourStep = {
-  part: Part; step: Step; action?: { label: string; run: () => void };
+  part: Part;
+  step: Step;
+  action?: { label: string; run: () => void };
   /** Next stays off until the bank choice is made. */
   needsBank?: boolean;
   /** A page in the walk: shown on the real page as a coach mark (TourSpotlight), not in the modal. */
@@ -72,7 +74,9 @@ function BankOptions({ value, onPick }: { value: BankChoice | null; onPick: (b: 
     {
       id: "connect",
       title: tr("Exports plus an automatic connection"),
-      text: tr("Upload your history once, then connect your bank through Enable Banking so new transactions and balances come in by themselves."),
+      text: tr(
+        "Upload your history once, then connect your bank through Enable Banking so new transactions and balances come in by themselves.",
+      ),
       pros: [tr("New transactions and balances arrive automatically"), tr("Read-only: the connection can never make payments")],
       cons: [
         tr("About 15 minutes to set up: a free Enable Banking account and your own app key"),
@@ -84,16 +88,36 @@ function BankOptions({ value, onPick }: { value: BankChoice | null; onPick: (b: 
   return (
     <div className="flex flex-col gap-2">
       {options.map((o) => (
-        <button key={o.id} type="button" onClick={() => onPick(o.id)}
+        <button
+          key={o.id}
+          type="button"
+          onClick={() => onPick(o.id)}
           className="rounded-lg p-3 text-left transition-colors hover:bg-surface-2"
-          style={{ border: `1px solid ${value === o.id ? "var(--text-primary)" : "var(--rule)"}` }}>
+          style={{ border: `1px solid ${value === o.id ? "var(--text-primary)" : "var(--rule)"}` }}
+        >
           <span className="block text-[14px] font-semibold">{o.title}</span>
           <span className="mb-1.5 block text-xs text-ink-muted">{o.text}</span>
-          {o.pros.map((p) => <span key={p} className="block text-xs"><span aria-hidden style={{ color: "var(--text-gain)" }}>+ </span>{p}</span>)}
-          {o.cons.map((c) => <span key={c} className="block text-xs text-ink-muted"><span aria-hidden style={{ color: "var(--text-loss)" }}>− </span>{c}</span>)}
+          {o.pros.map((p) => (
+            <span key={p} className="block text-xs">
+              <span aria-hidden style={{ color: "var(--text-gain)" }}>
+                +{" "}
+              </span>
+              {p}
+            </span>
+          ))}
+          {o.cons.map((c) => (
+            <span key={c} className="block text-xs text-ink-muted">
+              <span aria-hidden style={{ color: "var(--text-loss)" }}>
+                −{" "}
+              </span>
+              {c}
+            </span>
+          ))}
         </button>
       ))}
-      <p className="text-[11.5px] text-ink-muted">{tr("Not sure? Start with exports. You can add the connection any time under Accounts → Bank connection.")}</p>
+      <p className="text-[11.5px] text-ink-muted">
+        {tr("Not sure? Start with exports. You can add the connection any time under Accounts → Bank connection.")}
+      </p>
     </div>
   );
 }
@@ -109,7 +133,11 @@ export default function Welcome({ enabled, onUpdate, nav }: { enabled: boolean; 
   const [paused, setPaused] = useState(false);
 
   useEffect(() => {
-    try { setPaused(sessionStorage.getItem(PAUSED) === "1"); } catch { /* geen opslag */ }
+    try {
+      setPaused(sessionStorage.getItem(PAUSED) === "1");
+    } catch {
+      /* geen opslag */
+    }
   }, []);
 
   // "Restart tour" in Help sets the step back to 0: then start at the front.
@@ -133,12 +161,20 @@ export default function Welcome({ enabled, onUpdate, nav }: { enabled: boolean; 
 
   const save = (i: number) => put.mutate({ step: i + 1 });
   const close = () => {
-    try { sessionStorage.removeItem(PAUSED); } catch { /* geen opslag */ }
+    try {
+      sessionStorage.removeItem(PAUSED);
+    } catch {
+      /* geen opslag */
+    }
     put.mutate({ done: true, step: 0 });
   };
   const pause = (after_that: () => void) => {
     setPaused(true);
-    try { sessionStorage.setItem(PAUSED, "1"); } catch { /* geen opslag */ }
+    try {
+      sessionStorage.setItem(PAUSED, "1");
+    } catch {
+      /* geen opslag */
+    }
     save(current);
     after_that();
   };
@@ -153,8 +189,14 @@ export default function Welcome({ enabled, onUpdate, nav }: { enabled: boolean; 
       part: "money",
       step: {
         title: tr("Money"),
-        intro: tr("Add the rest of your money: bank and savings accounts, spending and debts. Together with your investments, that gives you your full net worth."),
-        bullets: [tr("Choose how your bank data comes in"), tr("Set a balance for each account"), tr("Label anything the app doesn't recognise")],
+        intro: tr(
+          "Add the rest of your money: bank and savings accounts, spending and debts. Together with your investments, that gives you your full net worth.",
+        ),
+        bullets: [
+          tr("Choose how your bank data comes in"),
+          tr("Set a balance for each account"),
+          tr("Label anything the app doesn't recognise"),
+        ],
         visual: <PageSketch kind="line" label={tr("Net worth")} />,
       },
     });
@@ -166,7 +208,17 @@ export default function Welcome({ enabled, onUpdate, nav }: { enabled: boolean; 
         title: tr("How should your bank data come in?"),
         intro: tr("Both use the same accounts, and you can add or drop the connection later under Accounts."),
         bullets: [],
-        visual: <BankOptions value={bank} onPick={(b) => { setBankChoice(b); put.mutate({ bank: b, step: i_choice + 2 }); setStep(i_choice + 1); setReaches((r) => Math.max(r, i_choice + 1)); }} />,
+        visual: (
+          <BankOptions
+            value={bank}
+            onPick={(b) => {
+              setBankChoice(b);
+              put.mutate({ bank: b, step: i_choice + 2 });
+              setStep(i_choice + 1);
+              setReaches((r) => Math.max(r, i_choice + 1));
+            }}
+          />
+        ),
       },
     });
     tour.push({
@@ -177,7 +229,13 @@ export default function Welcome({ enabled, onUpdate, nav }: { enabled: boolean; 
         bullets: [
           tr("ING: your transactions as a semicolon-separated CSV, plus the balance overview of your savings accounts"),
           tr("bunq: the account statement as a CSV, one per account"),
-          ...(bank === "connect" ? [tr("Do this once even with a connection: banks often share only part of your history. Transactions in both are recognised and counted once.")] : []),
+          ...(bank === "connect"
+            ? [
+                tr(
+                  "Do this once even with a connection: banks often share only part of your history. Transactions in both are recognised and counted once.",
+                ),
+              ]
+            : []),
           tr("Step-by-step instructions for each bank are under “How do I export this?” in Update"),
         ],
         visual: EXPORT_ROUTES[0].steps[0].visual,
@@ -185,13 +243,24 @@ export default function Welcome({ enabled, onUpdate, nav }: { enabled: boolean; 
       action: { label: tr("Open Update"), run: () => pause(onUpdate) },
     });
     if (bank === "connect") {
-      CONNECT_BANK.forEach((s, i) => tour.push({
-        part: "money", step: s,
-        action: i === 2 ? { label: tr("Go to Bank connection"), run: () => pause(() => router.push("/accounts/connect")) } : undefined,
-      }));
+      CONNECT_BANK.forEach((s, i) =>
+        tour.push({
+          part: "money",
+          step: s,
+          action: i === 2 ? { label: tr("Go to Bank connection"), run: () => pause(() => router.push("/accounts/connect")) } : undefined,
+        }),
+      );
     }
-    tour.push({ part: "money", step: ENTER_BALANCE, action: { label: tr("Go to Accounts"), run: () => pause(() => router.push("/accounts")) } });
-    tour.push({ part: "money", step: LABELLING, action: { label: tr("Go to To label"), run: () => pause(() => router.push("/spending/labelling")) } });
+    tour.push({
+      part: "money",
+      step: ENTER_BALANCE,
+      action: { label: tr("Go to Accounts"), run: () => pause(() => router.push("/accounts")) },
+    });
+    tour.push({
+      part: "money",
+      step: LABELLING,
+      action: { label: tr("Go to To label"), run: () => pause(() => router.push("/spending/labelling")) },
+    });
   }
   // Optional: Claude reading along through MCP, with a token under Agents.
   {
@@ -199,7 +268,9 @@ export default function Welcome({ enabled, onUpdate, nav }: { enabled: boolean; 
       part: "money",
       step: {
         title: tr("Optional: use Claude as your assistant"),
-        intro: tr("Connect Claude to your data and just ask: how did my portfolio do, where did my money go, what still needs a label? Claude only sees what your token allows."),
+        intro: tr(
+          "Connect Claude to your data and just ask: how did my portfolio do, where did my money go, what still needs a label? Claude only sees what your token allows.",
+        ),
         bullets: [
           tr("Create a token under Settings → Agents, read-only or with write access"),
           tr("Add it as a connector in the Claude app or in Claude Code"),
@@ -222,18 +293,22 @@ export default function Welcome({ enabled, onUpdate, nav }: { enabled: boolean; 
         visual: <PageSketch kind="sidebar" label={NAME.around} />,
       },
     });
-    pages.forEach((it) => tour.push({
-      part: "around",
-      step: { title: it.label, intro: ABOUT[it.id], bullets: [] },
-      page: { id: it.id, href: it.href },
-    }));
+    pages.forEach((it) =>
+      tour.push({
+        part: "around",
+        step: { title: it.label, intro: ABOUT[it.id], bullets: [] },
+        page: { id: it.id, href: it.href },
+      }),
+    );
   }
   {
     tour.push({
       part: tour[tour.length - 1].part,
       step: {
         title: tr("You're all set"),
-        intro: tr("That's the tour. You'll find these steps, and more on how the numbers work, under Help. Every page also has a ? next to its title."),
+        intro: tr(
+          "That's the tour. You'll find these steps, and more on how the numbers work, under Help. Every page also has a ? next to its title.",
+        ),
         bullets: [tr("Want to see this again? Go to Help → Getting started → Tour again")],
       },
     });
@@ -245,14 +320,28 @@ export default function Welcome({ enabled, onUpdate, nav }: { enabled: boolean; 
 
   if (paused && !onWelcome && here) {
     return (
-      <div className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full py-1.5 pl-4 pr-1.5 text-[12.5px]"
-        style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-4)" }}>
+      <div
+        className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full py-1.5 pl-4 pr-1.5 text-[12.5px]"
+        style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-4)" }}
+      >
         <span>{trx("Tour · step {0} of {1}", i + 1, tour.length)}</span>
-        <Button size="sm" variant="primary" onClick={() => {
-          setPaused(false);
-          try { sessionStorage.removeItem(PAUSED); } catch { /* geen opslag */ }
-        }}>{tr("Continue")}</Button>
-        <Button size="sm" variant="ghost" onClick={close}>{tr("Stop")}</Button>
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={() => {
+            setPaused(false);
+            try {
+              sessionStorage.removeItem(PAUSED);
+            } catch {
+              /* geen opslag */
+            }
+          }}
+        >
+          {tr("Continue")}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={close}>
+          {tr("Stop")}
+        </Button>
       </div>
     );
   }
@@ -285,26 +374,40 @@ export default function Welcome({ enabled, onUpdate, nav }: { enabled: boolean; 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={tr("Tour")}>
       <div className="absolute inset-0" style={{ background: "rgba(20,18,14,0.36)" }} onClick={() => pause(() => undefined)} />
-      <div className="relative flex max-h-[90dvh] w-full max-w-[480px] flex-col overflow-y-auto overscroll-contain rounded-xl p-6"
-        style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-4)" }}>
+      <div
+        className="relative flex max-h-[90dvh] w-full max-w-[480px] flex-col overflow-y-auto overscroll-contain rounded-xl p-6"
+        style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-4)" }}
+      >
         <div className="mb-3 flex items-center justify-between">
           <span className="ds-eyebrow">
-            {onWelcome ? tr("Welcome") : `${share_out.length > 1 ? tr("Part {0} of {1} · ", share_out.indexOf(here.part) + 1, share_out.length) : ""}${NAME[here.part]}`}
+            {onWelcome
+              ? tr("Welcome")
+              : `${share_out.length > 1 ? tr("Part {0} of {1} · ", share_out.indexOf(here.part) + 1, share_out.length) : ""}${NAME[here.part]}`}
           </span>
-          <IconButton label={tr("Pause")} onClick={() => (onWelcome ? close() : pause(() => undefined))}
-            icon={<CloseIcon className="h-4 w-4" />} className="-mr-2 flex-none" />
+          <IconButton
+            label={tr("Pause")}
+            onClick={() => (onWelcome ? close() : pause(() => undefined))}
+            icon={<CloseIcon className="h-4 w-4" />}
+            className="-mr-2 flex-none"
+          />
         </div>
 
         {onWelcome ? (
           <>
             <h3 className="mb-1.5 font-display text-[21px] font-normal tracking-[-0.014em]">{tr("Welcome to {0}", APP.name)}</h3>
             <p className="mb-4 text-[13px] leading-relaxed text-ink-muted">
-              {tr("Your net worth first: your bank accounts, spending and portfolio, all in one place. This short tour helps you bring in your data and shows you around.")}
+              {tr(
+                "Your net worth first: your bank accounts, spending and portfolio, all in one place. This short tour helps you bring in your data and shows you around.",
+              )}
             </p>
             <PageSketch kind="line" label={APP.name} />
             <div className="mt-4 flex items-center justify-between gap-2">
-              <Button variant="ghost" className="-ml-3" onClick={close}>{tr("Skip the tour")}</Button>
-              <Button variant="primary" onClick={() => ga(0)} iconAfter={<ChevronRightIcon className="h-3.5 w-3.5" />}>{tr("Start the tour")}</Button>
+              <Button variant="ghost" className="-ml-3" onClick={close}>
+                {tr("Skip the tour")}
+              </Button>
+              <Button variant="primary" onClick={() => ga(0)} iconAfter={<ChevronRightIcon className="h-3.5 w-3.5" />}>
+                {tr("Start the tour")}
+              </Button>
             </div>
           </>
         ) : (
@@ -314,18 +417,27 @@ export default function Welcome({ enabled, onUpdate, nav }: { enabled: boolean; 
               {share_out.map((d, di) => (
                 <div key={d} className="flex min-w-0 flex-1 flex-col gap-1">
                   {share_out.length > 1 && (
-                    <span className="text-[10.5px] font-semibold uppercase tracking-wide"
-                      style={{ color: here.part === d ? "var(--text-primary)" : "var(--text-faint)" }}>
+                    <span
+                      className="text-[10.5px] font-semibold uppercase tracking-wide"
+                      style={{ color: here.part === d ? "var(--text-primary)" : "var(--text-faint)" }}
+                    >
                       {di + 1}. {NAME[d]}
                     </span>
                   )}
                   <div className="flex gap-1">
-                    {tour.map((t, n) => t.part !== d ? null : (
-                      <button key={n} type="button" disabled={n > Math.max(reaches, i)} onClick={() => ga(n)}
-                        aria-label={tr("Step {0}{1}", n + 1, n > Math.max(reaches, i) ? tr(" (not available yet)") : "")}
-                        className="h-1.5 flex-1 rounded-full disabled:cursor-not-allowed"
-                        style={{ background: n <= i ? "var(--n-800)" : n <= reaches ? "var(--border-strong)" : "var(--surface-inset)" }} />
-                    ))}
+                    {tour.map((t, n) =>
+                      t.part !== d ? null : (
+                        <button
+                          key={n}
+                          type="button"
+                          disabled={n > Math.max(reaches, i)}
+                          onClick={() => ga(n)}
+                          aria-label={tr("Step {0}{1}", n + 1, n > Math.max(reaches, i) ? tr(" (not available yet)") : "")}
+                          className="h-1.5 flex-1 rounded-full disabled:cursor-not-allowed"
+                          style={{ background: n <= i ? "var(--n-800)" : n <= reaches ? "var(--border-strong)" : "var(--surface-inset)" }}
+                        />
+                      ),
+                    )}
                   </div>
                 </div>
               ))}
@@ -338,21 +450,36 @@ export default function Welcome({ enabled, onUpdate, nav }: { enabled: boolean; 
             <StepContent step={here.step} />
             {here.action && (
               <div className="mb-3">
-                <Button variant="secondary" onClick={here.action.run}>{here.action.label}</Button>
+                <Button variant="secondary" onClick={here.action.run}>
+                  {here.action.label}
+                </Button>
                 <span className="ml-2 text-xs text-ink-muted">{tr("The tour will wait for you in the bottom right.")}</span>
               </div>
             )}
 
             <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-              <Button variant="ghost" className="-ml-3" onClick={() => ga(i - 1)}
+              <Button
+                variant="ghost"
+                className="-ml-3"
+                onClick={() => ga(i - 1)}
                 disabled={i === 0}
-                icon={<ChevronLeftIcon className="h-3.5 w-3.5" />}>
+                icon={<ChevronLeftIcon className="h-3.5 w-3.5" />}
+              >
                 {tr("Previous")}
               </Button>
               {i < tour.length - 1 ? (
-                <Button variant="primary" onClick={() => ga(i + 1)} disabled={here.needsBank && !bank} iconAfter={<ChevronRightIcon className="h-3.5 w-3.5" />}>{tr("Next")}</Button>
+                <Button
+                  variant="primary"
+                  onClick={() => ga(i + 1)}
+                  disabled={here.needsBank && !bank}
+                  iconAfter={<ChevronRightIcon className="h-3.5 w-3.5" />}
+                >
+                  {tr("Next")}
+                </Button>
               ) : (
-                <Button variant="primary" onClick={close}>{tr("Done")}</Button>
+                <Button variant="primary" onClick={close}>
+                  {tr("Done")}
+                </Button>
               )}
             </div>
           </>

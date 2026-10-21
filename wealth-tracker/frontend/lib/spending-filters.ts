@@ -56,16 +56,17 @@ export function useSpendingFilters(first: string, last: string, boundaries: stri
     try {
       if (next) sessionStorage.setItem(STORED, next);
       else sessionStorage.removeItem(STORED);
-    } catch { /* no storage */ }
+    } catch {
+      /* no storage */
+    }
     window.history.replaceState(null, "", next ? `${pathname}?${next}` : pathname);
   };
 
   const start = sp.get("start");
   const end = sp.get("end");
   const period = currentCode(sp.get("period") ?? (start || end ? "Custom" : DEFAULT_PERIOD));
-  const time_window: DateWindow = period === "Custom"
-    ? { from: start ?? first, to: end ?? last }
-    : periodWindow(period, first, last, boundaries);
+  const time_window: DateWindow =
+    period === "Custom" ? { from: start ?? first, to: end ?? last } : periodWindow(period, first, last, boundaries);
 
   return {
     // The same shape as useTimeline, so TimelineControls uses it as is.
@@ -102,7 +103,11 @@ export function useSpendingFilters(first: string, last: string, boundaries: stri
       put({ [key]: null });
     },
     clear: () => {
-      try { sessionStorage.removeItem(STORED); } catch { /* no storage */ }
+      try {
+        sessionStorage.removeItem(STORED);
+      } catch {
+        /* no storage */
+      }
       window.history.replaceState(null, "", pathname);
     },
   };
@@ -119,23 +124,34 @@ export function accountIds(f: SpendingFilters, accounts: Account[]): number[] | 
 
 /** Applies the filters. `period: false` leaves the period out — for a comparison with earlier.
  *  `countsAs` classifies a transaction for the "Counts as" filter (lib/counts-as.ts). */
-export function filterRows(rows: Transaction[], f: SpendingFilters, accounts: Account[],
-  { period = true, countsAs }: { period?: boolean; countsAs?: (t: Transaction) => CountsAs } = {}): Transaction[] {
+export function filterRows(
+  rows: Transaction[],
+  f: SpendingFilters,
+  accounts: Account[],
+  { period = true, countsAs }: { period?: boolean; countsAs?: (t: Transaction) => CountsAs } = {},
+): Transaction[] {
   const ids = accountIds(f, accounts);
   const q = f.search.trim().toLocaleLowerCase("nl");
-  return rows.filter((r) =>
-    (!period || (r.date >= f.timeline.window.from && r.date <= f.timeline.window.to))
-    && (!ids || ids.includes(r.account_id))
-    && inCategories(r.category, f.categories)
-    && (f.counts.length === 0 || !countsAs || f.counts.includes(countsAs(r)))
-    // Spending is positive in the database: "in" is a negative amount.
-    && (f.direction === "all" || (f.direction === "in" ? r.amount < 0 : r.amount > 0))
-    && (!q || `${r.name} ${r.description} ${r.category ?? ""}`.toLocaleLowerCase("nl").includes(q)));
+  return rows.filter(
+    (r) =>
+      (!period || (r.date >= f.timeline.window.from && r.date <= f.timeline.window.to)) &&
+      (!ids || ids.includes(r.account_id)) &&
+      inCategories(r.category, f.categories) &&
+      (f.counts.length === 0 || !countsAs || f.counts.includes(countsAs(r))) &&
+      // Spending is positive in the database: "in" is a negative amount.
+      (f.direction === "all" || (f.direction === "in" ? r.amount < 0 : r.amount > 0)) &&
+      (!q || `${r.name} ${r.description} ${r.category ?? ""}`.toLocaleLowerCase("nl").includes(q)),
+  );
 }
 
 /** An address to Transactions with these filters, to click through from a chart. */
 export function toTransactions(w: {
-  start?: string; end?: string; categories?: string[]; search?: string; account?: string; direction?: Direction;
+  start?: string;
+  end?: string;
+  categories?: string[];
+  search?: string;
+  account?: string;
+  direction?: Direction;
 }): string {
   const p = new URLSearchParams();
   if (w.start || w.end) {

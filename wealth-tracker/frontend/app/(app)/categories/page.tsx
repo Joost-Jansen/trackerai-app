@@ -56,7 +56,9 @@ function NewCategory({ onDone }: { onDone: () => void }) {
 
   if (!open) {
     return (
-      <Button variant="secondary" onClick={() => setOpen(true)}>{tr("Add category")}</Button>
+      <Button variant="secondary" onClick={() => setOpen(true)}>
+        {tr("Add category")}
+      </Button>
     );
   }
 
@@ -78,10 +80,18 @@ function NewCategory({ onDone }: { onDone: () => void }) {
         error={create.isError ? (create.error as ApiError).message : undefined}
       />
       <Select label={tr("Counts as")} value={type} onChange={(e) => setType(e.target.value as CategoryType)}>
-        {COLUMN_ORDER.map((t) => <option key={t} value={t}>{COLUMN_OF[t]()}</option>)}
+        {COLUMN_ORDER.map((t) => (
+          <option key={t} value={t}>
+            {COLUMN_OF[t]()}
+          </option>
+        ))}
       </Select>
-      <Button type="submit" variant="primary" disabled={create.isPending}>{tr("Add")}</Button>
-      <Button variant="ghost" onClick={() => setOpen(false)}>{tr("Cancel")}</Button>
+      <Button type="submit" variant="primary" disabled={create.isPending}>
+        {tr("Add")}
+      </Button>
+      <Button variant="ghost" onClick={() => setOpen(false)}>
+        {tr("Cancel")}
+      </Button>
     </form>
   );
 }
@@ -112,7 +122,9 @@ function NewRule({ categories, onDone }: { categories: Category[]; onDone: () =>
 
   if (!open) {
     return (
-      <Button variant="secondary" onClick={() => setOpen(true)}>{tr("Add rule")}</Button>
+      <Button variant="secondary" onClick={() => setOpen(true)}>
+        {tr("Add rule")}
+      </Button>
     );
   }
 
@@ -150,11 +162,7 @@ function NewRule({ categories, onDone }: { categories: Category[]; onDone: () =>
         disabled={field === "P"}
         error={create.isError ? (create.error as ApiError).message : undefined}
       />
-      <Select
-        label={tr("Direction")}
-        value={direction}
-        onChange={(e) => setDirection(e.target.value as Direction)}
-      >
+      <Select label={tr("Direction")} value={direction} onChange={(e) => setDirection(e.target.value as Direction)}>
         {DIRECTIONS.map((r) => (
           <option key={r.value} value={r.value}>
             {r.label}
@@ -168,8 +176,12 @@ function NewRule({ categories, onDone }: { categories: Category[]; onDone: () =>
           </option>
         ))}
       </Select>
-      <Button type="submit" variant="primary" disabled={create.isPending}>{tr("Add")}</Button>
-      <Button variant="ghost" onClick={() => setOpen(false)}>{tr("Cancel")}</Button>
+      <Button type="submit" variant="primary" disabled={create.isPending}>
+        {tr("Add")}
+      </Button>
+      <Button variant="ghost" onClick={() => setOpen(false)}>
+        {tr("Cancel")}
+      </Button>
     </form>
   );
 }
@@ -183,29 +195,57 @@ function GroupHeader({ group_name, groups, onDone }: { group_name: string; group
   const [name, setName] = useState(group_name);
   const rename = useMutation({
     mutationFn: () => api.put("/api/categories/groups", { old: group_name, new_name: name.trim() }),
-    onSuccess: () => { setEdit(false); onDone(); },
+    onSuccess: () => {
+      setEdit(false);
+      onDone();
+    },
   });
   const together = name.trim() !== group_name && groups.includes(name.trim());
   if (!edit) {
     return (
       <div className="flex items-center gap-3 pb-1">
         <h3 className="text-xs uppercase tracking-wide text-ink-muted">{group_name}</h3>
-        <button type="button" onClick={() => { setName(group_name); setEdit(true); }}
-          className="text-xs text-ink-muted underline underline-offset-4 hover:text-[color:var(--ink)]">{tr("Rename")}</button>
+        <button
+          type="button"
+          onClick={() => {
+            setName(group_name);
+            setEdit(true);
+          }}
+          className="text-xs text-ink-muted underline underline-offset-4 hover:text-[color:var(--ink)]"
+        >
+          {tr("Rename")}
+        </button>
       </div>
     );
   }
   return (
-    <form className="flex flex-wrap items-center gap-2 pb-1"
-      onSubmit={(e) => { e.preventDefault(); if (name.trim() && name.trim() !== group_name) rename.mutate(); else setEdit(false); }}>
-      <input autoFocus className="ds-input h-8 w-56 text-xs" value={name} onChange={(e) => setName(e.target.value)}
-        aria-label={tr("New name for {0}", group_name)} />
+    <form
+      className="flex flex-wrap items-center gap-2 pb-1"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (name.trim() && name.trim() !== group_name) rename.mutate();
+        else setEdit(false);
+      }}
+    >
+      <input
+        autoFocus
+        className="ds-input h-8 w-56 text-xs"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        aria-label={tr("New name for {0}", group_name)}
+      />
       <Button size="sm" variant="secondary" type="submit" disabled={rename.isPending || !name.trim()}>
         {together ? tr("Merge") : tr("Save")}
       </Button>
-      <Button size="sm" variant="ghost" onClick={() => setEdit(false)}>{tr("Cancel")}</Button>
+      <Button size="sm" variant="ghost" onClick={() => setEdit(false)}>
+        {tr("Cancel")}
+      </Button>
       {together && <span className="text-xs text-ink-muted">{trx("Merges with {0}; budgets add up.", name.trim())}</span>}
-      {rename.isError && <span className="text-xs" style={{ color: "var(--text-loss)" }}>{(rename.error as Error).message}</span>}
+      {rename.isError && (
+        <span className="text-xs" style={{ color: "var(--text-loss)" }}>
+          {(rename.error as Error).message}
+        </span>
+      )}
     </form>
   );
 }
@@ -219,17 +259,46 @@ function CategoryName({ category, onDone }: { category: Category; onDone: () => 
   const [name, setName] = useState(category.name);
   const rename = useMutation({
     mutationFn: () => api.put(`/api/categories/${category.id}/name`, { name: name.trim() }),
-    onSuccess: () => { setEdit(false); onDone(); },
+    onSuccess: () => {
+      setEdit(false);
+      onDone();
+    },
   });
   if (edit) {
     return (
-      <form className="flex flex-wrap items-center gap-2"
-        onSubmit={(e) => { e.preventDefault(); if (name.trim() && name.trim() !== category.name) rename.mutate(); else setEdit(false); }}>
-        <input autoFocus className="ds-input h-8 w-52 text-xs" value={name} onChange={(e) => setName(e.target.value)}
-          aria-label={tr("New name for {0}", category.name)} />
-        <Button size="sm" variant="secondary" type="submit" disabled={rename.isPending || !name.trim()}>{tr("Save")}</Button>
-        <Button size="sm" variant="ghost" onClick={() => { setName(category.name); setEdit(false); }}>{tr("Cancel")}</Button>
-        {rename.isError && <span className="text-xs" style={{ color: "var(--text-loss)" }}>{(rename.error as Error).message}</span>}
+      <form
+        className="flex flex-wrap items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (name.trim() && name.trim() !== category.name) rename.mutate();
+          else setEdit(false);
+        }}
+      >
+        <input
+          autoFocus
+          className="ds-input h-8 w-52 text-xs"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          aria-label={tr("New name for {0}", category.name)}
+        />
+        <Button size="sm" variant="secondary" type="submit" disabled={rename.isPending || !name.trim()}>
+          {tr("Save")}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setName(category.name);
+            setEdit(false);
+          }}
+        >
+          {tr("Cancel")}
+        </Button>
+        {rename.isError && (
+          <span className="text-xs" style={{ color: "var(--text-loss)" }}>
+            {(rename.error as Error).message}
+          </span>
+        )}
       </form>
     );
   }
@@ -237,10 +306,20 @@ function CategoryName({ category, onDone }: { category: Category; onDone: () => 
     <span className="flex items-center gap-2 text-[12.5px]">
       {category.name}
       {category.is_fixed ? (
-        <span className="text-xs text-ink-muted" title={tr("The app relies on this name itself, so it stays")}>{tr("fixed name")}</span>
+        <span className="text-xs text-ink-muted" title={tr("The app relies on this name itself, so it stays")}>
+          {tr("fixed name")}
+        </span>
       ) : (
-        <button type="button" onClick={() => { setName(category.name); setEdit(true); }}
-          className="text-xs text-ink-muted underline underline-offset-4 hover:text-[color:var(--ink)]">{tr("Rename")}</button>
+        <button
+          type="button"
+          onClick={() => {
+            setName(category.name);
+            setEdit(true);
+          }}
+          className="text-xs text-ink-muted underline underline-offset-4 hover:text-[color:var(--ink)]"
+        >
+          {tr("Rename")}
+        </button>
       )}
     </span>
   );
@@ -251,25 +330,57 @@ function MoveTo({ category, groups, onDone }: { category: Category; groups: stri
   const [next, setNew] = useState<string | null>(null);
   const move = useMutation({
     mutationFn: (group_name: string) => api.put(`/api/categories/${category.id}/group`, { group_name }),
-    onSuccess: () => { setNew(null); onDone(); },
+    onSuccess: () => {
+      setNew(null);
+      onDone();
+    },
   });
   if (next !== null) {
     return (
-      <form className="flex items-center gap-1"
-        onSubmit={(e) => { e.preventDefault(); if (next.trim()) move.mutate(next.trim()); }}>
-        <input autoFocus className="ds-input h-8 w-44 text-xs" placeholder={tr("Main category name")} value={next}
-          onChange={(e) => setNew(e.target.value)} aria-label={tr("New main category for {0}", category.name)} />
-        <Button size="sm" variant="secondary" type="submit" disabled={!next.trim() || move.isPending}>{tr("Move")}</Button>
-        <Button size="sm" variant="ghost" onClick={() => setNew(null)}>{tr("Cancel")}</Button>
+      <form
+        className="flex items-center gap-1"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (next.trim()) move.mutate(next.trim());
+        }}
+      >
+        <input
+          autoFocus
+          className="ds-input h-8 w-44 text-xs"
+          placeholder={tr("Main category name")}
+          value={next}
+          onChange={(e) => setNew(e.target.value)}
+          aria-label={tr("New main category for {0}", category.name)}
+        />
+        <Button size="sm" variant="secondary" type="submit" disabled={!next.trim() || move.isPending}>
+          {tr("Move")}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setNew(null)}>
+          {tr("Cancel")}
+        </Button>
       </form>
     );
   }
   return (
-    <select aria-label={tr("Move {0} to", category.name)} value="" disabled={move.isPending}
-      onChange={(e) => { const v = e.target.value; if (v === "__nieuw__") setNew(""); else if (v) move.mutate(v); }}
-      className="ds-select h-8 w-44 py-0 text-xs">
+    <select
+      aria-label={tr("Move {0} to", category.name)}
+      value=""
+      disabled={move.isPending}
+      onChange={(e) => {
+        const v = e.target.value;
+        if (v === "__nieuw__") setNew("");
+        else if (v) move.mutate(v);
+      }}
+      className="ds-select h-8 w-44 py-0 text-xs"
+    >
       <option value="">{tr("Move to…")}</option>
-      {groups.filter((g) => g !== category.group_name).map((g) => <option key={g} value={g}>{g}</option>)}
+      {groups
+        .filter((g) => g !== category.group_name)
+        .map((g) => (
+          <option key={g} value={g}>
+            {g}
+          </option>
+        ))}
       <option value="__nieuw__">{tr("New main category…")}</option>
     </select>
   );
@@ -307,7 +418,9 @@ export default function CategoriesPage() {
   }
   if (items.isError) {
     return (
-      <p className="py-10 text-sm" style={{ color: "var(--text-loss)" }}>{tr("Categories could not load. Try again.")}</p>
+      <p className="py-10 text-sm" style={{ color: "var(--text-loss)" }}>
+        {tr("Categories could not load. Try again.")}
+      </p>
     );
   }
 
@@ -324,13 +437,28 @@ export default function CategoriesPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <p className="text-sm text-ink-muted">{trx("Here you set up your categories, the rules that fill them and what counts as a fixed cost. You label transactions at {0} (a selection or one transaction) and at {1} (what has no category yet, or looks wrong).", <Link href="/spending/transactions" className="underline underline-offset-4">{tr("Transactions")}</Link>, <Link href="/spending/labelling" className="underline underline-offset-4">{tr("To label")}</Link>)}</p>
+      <p className="text-sm text-ink-muted">
+        {trx(
+          "Here you set up your categories, the rules that fill them and what counts as a fixed cost. You label transactions at {0} (a selection or one transaction) and at {1} (what has no category yet, or looks wrong).",
+          <Link href="/spending/transactions" className="underline underline-offset-4">
+            {tr("Transactions")}
+          </Link>,
+          <Link href="/spending/labelling" className="underline underline-offset-4">
+            {tr("To label")}
+          </Link>,
+        )}
+      </p>
 
       <Section
         label={tr("Categories")}
         meta={<span className="num">{trx("{0} in {1} groups", categories.length, Object.keys(onGroup).length)}</span>}
         info={
-          <>{trx("Next to each category is where it counts on Net worth: Saved (as spending or income) or Bank & cash, for money that isn't income or spending.{0} is money between your own accounts. That's not an expense, even though it leaves your account. Change it with the selector; the categories the app relies on keep theirs. Market and Debt on Net worth come from your holdings and debt balances, not from categories. Rename a main category with “Rename”; put a category under another (or new) main category with “Move to…”. Labels, rules and budgets move along.", <strong>{" "}{tr("Internal")}</strong>)}</>
+          <>
+            {trx(
+              "Next to each category is where it counts on Net worth: Saved (as spending or income) or Bank & cash, for money that isn't income or spending.{0} is money between your own accounts. That's not an expense, even though it leaves your account. Change it with the selector; the categories the app relies on keep theirs. Market and Debt on Net worth come from your holdings and debt balances, not from categories. Rename a main category with “Rename”; put a category under another (or new) main category with “Move to…”. Labels, rules and budgets move along.",
+              <strong> {tr("Internal")}</strong>,
+            )}
+          </>
         }
         action={
           <Button size="sm" variant="ghost" disabled={labelling.isPending} onClick={() => labelling.mutate()}>
@@ -339,7 +467,14 @@ export default function CategoriesPage() {
         }
       >
         {labelling.data && (
-          <p className="py-2 text-sm">{trx("{0} transactions labelled, {1} still unknown: {2}.", labelling.data.labelled, labelling.data.unknown, <strong>{trx("{0}% coverage", labelling.data.coverage)}</strong>)}</p>
+          <p className="py-2 text-sm">
+            {trx(
+              "{0} transactions labelled, {1} still unknown: {2}.",
+              labelling.data.labelled,
+              labelling.data.unknown,
+              <strong>{trx("{0}% coverage", labelling.data.coverage)}</strong>,
+            )}
+          </p>
         )}
 
         <CountsAsHelp />
@@ -350,31 +485,23 @@ export default function CategoriesPage() {
               <GroupHeader group_name={group_name} groups={Object.keys(onGroup)} onDone={() => qc.invalidateQueries()} />
               <ul className="flex flex-col">
                 {items.map((c) => (
-                  <li
-                    key={c.id}
-                    className="flex items-center justify-between gap-3 py-1.5"
-                    style={{ borderTop: "1px solid var(--rule)" }}
-                  >
+                  <li key={c.id} className="flex items-center justify-between gap-3 py-1.5" style={{ borderTop: "1px solid var(--rule)" }}>
                     <CategoryName category={c} onDone={() => qc.invalidateQueries()} />
                     <span className="flex items-center gap-3">
                       <TypeChoice category={c} />
-                      {c.name !== "Onbekend" && (
-                        <MoveTo category={c} groups={Object.keys(onGroup)} onDone={() => qc.invalidateQueries()} />
-                      )}
+                      {c.name !== "Onbekend" && <MoveTo category={c} groups={Object.keys(onGroup)} onDone={() => qc.invalidateQueries()} />}
                       <span className="num text-xs text-ink-muted">{trx("{0} rules", rulesPerCategory[c.name] ?? 0)}</span>
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => {
-                          if (
-                            window.confirm(
-                              tr("Delete \"{0}\"? Rules pointing to it will then label to nothing.", c.name),
-                            )
-                          ) {
+                          if (window.confirm(tr('Delete "{0}"? Rules pointing to it will then label to nothing.', c.name))) {
                             categoryAway.mutate(c.id);
                           }
                         }}
-                      >{tr("Delete")}</Button>
+                      >
+                        {tr("Delete")}
+                      </Button>
                     </span>
                   </li>
                 ))}
@@ -392,7 +519,12 @@ export default function CategoriesPage() {
         label={tr("Rules")}
         meta={<span className="num">{rules.length}</span>}
         info={
-          <>{trx("By priority, low to high. The {0} and the search stops there, so the order is the logic. Payment processors such as Mollie or CCV get a second round against the description, because that's where the real shop is.", <strong>{tr("first matching rule wins")}</strong>)}</>
+          <>
+            {trx(
+              "By priority, low to high. The {0} and the search stops there, so the order is the logic. Payment processors such as Mollie or CCV get a second round against the description, because that's where the real shop is.",
+              <strong>{tr("first matching rule wins")}</strong>,
+            )}
+          </>
         }
         action={
           <Button size="sm" variant="ghost" onClick={() => setShowRules((v) => !v)}>
@@ -417,18 +549,16 @@ export default function CategoriesPage() {
                 {rules.map((r) => (
                   <tr key={r.id} style={{ borderTop: "1px solid var(--rule)" }}>
                     <td className="num py-2 align-top">{r.priority}</td>
-                    <td className="py-2 align-top text-ink-muted">
-                      {FIELDS.find((v) => v.value === r.field)?.label ?? r.field}
-                    </td>
+                    <td className="py-2 align-top text-ink-muted">{FIELDS.find((v) => v.value === r.field)?.label ?? r.field}</td>
                     <td className="py-2 align-top">
                       <code className="num text-[11.5px]">{r.pattern}</code>
                     </td>
-                    <td className="py-2 align-top text-ink-muted">
-                      {DIRECTIONS.find((x) => x.value === r.direction)?.label}
-                    </td>
+                    <td className="py-2 align-top text-ink-muted">{DIRECTIONS.find((x) => x.value === r.direction)?.label}</td>
                     <td className="py-2 align-top">{r.category}</td>
                     <td className="py-2 text-right align-top">
-                      <Button size="sm" variant="ghost" onClick={() => ruleAway.mutate(r.id)}>{tr("Delete")}</Button>
+                      <Button size="sm" variant="ghost" onClick={() => ruleAway.mutate(r.id)}>
+                        {tr("Delete")}
+                      </Button>
                     </td>
                   </tr>
                 ))}

@@ -52,7 +52,8 @@ export function monthsUntil(end: string, boundaries: string[] | null, n: number)
  * and including the current one, ascending. Always at least the current month.
  */
 export function monthChoices(first: string, boundaries: string[] | null, last: string): Month[] {
-  const n = boundaries?.length ? boundaries.length
+  const n = boundaries?.length
+    ? boundaries.length
     : (Number(last.slice(0, 4)) - Number(first.slice(0, 4))) * 12 + Number(last.slice(5, 7)) - Number(first.slice(5, 7)) + 1;
   const all = monthsUntil(last, boundaries, Math.max(1, n));
   const shown = all.filter((m) => m.end >= first);
@@ -88,11 +89,12 @@ export function coloursFor(names: string[], sort_order: string[]): Map<string, s
   };
   const card = new Map<string, string>();
   const occupied = new Set<string>();
-  [...names].filter((n) => n !== MISC)
+  [...names]
+    .filter((n) => n !== MISC)
     .sort((a, b) => spot(a) - spot(b) || a.localeCompare(b, "nl"))
     .forEach((n, i) => {
       const preference = COLOURS[(spot(n) === Number.MAX_SAFE_INTEGER ? i : spot(n)) % COLOURS.length];
-      const colour = !occupied.has(preference) ? preference : COLOURS.find((k) => !occupied.has(k)) ?? preference;
+      const colour = !occupied.has(preference) ? preference : (COLOURS.find((k) => !occupied.has(k)) ?? preference);
       occupied.add(colour);
       card.set(n, colour);
     });
@@ -197,8 +199,7 @@ export function useTip() {
   const [tip, setTip] = useState<TipStand | null>(null);
   const touch = useRef(false);
 
-  function place(e: { currentTarget: EventTarget & HTMLElement; clientX?: number; clientY?: number },
-    key: string, content: TipContent) {
+  function place(e: { currentTarget: EventTarget & HTMLElement; clientX?: number; clientY?: number }, key: string, content: TipContent) {
     const area = e.currentTarget.closest("[data-tip-area]") as HTMLElement | null;
     if (!area) return;
     const r = area.getBoundingClientRect();
@@ -212,8 +213,12 @@ export function useTip() {
 
   function props(key: string, content: TipContent, run?: () => void) {
     return {
-      onPointerDown: (e: React.PointerEvent<HTMLElement>) => { touch.current = e.pointerType === "touch"; },
-      onPointerMove: (e: React.PointerEvent<HTMLElement>) => { if (e.pointerType !== "touch") place(e, key, content); },
+      onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+        touch.current = e.pointerType === "touch";
+      },
+      onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+        if (e.pointerType !== "touch") place(e, key, content);
+      },
       onPointerLeave: () => setTip(null),
       onFocus: (e: React.FocusEvent<HTMLElement>) => place(e, key, content),
       onBlur: () => setTip(null),
@@ -236,8 +241,17 @@ export function TipCard({ tip }: { tip: TipStand | null }) {
   if (!tip) return null;
   const x = tip.x < 130 ? "0%" : tip.x > tip.w - 130 ? "-100%" : "-50%";
   return (
-    <div role="tooltip" className="pointer-events-none absolute z-20 min-w-[11rem] max-w-[17rem] rounded-md px-3 py-2 text-xs shadow-lg"
-      style={{ left: tip.x, top: tip.y, transform: `translate(${x}, calc(-100% - 10px))`, background: "var(--surface-inverse)", color: "var(--text-inverse)" }}>
+    <div
+      role="tooltip"
+      className="pointer-events-none absolute z-20 min-w-[11rem] max-w-[17rem] rounded-md px-3 py-2 text-xs shadow-lg"
+      style={{
+        left: tip.x,
+        top: tip.y,
+        transform: `translate(${x}, calc(-100% - 10px))`,
+        background: "var(--surface-inverse)",
+        color: "var(--text-inverse)",
+      }}
+    >
       <div className="mb-1 font-semibold">{tip.content.title}</div>
       {tip.content.rules.map((r) => (
         <div key={r.label} className="flex items-center justify-between gap-4">
@@ -248,7 +262,11 @@ export function TipCard({ tip }: { tip: TipStand | null }) {
           <span className={`num ${r.strong ? "font-semibold" : ""}`}>{r.value}</span>
         </div>
       ))}
-      {tip.content.foot && <div className="mt-1.5" style={{ color: "var(--text-on-ink-muted)" }}>{tip.content.foot}</div>}
+      {tip.content.foot && (
+        <div className="mt-1.5" style={{ color: "var(--text-on-ink-muted)" }}>
+          {tip.content.foot}
+        </div>
+      )}
     </div>
   );
 }
@@ -267,8 +285,16 @@ export type ChartProps = {
 };
 
 /** A setting as a row of buttons: "Measure in: € | %". */
-export function Setting({ label, value, options, onChange }: {
-  label: string; value: string; options: [string, string][]; onChange: (v: string) => void;
+export function Setting({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: [string, string][];
+  onChange: (v: string) => void;
 }) {
   return (
     <span className="flex flex-wrap items-center gap-2">
@@ -285,15 +311,25 @@ export function Setting({ label, value, options, onChange }: {
  */
 export function MonthSetting({ ctx }: { ctx: Context }) {
   const recent = ctx.monthChoices.slice(-4).reverse();
-  const options = recent.map((m, k): [string, string] =>
-    [m.key, k === 0 ? tr("This {0}", ctx.monthWord) : k === 1 ? tr("Previous {0}", ctx.monthWord) : monthName(m.key)]);
+  const options = recent.map((m, k): [string, string] => [
+    m.key,
+    k === 0 ? tr("This {0}", ctx.monthWord) : k === 1 ? tr("Previous {0}", ctx.monthWord) : monthName(m.key),
+  ]);
   if (!recent.some((m) => m.key === ctx.month.key)) options.push([ctx.month.key, monthName(ctx.month.key)]);
   const current = recent[0]?.key;
-  return <Setting label={tr("Month")} value={ctx.month.key} options={options}
-    onChange={(key) => ctx.setMonth(key === current ? "" : key)} />;
+  return (
+    <Setting label={tr("Month")} value={ctx.month.key} options={options} onChange={(key) => ctx.setMonth(key === current ? "" : key)} />
+  );
 }
 
-export function ChartCard({ title, info, meta, settings, editing, children }: {
+export function ChartCard({
+  title,
+  info,
+  meta,
+  settings,
+  editing,
+  children,
+}: {
   title: string;
   info?: React.ReactNode;
   meta?: React.ReactNode;
@@ -308,17 +344,25 @@ export function ChartCard({ title, info, meta, settings, editing, children }: {
       label={title}
       info={info}
       meta={editing ? undefined : meta}
-      action={editing ? (
-        <span className="flex gap-1">
-          <Button size="sm" variant="ghost" disabled={!editing.up} onClick={editing.up} aria-label={tr("{0} up", title)}>↑</Button>
-          <Button size="sm" variant="ghost" disabled={!editing.down} onClick={editing.down} aria-label={tr("{0} down", title)}>↓</Button>
-          <Button size="sm" variant="ghost" onClick={editing.hide}>{tr("Hide")}</Button>
-        </span>
-      ) : settings ? (
-        <Button size="sm" variant="ghost" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-          <span aria-hidden>⚙</span> {open ? tr("Done") : tr("Set up")}
-        </Button>
-      ) : undefined}
+      action={
+        editing ? (
+          <span className="flex gap-1">
+            <Button size="sm" variant="ghost" disabled={!editing.up} onClick={editing.up} aria-label={tr("{0} up", title)}>
+              ↑
+            </Button>
+            <Button size="sm" variant="ghost" disabled={!editing.down} onClick={editing.down} aria-label={tr("{0} down", title)}>
+              ↓
+            </Button>
+            <Button size="sm" variant="ghost" onClick={editing.hide}>
+              {tr("Hide")}
+            </Button>
+          </span>
+        ) : settings ? (
+          <Button size="sm" variant="ghost" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+            <span aria-hidden>⚙</span> {open ? tr("Done") : tr("Set up")}
+          </Button>
+        ) : undefined
+      }
     >
       {open && settings && !editing && (
         <div className="mb-4 flex flex-wrap gap-x-6 gap-y-2.5 rounded-md p-3" style={{ background: "var(--surface-inset)" }}>
@@ -336,7 +380,8 @@ export function Legend({ names, colours }: { names: string[]; colours: Map<strin
     <div className="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-xs text-ink-muted">
       {names.map((n) => (
         <span key={n} className="flex items-center gap-1.5">
-          <span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: colours.get(n) }} />{n}
+          <span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: colours.get(n) }} />
+          {n}
         </span>
       ))}
     </div>

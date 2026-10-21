@@ -19,7 +19,10 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
   const fmtNum = (n: number) => f.trim(n);
   const sports = useMemo(() => {
     const all = kmBySport(weeks.flatMap((w) => w.sessions) as PlanSession[]);
-    return Object.entries(all).filter(([, v]) => v.planned > 0).sort((a, b) => (a[0] === "run" ? -1 : b[0] === "run" ? 1 : b[1].planned - a[1].planned)).map(([s]) => s);
+    return Object.entries(all)
+      .filter(([, v]) => v.planned > 0)
+      .sort((a, b) => (a[0] === "run" ? -1 : b[0] === "run" ? 1 : b[1].planned - a[1].planned))
+      .map(([s]) => s);
   }, [weeks]);
   const [pick, setPick] = useState<string | null>(null);
   const [active, setActive] = useState<number | null>(null); // the week under the pointer (or tapped): its box
@@ -42,7 +45,14 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
     // The race itself separately: otherwise race week looks like the heaviest of the plan and the taper is invisible.
     const raceKm = w.sessions.filter((s) => s.sport === sport && RACE.test(s.kind ?? "")).reduce((t, s) => t + (s.distance_km ?? 0), 0);
     const started = w.monday <= today;
-    return { ...w, ...v, raceKm, started, current: today >= w.monday && today <= w.days[6].date, race: !!raceDate && raceDate >= w.monday && raceDate <= w.days[6].date };
+    return {
+      ...w,
+      ...v,
+      raceKm,
+      started,
+      current: today >= w.monday && today <= w.days[6].date,
+      race: !!raceDate && raceDate >= w.monday && raceDate <= w.days[6].date,
+    };
   });
   const peak = Math.max(...rows.map((r) => Math.max(r.planned, r.done)), 1);
   const colour = sportColour(sport);
@@ -78,10 +88,14 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
           </div>
         )}
       </div>
-      <p className="mb-3 text-[12px] tabular-nums text-ink-muted">
-        {v.doneOf(fmtNum(done), fmtNum(total), sport)}
-      </p>
-      <div ref={barsRef} className={`relative flex h-[132px] items-end lg:h-auto lg:min-h-[132px] lg:flex-1 ${tight ? "gap-1" : "gap-2 sm:gap-3"}`} role="list" aria-label={v.aria(sport)} onMouseLeave={() => setActive(null)}>
+      <p className="mb-3 text-[12px] tabular-nums text-ink-muted">{v.doneOf(fmtNum(done), fmtNum(total), sport)}</p>
+      <div
+        ref={barsRef}
+        className={`relative flex h-[132px] items-end lg:h-auto lg:min-h-[132px] lg:flex-1 ${tight ? "gap-1" : "gap-2 sm:gap-3"}`}
+        role="list"
+        aria-label={v.aria(sport)}
+        onMouseLeave={() => setActive(null)}
+      >
         {rows.map((r, i) => (
           <div
             key={r.monday}
@@ -97,11 +111,26 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
             <span className="mb-1 whitespace-nowrap text-[11.5px] tabular-nums text-ink-muted">
               {values === "full" ? (
                 <>
-                  {r.started && r.done > 0 ? <><span className="font-semibold text-[var(--text-primary)]">{fmtNum(r.done)}</span>/</> : null}
-                  {r.raceKm > 0 && r.planned > r.raceKm ? <>{fmtNum(r.planned - r.raceKm)}<span className="text-brand"> + {fmtNum(r.raceKm)}</span></> : fmtNum(r.planned)}
+                  {r.started && r.done > 0 ? (
+                    <>
+                      <span className="font-semibold text-[var(--text-primary)]">{fmtNum(r.done)}</span>/
+                    </>
+                  ) : null}
+                  {r.raceKm > 0 && r.planned > r.raceKm ? (
+                    <>
+                      {fmtNum(r.planned - r.raceKm)}
+                      <span className="text-brand"> + {fmtNum(r.raceKm)}</span>
+                    </>
+                  ) : (
+                    fmtNum(r.planned)
+                  )}
                 </>
               ) : values === "short" || r.current ? (
-                r.started && r.done > 0 ? <span className="font-semibold text-[var(--text-primary)]">{fmtNum(r.done)}</span> : fmtNum(r.planned)
+                r.started && r.done > 0 ? (
+                  <span className="font-semibold text-[var(--text-primary)]">{fmtNum(r.done)}</span>
+                ) : (
+                  fmtNum(r.planned)
+                )
               ) : (
                 "\u00a0"
               )}
@@ -115,9 +144,20 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
               }}
             >
               {r.raceKm > 0 && (
-                <div className="absolute inset-x-0 top-0" style={{ height: `${(r.raceKm / Math.max(r.planned, r.done, 0.001)) * 100}%`, background: "color-mix(in srgb, var(--surface-brand) 22%, var(--surface-card))", boxShadow: "inset 0 0 0 1.5px var(--surface-brand)", borderRadius: "4px 4px 0 0" }} />
+                <div
+                  className="absolute inset-x-0 top-0"
+                  style={{
+                    height: `${(r.raceKm / Math.max(r.planned, r.done, 0.001)) * 100}%`,
+                    background: "color-mix(in srgb, var(--surface-brand) 22%, var(--surface-card))",
+                    boxShadow: "inset 0 0 0 1.5px var(--surface-brand)",
+                    borderRadius: "4px 4px 0 0",
+                  }}
+                />
               )}
-              <div className="absolute inset-x-0 bottom-0" style={{ height: `${(r.done / Math.max(r.planned, r.done, 0.001)) * 100}%`, background: colour }} />
+              <div
+                className="absolute inset-x-0 bottom-0"
+                style={{ height: `${(r.done / Math.max(r.planned, r.done, 0.001)) * 100}%`, background: colour }}
+              />
             </div>
           </div>
         ))}
@@ -132,16 +172,32 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
               transform: active >= rows.length / 2 ? "translateX(-100%)" : "none",
             }}
           >
-            <div className="font-semibold">{f.dayMonth(rows[active].monday)} – {f.dayMonth(rows[active].days[6].date)}</div>
-            <div className="flex justify-between gap-3"><span className="opacity-80">{v.done}</span><span className="font-semibold">{rows[active].started ? `${fmtNum(rows[active].done)} km` : "–"}</span></div>
-            <div className="flex justify-between gap-3"><span className="opacity-80">{v.planned}</span><span className="font-semibold">{fmtNum(rows[active].planned)} km</span></div>
-            {rows[active].raceKm > 0 && <div className="flex justify-between gap-3"><span className="opacity-80">{v.raceLegend}</span><span className="font-semibold">{fmtNum(rows[active].raceKm)} km</span></div>}
+            <div className="font-semibold">
+              {f.dayMonth(rows[active].monday)} – {f.dayMonth(rows[active].days[6].date)}
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="opacity-80">{v.done}</span>
+              <span className="font-semibold">{rows[active].started ? `${fmtNum(rows[active].done)} km` : "–"}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="opacity-80">{v.planned}</span>
+              <span className="font-semibold">{fmtNum(rows[active].planned)} km</span>
+            </div>
+            {rows[active].raceKm > 0 && (
+              <div className="flex justify-between gap-3">
+                <span className="opacity-80">{v.raceLegend}</span>
+                <span className="font-semibold">{fmtNum(rows[active].raceKm)} km</span>
+              </div>
+            )}
           </div>
         )}
       </div>
       <div className={`mt-1.5 flex border-t border-border pt-1.5 ${tight ? "gap-1" : "gap-2 sm:gap-3"}`}>
         {rows.map((r, i) => (
-          <span key={r.monday} className={`flex min-w-0 flex-1 justify-center whitespace-nowrap text-[11px] ${r.current ? "font-semibold text-[var(--text-primary)]" : "text-ink-muted"}`}>
+          <span
+            key={r.monday}
+            className={`flex min-w-0 flex-1 justify-center whitespace-nowrap text-[11px] ${r.current ? "font-semibold text-[var(--text-primary)]" : "text-ink-muted"}`}
+          >
             {r.race ? v.race : r.current ? v.now : step === 1 || (i % step === 0 && !nearMarker(i)) ? f.dayMonth(r.monday) : ""}
           </span>
         ))}
@@ -151,11 +207,26 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
           <span className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: colour }} aria-hidden /> {v.done}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: `repeating-linear-gradient(135deg, color-mix(in srgb, ${colour} 40%, transparent) 0 2px, transparent 2px 4px)` }} aria-hidden /> {v.planned}
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-[3px]"
+            style={{
+              background: `repeating-linear-gradient(135deg, color-mix(in srgb, ${colour} 40%, transparent) 0 2px, transparent 2px 4px)`,
+            }}
+            aria-hidden
+          />{" "}
+          {v.planned}
         </span>
         {rows.some((r) => r.raceKm > 0) && (
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: "color-mix(in srgb, var(--surface-brand) 22%, var(--surface-card))", boxShadow: "inset 0 0 0 1.5px var(--surface-brand)" }} aria-hidden /> {v.raceLegend}
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-[3px]"
+              style={{
+                background: "color-mix(in srgb, var(--surface-brand) 22%, var(--surface-card))",
+                boxShadow: "inset 0 0 0 1.5px var(--surface-brand)",
+              }}
+              aria-hidden
+            />{" "}
+            {v.raceLegend}
           </span>
         )}
       </div>

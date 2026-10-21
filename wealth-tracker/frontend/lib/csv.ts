@@ -30,17 +30,10 @@ function cell(value: string | number): string {
  * Prepares *rows* as a download. Does nothing on the server (there is no
  * document there), which does not matter either: it hangs off a click.
  */
-export function downloadCsv(
-  filename: string,
-  headers: string[],
-  rows: (string | number)[][]
-): void {
+export function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]): void {
   if (typeof document === "undefined") return;
 
-  const text =
-    BOM +
-    [headers, ...rows].map((row) => row.map(cell).join(SEP)).join("\r\n") +
-    "\r\n";
+  const text = BOM + [headers, ...rows].map((row) => row.map(cell).join(SEP)).join("\r\n") + "\r\n";
 
   const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
   const link = document.createElement("a");
@@ -59,10 +52,6 @@ export function downloadCsv(
  */
 export function stampedFilename(stem: string): string {
   const now = new Date();
-  const date = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
-  ].join("-");
+  const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
   return `${stem}-${date}.csv`;
 }

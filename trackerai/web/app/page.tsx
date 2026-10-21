@@ -11,5 +11,11 @@ export default async function FrontDoorPage() {
   // English, until the visitor picks Nederlands at the bottom (proxy.ts keeps that choice in LOCALE_COOKIE).
   const locale = localeFromCookie((await cookies()).get(LOCALE_COOKIE)?.value);
   const urls = trackerUrls();
-  return <FrontDoor locale={locale} urls={urls} privacyHref={urls.wealth ? `${urls.wealth}/privacy` : urls.health ? `${urls.health}/privacy/` : undefined} />;
+  return (
+    <FrontDoor
+      locale={locale}
+      urls={urls}
+      privacyHref={urls.wealth ? `${urls.wealth}/privacy` : urls.health ? `${urls.health}/privacy/` : undefined}
+    />
+  );
 }

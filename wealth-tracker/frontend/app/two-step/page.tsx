@@ -12,7 +12,8 @@ import LanguageChoice from "@/components/LanguageChoice";
 export default function TwoStepPage() {
   const [days, setDays] = useState(30);
   useEffect(() => {
-    api.get<{ session_days?: number }>("/api/auth/registration-status")
+    api
+      .get<{ session_days?: number }>("/api/auth/registration-status")
       .then((s) => s.session_days && setDays(s.session_days))
       .catch(() => {});
   }, []);
@@ -21,7 +22,9 @@ export default function TwoStepPage() {
     <main className="mx-auto flex max-w-prose flex-col gap-8 p-6 py-12">
       <TwoStepHelp locale={locale} days={days} />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <a href="/login" className="text-[12.5px] text-ink-muted underline underline-offset-2">{tr("Back to log in")}</a>
+        <a href="/login" className="text-[12.5px] text-ink-muted underline underline-offset-2">
+          {tr("Back to log in")}
+        </a>
         <LanguageChoice />
       </div>
     </main>

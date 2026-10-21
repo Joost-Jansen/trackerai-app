@@ -20,7 +20,8 @@ export const listHref = (sport: RouteSport) => (sport === "ride" ? "/routes/?spo
 export const kmhFromPace = (paceSPerKm?: number | null) => (paceSPerKm ? 3600 / paceSPerKm : null);
 
 /** Pace for running, speed for cycling, from a pace in s/km. */
-export const fmtEffort = (f: Format, sport: RouteSport, paceSPerKm?: number | null) => (sport === "ride" ? f.kmh(kmhFromPace(paceSPerKm)) : f.pace(paceSPerKm));
+export const fmtEffort = (f: Format, sport: RouteSport, paceSPerKm?: number | null) =>
+  sport === "ride" ? f.kmh(kmhFromPace(paceSPerKm)) : f.pace(paceSPerKm);
 
 /** "5:08/km" or "28,4 km/u" for a route. */
 export const fmtTypical = (f: Format, r: Pick<RouteSummary, "sport" | "median_pace" | "median_speed_kmh">) =>

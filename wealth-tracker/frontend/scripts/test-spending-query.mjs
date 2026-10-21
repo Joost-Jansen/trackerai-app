@@ -14,7 +14,9 @@ test("switching from 1M to 3M and 6M stays explicit and keeps the account filter
 
 test("a chosen period replaces custom dates and a temporary click-through filter", () => {
   const query = modifySpendingQuery("period=Custom&start=2026-01-01&end=2026-02-01&via=overview", {
-    period: "3M", start: null, end: null,
+    period: "3M",
+    start: null,
+    end: null,
   });
   assert.equal(query, "period=3M");
 });

@@ -40,29 +40,12 @@ import {
   rangeBreakdown,
   sliceByRange,
 } from "@/lib/dashboard";
-import {
-  fmtDayMonth,
-  fmtDayMonthYear,
-  fmtEuro,
-  fmtIntradayLabel,
-  fmtMonth,
-  fmtPercent,
-  fmtRelative,
-  parseTimestamp,
-} from "@/lib/format";
+import { fmtDayMonth, fmtDayMonthYear, fmtEuro, fmtIntradayLabel, fmtMonth, fmtPercent, fmtRelative, parseTimestamp } from "@/lib/format";
 import { periodLabel, periodTabs } from "@/lib/timeline";
 import ZoomChip, { sliceByZoom, type ZoomWindow } from "@/components/charts/ZoomChip";
 import { trueMinus } from "@trackerai/ui/lib/typography";
 import { topSlices } from "@/lib/slices";
-import {
-  Eyebrow,
-  Figure,
-  Hero,
-  Section,
-  SignedValue,
-  Tabs,
-  ValueChange,
-} from "@/components/ds";
+import { Eyebrow, Figure, Hero, Section, SignedValue, Tabs, ValueChange } from "@/components/ds";
 import BreakdownList from "@/components/BreakdownList";
 import ChartHeadline from "@trackerai/ui/charts/ChartHeadline";
 import InfoPopover from "@trackerai/ui/components/InfoPopover";
@@ -74,9 +57,7 @@ import { cadenceLabel, partLabel } from "@/lib/dashboard";
 import { tr, trx } from "@/lib/i18n";
 
 function Skeleton({ className = "h-40" }: { className?: string }) {
-  return (
-    <div className={`animate-pulse rounded ${className}`} style={{ background: "var(--surface-inset)" }} />
-  );
+  return <div className={`animate-pulse rounded ${className}`} style={{ background: "var(--surface-inset)" }} />;
 }
 
 export default function DashboardPage() {
@@ -161,21 +142,18 @@ export default function DashboardPage() {
       activeRange === "1D" && intradayQ.data?.anchored && intradayQ.data.points.length >= 2
         ? intradayAsValuePoints(intradayQ.data.points, lastDaily)
         : null,
-    [activeRange, intradayQ.data, lastDaily]
+    [activeRange, intradayQ.data, lastDaily],
   );
 
   const dailySlice = useMemo(
     () => (dailyPoints.length < 2 ? [] : zoom ? sliceByZoom(dailyPoints, zoom) : sliceByRange(dailyPoints, activeRange)),
-    [dailyPoints, activeRange, zoom]
+    [dailyPoints, activeRange, zoom],
   );
 
   const valuePoints = intradayPoints ?? dailySlice;
   // On 1D the points are clock times, otherwise dates. The first point of an
   // intraday line is yesterday's close and is labelled as such.
-  const probeLabel =
-    intradayPoints !== null
-      ? (d: string) => fmtIntradayLabel(d, valuePoints[valuePoints.length - 1].d)
-      : fmtDayMonthYear;
+  const probeLabel = intradayPoints !== null ? (d: string) => fmtIntradayLabel(d, valuePoints[valuePoints.length - 1].d) : fmtDayMonthYear;
 
   // The value change over the period split into return (prices + dividend) and
   // money you put in yourself. value_divs rises both from a deposit and from
@@ -184,10 +162,7 @@ export default function DashboardPage() {
   //
   // Always on the daily series, never on `valuePoints`: on 1D those are the
   // intraday bars, and rangeBreakdown reasons in days.
-  const valueBreakdown = useMemo(
-    () => rangeBreakdown(dailyPoints, dailySlice),
-    [dailyPoints, dailySlice]
-  );
+  const valueBreakdown = useMemo(() => rangeBreakdown(dailyPoints, dailySlice), [dailyPoints, dailySlice]);
 
   if (summaryQ.isLoading) {
     return (
@@ -199,7 +174,9 @@ export default function DashboardPage() {
   }
   if (summaryQ.isError || !summaryQ.data) {
     return (
-      <p className="py-10 text-sm" style={{ color: "var(--text-loss)" }}>{tr("The dashboard could not load. Try again.")}</p>
+      <p className="py-10 text-sm" style={{ color: "var(--text-loss)" }}>
+        {tr("The dashboard could not load. Try again.")}
+      </p>
     );
   }
 
@@ -231,9 +208,13 @@ export default function DashboardPage() {
       ? {
           big: trueMinus(fmtEuro(probe.delta, { plus: true })),
           primary: (
-            <>{trx("market {0}{1}", trueMinus(fmtEuro(probe.market, { plus: true })), probe.pct !== null && (
-                <> ({trueMinus(fmtPercent(probe.pct, { decimals: 2, plus: true }))})</>
-              ))}</>
+            <>
+              {trx(
+                "market {0}{1}",
+                trueMinus(fmtEuro(probe.market, { plus: true })),
+                probe.pct !== null && <> ({trueMinus(fmtPercent(probe.pct, { decimals: 2, plus: true }))})</>,
+              )}
+            </>
           ),
           primaryTone: probe.market >= 0 ? "text-pos" : "text-neg",
           secondary: (
@@ -252,9 +233,13 @@ export default function DashboardPage() {
         : {
             big: fmtEuro(cardFigures.end),
             primary: (
-              <>{trx("return {0}{1}", trueMinus(fmtEuro(cardFigures.gain, { plus: true })), cardFigures.pct !== null && (
-                  <> ({trueMinus(fmtPercent(cardFigures.pct, { decimals: 1, plus: true }))})</>
-                ))}</>
+              <>
+                {trx(
+                  "return {0}{1}",
+                  trueMinus(fmtEuro(cardFigures.gain, { plus: true })),
+                  cardFigures.pct !== null && <> ({trueMinus(fmtPercent(cardFigures.pct, { decimals: 1, plus: true }))})</>,
+                )}
+              </>
             ),
             primaryTone: cardFigures.gain >= 0 ? "text-pos" : "text-neg",
             secondary:
@@ -279,9 +264,7 @@ export default function DashboardPage() {
         return p !== null && p > lastSeen;
       }).length
     : 0;
-  const showSince =
-    since !== null &&
-    (Math.abs(since.value_delta) >= 0.005 || since.dividends.count > 0 || articlesSince > 0);
+  const showSince = since !== null && (Math.abs(since.value_delta) >= 0.005 || since.dividends.count > 0 || articlesSince > 0);
 
   const movers = moversQ.data;
   const divStats = dividendsQ.data;
@@ -309,24 +292,37 @@ export default function DashboardPage() {
           className="mb-6 rounded-md px-4 py-3 text-[13px] leading-relaxed"
           style={{ background: "var(--warn-tint)", borderLeft: "3px solid var(--warn)" }}
         >
-          <p className="font-medium text-warn">{trx("⚠ {0} without a price", unpriced.length === 1 ? tr("1 position") : tr("{0} positions", unpriced.length))}</p>
-          <p className="mt-1">{trx("{0}. As long as {1}, the app can't calculate your total value and return. Refresh the prices via {2} in the bar above.", unpriced.map((p, i) => (
-              <span key={p.isin}>
-                {i > 0 && ", "}
-                <Link href={`/portfolio/${p.isin}`} className="ds-link">
-                  {p.name}
-                </Link>
-              </span>
-            )), unpriced.length === 1 ? tr("it has no price") : tr("they have no price"), <strong>{tr("Update")}</strong>)}</p>
+          <p className="font-medium text-warn">
+            {trx("⚠ {0} without a price", unpriced.length === 1 ? tr("1 position") : tr("{0} positions", unpriced.length))}
+          </p>
+          <p className="mt-1">
+            {trx(
+              "{0}. As long as {1}, the app can't calculate your total value and return. Refresh the prices via {2} in the bar above.",
+              unpriced.map((p, i) => (
+                <span key={p.isin}>
+                  {i > 0 && ", "}
+                  <Link href={`/portfolio/${p.isin}`} className="ds-link">
+                    {p.name}
+                  </Link>
+                </span>
+              )),
+              unpriced.length === 1 ? tr("it has no price") : tr("they have no price"),
+              <strong>{tr("Update")}</strong>,
+            )}
+          </p>
         </div>
       )}
 
       {/* ═══ MASTHEAD — één held, en zijn drie steunfiguren ═══════════════ */}
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
         <Eyebrow>{tr("Total value")}</Eyebrow>
-        <span className="text-xs text-ink-muted">{trx("{0} positions{1}", <span className="num">{s.num_positions}</span>, summaryQ.data.oldest_price_fetch && (
-            <>{" "}{trx("· prices updated {0}", fmtRelative(summaryQ.data.oldest_price_fetch))}</>
-          ))}</span>
+        <span className="text-xs text-ink-muted">
+          {trx(
+            "{0} positions{1}",
+            <span className="num">{s.num_positions}</span>,
+            summaryQ.data.oldest_price_fetch && <> {trx("· prices updated {0}", fmtRelative(summaryQ.data.oldest_price_fetch))}</>,
+          )}
+        </span>
       </div>
 
       <div className="mt-2.5 flex flex-wrap items-end gap-x-7 gap-y-2">
@@ -334,11 +330,7 @@ export default function DashboardPage() {
         {day && (
           <span className="inline-flex items-baseline gap-2.5 pb-2">
             {/* A day over part of the positions is not a day: then nothing. */}
-            {day.complete ? (
-              <ValueChange value={day.delta_eur} size="md" />
-            ) : (
-              <span className="num text-ink-muted">–</span>
-            )}
+            {day.complete ? <ValueChange value={day.delta_eur} size="md" /> : <span className="num text-ink-muted">–</span>}
             {/* "today" is a statement about when, and it was made unconditionally on a cache that
                 can be days old. If the prices behind it missed a close, the label says which day it
                 is really about.
@@ -401,16 +393,26 @@ export default function DashboardPage() {
               // purchase price: an estimate that looked like a measurement. Rather nothing —
               // the warning at the top says which one it is.
               <Section label={tr("Value over time")}>
-                <p className="max-w-measure text-sm leading-relaxed text-ink-muted">{tr("This chart comes back as soon as every position has a price.")}</p>
+                <p className="max-w-measure text-sm leading-relaxed text-ink-muted">
+                  {tr("This chart comes back as soon as every position has a price.")}
+                </p>
               </Section>
             ) : valuePoints.length >= 2 && cardFigures && headline ? (
               <Section
                 label={tr("Value over time")}
                 info={
-                  <>{trx("What all your positions were worth together, per day, at their closing price.{0}{1}Your deposits are included. So a rising line can also be deposits rather than return. To see what the investments themselves did, look at Returns.", <br />, <br />)}</>
+                  <>
+                    {trx(
+                      "What all your positions were worth together, per day, at their closing price.{0}{1}Your deposits are included. So a rising line can also be deposits rather than return. To see what the investments themselves did, look at Returns.",
+                      <br />,
+                      <br />,
+                    )}
+                  </>
                 }
                 action={
-                  <Link href="/returns" className="ds-link text-xs">{tr("compare with indices")}</Link>
+                  <Link href="/returns" className="ds-link text-xs">
+                    {tr("compare with indices")}
+                  </Link>
                 }
               >
                 {/* The period picker is below the line, right above the chart it filters. Next to
@@ -424,7 +426,10 @@ export default function DashboardPage() {
                     variant="quiet"
                     items={periodTabs(ranges)}
                     value={zoom ? "" : activeRange}
-                    onChange={(r) => { setZoom(null); setRange(r as Range); }}
+                    onChange={(r) => {
+                      setZoom(null);
+                      setRange(r as Range);
+                    }}
                     ariaLabel={tr("Period")}
                   />
                   {zoom && <ZoomChip zoom={zoom} onClear={() => setZoom(null)} />}
@@ -434,7 +439,7 @@ export default function DashboardPage() {
                   points={valuePoints}
                   range={activeRange}
                   intraday={intradayPoints !== null}
-                  baseline={intradayPoints !== null ? intradayQ.data?.prev_close ?? null : null}
+                  baseline={intradayPoints !== null ? (intradayQ.data?.prev_close ?? null) : null}
                   onProbe={setProbe}
                   onSelect={setZoom}
                 />
@@ -443,7 +448,13 @@ export default function DashboardPage() {
                     position draws a flat stretch that can't be told apart from a real one, so it
                     has to be said somewhere. */}
                 {(valueHistoryQ.data?.estimated?.length ?? 0) > 0 && (
-                  <p className="text-[11.5px] text-ink-muted">{trx("Without price history, estimated at {0}: {1}", valueHistoryQ.data!.estimated[0].base, valueHistoryQ.data!.estimated.map((e) => e.name).join(", "))}</p>
+                  <p className="text-[11.5px] text-ink-muted">
+                    {trx(
+                      "Without price history, estimated at {0}: {1}",
+                      valueHistoryQ.data!.estimated[0].base,
+                      valueHistoryQ.data!.estimated.map((e) => e.name).join(", "),
+                    )}
+                  </p>
                 )}
               </Section>
             ) : valueHistoryQ.data?.unavailable ? (
@@ -452,7 +463,11 @@ export default function DashboardPage() {
               // today's price, and so drew a dead straight line that looks exactly like a
               // portfolio that stood still.
               <Section label={tr("Value over time")}>
-                <p className="max-w-measure text-sm leading-relaxed text-ink-muted">{tr("The price history could not be fetched from Yahoo Finance. Your positions and amounts are fine; only this chart is missing. Try again in a few minutes.")}</p>
+                <p className="max-w-measure text-sm leading-relaxed text-ink-muted">
+                  {tr(
+                    "The price history could not be fetched from Yahoo Finance. Your positions and amounts are fine; only this chart is missing. Try again in a few minutes.",
+                  )}
+                </p>
               </Section>
             ) : null}
           </div>
@@ -466,7 +481,13 @@ export default function DashboardPage() {
               <Section
                 label={tr("Allocation")}
                 info={
-                  <>{trx("Where your money is, looked through into your funds: each company within an ETF counts for the part you own of it.{0}{1}Bond funds don't count, because sector and country data only say something about shares.", <br />, <br />)}</>
+                  <>
+                    {trx(
+                      "Where your money is, looked through into your funds: each company within an ETF counts for the part you own of it.{0}{1}Bond funds don't count, because sector and country data only say something about shares.",
+                      <br />,
+                      <br />,
+                    )}
+                  </>
                 }
                 action={
                   <Tabs
@@ -481,15 +502,19 @@ export default function DashboardPage() {
                   />
                 }
               >
-                <HBars
-                  rows={slices.map((sl) => ({ label: sl.name, value: sl.pct }))}
-                  colour="var(--chart-1)"
-                  scale="total"
-                />
+                <HBars rows={slices.map((sl) => ({ label: sl.name, value: sl.pct }))} colour="var(--chart-1)" scale="total" />
                 {/* What is shown is an outcome, not an explanation: how many positions this is
                     about, and where to find the rest. How the look-through works is behind the "i"
                     on the heading. */}
-                <p className="text-xs text-ink-muted">{trx("Across {0} positions · {1}", <span className="num">{alloc.num_positions}</span>, <Link href="/allocation" className="ds-link">{tr("see everything")}</Link>)}</p>
+                <p className="text-xs text-ink-muted">
+                  {trx(
+                    "Across {0} positions · {1}",
+                    <span className="num">{alloc.num_positions}</span>,
+                    <Link href="/allocation" className="ds-link">
+                      {tr("see everything")}
+                    </Link>,
+                  )}
+                </p>
               </Section>
             ) : null}
           </div>
@@ -499,10 +524,7 @@ export default function DashboardPage() {
               <Section label={tr("Latest news")} meta={tr("{0} articles", news.length)}>
                 <div className="flex flex-col">
                   {news.map((item, i) => (
-                    <article
-                      key={item.id}
-                      className={`row-rule flex flex-col gap-1 py-3.5 ${i === 0 ? "row-rule--none pt-0" : ""}`}
-                    >
+                    <article key={item.id} className={`row-rule flex flex-col gap-1 py-3.5 ${i === 0 ? "row-rule--none pt-0" : ""}`}>
                       <div className="text-[15px] font-medium leading-snug">
                         {item.link ? (
                           <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline">
@@ -538,7 +560,13 @@ export default function DashboardPage() {
               label={hasAttention ? tr("What deserves your attention") : tr("Nothing that needs your attention")}
               infoLabel={tr("Explanation of what deserves your attention")}
               info={
-                <>{trx("Four things can appear here: your biggest riser and faller of today, an upcoming dividend, and news about a takeover or quarterly results at a company you own.{0}{1}Nothing else. Nothing is ever put here to make you come back, and an empty block simply means nothing is going on.", <br />, <br />)}</>
+                <>
+                  {trx(
+                    "Four things can appear here: your biggest riser and faller of today, an upcoming dividend, and news about a takeover or quarterly results at a company you own.{0}{1}Nothing else. Nothing is ever put here to make you come back, and an empty block simply means nothing is going on.",
+                    <br />,
+                    <br />,
+                  )}
+                </>
               }
             >
               {hasAttention ? (
@@ -573,9 +601,7 @@ export default function DashboardPage() {
                       }
                       value={
                         nextDiv.expected_eur !== null ? (
-                          <span className="num text-[13px] text-ink-muted">
-                            ± {fmtEuro(nextDiv.expected_eur)}
-                          </span>
+                          <span className="num text-[13px] text-ink-muted">± {fmtEuro(nextDiv.expected_eur)}</span>
                         ) : undefined
                       }
                     />
@@ -586,19 +612,18 @@ export default function DashboardPage() {
                       subtitle={notable.label === "M&A" ? tr("takeover or merger") : tr("quarterly results")}
                       value={
                         notable.link ? (
-                          <a
-                            href={notable.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="ds-link text-xs"
-                          >{tr("read")}</a>
+                          <a href={notable.link} target="_blank" rel="noopener noreferrer" className="ds-link text-xs">
+                            {tr("read")}
+                          </a>
                         ) : undefined
                       }
                     />
                   )}
                 </div>
               ) : (
-                <p className="text-[13px] leading-relaxed text-ink-muted">{tr("Nothing special happened in your portfolio today. We'll tell you as soon as something changes that matters.")}</p>
+                <p className="text-[13px] leading-relaxed text-ink-muted">
+                  {tr("Nothing special happened in your portfolio today. We'll tell you as soon as something changes that matters.")}
+                </p>
               )}
             </Section>
           </div>
@@ -616,13 +641,7 @@ export default function DashboardPage() {
                     </Line>
                   )}
                   {since.dividends.count > 0 && (
-                    <Line
-                      label={
-                        since.dividends.count === 1
-                          ? tr("1 dividend paid")
-                          : tr("{0} dividends paid", since.dividends.count)
-                      }
-                    >
+                    <Line label={since.dividends.count === 1 ? tr("1 dividend paid") : tr("{0} dividends paid", since.dividends.count)}>
                       <span className="num">{fmtEuro(since.dividends.total_eur)}</span>
                     </Line>
                   )}
@@ -643,14 +662,21 @@ export default function DashboardPage() {
               tone="quiet"
               label={tr("Where your return comes from")}
               info={
-                <>{trx("The four parts your total return is made of. Added together they are the amount shown at the top under {0}.{1}{2}{3} is gain on paper: the current price against your average purchase price. {4} is gain you locked in by selling.", <b>{tr("Total return")}</b>, <br />, <br />, <b>{tr("Unrealised")}</b>, <b>{tr("Realised")}</b>)}</>
+                <>
+                  {trx(
+                    "The four parts your total return is made of. Added together they are the amount shown at the top under {0}.{1}{2}{3} is gain on paper: the current price against your average purchase price. {4} is gain you locked in by selling.",
+                    <b>{tr("Total return")}</b>,
+                    <br />,
+                    <br />,
+                    <b>{tr("Unrealised")}</b>,
+                    <b>{tr("Realised")}</b>,
+                  )}
+                </>
               }
             >
               {/* The direction line above the sum, across the full column width: stuck next to the
                   label it didn't fit in 264px. */}
-              {sparklineQ.data && sparklineQ.data.points.length >= 2 && (
-                <Sparkline points={sparklineQ.data.points} className="-mb-1" />
-              )}
+              {sparklineQ.data && sparklineQ.data.points.length >= 2 && <Sparkline points={sparklineQ.data.points} className="-mb-1" />}
               {s.prices_available ? (
                 <BreakdownList
                   rows={[
@@ -663,13 +689,21 @@ export default function DashboardPage() {
                       // only place where they come off.
                       value: -s.total_costs,
                       info: (
-                        <InfoPopover label={tr("Explanation transaction costs")}>{trx("All costs DeGiro ever charged you, over all your transactions, so also on positions you have since sold completely.{0}{1}Portfolio shows a lower amount: that only counts the positions you still have.", <br />, <br />)}</InfoPopover>
+                        <InfoPopover label={tr("Explanation transaction costs")}>
+                          {trx(
+                            "All costs DeGiro ever charged you, over all your transactions, so also on positions you have since sold completely.{0}{1}Portfolio shows a lower amount: that only counts the positions you still have.",
+                            <br />,
+                            <br />,
+                          )}
+                        </InfoPopover>
                       ),
                     },
                   ]}
                 />
               ) : (
-                <p className="text-[13px] leading-relaxed text-ink-muted">{trx("{0} dividend received so far: refresh the prices for the full breakdown.", fmtEuro(s.total_dividends))}</p>
+                <p className="text-[13px] leading-relaxed text-ink-muted">
+                  {trx("{0} dividend received so far: refresh the prices for the full breakdown.", fmtEuro(s.total_dividends))}
+                </p>
               )}
             </Section>
           </div>
@@ -680,7 +714,14 @@ export default function DashboardPage() {
                 tone="quiet"
                 label={tr("Dividend coming up")}
                 info={
-                  <>{trx("An amount with {0} is an estimate from your own payout history: the rhythm and the usual amount, extended. Not an official announcement.{1}{2}That's why there is a month and a part of the month and no date: the rhythm is known, the day isn't.", <b>±</b>, <br />, <br />)}</>
+                  <>
+                    {trx(
+                      "An amount with {0} is an estimate from your own payout history: the rhythm and the usual amount, extended. Not an official announcement.{1}{2}That's why there is a month and a part of the month and no date: the rhythm is known, the day isn't.",
+                      <b>±</b>,
+                      <br />,
+                      <br />,
+                    )}
+                  </>
                 }
               >
                 {nextDiv ? (
@@ -694,9 +735,7 @@ export default function DashboardPage() {
                             className={`row-rule flex items-baseline gap-2.5 py-2 text-[12.5px] ${i === 0 ? "row-rule--none" : ""}`}
                           >
                             <span className="num w-[62px] flex-none text-ink-muted">
-                              {it.source === "official"
-                                ? fmtDayMonth(it.date)
-                                : `${partLabel(it.part)} ${fmtMonth(it.month)}`}
+                              {it.source === "official" ? fmtDayMonth(it.date) : `${partLabel(it.part)} ${fmtMonth(it.month)}`}
                             </span>
                             <span className="min-w-0 flex-1 truncate">{it.name ?? it.isin}</span>
                             <span className="num flex-none">± {fmtEuro(it.expected_eur)}</span>
@@ -704,10 +743,20 @@ export default function DashboardPage() {
                         ))}
                       </div>
                     )}
-                    <p className="text-xs text-ink-muted">{trx("{0} received this month · {1}", fmtEuro(divStats.this_month), <Link href="/dividend" className="ds-link">{tr("all about dividend")}</Link>)}</p>
+                    <p className="text-xs text-ink-muted">
+                      {trx(
+                        "{0} received this month · {1}",
+                        fmtEuro(divStats.this_month),
+                        <Link href="/dividend" className="ds-link">
+                          {tr("all about dividend")}
+                        </Link>,
+                      )}
+                    </p>
                   </div>
                 ) : (
-                  <p className="text-[13px] leading-relaxed text-ink-muted">{tr("No expected payments. Here that doesn't mean nothing is coming, but that there is nothing to say.")}</p>
+                  <p className="text-[13px] leading-relaxed text-ink-muted">
+                    {tr("No expected payments. Here that doesn't mean nothing is coming, but that there is nothing to say.")}
+                  </p>
                 )}
               </Section>
             </div>
@@ -732,19 +781,9 @@ function Line({ label, children }: { label: string; children: React.ReactNode })
  * One thing that deserves your attention. No more coloured icon square — the
  *  number on the right carries the colour, and one per row is enough.
  */
-function AttentionRow({
-  title,
-  subtitle,
-  value,
-}: {
-  title: string;
-  subtitle: string;
-  value?: React.ReactNode;
-}) {
+function AttentionRow({ title, subtitle, value }: { title: string; subtitle: string; value?: React.ReactNode }) {
   return (
-    <div
-      className="row-rule flex items-baseline gap-3 py-2.5 first:pt-0 last:pb-0"
-    >
+    <div className="row-rule flex items-baseline gap-3 py-2.5 first:pt-0 last:pb-0">
       <div className="min-w-0 flex-1">
         {/* Two lines instead of one truncated one: on a phone the single line cut every row off at
             "Biggest faller — ISHARES MSCI E…", hiding exactly what the row is about. */}
@@ -765,11 +804,11 @@ function NextDividend({ item }: { item: DividendForecastItem }) {
         {official ? (
           <>{trx("Ex-dividend {0}", fmtDayMonth(item.date))}</>
         ) : (
-          <>{trx("Estimate: {0} {1}{2}", partLabel(item.part), fmtMonth(item.month), item.cadence && <> · {cadenceLabel(item.cadence)}</>)}</>
+          <>
+            {trx("Estimate: {0} {1}{2}", partLabel(item.part), fmtMonth(item.month), item.cadence && <> · {cadenceLabel(item.cadence)}</>)}
+          </>
         )}
-        {item.expected_eur !== null && (
-          <>{" "}{trx("· expected {0}", <b className="num text-text">± {fmtEuro(item.expected_eur)}</b>)}</>
-        )}
+        {item.expected_eur !== null && <> {trx("· expected {0}", <b className="num text-text">± {fmtEuro(item.expected_eur)}</b>)}</>}
       </div>
     </div>
   );

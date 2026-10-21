@@ -22,14 +22,27 @@ export default function TermsPageContent() {
 
       <ul className="flex list-disc flex-col gap-3 pl-5 text-[14px] leading-relaxed">
         <li>{trx("{0} is a personal overview, not financial advice. You make the decisions about your money yourself.", APP.name)}</li>
-        <li>{tr("The figures come from what you upload, enter or connect, and from public prices. They can be incomplete or wrong; check what matters with your bank or broker.")}</li>
+        <li>
+          {tr(
+            "The figures come from what you upload, enter or connect, and from public prices. They can be incomplete or wrong; check what matters with your bank or broker.",
+          )}
+        </li>
         <li>{tr("A bank connection is read-only. The app cannot make payments or change anything on your account.")}</li>
         <li>{tr("You use the app at your own risk. The admin of this installation can change or stop the service.")}</li>
-        <li>{trx("How your data is handled is in the {0}.", <Link href="/privacy" className="underline underline-offset-4">{tr("privacy statement")}</Link>)}</li>
+        <li>
+          {trx(
+            "How your data is handled is in the {0}.",
+            <Link href="/privacy" className="underline underline-offset-4">
+              {tr("privacy statement")}
+            </Link>,
+          )}
+        </li>
       </ul>
 
       <p className="text-[13px] text-ink-muted">
-        <Link href="/login" className="underline underline-offset-4">{tr("Log in")}</Link>
+        <Link href="/login" className="underline underline-offset-4">
+          {tr("Log in")}
+        </Link>
       </p>
     </main>
   );

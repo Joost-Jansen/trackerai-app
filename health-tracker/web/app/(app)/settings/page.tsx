@@ -34,11 +34,22 @@ function NameCard({ me }: { me: Me }) {
           }
         }}
       >
-        <Input label={t.account.displayName} value={name} onChange={(e) => setName(e.target.value)} placeholder={me.username} className="w-64" />
-        <Button type="submit" size="sm" variant="primary">{t.common.save}</Button>
+        <Input
+          label={t.account.displayName}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={me.username}
+          className="w-64"
+        />
+        <Button type="submit" size="sm" variant="primary">
+          {t.common.save}
+        </Button>
         {msg && <span className="text-[12.5px] text-ink-muted">{msg}</span>}
       </form>
-      <p className="mt-3 text-[12px] text-ink-muted">{t.account.username}: <span className="font-mono">{me.username}</span>{me.is_admin ? ` · ${t.account.admin}` : ""}</p>
+      <p className="mt-3 text-[12px] text-ink-muted">
+        {t.account.username}: <span className="font-mono">{me.username}</span>
+        {me.is_admin ? ` · ${t.account.admin}` : ""}
+      </p>
     </Card>
   );
 }
@@ -77,11 +88,32 @@ function PasswordCard() {
           }
         }}
       >
-        <Input type="password" autoComplete="current-password" label={t.account.current} value={current} onChange={(e) => setCurrent(e.target.value)} />
-        <Input type="password" autoComplete="new-password" label={t.account.new} hint={t.account.newHint} value={next} onChange={(e) => setNext(e.target.value)} />
-        <Input type="password" autoComplete="new-password" label={t.account.repeat} value={repeat} onChange={(e) => setRepeat(e.target.value)} />
+        <Input
+          type="password"
+          autoComplete="current-password"
+          label={t.account.current}
+          value={current}
+          onChange={(e) => setCurrent(e.target.value)}
+        />
+        <Input
+          type="password"
+          autoComplete="new-password"
+          label={t.account.new}
+          hint={t.account.newHint}
+          value={next}
+          onChange={(e) => setNext(e.target.value)}
+        />
+        <Input
+          type="password"
+          autoComplete="new-password"
+          label={t.account.repeat}
+          value={repeat}
+          onChange={(e) => setRepeat(e.target.value)}
+        />
         <div className="flex items-center gap-3">
-          <Button type="submit" size="sm" variant="primary" disabled={!current || !next}>{t.account.change}</Button>
+          <Button type="submit" size="sm" variant="primary" disabled={!current || !next}>
+            {t.account.change}
+          </Button>
           {msg && <span className={`text-[12.5px] ${msg.ok ? "text-gain" : "text-loss"}`}>{msg.text}</span>}
         </div>
       </form>
@@ -96,9 +128,13 @@ function AppsCard({ me }: { me: Me }) {
     <Card title={m.title}>
       <p className="mb-3 max-w-prose text-[12.5px] text-ink-muted">{m.text}</p>
       <ul className="flex flex-col gap-1 text-[13px]">
-        {(["health", "wealth"] as const).filter((a) => me.apps?.includes(a)).map((a) => (
-          <li key={a}>{m[a]} <span className="text-ink-muted">· {m.inUse}</span></li>
-        ))}
+        {(["health", "wealth"] as const)
+          .filter((a) => me.apps?.includes(a))
+          .map((a) => (
+            <li key={a}>
+              {m[a]} <span className="text-ink-muted">· {m.inUse}</span>
+            </li>
+          ))}
       </ul>
     </Card>
   );
@@ -127,11 +163,27 @@ function LeaveForm({ me }: { me: Me }) {
     >
       <h3 className="text-[13.5px] font-semibold">{m.leaveTitle}</h3>
       <p className="text-[12.5px] text-ink-muted">{m.leaveText}</p>
-      <Input type="password" autoComplete="current-password" label={m.deletePassword} value={password} onChange={(e) => setPassword(e.target.value)} />
-      {me.two_step && <Input inputMode="numeric" autoComplete="one-time-code" label={m.deleteCode} value={code} onChange={(e) => setCode(e.target.value)} />}
+      <Input
+        type="password"
+        autoComplete="current-password"
+        label={m.deletePassword}
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      {me.two_step && (
+        <Input
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          label={m.deleteCode}
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+        />
+      )}
       {me.email_codes && <MailCodeButton />}
       <div className="flex items-center gap-3">
-        <Button type="submit" size="sm" variant="secondary" disabled={!password || (!!me.two_step && !code)}>{m.leave}</Button>
+        <Button type="submit" size="sm" variant="secondary" disabled={!password || (!!me.two_step && !code)}>
+          {m.leave}
+        </Button>
         {msg && <span className="text-[12.5px] text-loss">{msg}</span>}
       </div>
     </form>
@@ -149,7 +201,11 @@ function DataCard({ me }: { me: Me }) {
       <div className="flex max-w-prose flex-col gap-3">
         <p className="text-[12.5px] text-ink-muted">{m.exportText}</p>
         {/* a plain link: the browser downloads the zip itself, however large */}
-        <a href="/api/account/export" download className="self-start rounded border border-border px-3 py-1.5 text-[12.5px] hover:bg-[var(--surface-sunken)]">
+        <a
+          href="/api/account/export"
+          download
+          className="self-start rounded border border-border px-3 py-1.5 text-[12.5px] hover:bg-[var(--surface-sunken)]"
+        >
           {m.export}
         </a>
       </div>
@@ -169,11 +225,27 @@ function DataCard({ me }: { me: Me }) {
       >
         <h3 className="text-[13.5px] font-semibold">{m.deleteTitle}</h3>
         <p className="text-[12.5px] text-ink-muted">{m.deleteText}</p>
-        <Input type="password" autoComplete="current-password" label={m.deletePassword} value={password} onChange={(e) => setPassword(e.target.value)} />
-        {me.two_step && <Input inputMode="numeric" autoComplete="one-time-code" label={m.deleteCode} value={code} onChange={(e) => setCode(e.target.value)} />}
-      {me.email_codes && <MailCodeButton />}
+        <Input
+          type="password"
+          autoComplete="current-password"
+          label={m.deletePassword}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        {me.two_step && (
+          <Input
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            label={m.deleteCode}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+        )}
+        {me.email_codes && <MailCodeButton />}
         <div className="flex items-center gap-3">
-          <Button type="submit" size="sm" variant="danger" disabled={!password || (!!me.two_step && !code)}>{m.delete}</Button>
+          <Button type="submit" size="sm" variant="danger" disabled={!password || (!!me.two_step && !code)}>
+            {m.delete}
+          </Button>
           {msg && <span className="text-[12.5px] text-loss">{msg}</span>}
         </div>
       </form>

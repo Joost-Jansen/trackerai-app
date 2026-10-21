@@ -12,18 +12,33 @@ export const PERIODS = ["1M", "3M", "6M", "YTD", "1Y", "3Y", "All"];
 const MONTHS: Record<string, number> = { "1M": 1, "3M": 3, "6M": 6, "1Y": 12, "3Y": 36 };
 
 /** Codes from before the English rename, as an old link or a saved chart setting may still hold them. */
-const OLD_CODES: Record<string, string> = { "1J": "1Y", "3J": "3Y", "5J": "5Y", Alles: "All", Eigen: "Custom", Dag: "day", Maand: "month", Jaar: "year" };
+const OLD_CODES: Record<string, string> = {
+  "1J": "1Y",
+  "3J": "3Y",
+  "5J": "5Y",
+  Alles: "All",
+  Eigen: "Custom",
+  Dag: "day",
+  Maand: "month",
+  Jaar: "year",
+};
 export const currentCode = (code: string): string => OLD_CODES[code] ?? code;
 
 /** A period or range as shown: "1Y" is "1J" in Dutch, "All" is "Alles". */
 export function periodLabel(code: string): string {
   switch (code) {
-    case "1Y": return tr("1Y");
-    case "3Y": return tr("3Y");
-    case "5Y": return tr("5Y");
-    case "All": return tr("All");
-    case "Custom": return tr("Custom");
-    default: return code;
+    case "1Y":
+      return tr("1Y");
+    case "3Y":
+      return tr("3Y");
+    case "5Y":
+      return tr("5Y");
+    case "All":
+      return tr("All");
+    case "Custom":
+      return tr("Custom");
+    default:
+      return code;
   }
 }
 export const periodTabs = (codes: readonly string[]) => codes.map((id) => ({ id, label: periodLabel(id) }));
@@ -32,7 +47,9 @@ export const periodTabs = (codes: readonly string[]) => codes.map((id) => ({ id,
 export const GRANULARITIES = ["day", "month", "year"] as const;
 export type Granularity = (typeof GRANULARITIES)[number];
 export const granularityTabs = () => [
-  { id: "day", label: tr("Day") }, { id: "month", label: tr("Month") }, { id: "year", label: tr("Year") },
+  { id: "day", label: tr("Day") },
+  { id: "month", label: tr("Month") },
+  { id: "year", label: tr("Year") },
 ];
 const DAY = 86400000;
 export const dayNumber = (d: string) => Date.parse(`${d}T00:00:00Z`) / DAY;
@@ -69,7 +86,8 @@ export function periodWindow(period: string, first: string, last: string, bounda
   return { from: [first, isoDay(date.getTime() / DAY + 1)].sort().pop()!, to: last };
 }
 export function moveWindow(window: DateWindow, first: string, last: string, scale: number, direction = 0): DateWindow {
-  const low = dayNumber(first), high = dayNumber(last);
+  const low = dayNumber(first),
+    high = dayNumber(last);
   const oldSpan = dayNumber(window.to) - dayNumber(window.from) + 1;
   const span = Math.max(1, Math.min(high - low + 1, Math.round(oldSpan * scale)));
   const center = (dayNumber(window.to) + dayNumber(window.from)) / 2 + direction * oldSpan;
@@ -104,7 +122,8 @@ export function monthsCovered(window: DateWindow): number {
   if (window.from > window.to) return 0;
   let cursor = new Date(`${window.from.slice(0, 7)}-01T00:00:00Z`);
   let total = 0;
-  const start = dayNumber(window.from), end = dayNumber(window.to) + 1;
+  const start = dayNumber(window.from),
+    end = dayNumber(window.to) + 1;
   while (cursor.getTime() / DAY < end) {
     const monthStart = cursor.getTime() / DAY;
     cursor.setUTCMonth(cursor.getUTCMonth() + 1);
@@ -117,10 +136,12 @@ export function monthsCovered(window: DateWindow): number {
 /** Salary months in the window; part of a month counts pro rata to its days. */
 export function periodsCovered(window: DateWindow, boundaries: string[]): number {
   if (window.from > window.to) return 0;
-  const start = dayNumber(window.from), end = dayNumber(window.to) + 1;
+  const start = dayNumber(window.from),
+    end = dayNumber(window.to) + 1;
   let total = 0;
   for (let i = 0; i + 1 < boundaries.length; i++) {
-    const a = dayNumber(boundaries[i]), b = dayNumber(boundaries[i + 1]);
+    const a = dayNumber(boundaries[i]),
+      b = dayNumber(boundaries[i + 1]);
     total += Math.max(0, Math.min(end, b) - Math.max(start, a)) / (b - a);
   }
   return total;

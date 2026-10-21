@@ -39,7 +39,11 @@ export function createApi({ headers, message }: ApiOptions = {}) {
       const body = await res.json().catch(() => ({}));
       const code = typeof body.code === "string" ? body.code : undefined;
       const detail = typeof body.detail === "string" && body.detail ? body.detail : undefined;
-      if (res.status !== 401) recordError(`${res.status} ${code ?? detail ?? res.statusText}`, { where: `${init?.method ?? "GET"} ${path.split("?")[0]}`, status: res.status });
+      if (res.status !== 401)
+        recordError(`${res.status} ${code ?? detail ?? res.statusText}`, {
+          where: `${init?.method ?? "GET"} ${path.split("?")[0]}`,
+          status: res.status,
+        });
       throw new ApiError(res.status, message?.(code) ?? detail ?? res.statusText, code, body.params);
     }
     return res.json() as Promise<T>;

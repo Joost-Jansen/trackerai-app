@@ -41,10 +41,7 @@ export default function BreakdownList({
         </div>
       ))}
       {total && (
-        <div
-          className="mt-1 flex items-center justify-between gap-3 pt-2"
-          style={{ borderTop: "1px solid var(--border-hairline)" }}
-        >
+        <div className="mt-1 flex items-center justify-between gap-3 pt-2" style={{ borderTop: "1px solid var(--border-hairline)" }}>
           <dt className="font-semibold">{total.label}</dt>
           <dd>
             <SignedAmount value={total.value} prefix="€" bold className="text-[15px]" />

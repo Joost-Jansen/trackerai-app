@@ -28,7 +28,10 @@ export default function ActivityGear({ a }: { a: ActivityDetail }) {
     if (!a.distance_km) return null;
     return (
       <p className="text-[12.5px] text-ink-muted">
-        {m.noGear} <Link href="/history/#gear" className="text-ink underline-offset-2 hover:underline">{m.addGear}</Link>
+        {m.noGear}{" "}
+        <Link href="/history/#gear" className="text-ink underline-offset-2 hover:underline">
+          {m.addGear}
+        </Link>
       </p>
     );
   }
@@ -50,7 +53,11 @@ export default function ActivityGear({ a }: { a: ActivityDetail }) {
   // what is in use, the defaults of this sport first; retired gear only when this activity already has it
   const options = all
     .filter((g) => g.state !== "retired" || used.some((u) => u.id === g.id))
-    .sort((x, y) => Number(y.default_for.includes(a.sport)) - Number(x.default_for.includes(a.sport)) || (y.last_used ?? "").localeCompare(x.last_used ?? ""));
+    .sort(
+      (x, y) =>
+        Number(y.default_for.includes(a.sport)) - Number(x.default_for.includes(a.sport)) ||
+        (y.last_used ?? "").localeCompare(x.last_used ?? ""),
+    );
 
   if (editing) {
     return (
@@ -62,18 +69,48 @@ export default function ActivityGear({ a }: { a: ActivityDetail }) {
               key={g.id}
               checked={chosen.includes(g.id)}
               onChange={(v) => setChosen(v ? [...chosen, g.id] : chosen.filter((x) => x !== g.id))}
-              label={<span>{g.name}<span className="text-ink-muted"> · {t.gear.kinds[g.kind].toLowerCase()}{g.state === "retired" ? ` · ${m.retired}` : ""}</span></span>}
+              label={
+                <span>
+                  {g.name}
+                  <span className="text-ink-muted">
+                    {" "}
+                    · {t.gear.kinds[g.kind].toLowerCase()}
+                    {g.state === "retired" ? ` · ${m.retired}` : ""}
+                  </span>
+                </span>
+              }
             />
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="primary" disabled={busy} onClick={() => save(chosen)}>{m.save}</Button>
-          <Button size="sm" variant="secondary" disabled={busy} onClick={() => save([])}>{m.none}</Button>
-          {a.gear_chosen && <Button size="sm" variant="secondary" disabled={busy} onClick={() => save(null)}>{m.automatic}</Button>}
-          <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setError(null); }}>{m.cancel}</Button>
+          <Button size="sm" variant="primary" disabled={busy} onClick={() => save(chosen)}>
+            {m.save}
+          </Button>
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => save([])}>
+            {m.none}
+          </Button>
+          {a.gear_chosen && (
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => save(null)}>
+              {m.automatic}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setEditing(false);
+              setError(null);
+            }}
+          >
+            {m.cancel}
+          </Button>
           {error && <span className="text-loss">{error}</span>}
         </div>
-        {a.gear_chosen && <span className="text-[11.5px] text-ink-muted">{m.automatic}: {m.automaticHint}</span>}
+        {a.gear_chosen && (
+          <span className="text-[11.5px] text-ink-muted">
+            {m.automatic}: {m.automaticHint}
+          </span>
+        )}
       </div>
     );
   }
@@ -86,12 +123,21 @@ export default function ActivityGear({ a }: { a: ActivityDetail }) {
       ) : (
         used.map((g) => (
           <span key={g.id}>
-            <Link href="/history/#gear" className="font-medium underline-offset-2 hover:underline">{g.name}</Link>
+            <Link href="/history/#gear" className="font-medium underline-offset-2 hover:underline">
+              {g.name}
+            </Link>
             <span className="text-ink-muted"> · {m.why[g.source]}</span>
           </span>
         ))
       )}
-      <button type="button" className="text-ink underline-offset-2 hover:underline" onClick={() => { setChosen(used.map((g) => g.id)); setEditing(true); }}>
+      <button
+        type="button"
+        className="text-ink underline-offset-2 hover:underline"
+        onClick={() => {
+          setChosen(used.map((g) => g.id));
+          setEditing(true);
+        }}
+      >
         {m.change}
       </button>
     </p>

@@ -43,5 +43,13 @@ export default function HeatMap({ tracks, height = 520 }: { tracks: [number, num
   }, [tracks, dark]);
 
   if (tracks.length === 0) return <p className="py-6 text-center text-sm text-ink-muted">{t.history.noGps}</p>;
-  return <div ref={box} className="z-0 w-full overflow-hidden rounded" style={{ height }} role="img" aria-label={t.history.heatAria(tracks.length)} />;
+  return (
+    <div
+      ref={box}
+      className="z-0 w-full overflow-hidden rounded"
+      style={{ height }}
+      role="img"
+      aria-label={t.history.heatAria(tracks.length)}
+    />
+  );
 }

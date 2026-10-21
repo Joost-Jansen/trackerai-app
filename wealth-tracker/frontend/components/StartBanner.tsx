@@ -43,25 +43,41 @@ export default function StartBanner({ enabled }: { enabled: boolean }) {
 
   if (!q.data || hidden === null || example) return null;
   const part = (Object.keys(SHARE_OUT) as (keyof typeof SHARE_OUT)[]).find((d) =>
-    SHARE_OUT[d].screens.some((s) => pathname === s || pathname.startsWith(`${s}/`)));
+    SHARE_OUT[d].screens.some((s) => pathname === s || pathname.startsWith(`${s}/`)),
+  );
   if (!part || hidden.includes(part)) return null;
   const { status, choice } = q.data;
-  const empty = part === "portfolio"
-    ? status.portfolio.transactions === 0 && isIncluded(choice, "investments")
-    : status.money.accounts === 0 && status.money.bank_transactions === 0 && isIncluded(choice, "money");
+  const empty =
+    part === "portfolio"
+      ? status.portfolio.transactions === 0 && isIncluded(choice, "investments")
+      : status.money.accounts === 0 && status.money.bank_transactions === 0 && isIncluded(choice, "money");
   if (!empty) return null;
 
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-md px-4 py-3 text-sm"
-      style={{ background: "var(--surface-inset)" }}>
+    <div
+      className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-md px-4 py-3 text-sm"
+      style={{ background: "var(--surface-inset)" }}
+    >
       <span>
         {SHARE_OUT[part].text}{" "}
-        <Link href={SHARE_OUT[part].href} className="font-semibold underline underline-offset-4">{tr("How it works")}</Link>
+        <Link href={SHARE_OUT[part].href} className="font-semibold underline underline-offset-4">
+          {tr("How it works")}
+        </Link>
       </span>
-      <button type="button" className="text-xs text-ink-muted underline underline-offset-4" onClick={() => {
-        try { localStorage.setItem(HIDDEN + part, "1"); } catch { /* zonder opslag: alleen nu weg */ }
-        setHidden((v) => [...(v ?? []), part]);
-      }}>{tr("Hide")}</button>
+      <button
+        type="button"
+        className="text-xs text-ink-muted underline underline-offset-4"
+        onClick={() => {
+          try {
+            localStorage.setItem(HIDDEN + part, "1");
+          } catch {
+            /* zonder opslag: alleen nu weg */
+          }
+          setHidden((v) => [...(v ?? []), part]);
+        }}
+      >
+        {tr("Hide")}
+      </button>
     </div>
   );
 }

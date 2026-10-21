@@ -16,15 +16,7 @@ type Variant = "primary" | "secondary" | "ghost" | "brand" | "danger";
 type Size = "sm" | "md" | "lg";
 
 function classes(variant: Variant, size: Size, block: boolean, className: string) {
-  return [
-    "ds-btn",
-    `ds-btn--${variant}`,
-    `ds-btn--${size}`,
-    block ? "ds-btn--block" : "",
-    className,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  return ["ds-btn", `ds-btn--${variant}`, `ds-btn--${size}`, block ? "ds-btn--block" : "", className].filter(Boolean).join(" ");
 }
 
 type CommonProps = {
@@ -106,9 +98,7 @@ export function IconButton({
       type="button"
       aria-label={label}
       title={label}
-      className={["ds-iconbtn", `ds-iconbtn--${size}`, bordered ? "ds-iconbtn--bordered" : "", className]
-        .filter(Boolean)
-        .join(" ")}
+      className={["ds-iconbtn", `ds-iconbtn--${size}`, bordered ? "ds-iconbtn--bordered" : "", className].filter(Boolean).join(" ")}
       {...rest}
     >
       {icon}

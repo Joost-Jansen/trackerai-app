@@ -27,13 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { fmtEuro, fmtPercent, fmtRelative, fmtShares } from "@/lib/format";
 import { trueMinus } from "@trackerai/ui/lib/typography";
-import {
-  type Holding,
-  type HoldingsOverview,
-  type Mode,
-  groupHoldings,
-  resultFor,
-} from "@/lib/holdings";
+import { type Holding, type HoldingsOverview, type Mode, groupHoldings, resultFor } from "@/lib/holdings";
 import { Eyebrow, EmptyState, Hero, Section, SignedValue, Tabs, ValueChange } from "@/components/ds";
 import { ListIcon } from "@trackerai/ui/icons";
 import InfoPopover from "@trackerai/ui/components/InfoPopover";
@@ -119,10 +113,7 @@ function Th({
   className?: string;
 }) {
   return (
-    <th
-      className={`sortable ${className}`}
-      aria-sort={active ? (dir === 1 ? "ascending" : "descending") : "none"}
-    >
+    <th className={`sortable ${className}`} aria-sort={active ? (dir === 1 ? "ascending" : "descending") : "none"}>
       <button type="button" onClick={() => onSort(sortKey)} className="inline-flex items-center gap-1">
         {label}
         {/* The arrow only marks the active column — a fixed marker on all eight headings reads as
@@ -175,7 +166,9 @@ export default function PortfolioPage() {
 
   if (q.isError || !q.data) {
     return (
-      <p className="py-10 text-sm" style={{ color: "var(--text-loss)" }}>{tr("The portfolio could not be loaded.")}</p>
+      <p className="py-10 text-sm" style={{ color: "var(--text-loss)" }}>
+        {tr("The portfolio could not be loaded.")}
+      </p>
     );
   }
 
@@ -188,7 +181,12 @@ export default function PortfolioPage() {
         icon={<ListIcon className="h-[22px] w-[22px]" />}
         title={tr("No positions yet")}
         body={
-          <>{trx("Upload your DeGiro transactions via {0} in the bar above; after that every position is here with its result.", <b>{tr("Update")}</b>)}</>
+          <>
+            {trx(
+              "Upload your DeGiro transactions via {0} in the bar above; after that every position is here with its result.",
+              <b>{tr("Update")}</b>,
+            )}
+          </>
         }
       />
     );
@@ -206,7 +204,14 @@ export default function PortfolioPage() {
           this tab counts open positions and Today everything. */}
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
         <Eyebrow>{tr("Value of your positions")}</Eyebrow>
-        <span className="text-xs text-ink-muted">{trx("{0} positions{1}{2}", <span className="num">{totals.num_positions}</span>, fetchedAt && <>{" "}{trx("· updated {0}", fmtRelative(fetchedAt))}</>, incomplete && <span className="text-warn">{" "}{tr("· not all positions counted")}</span>)}</span>
+        <span className="text-xs text-ink-muted">
+          {trx(
+            "{0} positions{1}{2}",
+            <span className="num">{totals.num_positions}</span>,
+            fetchedAt && <> {trx("· updated {0}", fmtRelative(fetchedAt))}</>,
+            incomplete && <span className="text-warn"> {tr("· not all positions counted")}</span>,
+          )}
+        </span>
       </div>
 
       <div className="mt-2.5 flex flex-wrap items-end gap-x-7 gap-y-2">
@@ -217,9 +222,7 @@ export default function PortfolioPage() {
             {day.complete ? (
               <>
                 <ValueChange value={day.delta_eur} size="md" />
-                <span className="num text-[13px] text-ink-muted">
-                  {trueMinus(fmtPercent(day.pct, { decimals: 2, plus: true }))}
-                </span>
+                <span className="num text-[13px] text-ink-muted">{trueMinus(fmtPercent(day.pct, { decimals: 2, plus: true }))}</span>
               </>
             ) : (
               <span className="num text-ink-muted">–</span>
@@ -244,7 +247,15 @@ export default function PortfolioPage() {
       <div className="mt-9 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
         <span className="flex items-center gap-1">
           <Eyebrow>{tr("Result measured over")}</Eyebrow>
-          <InfoPopover label={tr("Explanation result measured over")}>{trx("This switch only decides what the result column measures, not which positions are shown.{0}{1}{2} puts the current price against the previous close. {3} puts it against everything you ever put in, including earlier sales, received dividend and transaction costs.", <br />, <br />, <b>{tr("Today")}</b>, <b>{tr("All time")}</b>)}</InfoPopover>
+          <InfoPopover label={tr("Explanation result measured over")}>
+            {trx(
+              "This switch only decides what the result column measures, not which positions are shown.{0}{1}{2} puts the current price against the previous close. {3} puts it against everything you ever put in, including earlier sales, received dividend and transaction costs.",
+              <br />,
+              <br />,
+              <b>{tr("Today")}</b>,
+              <b>{tr("All time")}</b>,
+            )}
+          </InfoPopover>
         </span>
         <Tabs
           variant="quiet"
@@ -268,15 +279,14 @@ export default function PortfolioPage() {
               type="button"
               onClick={() => onSort("value")}
               className="-mt-1 inline-flex items-center gap-1 self-start text-[11.5px] text-ink-muted hover:text-text md:hidden"
-            >{trx("By value {0}", dir === -1 ? "↓" : "↑")}</button>
+            >
+              {trx("By value {0}", dir === -1 ? "↓" : "↑")}
+            </button>
             <ul className="md:hidden">
               {group.rows.map((h, i) => {
                 const [eur, pct] = resultFor(h, mode);
                 return (
-                  <li
-                    key={`${h.isin}-${h.exchange ?? ""}`}
-                    className={`row-rule ${i === 0 ? "row-rule--none" : ""}`}
-                  >
+                  <li key={`${h.isin}-${h.exchange ?? ""}`} className={`row-rule ${i === 0 ? "row-rule--none" : ""}`}>
                     {/* The whole row is the link, not just the name: on a phone the name is a touch
                         target of two lines of text in a row that otherwise looks fully tappable. */}
                     <Link href={positionHref(h)} className="block py-3 active:opacity-60">
@@ -290,7 +300,9 @@ export default function PortfolioPage() {
                           <span className="num">{fmtEuro(h.current_price, { decimals: 2 })}</span> ×{" "}
                           <span className="num">{fmtShares(h.shares_held)}</span>
                           {" · "}
-                          <span className="whitespace-nowrap">{trx("Avg cost {0}", <span className="num">{fmtEuro(h.avg_cost_ex_costs, { decimals: 2 })}</span>)}</span>
+                          <span className="whitespace-nowrap">
+                            {trx("Avg cost {0}", <span className="num">{fmtEuro(h.avg_cost_ex_costs, { decimals: 2 })}</span>)}
+                          </span>
                         </span>
                         <span className="flex flex-none flex-col items-end whitespace-nowrap leading-snug">
                           <ValueChange value={eur} size="sm" />
@@ -316,7 +328,14 @@ export default function PortfolioPage() {
                     <Th label={tr("Price")} sortKey="price" active={sortKey === "price"} dir={dir} onSort={onSort} className="num" />
                     {mode === "day" && <th className="num hidden lg:table-cell">{tr("Previous close")}</th>}
                     <Th label={tr("Value")} sortKey="value" active={sortKey === "value"} dir={dir} onSort={onSort} className="num" />
-                    <Th label={tr("Avg cost")} sortKey="avg_cost" active={sortKey === "avg_cost"} dir={dir} onSort={onSort} className="num" />
+                    <Th
+                      label={tr("Avg cost")}
+                      sortKey="avg_cost"
+                      active={sortKey === "avg_cost"}
+                      dir={dir}
+                      onSort={onSort}
+                      className="num"
+                    />
                     <Th
                       label={mode === "day" ? tr("Today") : tr("Total P/L")}
                       sortKey="result"
@@ -351,22 +370,16 @@ export default function PortfolioPage() {
                           {/* The exchange is what makes two rows of the same product different
                               rows, so it can't live in the ISIN column — that disappears below xl,
                               and the pair would read as a duplicate row. */}
-                          {h.exchange && (
-                            <span className="ds-table__ticker ml-1.5 whitespace-nowrap">{h.exchange}</span>
-                          )}
+                          {h.exchange && <span className="ds-table__ticker ml-1.5 whitespace-nowrap">{h.exchange}</span>}
                         </td>
                         <td className="ds-table__ticker hidden xl:table-cell">{h.isin}</td>
                         <td className="num">{fmtShares(h.shares_held)}</td>
                         <td className="num">{fmtEuro(h.current_price, { decimals: 2 })}</td>
                         {mode === "day" && (
-                          <td className="num hidden text-ink-muted lg:table-cell">
-                            {fmtEuro(h.previous_close, { decimals: 2 })}
-                          </td>
+                          <td className="num hidden text-ink-muted lg:table-cell">{fmtEuro(h.previous_close, { decimals: 2 })}</td>
                         )}
                         <td className="num font-medium">{fmtEuro(h.current_value)}</td>
-                        <td className="num text-ink-muted">
-                          {fmtEuro(h.avg_cost_ex_costs, { decimals: 2 })}
-                        </td>
+                        <td className="num text-ink-muted">{fmtEuro(h.avg_cost_ex_costs, { decimals: 2 })}</td>
                         <ResultCell eur={eur} pct={pct} />
                         {mode === "all" && <ResultCell eur={h.unrealized_eur} pct={h.unrealized_pct} />}
                       </tr>
@@ -378,7 +391,6 @@ export default function PortfolioPage() {
           </Section>
         ))}
       </div>
-
     </div>
   );
 }

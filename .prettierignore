@@ -10,3 +10,9 @@ public
 package-lock.json
 # The docs are wrapped by hand at 120; Prettier would rewrap their tables.
 *.md
+# Data, not code: test fixtures and generated files.
+**/tests/**/*.json
+wealth-tracker/frontend/lib/worldGeo.ts
+# The Dutch catalogs whose i18n check reads one entry per line.
+wealth-tracker/frontend/lib/i18n/nl.ts
+packages/ui/src/i18n/nl.ts

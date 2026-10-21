@@ -11,9 +11,15 @@ export type ZoomWindow = { from: string; to: string };
 export default function ZoomChip({ zoom, onClear }: { zoom: ZoomWindow; onClear: () => void }) {
   const label = `${fmtDayMonthYear(zoom.from)} – ${fmtDayMonthYear(zoom.to)}`;
   return (
-    <button type="button" onClick={onClear} title={tr("Remove filter {0}", label)} aria-label={tr("Remove filter {0}", label)}
-      className="time-filterbar__chip shrink-0 self-start rounded-full border px-2.5 py-1 text-xs">
-      <span className="num">{label}</span><span aria-hidden>×</span>
+    <button
+      type="button"
+      onClick={onClear}
+      title={tr("Remove filter {0}", label)}
+      aria-label={tr("Remove filter {0}", label)}
+      className="time-filterbar__chip shrink-0 self-start rounded-full border px-2.5 py-1 text-xs"
+    >
+      <span className="num">{label}</span>
+      <span aria-hidden>×</span>
     </button>
   );
 }

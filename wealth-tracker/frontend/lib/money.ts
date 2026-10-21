@@ -242,7 +242,10 @@ export const RULE_PRIORITY_COUNTERPARTY = 25;
  * shipped rules; the engine matches case-insensitively anyway.
  */
 export function rulePattern(name: string): string {
-  return name.trim().toUpperCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return name
+    .trim()
+    .toUpperCase()
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** An IBAN in readable blocks of four. */
