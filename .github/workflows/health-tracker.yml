@@ -3,7 +3,7 @@ name: health-tracker
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
     paths:
       - "health-tracker/**"
       - "packages/**"
@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   # Pull requests run every workflow, so its required check (`health-tracker ok` below) always reports; the jobs only run
-  # when the pull request touches what this workflow tests (the same paths a push to main or dev filters on).
+  # when the pull request touches what this workflow tests (the same paths a push to main filters on).
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
