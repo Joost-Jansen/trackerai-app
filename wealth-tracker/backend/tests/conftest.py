@@ -37,6 +37,7 @@ def _accounts():
     shared.use(a)
     yield a
     shared.use(None)
+    a.engine.dispose()  # closed before packages/testing drops the database: no connections to end first
 
 
 @pytest.fixture(autouse=True)
