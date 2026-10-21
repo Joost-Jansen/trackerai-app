@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from api.main import create_app
 from tests.test_api import PASSWORD, engine, login, make_settings  # noqa: F401  (engine is a fixture)
 from tools import db
+from trackerai_testing import new_database_url
 
 ANNA_PW = "anna-wachtwoord-1"
 
@@ -164,7 +165,7 @@ def test_account_password_change(app):
 
 
 def test_first_person_to_register_is_admin_on_an_empty_install(tmp_path):
-    e = db.connect(f"sqlite:///{tmp_path / 'new.db'}")
+    e = db.connect(new_database_url())
     settings = make_settings()
     settings.user, settings.password_hash = "", ""
     app = create_app(engine=e, settings=settings)
@@ -224,7 +225,7 @@ def test_logins_from_before_the_accounts_move_over_at_startup(tmp_path, monkeypa
 
     key = secretbox.default_key() or __import__("cryptography.fernet", fromlist=["Fernet"]).Fernet.generate_key().decode()
     monkeypatch.setenv("APP_ENCRYPTION_KEY", key)
-    e = db.connect(f"sqlite:///{tmp_path / 'old.db'}")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     pw = "anna" + "-wachtwoord-1"
     joost = db.create_user(e, "joost", bcrypt.hashpw(b"x" * 12, bcrypt.gensalt(4)).decode(), is_admin=True)
@@ -234,7 +235,7 @@ def test_logins_from_before_the_accounts_move_over_at_startup(tmp_path, monkeypa
     db.update_user(e, anna, totp_secret=secretbox.encrypt(secret, key), totp_enabled_at=datetime.now(UTC), totp_backup=[])
     settings = make_settings()
     settings.user, settings.password_hash = "", ""
-    accounts = test_accounts(settings)
+    accounts = test_accounts(settings, e)
     app = create_app(engine=e, settings=settings, accounts=accounts)
     assert sorted(a["username"] for a in accounts.list_accounts()) == ["anna", "joost"]
     assert accounts.by_username("joost")["is_admin"] and not accounts.by_username("anna")["is_admin"]

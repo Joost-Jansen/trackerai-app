@@ -11,7 +11,7 @@ web (web/Dockerfile)            Next.js standalone server: the pages, a CSP with
                                  /api/* passed on to the API
 api (api/Dockerfile)            FastAPI: auth by session cookie (browser) or Bearer agent token (scripts, MCP clients)
                                  in-process daily Garmin sync for every connected user (api/sync_runner.py)
-Postgres                         single source of truth (tools/db.py schema); SQLite works for local runs and tests
+Postgres                         single source of truth (tools/db.py schema); also on a laptop and in the tests
 sync (optional cron)             Dockerfile.sync: tools/sync.py run_all_users, same work as the in-process sync
 ```
 
@@ -25,7 +25,7 @@ refuses unless `ALLOW_INSECURE_DEFAULTS=true`); give `web` and `sync` the same k
 |---|---|
 | `api/` | FastAPI app (`create_app` factory), auth, dashboard aggregation |
 | `web/` | Next.js 16 + Tailwind, a standalone server. Own design system, sage theme. One folder per page in `web/app/(app)/`; `web/app/(redirects)/` only holds the old Dutch paths (see "Old paths") |
-| `tools/db.py` | Database schema and all reads/writes (SQLAlchemy Core; Postgres in prod, SQLite in tests) |
+| `tools/db.py` | Database schema and all reads/writes (SQLAlchemy Core on Postgres) |
 | `tools/sync.py`, `tools/fit.py`, `tools/store.py`, `tools/intraday.py` | Garmin sync, FIT stream parsing, record normalisation and merge rules, Garmin's series through the day (heart rate, stress, Body Battery, breathing, SpO2, sleep stages) |
 | `tools/apple_health.py`, `tools/apple_import.py`, `api/apple.py` | Apple Health import: read the export of the Health app as a stream, store it like Garmin's data (source `apple`), the upload endpoint with background progress |
 | `tools/zones.py`, `tools/analytics.py`, `tools/summarize.py`, `tools/routes.py`, `tools/recommend.py` | Zones, training load (CTL/ATL/TSB), sessions, route recognition, route suggestions |
@@ -46,8 +46,11 @@ uv venv .venv && uv pip install -p .venv -r requirements-dev.txt
 (cd .. && npm ci) && cd web && npm run build   # npm install at the repo root; the Next server in web/.next
 ```
 
-Local run: `DATABASE_URL=sqlite:///dev.db .venv/bin/python scripts/seed_demo.py` (demo data; `dev.db` is git-ignored), create
-`.env.dev` (git-ignored) with `DATABASE_URL=sqlite:///<absolute path>/dev.db`, a random `TRAINING_JWT_SECRET`,
+Postgres first, for the tests too: `docker compose -f compose.dev.yml up -d` at the repo root (Postgres 18 on
+127.0.0.1:55432 with `accounts`, `health` and `wealth` databases; the tests make a database of their own per test through
+`packages/testing`, installed with `.venv/bin/pip install -e ../packages/testing`).
+Local run: `DATABASE_URL=postgresql://postgres:dev@127.0.0.1:55432/health .venv/bin/python scripts/seed_demo.py` (demo data), create
+`.env.dev` (git-ignored) with that `DATABASE_URL`, `ACCOUNTS_DATABASE_URL` for the `accounts` database, a random `TRAINING_JWT_SECRET`,
 `COOKIE_SECURE=false` and `ALLOW_INSECURE_DEFAULTS=true` (or an `APP_ENCRYPTION_KEY`), then `set -a; . ./.env.dev; set +a; .venv/bin/uvicorn api.main:create_app --factory --port 8765` and open
 http://localhost:8765/api/health.
 For the site: run the API on port 8000 and `cd web && npm run dev` (hot reload; `/api/*` goes to :8000).
@@ -236,8 +239,8 @@ More (types in `web/lib/training.ts`):
 pages. For a site login, GET requests to the data routes (`/api/dashboard`, `activities`, `heatmap`, `trends`, `plans`,
 `docs`, `entries`, `context`, `routes`, `zones`, `wellness`, `settings/zones|profile|resting-hr`) are then answered from
 a shared example account: `scripts/seed_demo.py` with fixed seeds, made-up loops around its own invented start point,
-in a separate SQLite database (`EXAMPLE_DATA_DIR`, default the temp dir) that is seeded on first use (at startup in
-production), made again when the date changes, and opened read-only (`mode=ro`). Every POST/PUT/PATCH/DELETE carrying
+in a schema of its own in the app's database (`example_<yyyymmdd>`) that is seeded on first use (at startup in
+production), made again when the date changes, and read through an engine whose transactions are all read-only. Every POST/PUT/PATCH/DELETE carrying
 the header gets 403 `example_read_only`. Who you are, account, connections, agent tokens, feedback and onboarding stay
 your own (the site does not send the header there). Admin, MCP and `/api/agent-tokens` routes and Bearer-token
 requests ignore the header. The site resets its data queries when the walk enters or leaves the page steps, so example

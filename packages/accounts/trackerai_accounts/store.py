@@ -9,7 +9,7 @@
     audit           what admins did
     daily_use       page visits per day, app and account: a count, never which pages (the admin page's usage figures)
 
-SQLAlchemy Core, so the same code runs on Postgres (production) and SQLite (one machine, tests).
+SQLAlchemy Core on Postgres: in production, on a laptop (compose.dev.yml) and in the tests (packages/testing).
 """
 
 from __future__ import annotations
@@ -29,7 +29,6 @@ from sqlalchemy import (
     Table,
     Text,
     create_engine,
-    event,
     inspect,
     text,
 )
@@ -191,20 +190,24 @@ oauth_tokens = Table(
 )
 
 
-def connect(url: str) -> Engine:
-    """An engine for the accounts database, with its tables created."""
-    if url.startswith("postgres://"):
-        url = "postgresql+psycopg://" + url[len("postgres://") :]
-    elif url.startswith("postgresql://"):
-        url = "postgresql+psycopg://" + url[len("postgresql://") :]
-    if url.startswith("sqlite"):
-        engine = create_engine(url, future=True, connect_args={"check_same_thread": False, "timeout": 30})
+def sqlalchemy_url(url: str) -> str:
+    """A postgres:// or postgresql:// URL (as Railway gives it) for SQLAlchemy with psycopg 3."""
+    for scheme in ("postgres://", "postgresql://"):
+        if url.startswith(scheme):
+            return "postgresql+psycopg://" + url[len(scheme) :]
+    if url.startswith("postgresql+psycopg://"):
+        return url
+    scheme = url.split(":", 1)[0] if ":" in url else "no scheme"
+    raise ValueError(f"not a postgresql:// URL ({scheme}); SQLite is not supported any more")
 
-        @event.listens_for(engine, "connect")
-        def _fk(dbapi, _):
-            dbapi.execute("PRAGMA foreign_keys=ON")
-    else:
-        engine = create_engine(url, future=True, pool_pre_ping=True)
+
+def connect(url: str) -> Engine:
+    """An engine for the accounts database (Postgres), with its tables created."""
+    try:
+        url = sqlalchemy_url(url)
+    except ValueError as e:
+        raise ValueError(f"ACCOUNTS_DATABASE_URL: {e}") from None
+    engine = create_engine(url, future=True, pool_pre_ping=True)
     meta.create_all(engine)
     _add_columns(engine)
     return engine

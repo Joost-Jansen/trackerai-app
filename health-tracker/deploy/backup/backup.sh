@@ -32,7 +32,7 @@ mkdir -p "$STAGING/health" "$STAGING/stock"
 # --- health-tracker ---------------------------------------------------------------------------------------------
 if [[ "${SKIP_HEALTH:-}" != "1" ]]; then
   log "health-tracker: pg_dump"
-  docker exec "$HEALTH_PG_CONTAINER" pg_dump -U "$HEALTH_PG_USER" -d "$HEALTH_PG_DB" -Fc --no-owner > "$STAGING/health/health.dump"
+  docker exec "$HEALTH_PG_CONTAINER" pg_dump -U "$HEALTH_PG_USER" -d "$HEALTH_PG_DB" -Fc --no-owner --exclude-schema='example_*' > "$STAGING/health/health.dump"
   # a dump that pg_restore cannot list is no backup
   docker exec -i "$HEALTH_PG_CONTAINER" pg_restore --list > /dev/null < "$STAGING/health/health.dump"
 fi

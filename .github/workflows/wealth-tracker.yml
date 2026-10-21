@@ -53,7 +53,7 @@ jobs:
         working-directory: wealth-tracker
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # A Postgres for the tests of domain/db.py's Postgres half (step 11.7); the rest of the suite stays on SQLite.
+    # Postgres for the shared accounts and the tests of domain/db.py's Postgres half; the users' data stays on SQLite here.
     services:
       postgres:
         image: postgres:18
@@ -68,6 +68,8 @@ jobs:
       # Some day-boundary tests assume the app's time zone, as in the image.
       TZ: Europe/Amsterdam
       WEALTH_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/wealth
+      # The shared accounts: a database of their own per test on the same server (packages/testing).
+      TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -78,7 +80,7 @@ jobs:
             wealth-tracker/requirements.txt
             wealth-tracker/backend/requirements.txt
             wealth-tracker/requirements-dev.txt
-      - run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts ../packages/ai
+      - run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts ../packages/ai ../packages/testing
       - run: python -m pytest backend/tests -q
 
   backend-postgres:
@@ -105,6 +107,8 @@ jobs:
       TZ: Europe/Amsterdam
       WEALTH_DATABASE_URL: postgresql://postgres:test@localhost:5432/wealth
       WEALTH_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/wealth
+      # The shared accounts: a database of their own per test on the same server (packages/testing).
+      TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -115,7 +119,7 @@ jobs:
             wealth-tracker/requirements.txt
             wealth-tracker/backend/requirements.txt
             wealth-tracker/requirements-dev.txt
-      - run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts ../packages/ai
+      - run: pip install -r requirements-dev.txt ../packages/websec ../packages/accounts ../packages/ai ../packages/testing
       - run: python -m pytest backend/tests -q
 
   frontend:

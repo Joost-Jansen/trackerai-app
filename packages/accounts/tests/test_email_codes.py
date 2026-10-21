@@ -19,8 +19,8 @@ def outbox():
 
 
 @pytest.fixture
-def accounts(tmp_path, outbox):
-    cfg = config(tmp_path)
+def accounts(pg_url, outbox):
+    cfg = config(pg_url)
     return Accounts(connect(cfg.database_url), cfg, mailer=outbox)
 
 
@@ -162,8 +162,8 @@ def test_an_address_belongs_to_one_account(accounts, health, outbox):
     assert r.json()["code"] == "email_taken"
 
 
-def test_without_a_mail_server_signing_up_still_needs_an_address(tmp_path):
-    cfg = config(tmp_path)
+def test_without_a_mail_server_signing_up_still_needs_an_address(pg_url):
+    cfg = config(pg_url)
     accounts = Accounts(connect(cfg.database_url), cfg)
     c = TestClient(make_app(accounts, "health"), base_url="https://health.example")
     assert register(c, email="nope").json()["code"] == "email_invalid"
@@ -211,8 +211,8 @@ def test_the_admin_reset_turns_it_off(health, outbox, accounts):
     assert accounts.by_username("anna")["email_codes_at"] is None
 
 
-def test_without_a_mail_server_it_is_not_offered(tmp_path):
-    cfg = config(tmp_path)
+def test_without_a_mail_server_it_is_not_offered(pg_url):
+    cfg = config(pg_url)
     accounts = Accounts(connect(cfg.database_url), cfg)
     assert accounts.mailer is None
     c = TestClient(make_app(accounts, "health"), base_url="https://health.example")

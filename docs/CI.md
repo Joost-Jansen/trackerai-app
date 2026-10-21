@@ -28,6 +28,9 @@ One workflow per part of the repository, in `.github/workflows/`:
 | `trackerai-web` | the front door's site and image | `trackerai-web ok` |
 | `accounts`, `websec`, `ai` | the shared Python packages in `packages/` | `accounts ok`, `websec ok`, `ai ok` |
 
+Every Python suite runs on Postgres, as production does: its job has a Postgres service (`TEST_DATABASE_URL`) and
+`packages/testing` gives each test a database of its own. Locally the same server comes from `compose.dev.yml`.
+
 A push to `main` or `dev` runs a workflow only when its paths changed. A pull request runs every workflow: a first job,
 `changes`, compares the pull request with its base and the jobs only run when the same paths changed; otherwise they
 are skipped. The last job, `<workflow> ok`, always runs and is green when every job passed or was skipped. Those

@@ -4,7 +4,7 @@ A food is addressed by a reference that says where it lives, so a meal item can 
 `nevo:1234` (NEVO-code), `off:8710000000000` (EAN), `usda:123`, `user:12` (user_foods.id).
 
 The global table is small (NEVO has about 2,300 foods), so search runs in Python over an in-process index instead of a
-database feature: the same on Postgres and SQLite, accent- and case-blind. Every query word must match a word of the
+database feature, accent- and case-blind. Every query word must match a word of the
 food's name, synonyms or English name: as its start ("volk brood"), or from four letters on inside a Dutch compound
 ("brood" in "volkorenbrood"), which counts for less. NEVO writes compounds as "Vlokken haver-" and "Olie olijf-"; the
 index adds "havervlokken" and "olijfolie" for them. A synonym that is the whole query counts like the name ("havermout"

@@ -1,7 +1,7 @@
 """Settings of the accounts layer, from the environment. Every app that shares the accounts must have the same values
 for the first four, or a session from one is not valid in the other:
 
-    ACCOUNTS_DATABASE_URL     the accounts database (Postgres in production; sqlite:///... for one machine or tests)
+    ACCOUNTS_DATABASE_URL     the accounts database, postgresql://... (on a laptop: compose.dev.yml's `accounts`)
     ACCOUNTS_SESSION_SECRET   signs the session cookie (any long random string)
     ACCOUNTS_ENCRYPTION_KEY   a Fernet key that encrypts the two-step login secrets
     SESSION_COOKIE_DOMAIN     the shared parent domain, e.g. "trackerai.nl", so one login holds on every subdomain;

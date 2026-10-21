@@ -38,12 +38,12 @@ def transport(monkeypatch):
     return Connection
 
 
-def api_config(tmp_path, **kwargs):
-    return config(tmp_path, resend_api_key="test-only-key", mail_from="trackerai <login@example.org>", **kwargs)
+def api_config(database_url="postgresql://never-connected/accounts", **kwargs):
+    return config(database_url, resend_api_key="test-only-key", mail_from="trackerai <login@example.org>", **kwargs)
 
 
-def test_resend_delivery_preserves_dutch_text_and_verifies_tls(tmp_path, transport):
-    mail.mailer_for(api_config(tmp_path)).send("anna@example.org", "Je inlogcode", "Hij werkt één keer: 123456")
+def test_resend_delivery_preserves_dutch_text_and_verifies_tls(transport):
+    mail.mailer_for(api_config()).send("anna@example.org", "Je inlogcode", "Hij werkt één keer: 123456")
     connection = transport.instances[-1]
     assert connection.host == "api.resend.com" and connection.path == "/emails" and connection.method == "POST"
     assert connection.options["timeout"] == 15
@@ -61,38 +61,38 @@ def test_resend_delivery_preserves_dutch_text_and_verifies_tls(tmp_path, transpo
 
 
 @pytest.mark.parametrize("status", [301, 401, 429, 500])
-def test_provider_rejections_do_not_redirect_retry_or_expose_message(tmp_path, transport, status):
+def test_provider_rejections_do_not_redirect_retry_or_expose_message(transport, status):
     transport.status = status
     with pytest.raises(RuntimeError, match="^Email provider rejected the message$"):
-        mail.mailer_for(api_config(tmp_path, smtp_host="smtp.example.org", smtp_from="login@example.org")).send(
+        mail.mailer_for(api_config(smtp_host="smtp.example.org", smtp_from="login@example.org")).send(
             "anna@example.org", "Secret", "123456"
         )
     assert len(transport.instances) == 1 and transport.instances[0].closed
 
 
 @pytest.mark.parametrize("error", [TimeoutError("private details"), http.client.RemoteDisconnected("private details")])
-def test_connection_errors_are_generic_and_close_the_connection(tmp_path, transport, error):
+def test_connection_errors_are_generic_and_close_the_connection(transport, error):
     transport.error = error
     with pytest.raises(RuntimeError, match="^Email provider unavailable$"):
-        mail.mailer_for(api_config(tmp_path)).send("anna@example.org", "Secret", "123456")
+        mail.mailer_for(api_config()).send("anna@example.org", "Secret", "123456")
     assert transport.instances[0].closed
 
 
-def test_environment_and_legacy_smtp_selection(tmp_path, monkeypatch):
+def test_environment_and_legacy_smtp_selection(monkeypatch):
     monkeypatch.setenv("RESEND_API_KEY", " test-only-key ")
     monkeypatch.setenv("MAIL_FROM", " trackerai <login@example.org> ")
     cfg = Config.from_env()
     assert cfg.resend_api_key == "test-only-key" and cfg.mail_sender == "trackerai <login@example.org>"
     assert cfg.mail_configured and isinstance(mail.mailer_for(cfg), mail.ResendMailer)
-    assert isinstance(mail.mailer_for(config(tmp_path, smtp_host="smtp.example.org", smtp_from="login@example.org")), mail.SmtpMailer)
-    assert isinstance(mail.mailer_for(config(tmp_path, resend_api_key="test-only-key", smtp_from="login@example.org")), mail.ResendMailer)
+    assert isinstance(mail.mailer_for(config(smtp_host="smtp.example.org", smtp_from="login@example.org")), mail.SmtpMailer)
+    assert isinstance(mail.mailer_for(config(resend_api_key="test-only-key", smtp_from="login@example.org")), mail.ResendMailer)
     for settings in ({}, {"resend_api_key": "test-only-key"}, {"mail_from": "login@example.org"}):
-        cfg = config(tmp_path, **settings)
+        cfg = config(**settings)
         assert not cfg.mail_configured and mail.mailer_for(cfg) is None
 
 
-def test_accounts_can_confirm_email_and_log_in_using_resend(tmp_path, transport):
-    cfg = api_config(tmp_path)
+def test_accounts_can_confirm_email_and_log_in_using_resend(pg_url, transport):
+    cfg = api_config(pg_url)
     accounts = Accounts(connect(cfg.database_url), cfg)
     app = make_app(accounts, "health")
     client = TestClient(app, base_url="https://health.example")

@@ -1,10 +1,11 @@
 from tests.test_store import GARMIN_ACTIVITY, GARMIN_SPLITS, STRAVA_ACTIVITY, STRAVA_STREAMS
 from tools import db
 from tools.store import from_garmin, from_strava
+from trackerai_testing import new_database_url
 
 
 def fresh():
-    engine = db.connect("sqlite://")
+    engine = db.connect(new_database_url())
     db.create_schema(engine)
     return db.Scope(engine, 1)
 
@@ -178,7 +179,7 @@ def test_remove_source_leaves_other_users_alone():
 
 
 def test_streams_stored_before_owners_were_kept_stay_with_the_better_source(tmp_path):
-    e = db.connect(f"sqlite:///{tmp_path / 'o.db'}")
+    e = db.connect(new_database_url())
     db.create_schema(e)
     s = db.Scope(e, 1)
     garmin = {

@@ -31,7 +31,7 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - api-data:/data # temporary uploads and exports, the example account (api/Dockerfile sets TMPDIR and friends)
+      - api-data:/data # temporary uploads and exports (api/Dockerfile sets TMPDIR and friends)
     networks:
       - default
       - edge

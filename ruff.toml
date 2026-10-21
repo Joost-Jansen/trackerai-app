@@ -13,6 +13,7 @@ src = [
   "packages/accounts",
   "packages/websec",
   "packages/ai",
+  "packages/testing",
 ]
 extend-exclude = [".venv", "node_modules"]
 

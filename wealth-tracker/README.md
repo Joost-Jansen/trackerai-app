@@ -349,7 +349,8 @@ folders (`DATA_DIR/feedback.db`, `backend/app/core/feedback_store.py`) and go wh
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt -r backend/requirements.txt
 export DATA_DIR=$PWD/demo-data AUTH_CONFIG_PATH=$PWD/demo-data/auth_config.yaml COOKIE_SECURE=false
-export ACCOUNTS_DATABASE_URL=sqlite:///$PWD/demo-data/accounts.db ALLOW_INSECURE_DEFAULTS=true
+(cd .. && docker compose -f compose.dev.yml up -d)   # Postgres for the shared accounts (and the tests)
+export ACCOUNTS_DATABASE_URL=postgresql://postgres:dev@127.0.0.1:55432/accounts ALLOW_INSECURE_DEFAULTS=true
 export REQUIRE_TOTP=off                      # no two-step login for the local demo
 export ACCOUNTS_SESSION_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 export ACCOUNTS_ENCRYPTION_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
@@ -370,6 +371,7 @@ not valid IBANs; no value comes from a real person. `demo-data/` holds the gener
 ## Development
 
 ```bash
+pip install -e ../packages/testing                # once: a Postgres database per test (compose.dev.yml must be up)
 python -m pytest backend/tests -q                # API and domain modules, offline
 cd frontend && npx tsc --noEmit -p .             # type check
 npm run check:i18n                               # every text has its Dutch, every Dutch text is used

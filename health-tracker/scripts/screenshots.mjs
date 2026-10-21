@@ -1,6 +1,6 @@
 // Retake the README screenshots (docs/screenshots/*.jpg) from a running instance with the synthetic demo user.
 //
-//   DATABASE_URL=sqlite:///demo.db DEMO_PASSWORD=... python scripts/seed_demo.py --reset
+//   DATABASE_URL=postgresql://postgres:dev@127.0.0.1:55432/health DEMO_PASSWORD=... python scripts/seed_demo.py --reset
 //   (start the API on :8000 against demo.db, see README "Try it locally with demo data")
 //   DEMO_PASSWORD=... node scripts/screenshots.mjs [--base http://localhost:8000] [--locale en] [--out docs/screenshots]
 //
