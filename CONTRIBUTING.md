@@ -22,13 +22,17 @@ to be green before it merges. Keep one change per pull request, and fill in the 
 
 ## Tests
 
-Run the tests for what you touched, and both apps when you touch `packages/`:
+Run the tests for what you touched, and both apps when you touch `packages/`. The Python suites run on Postgres, as
+production does: start it once with `docker compose -f compose.dev.yml up -d` at the repository root and install
+`packages/testing` next to the app's requirements (`pip install -e packages/testing`); every test gets a database of
+its own.
+
 
 - `health-tracker/`: `python -m pytest -q tests`; in `web/`: `npx tsc --noEmit -p .` and `npm run check:i18n`.
 - `wealth-tracker/`: `TZ=Europe/Amsterdam python -m pytest backend/tests -q`; in `frontend/`: `npx tsc --noEmit -p .`,
   `npm run check:i18n` and `npm test`.
 - `trackerai/api`: `python -m pytest -q`.
-- `packages/accounts`, `packages/websec`, `packages/ai`: `python -m pytest -q` in each; `packages/ui`:
+- `packages/accounts`, `packages/websec`, `packages/ai`, `packages/testing`: `python -m pytest -q` in each; `packages/ui`:
   `npm test --workspace @trackerai/ui`.
 
 ## Security
