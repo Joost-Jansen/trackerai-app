@@ -15,6 +15,10 @@
 // "Normal" is the average of the twelve months before the chosen period, with the
 // same account and category filters — months from before your first data do not
 // count.
+//
+// Next to the period there is one month, also in the bar at the top: the cards
+// about a single month (Are you on track?, Budget this month) look at it, and so
+// does Budget. Changing it in one place changes it everywhere.
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -24,9 +28,9 @@ import { api } from "@/lib/api";
 import { fmtDayMonthYear, fmtEuro } from "@/lib/format";
 import { trueMinus } from "@trackerai/ui/lib/typography";
 import { Button, EmptyState, Eyebrow, Section, Tag } from "@/components/ds";
-import FilterBlock, { PeriodsBar } from "@/components/money/SpendingFilters";
+import FilterBlock, { MonthPicker, PeriodsBar } from "@/components/money/SpendingFilters";
 import SpendingTrend from "@/components/money/SpendingTrend";
-import { ChartCard, Setting, monthsUntil, nameKey, type Editing, type Context } from "@/components/money/charts/base";
+import { ChartCard, Setting, monthChoices, monthsUntil, nameKey, type Editing, type Context } from "@/components/money/charts/base";
 import MonthChart from "@/components/money/charts/MonthChart";
 import GroupComparison from "@/components/money/charts/GroupComparison";
 import OnTrack from "@/components/money/charts/OnTrack";
@@ -275,9 +279,12 @@ function Overview() {
   const base = monthsUntil(isoDay(dayNumber(time_window.from) - 1), boundaries, MONTHS).filter((m) => m.start >= firstShown);
   const baseRows = base.length ? allRows.filter((r) => r.date >= base[0].start && r.date <= base[base.length - 1].end) : [];
   const monthWord = boundaries ? tr("salary month") : tr("month");
+  const choices = monthChoices(first, boundaries, today());
+  const month = choices.find((m) => m.key === f.month) ?? choices[choices.length - 1];
 
   const ctx: Context = {
     rows, allRows, base, baseRows, time_window, boundaries, months, categories, monthWord,
+    month, running: month === choices[choices.length - 1], monthChoices: choices, setMonth: f.setMonth,
     groupOf: (c) => categories.find((x) => x.name === c)?.group_name ?? "Onbekend",
     categoriesOf: (g) => categories.filter((c) => c.group_name === g).map((c) => c.name),
     fixedNames: new Set((fixed.data?.fixed_costs ?? []).map((v) => nameKey(v.name))),
@@ -348,8 +355,9 @@ function Overview() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PeriodsBar f={f} accounts={accounts}>
-        <p className="mb-3 text-xs text-ink-muted">{tr("Period, account and categories apply to everything on this page and carry over to the other tabs.")}</p>
+      <PeriodsBar f={f} accounts={accounts}
+        month={<MonthPicker choices={choices} value={month.key} monthWord={monthWord} onChange={f.setMonth} />}>
+        <p className="mb-3 text-xs text-ink-muted">{tr("Period, account and categories apply to everything on this page and carry over to the other tabs. The month next to the periods is for the cards about one month: Are you on track?, Budget this month and Budget.")}</p>
         <FilterBlock f={f} first={first} last={today()} accounts={accounts} categories={categories} periods={false} />
       </PeriodsBar>
 
