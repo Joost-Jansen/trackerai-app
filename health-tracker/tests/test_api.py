@@ -93,6 +93,7 @@ def test_repeated_failures_lock_the_account_for_a_while(client):
 
 def test_tampered_token_is_rejected(client):
     login(client)
+    client.cookies.clear()  # replace the login's cookie (httpx2 2.16 keeps both when only the value is set)
     client.cookies.set("trackerai_session", "abc.def.ghi")
     assert client.get("/api/me").status_code == 401
 
