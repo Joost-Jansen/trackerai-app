@@ -8,5 +8,5 @@ psycopg[binary]==3.3.6
 # Garmin connection and sync run inside web since multi-user (api/connections.py, api/sync_runner.py)
 garminconnect==0.3.2
 fitdecode==0.11.0
-cryptography==49.0.0
+cryptography==50.0.2
 requests==2.34.2
