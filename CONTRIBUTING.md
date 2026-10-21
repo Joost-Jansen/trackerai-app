@@ -31,6 +31,24 @@ Run the tests for what you touched, and both apps when you touch `packages/`:
 - `packages/accounts`, `packages/websec`, `packages/ai`: `python -m pytest -q` in each; `packages/ui`:
   `npm test --workspace @trackerai/ui`.
 
+## Formatting and lint
+
+Python is formatted and linted with [ruff](https://docs.astral.sh/ruff/) (`ruff.toml`), TypeScript and the rest with
+Prettier and ESLint (`.prettierrc.json`, `eslint.config.mjs`). The versions are pinned, because formatter output changes
+between releases. The `lint` workflow checks all of it on every pull request.
+
+The easiest way to stay green is pre-commit, which runs the same checks on every commit:
+
+```bash
+pipx install pre-commit && pre-commit install
+```
+
+Or by hand before pushing: `ruff check .`, `ruff format --check .`, `npm run lint` and `npm run format:check` at the
+root (`ruff format .` and `npm run format` fix the formatting).
+
+The commit that formatted the whole repository is listed in `.git-blame-ignore-revs`. GitHub's blame skips it; for
+local blame run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once.
+
 ## Security
 
 Found a vulnerability? Please do not open an issue; see [SECURITY.md](SECURITY.md).
