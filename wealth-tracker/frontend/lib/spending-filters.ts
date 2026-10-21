@@ -9,6 +9,10 @@
 // last filters and puts them back, so the period moves along from Overview to
 // Transactions.
 //
+// The month is in the URL too (`month=YYYY-MM`, empty for the current month): the
+// cards about one month (Are you on track?, Budget this month, the Budget tab)
+// all look at that same month, next to the period the other charts cover.
+//
 // Except when you clicked through (via=overview): that filter is for that one
 // look at Transactions, and does not go back along to Overview or another tab.
 
@@ -82,6 +86,9 @@ export function useSpendingFilters(first: string, last: string, boundaries: stri
     /** Where the transactions count on Net worth (lib/counts-as.ts); empty is everything. */
     counts: sp.getAll("counts").filter((c): c is CountsAs => COUNTS_AS.some((k) => k.code === c)),
     setCounts: (v: CountsAs[]) => put({ counts: v }),
+    /** The month of the month cards, "YYYY-MM"; empty is the current month. */
+    month: sp.get("month") ?? "",
+    setMonth: (v: string) => put({ month: v || null }),
     search: sp.get("search") ?? "",
     setSearch: (v: string) => put({ search: v || null }),
     /** Is anything other than the default set? */
