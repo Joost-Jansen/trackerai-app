@@ -91,6 +91,7 @@ def test_session_lasts_30_days_and_renews_while_in_use(app):
     old = int(time.time()) - 3 * 86400
     secret = app.state.accounts.config.session_secret
     stale = jwt.encode({"sub": "a:1", "iat": old, "auth": old, "exp": old + 14 * 86400, "sv": 0}, secret, algorithm="HS256")
+    c.cookies.clear()  # replace the login's cookie (httpx2 2.16 keeps both when only the value is set)
     c.cookies.set(account_session.COOKIE, stale)
     r = c.get("/api/me")
     assert r.status_code == 200 and "max-age=2592000" in r.headers["set-cookie"].lower()
