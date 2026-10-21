@@ -7,7 +7,7 @@
 # the full node_modules tree: next.config.js sets `output: "standalone"`,
 # which emits .next/standalone with only the modules actually imported,
 # plus a self-contained server.js.
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /repo
 # The whole workspace's manifests: npm ci needs every workspace the lockfile names.
 COPY package.json package-lock.json ./
@@ -29,7 +29,7 @@ ARG API_INTERNAL_URL
 ENV API_INTERNAL_URL=${API_INTERNAL_URL}
 RUN npm run build
 
-FROM node:22-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
