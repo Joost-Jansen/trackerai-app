@@ -1,5 +1,5 @@
 # Pinned to exact versions (tested together); upgrade on purpose, run the tests, then bump here and in ../requirements.txt.
-fastapi==0.144.0
+fastapi==0.146.0
 uvicorn[standard]==0.54.0
 bcrypt==5.0.0
 PyJWT==2.15.1

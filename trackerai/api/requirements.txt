@@ -1,6 +1,6 @@
 # trackerai-api: the front door's own API. The shared packages (packages/accounts, packages/websec) are installed
 # from the repo in the Dockerfile; the pins below are the same as wealth-tracker's, bump them together.
-fastapi==0.144.0
+fastapi==0.146.0
 uvicorn[standard]==0.54.0
 # The hub's way to each tracker's admin API (app/hub.py).
 httpx==0.28.1

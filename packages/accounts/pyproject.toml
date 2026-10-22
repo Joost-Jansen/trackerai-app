@@ -5,7 +5,7 @@ description = "One trackerai account for every app: login, two-step login, which
 requires-python = ">=3.11"
 # The same pins as both apps; bump them together.
 dependencies = [
-    "fastapi==0.144.0",
+    "fastapi==0.146.0",
     "SQLAlchemy==2.1.5",
     "psycopg[binary]==3.3.6",
     "bcrypt==5.0.0",
