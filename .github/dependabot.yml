@@ -1,5 +1,7 @@
-# Weekly dependency updates, one pull request per ecosystem for minor and patch versions together. A merged update
-# deploys like any other change to main.
+# Weekly dependency updates: per ecosystem one pull request for minor and patch versions together, and one for major
+# versions together (those can break something, so they come apart from the rest). The runtimes themselves (Node and
+# Python in the images, @types/node) move to a new major only when we choose to, CI and images in one change. A merged
+# update deploys like any other change to main.
 version: 2
 
 updates:
@@ -26,6 +28,8 @@ updates:
     groups:
       pip-minor-and-patch:
         update-types: [minor, patch]
+      pip-major:
+        update-types: [major]
 
   # One lockfile at the root covers every frontend and packages/ui.
   - package-ecosystem: npm
@@ -42,6 +46,12 @@ updates:
     groups:
       npm-minor-and-patch:
         update-types: [minor, patch]
+      npm-major:
+        update-types: [major]
+    ignore:
+      # The types follow the Node version the apps run on (the images and CI), not the newest release.
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
@@ -57,6 +67,8 @@ updates:
     groups:
       actions-minor-and-patch:
         update-types: [minor, patch]
+      actions-major:
+        update-types: [major]
 
   - package-ecosystem: docker
     directories:
@@ -79,3 +91,11 @@ updates:
     groups:
       docker-minor-and-patch:
         update-types: [minor, patch]
+      docker-major:
+        update-types: [major]
+    ignore:
+      # A new Node or Python major changes the runtime: done by hand, with CI on the same version.
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+      - dependency-name: python
+        update-types: [version-update:semver-major]
