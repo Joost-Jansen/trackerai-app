@@ -86,7 +86,7 @@ def parse(text: str) -> tuple[str | None, list[dict]]:
     for row in reader:
         if not row or len(row) < len(REQUIRED):
             continue
-        get = lambda h: row[col[h]].strip() if h in col and col[h] < len(row) else ""  # noqa: E731
+        get = lambda h: row[col[h]].strip() if h in col and col[h] < len(row) else ""  # noqa: E731, B023  # used within this iteration only
         code = get("NEVO-code")
         if not code:
             continue

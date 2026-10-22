@@ -6,7 +6,7 @@
 //
 // Used by Help → Portfolio, the tour and Update; see StepPlan.tsx.
 
-import { CalendarIcon, ChevronRightIcon, DownloadIcon, FolderIcon, InboxIcon, UploadIcon } from "@trackerai/ui/icons";
+import { CalendarIcon, DownloadIcon, FolderIcon, InboxIcon, UploadIcon } from "@trackerai/ui/icons";
 import type { Route } from "./StepPlan";
 import { tr } from "@/lib/i18n";
 

@@ -184,7 +184,7 @@ export default function AddMealSheet({ day, ai, onClose, file }: { day: string; 
       started.current = true;
       analyse(file);
     }
-  }); // eslint-disable-line react-hooks/exhaustive-deps
+  });
 
   function picked(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];

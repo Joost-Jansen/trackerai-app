@@ -33,7 +33,7 @@ import statistics
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from functools import cache, lru_cache
+from functools import cache
 
 from domain import database
 from domain.i18n import tr

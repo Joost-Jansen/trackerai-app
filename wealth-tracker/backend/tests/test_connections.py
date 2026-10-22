@@ -388,7 +388,7 @@ def test_if_the_bank_does_not_say_until_when_what_we_asked_applies(captured_stat
     _set_up(client, pem)
     _link(client)
     t = client.get("/api/connections").json()["consents"][0]
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     remaining = datetime.fromisoformat(t["valid_until"]) - datetime.now(UTC)
     assert timedelta(days=89) < remaining <= timedelta(days=90), "de 90 dagen van de bank, niet de 180 van de EU"

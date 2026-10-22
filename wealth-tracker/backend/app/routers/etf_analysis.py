@@ -19,7 +19,6 @@ from app.deps import get_db
 from app.services import etf_service
 from app.services.portfolio_service import load_portfolio
 from domain import database
-from domain.portfolio import etf_holdings
 
 router = APIRouter(prefix="/api/etf-analysis", tags=["etf-analysis"])
 

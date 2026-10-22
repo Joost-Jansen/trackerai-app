@@ -186,7 +186,7 @@ def as_markdown(v: dict, block_min: int = 30) -> str:
             hr = cell.get("hr") or []
 
             def avg(k, digits=0):
-                vals = cell.get(k)
+                vals = cell.get(k)  # noqa: B023  # used within this iteration only
                 return f"{sum(vals) / len(vals):.{digits}f}" if vals else ""
 
             cover: dict[str, int] = {}  # the stage that covers most of this block

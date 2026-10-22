@@ -155,6 +155,8 @@ function LeaveForm({ me }: { me: Me }) {
         try {
           await api.del("/api/account/apps/health", { password, ...(me.two_step ? { totp: code } : {}) });
           alert(m.left);
+          // A full page load on purpose: nothing of the tracker you left may stay in memory.
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
           window.location.href = "/dashboard/";
         } catch (err) {
           setMsg(errorText(err, t, m.failed));
@@ -217,6 +219,8 @@ function DataCard({ me }: { me: Me }) {
           try {
             await api.del("/api/account", { password, ...(me.two_step ? { totp: code } : {}) });
             alert(m.deleted);
+            // A full page load on purpose: nothing of the deleted account may stay in memory.
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             window.location.href = "/login/";
           } catch (err) {
             setMsg(errorText(err, t, m.failed));

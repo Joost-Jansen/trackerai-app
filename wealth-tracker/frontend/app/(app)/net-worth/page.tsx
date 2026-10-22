@@ -515,7 +515,7 @@ export default function NetWorthPage() {
                 </tr>
               </thead>
               <tbody>
-                {inView.map((r, i) => (
+                {inView.map((r) => (
                   <Fragment key={r.month}>
                     <tr
                       style={{ borderTop: "1px solid var(--rule)", cursor: hasSplit ? "pointer" : undefined }}

@@ -18,7 +18,7 @@ reads and answers the same list through MCP (routers/mcp.py).
 
 import base64
 import os
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
 

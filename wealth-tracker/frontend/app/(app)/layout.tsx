@@ -25,7 +25,6 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { useCountVisits } from "@trackerai/ui/lib/visits";
-import type { Summary } from "@/lib/dashboard";
 import { findItem, findTab, SITE_NAV, visibleNav } from "@/lib/nav";
 import { MenuIcon, SwapIcon, UploadIcon } from "@trackerai/ui/icons";
 import { Badge, Button, IconButton, Tabs } from "@/components/ds";

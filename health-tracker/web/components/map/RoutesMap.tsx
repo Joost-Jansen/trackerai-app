@@ -84,6 +84,8 @@ export default function RoutesMap({
       cancelled = true;
       remove();
     };
+    // Keyed on what is drawn, not on the arrays: a new array with the same routes must not redraw the map.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(all.map((l) => [l.id, l.points.length, l.colour, l.variant])), dark, interactive, t]);
 
   if (drawn.length === 0) return <p className="py-6 text-center text-sm text-ink-muted">{t.routes.noTrack}</p>;

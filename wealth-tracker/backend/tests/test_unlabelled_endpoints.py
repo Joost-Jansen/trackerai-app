@@ -61,7 +61,7 @@ def test_the_counter_counts_everything_without_a_category(client):
 def test_your_own_iban_in_the_description_is_an_own_account_at_once(client):
     """Used to be a suspicious label to correct yourself; now the engine knows it by itself."""
     _login(client)
-    ing = _account(client, "ING", "NL00INGB0000000001")
+    _account(client, "ING", "NL00INGB0000000001")
     bunq = _account(client, "bunq", "NL00BUNQ0000000002")
     _import(
         bunq, "2026-03-12", -1400.0, "Adyen Merchant Payout EUR", "iDEAL Top Up from NL00INGB0000000001", counterparty="NL46BUNQ0000000003"
@@ -76,7 +76,7 @@ def test_your_own_iban_in_the_description_is_an_own_account_at_once(client):
 
 def test_the_name_of_your_own_transfers_is_suspicious(client):
     _login(client)
-    ing = _account(client, "ING", "NL00INGB0000000001")
+    _account(client, "ING", "NL00INGB0000000001")
     bunq = _account(client, "bunq", "NL00BUNQ0000000002")
     _import(bunq, "2026-01-10", -500.0, "J. de Vries", counterparty="NL00INGB0000000001")  # demonstrably own
     _import(bunq, "2026-02-10", -900.0, "J. de Vries")  # without IBAN
@@ -87,7 +87,7 @@ def test_the_name_of_your_own_transfers_is_suspicious(client):
 
 def test_what_you_set_by_hand_is_never_suspicious(client):
     _login(client)
-    ing = _account(client, "ING", "NL00INGB0000000001")
+    _account(client, "ING", "NL00INGB0000000001")
     bunq = _account(client, "bunq", "NL00BUNQ0000000002")
     _import(bunq, "2026-01-10", -500.0, "J. de Vries", counterparty="NL00INGB0000000001")
     _import(bunq, "2026-02-10", -900.0, "J. de Vries")

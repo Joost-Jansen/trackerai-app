@@ -22,7 +22,7 @@ Three agreements:
 
 import secrets
 import sqlite3
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from domain import secret_box as secret
 from domain.i18n import tr

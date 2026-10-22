@@ -1,6 +1,6 @@
 import io
 import zipfile
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 

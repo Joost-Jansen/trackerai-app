@@ -156,12 +156,48 @@ export default function ValueChart({
     return { min, max, y, ticks: niceTicks(min, max) };
   }, [points, shown, baseline]);
 
+  // Before the early return below: a hook after it would make the number of hooks change when the series
+  // grows from one point to two, which React refuses.
+  // An index from the previous render can fall outside the new series — react-query
+  // refreshes the history while you point. Without the clamp that reads `undefined`.
+  const clamp = (i: number) => Math.min(Math.max(i, 0), points.length - 1);
+
+  const hovered = hover !== null ? points[clamp(hover)] : null;
+
+  // The measured stretch, always read from left to right: the difference should
+  // point forward in time, even if you dragged from right to left.
+  //
+  // The breakdown itself is in splitChange (lib/dashboard.ts), so the arithmetic
+  // can be checked separately from the drawing.
+  const measured =
+    span === null
+      ? null
+      : (() => {
+          const [from, to] = (span[0] <= span[1] ? span : [span[1], span[0]]).map(clamp);
+          if (from === to) return null;
+          const a = points[from];
+          const b = points[to];
+          return { from, to, a, b, ...splitChange(a, b) };
+        })();
+
+  // Report upward in an effect and not during render: calling the parent's
+  // setState while this component renders is exactly the loop React cuts off. The
+  // separate fields as deps, because `measured` is a new object on every render
+  // and would make the effect fire endlessly.
+  const probeKey = measured ? `${measured.from}-${measured.to}` : hovered ? hovered.d : "";
+  useEffect(() => {
+    if (!onProbe) return;
+    if (measured) onProbe({ kind: "span", a: measured.a, b: measured.b, ...splitChange(measured.a, measured.b) });
+    else if (hovered) onProbe({ kind: "point", point: hovered });
+    else onProbe(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [probeKey, onProbe]);
+
   if (!model) return null;
   const { y, ticks } = model;
   const decimals = tickDecimals(ticks);
 
   const x = (i: number) => (i / (points.length - 1)) * W;
-  const frac = (i: number) => i / (points.length - 1);
 
   // On one day "30 Jul" says the same thing three times; over a series of days a
   // clock time says nothing. The card header labels its readout itself, through
@@ -229,41 +265,6 @@ export default function ValueChart({
     }
     clear();
   }
-
-  // An index from the previous render can fall outside the new series — react-query
-  // refreshes the history while you point. Without the clamp that reads `undefined`.
-  const clamp = (i: number) => Math.min(Math.max(i, 0), points.length - 1);
-
-  const hovered = hover !== null ? points[clamp(hover)] : null;
-
-  // The measured stretch, always read from left to right: the difference should
-  // point forward in time, even if you dragged from right to left.
-  //
-  // The breakdown itself is in splitChange (lib/dashboard.ts), so the arithmetic
-  // can be checked separately from the drawing.
-  const measured =
-    span === null
-      ? null
-      : (() => {
-          const [from, to] = (span[0] <= span[1] ? span : [span[1], span[0]]).map(clamp);
-          if (from === to) return null;
-          const a = points[from];
-          const b = points[to];
-          return { from, to, a, b, ...splitChange(a, b) };
-        })();
-
-  // Report upward in an effect and not during render: calling the parent's
-  // setState while this component renders is exactly the loop React cuts off. The
-  // separate fields as deps, because `measured` is a new object on every render
-  // and would make the effect fire endlessly.
-  const probeKey = measured ? `${measured.from}-${measured.to}` : hovered ? hovered.d : "";
-  useEffect(() => {
-    if (!onProbe) return;
-    if (measured) onProbe({ kind: "span", a: measured.a, b: measured.b, ...splitChange(measured.a, measured.b) });
-    else if (hovered) onProbe({ kind: "point", point: hovered });
-    else onProbe(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [probeKey, onProbe]);
 
   return (
     // select-none over the whole chart, and no wider: to iOS, putting two fingers

@@ -15,7 +15,7 @@ import re
 import tempfile
 import zipfile
 from collections.abc import Callable
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import FileResponse

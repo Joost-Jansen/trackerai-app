@@ -40,7 +40,7 @@ from calendar import timegm
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import IO
 from xml.parsers import expat
 
@@ -519,7 +519,7 @@ def wellness_days(x: Export) -> dict[str, dict]:
     """{day: wellness values} in the keys of tools/store.py wellness_from_garmin (plus hrv_sdnn and vo2max)."""
     out: dict[str, dict] = defaultdict(dict)
     for day, night in nights(x.sleep).items():
-        h = lambda *s: round(_union_seconds(night.segments, s) / 3600, 2)  # noqa: E731
+        h = lambda *s: round(_union_seconds(night.segments, s) / 3600, 2)  # noqa: E731, B023  # used within this iteration only
         staged = night.seconds("deep", "light", "rem") > 0
         w = out[day]
         w["sleep_h"] = h("deep", "light", "rem", "asleep")

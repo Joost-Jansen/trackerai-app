@@ -23,7 +23,7 @@ import json
 import os
 import sqlite3
 import zipfile
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 from app.core import audit, auth_store, feedback_store
 from domain import database

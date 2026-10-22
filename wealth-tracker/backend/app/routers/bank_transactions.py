@@ -23,7 +23,6 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, UploadFile, 
 from app.core.errors import CodedError
 from app.deps import CurrentUser, get_current_user, get_db, require_money
 from app.services import bank_service, upload_store
-from domain import database
 from domain.i18n import tr
 from domain.money import accounts, bank_transactions, categorization, shared_costs
 

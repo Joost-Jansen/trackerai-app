@@ -17,9 +17,9 @@ if __package__ in (None, ""):
 
 from tools import db
 from tools.routes import detect
+from tools.zones import hr_histogram, zone_seconds
 
 ROUTE_SPORTS = ("run", "ride")
-from tools.zones import hr_histogram, zone_seconds
 
 
 def _run_for_routes(a: dict, latlng: list) -> dict:

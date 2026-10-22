@@ -35,7 +35,7 @@ over rows. Opening this tab after the dashboard costs no network at all.
 import datetime
 import sqlite3
 
-from app.services import dashboard_service, filings_service, holdings_service
+from app.services import filings_service, holdings_service
 from domain import database
 
 #: How far either side of today the calendar carries events. A year back is

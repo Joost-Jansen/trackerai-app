@@ -94,7 +94,8 @@ function Position() {
     queryKey: ["position-history", isin],
     queryFn: () => api.get<PriceHistory>(`/api/holdings/${isin}/history`),
   });
-  const daily = historyQ.data?.points ?? [];
+  // The same array until the query changes: the memos below depend on it.
+  const daily = useMemo(() => historyQ.data?.points ?? [], [historyQ.data]);
 
   // Which buttons this price history can live up to, and the choice set back onto
   // them. A fund you bought last month has prices from long before, but 5Y and All

@@ -1,6 +1,5 @@
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
-import pytest
 from fastapi.testclient import TestClient
 
 from tests.fitbuild import bike_ride

@@ -399,10 +399,10 @@ def bank_corrections(conn: sqlite3.Connection, start: str, end: str) -> dict:
         }
 
         def at(d: str) -> float:
-            return accounts.value_on(series_balances, d, dates)
+            return accounts.value_on(series_balances, d, dates)  # noqa: B023  # used within this iteration only
 
         def own_between(a: str, b: str) -> float:
-            return sum(v for d, v in own.items() if a < d <= b)
+            return sum(v for d, v in own.items() if a < d <= b)  # noqa: B023  # used within this iteration only
 
         events, previous = [], start
         for i, m in enumerate(series_balances):

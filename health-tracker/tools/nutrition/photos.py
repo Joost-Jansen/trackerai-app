@@ -12,7 +12,7 @@ claims it (`attach`): one whose review was cancelled is deleted after PENDING_HO
 from __future__ import annotations
 
 import struct
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, insert, select
 

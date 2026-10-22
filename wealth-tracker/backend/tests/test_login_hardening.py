@@ -14,7 +14,6 @@ pinned here:
 
 import time
 
-import pytest
 import yaml
 
 from app.core import auth_store, config, security

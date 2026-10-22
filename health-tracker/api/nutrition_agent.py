@@ -57,7 +57,7 @@ def parse(text: str, today: date, now_hhmm: str) -> tuple[list[dict], list[str]]
         return [], ["kolommen Voedingsmiddel en Gram zijn verplicht"]
     out, warnings = [], []
     for n, row in enumerate(body, 2):
-        cell = lambda k: row[col[k]].strip() if col[k] is not None and col[k] < len(row) else ""  # noqa: E731
+        cell = lambda k: row[col[k]].strip() if col[k] is not None and col[k] < len(row) else ""  # noqa: E731, B023  # used within this iteration only
         food = cell("food")
         try:
             grams = float(cell("grams").replace(",", ".").rstrip("gml ").strip())

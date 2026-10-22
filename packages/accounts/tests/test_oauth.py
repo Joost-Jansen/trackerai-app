@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import select, update
 
-from trackerai_accounts import Accounts, Config, connect, crypto, install, make_router, session
+from trackerai_accounts import Accounts, Config, connect, crypto, install, make_router
 from trackerai_accounts.oauth import OAuth, digest
 from trackerai_accounts.service import now
 from trackerai_accounts.store import account_apps, oauth_codes, oauth_grants, oauth_tokens

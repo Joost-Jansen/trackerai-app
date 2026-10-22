@@ -80,6 +80,7 @@ export default function CoachMark({
   useEffect(() => {
     if (!pathname.startsWith(href)) router.push(href);
     // Only when the step changes: after that you may look around freely.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [href]);
 
   // Where the item and the sidebar are, again after every scroll and resize.

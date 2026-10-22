@@ -14,7 +14,7 @@ ADMIN_PASSWORD after the first start; only the hash is kept.
 
 import os
 import secrets
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 import yaml
 

@@ -13,7 +13,6 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from domain import database
 from domain import secret_box as secret
 from domain.money.bank_providers import enablebanking
 

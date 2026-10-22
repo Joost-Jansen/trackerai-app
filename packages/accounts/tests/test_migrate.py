@@ -1,5 +1,5 @@
 import time
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 import yaml

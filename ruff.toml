@@ -25,4 +25,11 @@ select = ["E", "F", "W", "I", "B", "UP"]
 ignore = [
   "E501",  # line length belongs to the formatter
   "B008",  # FastAPI's Depends() in argument defaults
+  "B904",  # an HTTPException raised in an except clause is the API's answer, not an error while handling one
+  "B905",  # zip() over lists built side by side; strict= would only add noise
+  "E731",  # a named one-line lambda is fine here
 ]
+
+[lint.per-file-ignores]
+# pytest fixtures are imported from conftest-like modules and then requested by name as arguments.
+"**/tests/**" = ["F811"]

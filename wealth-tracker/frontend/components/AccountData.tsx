@@ -26,9 +26,12 @@ export default function AccountData({ twoStep, byEmail = false, apps = [] }: { t
     try {
       if (open === "leave") {
         await api.del("/api/account/apps/wealth", { password, totp: twoStep ? code : undefined });
+        // Full page loads on purpose: nothing of the account you left or deleted may stay in memory.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = "/";
       } else {
         await api.del("/api/account", { password, totp: twoStep ? code : undefined });
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = "/login";
       }
     } catch (err) {

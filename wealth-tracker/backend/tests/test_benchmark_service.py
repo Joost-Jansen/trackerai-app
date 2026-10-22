@@ -10,7 +10,6 @@ charts.py produces, rather than testing that the cache "works".
 from datetime import date, datetime
 
 import pandas as pd
-import pytest
 
 from app.services import benchmark_service as bs
 

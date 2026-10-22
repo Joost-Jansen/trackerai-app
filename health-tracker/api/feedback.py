@@ -22,7 +22,7 @@ import os
 import threading
 import urllib.request
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, Field

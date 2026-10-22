@@ -33,7 +33,7 @@ import os
 import re
 import secrets
 import time
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import yaml
 

@@ -349,7 +349,7 @@ def test_spending_is_split_per_group():
     from domain.money import categorization
 
     categorization.seed(conn)
-    for i, (name, amount, cat) in enumerate(
+    for i, (_name, amount, cat) in enumerate(
         [
             ("AH", 100.0, "Supermarkt"),
             ("JUMBO", 50.0, "Supermarkt"),

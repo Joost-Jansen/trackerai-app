@@ -7,8 +7,6 @@ the admin panel can grant it rather than an admin editing YAML by hand), and
 that an account with nothing uploaded gets an empty answer instead of a 500.
 """
 
-import pytest
-
 from app.core import auth_store
 
 

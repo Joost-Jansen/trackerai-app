@@ -362,7 +362,7 @@ def test_money_received_counts_as_income_not_as_spending():
 
 
 def test_every_category_has_a_valid_type():
-    for group_name, name, type_ in categorization.DEFAULT_CATEGORIES:
+    for _group, name, type_ in categorization.DEFAULT_CATEGORIES:
         assert type_ in categorization.TYPES, f"{name} heeft type {type_!r}"
 
 

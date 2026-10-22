@@ -199,7 +199,9 @@ export default function SidebarNav({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
       // The panel becomes invisible; the focus must not stay behind in it — after a
-      // tap on a menu item it is on that link. Back to the button that opened it.
+      // tap on a menu item it is on that link. Back to the button that opened it. The panel as it is at closing
+      // time is the one to check, so the ref is read here on purpose.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       if (panel.current?.contains(document.activeElement)) opener.current?.focus();
     };
   }, [open, onClose]);

@@ -23,7 +23,6 @@ import os
 import pytest
 
 from domain.money import bank_providers as bank
-from domain.money.bank_providers import bunq, ing
 
 ING_HEADER = '"Date","Name / Description","Account","Counterparty","Code","Debit/credit","Amount (EUR)","Transaction type","Notifications"'
 

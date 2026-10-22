@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import zipfile
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from tools.sports import fit_sport

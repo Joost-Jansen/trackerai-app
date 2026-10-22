@@ -5,7 +5,7 @@ the FIT SDK.
 """
 
 import struct
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 FIT_EPOCH = datetime(1989, 12, 31, tzinfo=UTC)
 SEMI = 2**31 / 180

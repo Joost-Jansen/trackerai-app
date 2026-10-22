@@ -7,7 +7,6 @@ on a holiday the working day before (or after, if your history says so). There
 is no salary day in the code.
 """
 
-import sqlite3
 from datetime import date
 
 import pytest

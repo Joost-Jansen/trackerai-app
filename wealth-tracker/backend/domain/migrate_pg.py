@@ -28,7 +28,7 @@ import math
 import os
 import sqlite3
 import sys
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 from domain import database, db
 

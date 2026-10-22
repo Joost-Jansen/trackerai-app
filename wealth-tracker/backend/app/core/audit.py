@@ -13,7 +13,7 @@ root (see conftest.py) also redirects the audit log, keeping runs isolated.
 
 import json
 import os
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 from domain import database  # repo-root module, see app/__init__.py for the sys.path setup
 

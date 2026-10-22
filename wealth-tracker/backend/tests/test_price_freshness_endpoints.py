@@ -12,8 +12,6 @@ with exactly the number that made it wrong.
 
 import datetime
 
-import pytest
-
 from domain import database
 from domain.portfolio import positions as portfolio
 

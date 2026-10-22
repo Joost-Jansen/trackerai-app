@@ -13,7 +13,7 @@ A series Garmin has nothing for is left out; a day without anything is {}.
 from __future__ import annotations
 
 from calendar import timegm
-from datetime import UTC, date, datetime, timezone
+from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 
 # Garmin's sleepLevels.activityLevel; stored as the number, named in the API (api/daily.py)

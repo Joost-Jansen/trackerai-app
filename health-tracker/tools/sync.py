@@ -16,7 +16,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 

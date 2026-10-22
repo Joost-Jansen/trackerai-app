@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import base64
 import os
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, insert, select
 
