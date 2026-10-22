@@ -1,5 +1,12 @@
 # trackerai
 
+[![health-tracker](https://github.com/Joost-Jansen/trackerai-app/actions/workflows/health-tracker.yml/badge.svg?branch=main)](https://github.com/Joost-Jansen/trackerai-app/actions/workflows/health-tracker.yml)
+[![wealth-tracker](https://github.com/Joost-Jansen/trackerai-app/actions/workflows/wealth-tracker.yml/badge.svg?branch=main)](https://github.com/Joost-Jansen/trackerai-app/actions/workflows/wealth-tracker.yml)
+[![trackerai](https://github.com/Joost-Jansen/trackerai-app/actions/workflows/trackerai.yml/badge.svg?branch=main)](https://github.com/Joost-Jansen/trackerai-app/actions/workflows/trackerai.yml)
+[![lint](https://github.com/Joost-Jansen/trackerai-app/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/Joost-Jansen/trackerai-app/actions/workflows/lint.yml)
+[![CodeQL](https://github.com/Joost-Jansen/trackerai-app/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/Joost-Jansen/trackerai-app/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Your health and your wealth. Measured, understood, yours.**
 
 trackerai is two calm, private trackers that do the bookkeeping of your life for you: **health-tracker** for training,
@@ -163,6 +170,13 @@ CI runs one workflow per app, triggered by changes in that app, in `packages/` o
 - **Self-hosting on a mini PC:** see `health-tracker/docs/SELF_HOSTING.md` and `wealth-tracker/docs/SELF_HOSTING.md`.
   The shared edge (Caddy and the Cloudflare tunnel) is in `health-tracker/deploy/edge`, and moves to a top-level
   `deploy/` in step 3 of the plan.
+
+## Engineering
+
+Every change reaches `main` by pull request: tests per app, ruff, ESLint and Prettier, dependency review, CodeQL and a
+secret scan, then a squash merge, after which Railway deploys the services whose files changed. How that works is in
+[docs/CI.md](docs/CI.md); how to contribute in [CONTRIBUTING.md](CONTRIBUTING.md); how to report a vulnerability in
+[SECURITY.md](SECURITY.md).
 
 ## License
 

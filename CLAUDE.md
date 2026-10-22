@@ -20,8 +20,10 @@ Agreements that apply everywhere:
   `/api/account/*` endpoints. Keep them the same; change both together.
 - **English** for code, comments and commits. The UI is bilingual (Dutch and English); every user-facing text needs
   its Dutch, checked by `npm run check:i18n` in each frontend.
-- **Branches**: work in a branch and open a pull request into `dev`; `dev` goes to `main` (production) by pull request.
-  Both need the `<workflow> ok` checks green ([docs/CI.md](docs/CI.md)); a new job joins its workflow's `ok`.
+- **Branches**: work in a branch and open a pull request into `main` (production); the required checks must be green
+  ([docs/CI.md](docs/CI.md)). A pull request lands as one squash commit; a new job joins its workflow's `ok`.
+- **Format and lint before pushing**: `ruff check .`, `ruff format --check .`, `npm run lint` and `npm run format:check`
+  at the root, or `pre-commit install` once so they run on every commit.
 - **Test the app you touched**, and both apps when you touch `packages/`. The Python suites run on Postgres, as
   production does: start it once with `docker compose -f compose.dev.yml up -d` at the repo root and install
   `packages/testing` in the app's environment (`pip install -e packages/testing`); every test gets a database of its own.
