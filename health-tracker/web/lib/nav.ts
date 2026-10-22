@@ -49,6 +49,15 @@ export const NAV: NavGroup[] = [
         tabs: [tab("day", "/nutrition/"), tab("nutritionTrends", "/nutrition/trends/"), tab("foods", "/nutrition/foods/")],
       },
       {
+        // Private: only for the accounts in SKIN_DIARY_USERS on the API (api/betas.py PRIVATE_FEATURES).
+        id: "skin",
+        label: "",
+        href: "/skin/",
+        icon: "calendar",
+        beta: "skin",
+        tabs: [tab("day", "/skin/"), tab("overview", "/skin/overview/")],
+      },
+      {
         id: "log",
         label: "",
         href: "/log/",

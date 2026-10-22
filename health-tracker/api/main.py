@@ -33,6 +33,7 @@ from api import (
     onboarding,
     routes_api,
     settings_api,
+    skin,
     tracker_admin,
     uploads,
     users,
@@ -205,6 +206,7 @@ def create_app(
             "/api/apple/upload": apple.CHUNK_BYTES + 1024,
             "/api/nutrition/admin/nevo": nutrition.NEVO_MAX_BYTES + 1024,
             "/api/nutrition/photo": nutrition.photos.MAX_BYTES + 1024,
+            "/api/skin/photo": nutrition.photos.MAX_BYTES + 1024,
         },
     )
     app.add_middleware(SecurityHeadersMiddleware, csp=API_CSP, hsts=settings.cookie_secure)
@@ -333,6 +335,7 @@ def create_app(
     app.include_router(account.make_router(current_user))
     app.include_router(gear.make_router(current_user, today))
     app.include_router(nutrition.make_router(current_user, today, now))
+    app.include_router(skin.make_router(current_user, today))
     app.include_router(feedback.make_router(engine, accounts, current_user))
     app.include_router(tracker_admin.make_router(engine, accounts, current_user, today))
     app.include_router(mcp.make_router(today, current_user, token_user, guards, accounts, runner))

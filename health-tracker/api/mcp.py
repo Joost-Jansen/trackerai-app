@@ -23,7 +23,7 @@ from starlette.concurrency import run_in_threadpool
 from api import betas, nutrition_agent
 from api.daily import as_markdown as day_md
 from api.daily import day_view
-from api.dashboard import build_dashboard, today_form_pct, today_tsb
+from api.dashboard import build_dashboard, max_by_sport, resting_hr, today_form_pct, today_tsb
 from api.errors import ApiError
 from api.gear import gear_of
 from api.gear import overview as gear_overview
@@ -33,7 +33,7 @@ from api.readiness import as_text as readiness_text
 from api.readiness import readiness
 from api.routes_api import suggest
 from api.trends import build_trends
-from tools import db, wahoo
+from tools import db, skin, wahoo
 from tools.nutrition import foods
 from tools.nutrition import meals as nutrition_meals
 from tools.nutrition import report as nutrition_report
@@ -61,6 +61,11 @@ NUTRITION_NOTE = (
 
 def nutrition_on(user) -> bool:
     return betas.enabled(user.scope.engine, user.id, "nutrition")
+
+
+def skin_on(user) -> bool:
+    """The skin diary: a private feature (api/betas.py). For anyone else its tools do not exist."""
+    return not getattr(user, "example", False) and betas.enabled(user.scope.engine, user.id, "skin")
 
 
 def instructions(user) -> str:
@@ -257,6 +262,7 @@ WRITE_NAMES = {
     "update_feedback",
     "sync_now",
     "log_meal",
+    "add_skin_entry",
 }
 
 MEAL_TABLE_HELP = (
@@ -301,6 +307,57 @@ NUTRITION_TOOLS = [
 ]
 TZ_LOCAL = ZoneInfo("Europe/Amsterdam")  # the clock a logged meal without a time gets (as api/main.py TZ)
 SYNC_WAIT_S = 55  # what an MCP call waits for a sync; a longer one keeps running in the background
+
+
+# Only for the accounts in SKIN_DIARY_USERS (api/betas.py, api/skin.py).
+SKIN_TOOLS = [
+    {
+        "name": "add_skin_entry",
+        "description": "Voeg toe aan het huiddagboek van een dag (standaard vandaag). Wat je weglaat blijft zoals het was; lijsten (producten, eten, "
+        "locaties, sport) worden aangevuld en een opmerking komt onder de vorige. Schalen 0-10: jeuk, roodheid, eigen slaapcijfer, stress. "
+        "Gebruik de woorden van de gebruiker voor producten en eten (bv. 'witte chocolade', 'alcohol').",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "day": _str("YYYY-MM-DD, standaard vandaag"),
+                "itch": {"type": "integer", "minimum": 0, "maximum": 10, "description": "jeuk 0-10"},
+                "redness": {"type": "integer", "minimum": 0, "maximum": 10, "description": "roodheid 0-10"},
+                "bumps": {"type": "integer", "minimum": 0, "description": "aantal bultjes/puistjes"},
+                "burning": {"type": "boolean", "description": "branderig of strak gevoel"},
+                "locations": {
+                    "type": "array",
+                    "items": {"type": "string", "enum": list(skin.LOCATIONS)},
+                    "description": "cheeks=wangen, nose=neus, chin=kin, mouth=rond de mond, hairline=haarlijn",
+                },
+                "flaking": {"type": "boolean", "description": "schilfers"},
+                "products": {"type": "array", "items": {"type": "string"}, "description": "gebruikte producten"},
+                "new_products": {"type": "array", "items": {"type": "string"}, "description": "nieuwe producten (voor het eerst gebruikt)"},
+                "food": {"type": "array", "items": {"type": "string"}, "description": "eten en drinken dat kan meetellen"},
+                "sport": {
+                    "type": "array",
+                    "items": {"type": "object", "properties": {"name": {"type": "string"}, "red": {"type": "boolean"}}},
+                    "description": "trainingen en of de huid daarna rood was",
+                },
+                "sleep": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10,
+                    "description": "eigen slaapcijfer 0-10 (Garmin meet de uren zelf)",
+                },
+                "stress": {"type": "integer", "minimum": 0, "maximum": 10},
+                "weather": _str("weer, bv. koud en droog"),
+                "heating": {"type": "boolean", "description": "verwarming aan"},
+                "note": _str("vrije opmerking"),
+            },
+        },
+    },
+    {
+        "name": "get_skin_diary",
+        "description": "Het huiddagboek over een periode (standaard de laatste 30 dagen): per dag alle velden met de gemeten slaap, "
+        "per week het gemiddelde naast slaap en training, en vergelijkingen van roodheid met en zonder korte nacht, training of een eten-tag.",
+        "inputSchema": {"type": "object", "properties": {"from": _str("YYYY-MM-DD"), "to": _str("YYYY-MM-DD")}},
+    },
+]
 
 
 class ToolError(Exception):
@@ -519,6 +576,51 @@ class Server:
         plan = self._full(db.active_plan(self.engine))
         return plan["sessions"] if plan else []
 
+    def _skin(self, name: str, args: dict) -> str:
+        s, today = self.store, self.today()
+        if name == "add_skin_entry":
+            fields = {k: v for k, v in args.items() if k != "day"}
+            try:
+                day = skin.parse_day(args["day"]) if args.get("day") else today
+                if day > today:
+                    raise ToolError("een dag in de toekomst kan nog niet in het dagboek")
+                entry = skin.save(self.engine, day, fields, add=True)
+            except skin.SkinError as e:
+                raise ToolError(f"{e.code} {e.params}".strip()) from None
+            return f"Opgeslagen in het huiddagboek, {day.isoformat()}:\n\n" + skin.entries_md([entry], s.wellness)
+        try:
+            end = skin.parse_day(args["to"]) if args.get("to") else today
+            start = skin.parse_day(args["from"]) if args.get("from") else end - timedelta(days=29)
+        except skin.SkinError:
+            raise ToolError("from en to zijn YYYY-MM-DD") from None
+        if start > end or (end - start).days >= skin.MAX_RANGE_DAYS:
+            raise ToolError(f"een periode van 1 tot {skin.MAX_RANGE_DAYS} dagen, from voor to")
+        entries = skin.between(self.engine, start.isoformat(), end.isoformat())
+        rhr = resting_hr(s.wellness, today, s.rhr_fallback)
+        weeks = skin.weeks(entries, s.activities, s.wellness, rhr, max_by_sport(s.zones, s.activities))
+        parts = [f"# Huiddagboek {start.isoformat()} t/m {end.isoformat()}", skin.entries_md(entries, s.wellness)]
+        if weeks:
+            parts.append(
+                "## Per week\n\n| Week | Dagen | Jeuk | Roodheid | Bultjes | Slaap (u) | Trainingen | Belasting |\n|---|---|---|---|---|---|---|---|"
+            )
+            parts[-1] += "".join(
+                f"\n| {w['week']} | {w['days']} | {w['itch'] if w['itch'] is not None else '-'} | {w['redness'] if w['redness'] is not None else '-'} | "
+                f"{w['bumps'] if w['bumps'] is not None else '-'} | {w['sleep_h'] if w['sleep_h'] is not None else '-'} | {w['sessions']} | {w['load']} |"
+                for w in weeks
+            )
+        comp = skin.comparisons(entries, s.activities, s.wellness)
+        if comp:
+            what = {"short_sleep": "nacht korter dan 6 u (tegen 7 u of meer)", "training": "dag met training", "food": "eten: "}
+            parts.append(
+                "## Roodheid met en zonder (samenhang, geen oorzaak)\n\n"
+                + "\n".join(
+                    f"- {what[c['kind']]}{c['label'] if c['kind'] == 'food' else ''}: {c['with']['redness']} over {c['with']['days']} dagen, "
+                    f"anders {c['without']['redness']} over {c['without']['days']} dagen"
+                    for c in comp
+                )
+            )
+        return "\n\n".join(parts)
+
     def _nutrition(self, name: str, args: dict, who: str) -> str:
         if not nutrition_on(self.user):
             raise ToolError("Voeding staat niet aan voor dit account.")
@@ -630,6 +732,10 @@ class Server:
             return self._sync()
         if name in ("get_nutrition", "log_meal", "search_foods"):
             return self._nutrition(name, args, who)
+        if name in ("add_skin_entry", "get_skin_diary"):
+            if not skin_on(self.user):
+                raise ToolError(f"Onbekende tool {name}")  # as any tool that does not exist
+            return self._skin(name, args)
         if name == "get_context":
             profile, goals = db.get_document(self.engine, "profile"), db.get_document(self.engine, "goals")
             dash = build_dashboard(s.activities, s.wellness, s.zones, today, s.last_sync, s.rhr_fallback)
@@ -820,7 +926,12 @@ class Server:
         if method == "ping":
             return ok({})
         if method == "tools/list":
-            tools = TOOLS + (NUTRITION_TOOLS if nutrition_on(self.user) else []) + (FEEDBACK_TOOLS if self.user.is_admin else [])
+            tools = (
+                TOOLS
+                + (NUTRITION_TOOLS if nutrition_on(self.user) else [])
+                + (SKIN_TOOLS if skin_on(self.user) else [])
+                + (FEEDBACK_TOOLS if self.user.is_admin else [])
+            )
             if getattr(self.user, "agent_scope", "write") == "read":
                 tools = [t for t in tools if t["name"] not in WRITE_NAMES]
             if getattr(self.user, "agent_oauth", False):
