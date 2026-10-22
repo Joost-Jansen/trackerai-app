@@ -294,6 +294,7 @@ Every push to your fork's `main` redeploys the service whose watch paths it touc
 | `ANTHROPIC_API_KEY` | api | for photo analysis | The Claude API key for Nutrition's photo analysis. Without it the option is not offered; each user switches it on themselves | `sk-ant-...` |
 | `NUTRITION_MODEL`, `NUTRITION_EFFORT` | api | no | The model and effort for meal photos | `claude-sonnet-5-5`, `medium` (defaults) |
 | `NUTRITION_DAILY_PHOTOS` | api | no | Photos one user may have analysed per 24 hours (each is a paid call) | `40` (default) |
+| `SKIN_DIARY_USERS` | api | no | Usernames or user ids (comma-separated) that get the skin diary, a private feature: for everyone else its page, API and MCP tools do not exist. Empty: off for everyone | `alice` |
 | `FDC_API_KEY` | api | no | USDA FoodData Central, searched (only the search words go out) when NEVO, your own foods and the cache find fewer than three foods | developer key from fdc.nal.usda.gov |
 | `OFF_CONTACT` | api | no | An e-mail address in the User-Agent of Open Food Facts barcode lookups, as Open Food Facts asks | `you@example.org` |
 | `WAHOO_CLIENT_ID`, `WAHOO_CLIENT_SECRET` | api, sync | for Wahoo | The app from Wahoo's developer portal (scopes `workouts_read offline_data user_read`). Without them the Wahoo card says it is not set up | developers.wahooligan.com |

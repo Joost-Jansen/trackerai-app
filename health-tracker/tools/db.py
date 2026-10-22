@@ -31,6 +31,7 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    UniqueConstraint,
     create_engine,
     delete,
     func,
@@ -401,6 +402,44 @@ feedback = Table(
     Column("updated_at", DateTime(timezone=True)),
 )
 
+skin_entries = Table(
+    # The skin diary (api/skin.py, tools/skin.py): one row per user per day. Only for the accounts in SKIN_DIARY_USERS.
+    "skin_entries",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", Integer, nullable=False, index=True),
+    Column("day", String(10), nullable=False),
+    Column("itch", Integer),  # 0-10
+    Column("redness", Integer),  # 0-10
+    Column("bumps", Integer),  # bumps and spots, a count
+    Column("burning", Boolean),  # a burning or tight feeling
+    Column("locations", JSON, nullable=False, default=list),  # codes of tools/skin.py LOCATIONS
+    Column("flaking", Boolean),
+    Column("products", JSON, nullable=False, default=list),  # what went on the skin, free text
+    Column("new_products", JSON, nullable=False, default=list),
+    Column("food", JSON, nullable=False, default=list),  # what was eaten or drunk that may matter, free text
+    Column("sport", JSON, nullable=False, default=list),  # [{"activity_id"?, "name", "red": bool}]
+    Column("sleep", Integer),  # 0-10, the user's own rating; Garmin's night comes from wellness
+    Column("stress", Integer),  # 0-10
+    Column("weather", String(200)),
+    Column("heating", Boolean),
+    Column("note", Text),
+    Column("photo_id", Integer),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True)),
+    UniqueConstraint("user_id", "day", name="skin_entries_user_day"),
+)
+skin_photos = Table(
+    # One photo per diary day at most, without metadata (tools/nutrition/photos.py clean), only for its owner.
+    "skin_photos",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", Integer, nullable=False, index=True),
+    Column("mime", String(20), nullable=False),
+    Column("data", LargeBinary, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+
 USER_TABLES = (
     activities,
     streams,
@@ -423,6 +462,8 @@ USER_TABLES = (
     portion_memory,
     meal_templates,
     nutrition_ai_runs,
+    skin_entries,
+    skin_photos,
 )
 SESSION_FIELDS = ("date", "sport", "kind", "distance_km", "duration_min", "target_zone", "description", "route_id")
 
@@ -859,6 +900,7 @@ def export_tables(s: Scope):
             portion_memory,
             meal_templates,
             nutrition_ai_runs,
+            skin_entries,
         ):
             yield (
                 t.name,
@@ -900,7 +942,7 @@ def export_tables(s: Scope):
 
 
 def export_files(s: Scope):
-    """(path in the export, bytes): the stored FIT files and feedback screenshots, one at a time."""
+    """(path in the export, bytes): the stored FIT files, feedback screenshots, meal and skin photos, one at a time."""
     with s.engine.connect() as conn:
         keys = [
             k
@@ -933,6 +975,17 @@ def export_files(s: Scope):
             ).scalar_one_or_none()
         if data:
             yield f"meals/{pid}.{(media or 'image/jpeg').split('/')[-1]}", data
+    with s.engine.connect() as conn:
+        skin = conn.execute(
+            select(skin_photos.c.id, skin_photos.c.mime).where(skin_photos.c.user_id == s.user_id).order_by(skin_photos.c.id)
+        ).all()
+    for pid, media in skin:
+        with s.engine.connect() as conn:
+            data = conn.execute(
+                select(skin_photos.c.data).where(skin_photos.c.id == pid, skin_photos.c.user_id == s.user_id)
+            ).scalar_one_or_none()
+        if data:
+            yield f"skin/{pid}.{(media or 'image/jpeg').split('/')[-1]}", data
 
 
 def count_admins(engine: Engine, except_user: int | None = None) -> int:

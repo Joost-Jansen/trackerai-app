@@ -159,6 +159,15 @@ MESSAGES: dict[str, str] = {
     "food_energy_required": "vul in hoeveel kcal er per 100 in zit",
     "food_value_range": "{field} tussen 0 en {max} per 100",
     "too_many_foods": "maximaal {max} eigen producten",
+    # skin diary (api/skin.py)
+    "invalid_day": "geen datum (JJJJ-MM-DD)",
+    "invalid_range": "een periode van 1 tot {max} dagen, van voor tot",
+    "invalid_scale": "{field} is een cijfer van 0 tot 10",
+    "invalid_count": "{field} is een aantal van 0 tot {max}",
+    "invalid_flag": "{field} is ja of nee",
+    "invalid_list": "{field} is een lijst",
+    "too_many": "maximaal {max} bij {field}",
+    "entry_not_found": "deze dag staat niet in het dagboek",
 }
 
 
