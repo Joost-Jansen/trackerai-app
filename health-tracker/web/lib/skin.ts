@@ -16,6 +16,7 @@ export type Entry = {
   day: string;
   itch: number | null;
   redness: number | null;
+  oiliness: number | null; // -5 very dry, 0 normal, +5 very oily
   bumps: number | null;
   burning: boolean | null;
   locations: Location[];
@@ -46,6 +47,7 @@ export type Week = {
   days: number;
   itch: number | null;
   redness: number | null;
+  oiliness: number | null;
   bumps: number | null;
   flaking_days: number;
   burning_days: number;

@@ -20,6 +20,7 @@ import { LOCATIONS, useSkinGate, type DayView, type Entry, type EntryFields, typ
 const EMPTY: EntryFields = {
   itch: null,
   redness: null,
+  oiliness: null,
   bumps: null,
   burning: null,
   locations: [],
@@ -48,17 +49,21 @@ function Scale({
   hint,
   value,
   onChange,
+  min = 0,
+  max = 10,
 }: {
   label: string;
   hint?: string;
   value: number | null | undefined;
   onChange: (v: number | null) => void;
+  min?: number;
+  max?: number;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-[12.5px] font-medium">{label}</span>
       <div className="ds-segmented flex w-full" role="group" aria-label={label}>
-        {Array.from({ length: 11 }, (_, n) => (
+        {Array.from({ length: max - min + 1 }, (_, i) => min + i).map((n) => (
           <button
             key={n}
             type="button"
@@ -66,7 +71,7 @@ function Scale({
             className={`ds-segmented__item min-w-0 flex-1 px-0 tabular-nums ${value === n ? "ds-segmented__item--active" : ""}`}
             onClick={() => onChange(value === n ? null : n)}
           >
-            {n}
+            {min < 0 && n > 0 ? `+${n}` : n}
           </button>
         ))}
       </div>
@@ -296,6 +301,14 @@ function SkinDay() {
             <div className="flex flex-col gap-4">
               <Scale label={t.itch} hint={t.scaleHint} value={draft.itch} onChange={(v) => set({ itch: v })} />
               <Scale label={t.redness} value={draft.redness} onChange={(v) => set({ redness: v })} />
+              <Scale
+                label={t.oiliness}
+                hint={t.oilinessHint}
+                min={-5}
+                max={5}
+                value={draft.oiliness}
+                onChange={(v) => set({ oiliness: v })}
+              />
               <Input
                 label={t.bumps}
                 type="number"

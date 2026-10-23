@@ -9,6 +9,7 @@ from datetime import date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import inspect, text
 
 import api.main
 from api import betas
@@ -130,6 +131,28 @@ def test_a_day_is_saved_merged_and_checked(client, allowed):
     assert client.delete("/api/skin/day/2026-03-17").status_code == 404
 
 
+def test_dry_or_oily_is_a_scale_around_zero(client, allowed):
+    for day, value in (("2026-03-16", -3), ("2026-03-17", 2)):
+        assert client.put(f"/api/skin/day/{day}", json={"oiliness": value}).json()["entry"]["oiliness"] == value
+    for bad in (-6, 6, "vet", True):
+        r = client.put("/api/skin/day/2026-03-17", json={"oiliness": bad})
+        assert r.status_code == 422 and r.json()["code"] == "invalid_oiliness", bad
+    o = client.get("/api/skin/overview", params={"from": "2026-03-01", "to": "2026-03-31"}).json()
+    assert o["weeks"][0]["oiliness"] == -0.5
+    lines = client.get("/api/skin/export.csv", params={"from": "2026-03-01", "to": "2026-03-31"}).content.decode("utf-8-sig").splitlines()
+    assert lines[0].split(";")[3] == "droog/vet (-5 droog, 0 normaal, +5 vet)"
+    assert [line.split(";")[3] for line in lines[1:]] == ["-3", "+2"]
+    text, error = call(client, "add_skin_entry", day="2026-03-18", oiliness=4)
+    assert not error and "+4" in text
+
+
+def test_a_diary_table_from_before_oiliness_gains_the_column(engine):  # noqa: F811
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE skin_entries DROP COLUMN oiliness"))
+    db.create_schema(engine)
+    assert "oiliness" in {c["name"] for c in inspect(engine).get_columns("skin_entries")}
+
+
 def test_the_photo_loses_its_metadata_and_goes_with_the_day(client, allowed, engine):  # noqa: F811
     e = client.post("/api/skin/photo", params={"day": "2026-03-18"}, content=jpeg()).json()["entry"]
     stored = client.get(f"/api/skin/photos/{e['photo_id']}")
@@ -188,7 +211,7 @@ def test_overview_and_csv_for_the_dermatologist(client, allowed):
     assert r.headers["content-type"].startswith("text/csv") and "huiddagboek-2026-03-01-2026-03-31.csv" in r.headers["content-disposition"]
     lines = r.content.decode("utf-8-sig").splitlines()
     assert lines[0].startswith("datum;jeuk (0-10);roodheid (0-10)")
-    assert lines[1].startswith("2026-03-16;4;5;;;kin, rond de mond;;Crème A;")
+    assert lines[1].startswith("2026-03-16;4;5;;;;kin, rond de mond;;Crème A;")
     assert "Hardlopen (rood)" in lines[2] and ";ja;" in lines[2] and '"Na het sporten; rood"' in lines[2]
 
 

@@ -163,6 +163,7 @@ MESSAGES: dict[str, str] = {
     "invalid_day": "geen datum (JJJJ-MM-DD)",
     "invalid_range": "een periode van 1 tot {max} dagen, van voor tot",
     "invalid_scale": "{field} is een cijfer van 0 tot 10",
+    "invalid_oiliness": "{field} is een cijfer van {min} (droog) tot {max} (vet)",
     "invalid_count": "{field} is een aantal van 0 tot {max}",
     "invalid_flag": "{field} is ja of nee",
     "invalid_list": "{field} is een lijst",
