@@ -22,9 +22,10 @@ from tools.analytics import trimp
 LOCATIONS = ("cheeks", "nose", "chin", "mouth", "hairline")  # mouth: around the mouth
 LOCATION_NL = {"cheeks": "wangen", "nose": "neus", "chin": "kin", "mouth": "rond de mond", "hairline": "haarlijn"}
 SCALES = ("itch", "redness", "sleep", "stress")  # 0-10
+OILINESS = (-5, 5)  # -5 very dry, 0 normal, +5 very oily
 FLAGS = ("burning", "flaking", "heating")
 LISTS = ("products", "new_products", "food")
-FIELDS = (*SCALES, "bumps", *FLAGS, "locations", *LISTS, "sport", "weather", "note", "photo_id")
+FIELDS = (*SCALES, "oiliness", "bumps", *FLAGS, "locations", *LISTS, "sport", "weather", "note", "photo_id")
 MAX_BUMPS = 500
 MAX_ITEMS = 30
 MAX_TEXT = 200
@@ -89,6 +90,11 @@ def clean(fields: dict) -> dict:
         elif k in SCALES:
             if isinstance(v, bool) or not isinstance(v, (int, float)) or not 0 <= v <= 10:
                 raise SkinError("invalid_scale", field=k)
+            out[k] = round(v)
+        elif k == "oiliness":
+            lo, hi = OILINESS
+            if isinstance(v, bool) or not isinstance(v, (int, float)) or not lo <= v <= hi:
+                raise SkinError("invalid_oiliness", field=k, min=lo, max=hi)
             out[k] = round(v)
         elif k == "bumps":
             if isinstance(v, bool) or not isinstance(v, (int, float)) or not 0 <= v <= MAX_BUMPS:
@@ -259,6 +265,7 @@ def weeks(entries: list[dict], activities: list[dict], wellness: dict, rhr: floa
                 "days": len(days),
                 "itch": _avg([e["itch"] for e in days]),
                 "redness": _avg([e["redness"] for e in days]),
+                "oiliness": _avg([e.get("oiliness") for e in days]),
                 "bumps": _avg([e["bumps"] for e in days]),
                 "flaking_days": sum(1 for e in days if e["flaking"]),
                 "burning_days": sum(1 for e in days if e["burning"]),
@@ -310,6 +317,7 @@ CSV_COLUMNS = (
     ("day", "datum"),
     ("itch", "jeuk (0-10)"),
     ("redness", "roodheid (0-10)"),
+    ("oiliness", "droog/vet (-5 droog, 0 normaal, +5 vet)"),
     ("bumps", "bultjes/puistjes"),
     ("burning", "branderig/strak"),
     ("locations", "locatie"),
@@ -341,6 +349,8 @@ def _cell(key: str, e: dict, wellness: dict) -> str:
         return f"{h:.1f}".replace(".", ",") if h is not None else ""
     if key == "photo":
         return "ja" if e.get("photo_id") else ""
+    if key == "oiliness":
+        return "" if v is None else f"{v:+d}" if v else "0"
     if isinstance(v, bool):
         return "ja" if v else "nee"
     return "" if v is None else str(v)

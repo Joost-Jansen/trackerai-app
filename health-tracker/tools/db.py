@@ -411,6 +411,7 @@ skin_entries = Table(
     Column("day", String(10), nullable=False),
     Column("itch", Integer),  # 0-10
     Column("redness", Integer),  # 0-10
+    Column("oiliness", Integer),  # -5 very dry, 0 normal, +5 very oily (added later: _migrate_skin)
     Column("bumps", Integer),  # bumps and spots, a count
     Column("burning", Boolean),  # a burning or tight feeling
     Column("locations", JSON, nullable=False, default=list),  # codes of tools/skin.py LOCATIONS
@@ -662,6 +663,14 @@ def _migrate_v6(conn) -> None:
         conn.execute(text(f"ALTER TABLE users ADD COLUMN {name} {kind}{default}"))
 
 
+def _migrate_skin(conn) -> None:
+    """Columns the skin diary gained after its table was first created: `oiliness`."""
+    have = {c["name"] for c in inspect(conn).get_columns("skin_entries")}
+    for name in ("oiliness",):
+        if name not in have:
+            conn.execute(text(f"ALTER TABLE skin_entries ADD COLUMN {name} {skin_entries.c[name].type.compile(dialect=conn.dialect)}"))
+
+
 def create_schema(engine: Engine) -> dict | None:
     """Create missing tables; migrate a single-user (v1) database to multi-user, Dutch stored values to English (v3)
     and stored sports to the codes of tools/sports.py (v4).
@@ -680,6 +689,7 @@ def create_schema(engine: Engine) -> dict | None:
         if version is None or int(version) < 5:
             _migrate_v5(conn)
         _migrate_v6(conn)  # checks the columns itself: cheap, and safe on a database another branch already moved on
+        _migrate_skin(conn)  # the same
         if version != SCHEMA_VERSION:
             conn.execute(delete(app_settings).where(app_settings.c.key == "schema_version"))
             conn.execute(insert(app_settings).values(key="schema_version", value=SCHEMA_VERSION))

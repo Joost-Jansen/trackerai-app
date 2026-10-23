@@ -314,7 +314,8 @@ SKIN_TOOLS = [
     {
         "name": "add_skin_entry",
         "description": "Voeg toe aan het huiddagboek van een dag (standaard vandaag). Wat je weglaat blijft zoals het was; lijsten (producten, eten, "
-        "locaties, sport) worden aangevuld en een opmerking komt onder de vorige. Schalen 0-10: jeuk, roodheid, eigen slaapcijfer, stress. "
+        "locaties, sport) worden aangevuld en een opmerking komt onder de vorige. Schalen 0-10: jeuk, roodheid, eigen slaapcijfer, stress; "
+        "droog/vet van -5 (heel droog) via 0 (normaal) tot +5 (heel vet). "
         "Gebruik de woorden van de gebruiker voor producten en eten (bv. 'witte chocolade', 'alcohol').",
         "inputSchema": {
             "type": "object",
@@ -322,6 +323,12 @@ SKIN_TOOLS = [
                 "day": _str("YYYY-MM-DD, standaard vandaag"),
                 "itch": {"type": "integer", "minimum": 0, "maximum": 10, "description": "jeuk 0-10"},
                 "redness": {"type": "integer", "minimum": 0, "maximum": 10, "description": "roodheid 0-10"},
+                "oiliness": {
+                    "type": "integer",
+                    "minimum": skin.OILINESS[0],
+                    "maximum": skin.OILINESS[1],
+                    "description": "droog of vet: -5 heel droog, 0 normaal, +5 heel vet",
+                },
                 "bumps": {"type": "integer", "minimum": 0, "description": "aantal bultjes/puistjes"},
                 "burning": {"type": "boolean", "description": "branderig of strak gevoel"},
                 "locations": {
@@ -601,10 +608,12 @@ class Server:
         parts = [f"# Huiddagboek {start.isoformat()} t/m {end.isoformat()}", skin.entries_md(entries, s.wellness)]
         if weeks:
             parts.append(
-                "## Per week\n\n| Week | Dagen | Jeuk | Roodheid | Bultjes | Slaap (u) | Trainingen | Belasting |\n|---|---|---|---|---|---|---|---|"
+                "## Per week\n\n| Week | Dagen | Jeuk | Roodheid | Droog/vet | Bultjes | Slaap (u) | Trainingen | Belasting |"
+                "\n|---|---|---|---|---|---|---|---|---|"
             )
             parts[-1] += "".join(
                 f"\n| {w['week']} | {w['days']} | {w['itch'] if w['itch'] is not None else '-'} | {w['redness'] if w['redness'] is not None else '-'} | "
+                f"{w['oiliness'] if w['oiliness'] is not None else '-'} | "
                 f"{w['bumps'] if w['bumps'] is not None else '-'} | {w['sleep_h'] if w['sleep_h'] is not None else '-'} | {w['sessions']} | {w['load']} |"
                 for w in weeks
             )

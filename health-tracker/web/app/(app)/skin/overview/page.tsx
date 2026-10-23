@@ -64,6 +64,8 @@ function Overview() {
       const x = v(w);
       return x == null ? [] : [{ d: w.start, v: x }];
     });
+  // Dry below zero, oily above: the sign says which.
+  const signed = (v: number | null) => (v == null ? f.num(v, 1) : `${v > 0 ? "+" : ""}${f.num(v, 1)}`);
   const side = (s: Comparison["with"]) => o.side(f.num(s.redness, 1), s.days);
   const label = (c: Comparison) => (c.kind === "short_sleep" ? o.shortSleep : c.kind === "training" ? o.training : o.foodTag(c.label));
 
@@ -121,6 +123,7 @@ function Overview() {
                       <th className="num">{o.days}</th>
                       <th className="num">{t.itch}</th>
                       <th className="num">{t.redness}</th>
+                      <th className="num">{o.oiliness}</th>
                       <th className="num">{o.bumps}</th>
                       <th className="num">{o.flakingDays}</th>
                       <th className="num">{o.sleepH}</th>
@@ -134,6 +137,7 @@ function Overview() {
                         <td className="num">{w.days}</td>
                         <td className="num">{f.num(w.itch, 1)}</td>
                         <td className="num">{f.num(w.redness, 1)}</td>
+                        <td className="num">{signed(w.oiliness)}</td>
                         <td className="num">{f.num(w.bumps, 1)}</td>
                         <td className="num">{w.flaking_days}</td>
                         <td className="num">{f.num(w.sleep_h, 1)}</td>
