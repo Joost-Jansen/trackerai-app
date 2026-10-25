@@ -382,6 +382,7 @@ Garmin is never called in tests: the sync takes an injectable client and FIT rea
 The site is an MCP server at `/api/mcp` (streamable HTTP, stateless, JSON responses). Create a token under
 Settings, Agents; it is shown once. Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `get_plan`,
 `create_plan`, `replace_plan_sessions`, `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, `list_gear`,
+`set_activity_gear` (gear per activity, none, or automatic again), `add_gear`, `update_gear` (also to retire it), `delete_gear`,
 with Nutrition on also `get_nutrition`, `log_meal` and `search_foods` (and a Nutrition section in `get_context` and `get_day`), and
 `sync_now` (fetches new data from Garmin and Wahoo, as the button on the site does, so your agent works with today's data).
 

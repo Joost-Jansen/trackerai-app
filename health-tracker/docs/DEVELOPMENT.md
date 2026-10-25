@@ -252,7 +252,8 @@ and real data never share the cache.
 `Authorization: Bearer <agent token>`, or `POST /api/mcp/<agent token>` for clients that cannot send headers. Tokens
 only (no session cookie); 20 failed tokens per IP in 15 minutes; the path token is masked in the logs.
 Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `get_plan`, `create_plan` and `replace_plan_sessions`
-(markdown/CSV table, `preview`), `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, `list_gear`, `sync_now`
+(markdown/CSV table, `preview`), `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, `list_gear`, `set_activity_gear`, `add_gear`,
+`update_gear`, `delete_gear` (api/gear.py, the same checks as the site), `sync_now`
 (the site's sync from api/sync_runner.py, waits up to `SYNC_WAIT_S` and then reports; a longer sync runs on). MCP calls are
 answered in a threadpool, so a waiting sync never blocks the server. With the beta `nutrition`: `get_nutrition` (a day or a
 range as markdown, with targets and coverage), `log_meal` (a table of foods and grams, `preview`; api/nutrition_agent.py) and

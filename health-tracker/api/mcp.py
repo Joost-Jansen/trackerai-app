@@ -21,6 +21,7 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 from api import betas, nutrition_agent
+from api import gear as gear_api
 from api.daily import as_markdown as day_md
 from api.daily import day_view
 from api.dashboard import build_dashboard, max_by_sport, resting_hr, today_form_pct, today_tsb
@@ -107,7 +108,7 @@ TOOLS = [
     },
     {
         "name": "list_activities",
-        "description": "Activiteiten, nieuwste eerst, als tabel met id, datum, sport, afstand, tijd, tempo, gemiddelde hartslag en tijd per zone.",
+        "description": "Activiteiten, nieuwste eerst, als tabel met id, datum, sport, afstand, tijd, tempo, gemiddelde hartslag, tijd per zone en (als er materiaal is) het materiaal.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -137,6 +138,75 @@ TOOLS = [
         "name": "list_gear",
         "description": "Materiaal (schoenen, fiets, ...): kilometers, limiet om te vervangen, status (ok, soon = bijna, replace = vervangen, retired = buiten gebruik), laatst gebruikt, km laatste 30 dagen en voor welke sport het de standaard is. Uit Garmin of zelf toegevoegd.",
         "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "set_activity_gear",
+        "description": "Zet het materiaal (schoenen, fiets) van een of meer activiteiten: gear_ids is je keuze en gaat boven Garmin en de standaard, "
+        "[] = geen materiaal, automatic=true = weer automatisch (wat Garmin zegt, anders de standaard van de sport). De km verhuizen mee. "
+        "Ids van activiteiten uit list_activities, van materiaal uit list_gear.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "activity_ids": {"type": "array", "items": {"type": "string"}, "description": "een of meer activity ids"},
+                "gear_ids": {"type": "array", "items": {"type": "integer"}, "description": "materiaal-ids; [] = geen"},
+                "automatic": {"type": "boolean", "default": False},
+            },
+            "required": ["activity_ids"],
+        },
+    },
+    {
+        "name": "add_gear",
+        "description": "Voeg materiaal toe (nieuwe schoenen, een fiets), eventueel meteen als standaard voor een sport. Geeft het id.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": _str("naam, bv. Pegasus 41 (2)"),
+                "kind": {"type": "string", "enum": ["shoes", "bike", "other"], "description": "shoes, bike of other"},
+                "brand": _str("merk"),
+                "model": _str("model"),
+                "start_km": {"type": "number", "description": "km die er al op zaten voordat het hier geteld werd"},
+                "max_km": {"type": "number", "description": "vervangen bij, standaard 700 km voor schoenen"},
+                "since": _str("in gebruik vanaf YYYY-MM-DD: als standaard telt het pas vanaf die dag"),
+                "default_for": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "sporten (run, trail_running, ride, ...) waarvoor dit de standaard wordt; vervangt de vorige lijst, [] = nergens standaard",
+                },
+                "notes": _str("notitie"),
+            },
+            "required": ["name", "kind"],
+        },
+    },
+    {
+        "name": "update_gear",
+        "description": "Wijzig materiaal: naam, limiet, km vooraf, standaard voor welke sporten, of zet het buiten gebruik (retired_on; leeg = weer in gebruik). "
+        "Alleen de velden die je meestuurt veranderen.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer"},
+                "name": _str("naam, bv. Pegasus 41 (2)"),
+                "kind": {"type": "string", "enum": ["shoes", "bike", "other"], "description": "shoes, bike of other"},
+                "brand": _str("merk"),
+                "model": _str("model"),
+                "start_km": {"type": "number", "description": "km die er al op zaten voordat het hier geteld werd"},
+                "max_km": {"type": "number", "description": "vervangen bij, standaard 700 km voor schoenen"},
+                "since": _str("in gebruik vanaf YYYY-MM-DD: als standaard telt het pas vanaf die dag"),
+                "default_for": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "sporten (run, trail_running, ride, ...) waarvoor dit de standaard wordt; vervangt de vorige lijst, [] = nergens standaard",
+                },
+                "notes": _str("notitie"),
+                "retired_on": _str("buiten gebruik vanaf YYYY-MM-DD; lege string = weer in gebruik"),
+            },
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "delete_gear",
+        "description": "Verwijder zelf toegevoegd materiaal; de activiteiten verliezen het. Materiaal uit Garmin komt bij de volgende sync terug: zet dat buiten gebruik met update_gear.",
+        "inputSchema": {"type": "object", "properties": {"id": {"type": "integer"}}, "required": ["id"]},
     },
     {
         "name": "get_trends",
@@ -263,6 +333,10 @@ WRITE_NAMES = {
     "sync_now",
     "log_meal",
     "add_skin_entry",
+    "set_activity_gear",
+    "add_gear",
+    "update_gear",
+    "delete_gear",
 }
 
 MEAL_TABLE_HELP = (
@@ -462,13 +536,16 @@ def _zones(z: dict | None) -> str:
     return " ".join(f"{k} {round(v / total * 100)}%" for k, v in z.items() if v) if total else "-"
 
 
-def activities_md(items: list[dict]) -> str:
-    lines = ["| Id | Datum | Sport | Naam | km | Tijd | Tempo | HR | Zones |", "|---|---|---|---|---|---|---|---|---|"]
+def activities_md(items: list[dict], gear: dict[str, list[str]] | None = None) -> str:
+    """`gear`: activity id -> the names of the gear it used (a column of its own when given)."""
+    head = "| Id | Datum | Sport | Naam | km | Tijd | Tempo | HR | Zones |"
+    lines = [head + " Materiaal |" if gear is not None else head, "|---" * (10 if gear is not None else 9) + "|"]
     for a in items:
-        lines.append(
+        line = (
             f"| {a['id']} | {a['start_local'][:16].replace('T', ' ')} | {a['sport']} | {a.get('name') or ''} | {a.get('distance_km') or ('GPS?' if a.get('distance_doubtful') else '-')} | "
             f"{_clock(a.get('moving_time_s'))} | {_pace(a)} | {a.get('avg_hr') or '-'} | {_zones(a.get('hr_zones_s'))} |"
         )
+        lines.append(line + f" {', '.join(gear.get(a['id'], [])) or '-'} |" if gear is not None else line)
     return "\n".join(lines)
 
 
@@ -509,7 +586,7 @@ GEAR_STATE_NL = {"ok": "ok", "soon": "bijna vervangen", "replace": "vervangen", 
 
 def gear_md(items: list[dict]) -> str:
     if not items:
-        return "Geen materiaal. Garmin-materiaal komt mee met de sync; zelf toevoegen kan op de site onder Historie, Materiaal."
+        return "Geen materiaal. Garmin-materiaal komt mee met de sync; zelf toevoegen kan met add_gear of op de site onder Historie, Materiaal."
     out = [
         "| Id | Naam | Soort | km | Limiet | Status | Laatst | km 30 d | Standaard voor | Bron |",
         "|---|---|---|---|---|---|---|---|---|---|",
@@ -575,6 +652,46 @@ class Server:
         if not plan:
             raise ToolError("Geen actief schema" if not plan_id else f"Schema {plan_id} bestaat niet")
         return plan
+
+    def _gear(self, name: str, args: dict) -> str:
+        if name == "set_activity_gear":
+            ids = args.get("activity_ids") or ([args["activity_id"]] if args.get("activity_id") else [])
+            if not ids:
+                raise ToolError("geef activity_ids")
+            if args.get("automatic"):
+                choice = None
+            elif "gear_ids" in args and isinstance(args["gear_ids"], list):
+                choice = [int(g) for g in args["gear_ids"]]
+            else:
+                raise ToolError("geef gear_ids ([] = geen materiaal) of automatic=true")
+            known = {a["id"] for a in self.store.activities}
+            missing = [str(a) for a in ids if str(a) not in known]
+            if missing:  # checked first, so a wrong id changes nothing
+                raise ToolError(f"Activiteit {', '.join(missing)} niet gevonden; gebruik list_activities voor de ids.")
+            lines = []
+            for aid in dict.fromkeys(str(a) for a in ids):
+                used = gear_api.choose_gear(self.user, aid, choice)
+                lines.append(
+                    f"- {aid}: {', '.join(g['name'] for g in used) or 'geen materiaal'}" + (" (automatisch)" if choice is None else "")
+                )
+            return "Materiaal gezet:\n" + "\n".join(lines)
+        fields = {k: args[k] for k in db.GEAR_FIELDS if k in args}
+        if name == "update_gear" and fields.get("retired_on") == "":
+            fields["retired_on"] = None
+        default_for = args.get("default_for") if isinstance(args.get("default_for"), list) else None
+        today = self.today()
+        if name == "add_gear":
+            gid = gear_api.add_gear(self.user, fields, default_for)
+        elif name == "update_gear":
+            gid = int(args["id"])
+            gear_api.change_gear(self.user, gid, fields, default_for)
+        else:
+            gid = int(args["id"])
+            g = db.get_gear(self.engine, gid)
+            gear_api.remove_gear(self.user, gid)
+            return f"Materiaal {gid} ({g['name']}) verwijderd."
+        g = next(x for x in gear_overview(self.engine, self.store.activities, today)["gear"] if x["id"] == gid)
+        return f"{'Toegevoegd' if name == 'add_gear' else 'Bijgewerkt'}:\n\n" + gear_md([g])
 
     def _full(self, plan: dict | None) -> dict | None:
         return enrich(plan, self.store.activities, self.store.routes, self.today()) if plan else None
@@ -789,7 +906,14 @@ class Server:
             return "\n".join(parts)
         if name == "list_activities":
             items = list_activities(s.activities, args.get("sport"), args.get("from"), args.get("to"))[: int(args.get("limit") or 30)]
-            return activities_md(items) if items else "Geen activiteiten gevonden."
+            if not items:
+                return "Geen activiteiten gevonden."
+            links, names = db.gear_links(self.engine), {g["id"]: g["name"] for g in db.list_gear(self.engine)}
+            used: dict[str, list[str]] = {}
+            for link in links:
+                if link["gear_id"] in names:
+                    used.setdefault(link["activity_id"], []).append(names[link["gear_id"]])
+            return activities_md(items, used if names else None)
         if name == "get_activity":
             a = activity_detail(str(args.get("id", "")), s.activities, s.streams, s.zones, s.routes)
             if a is None:
@@ -798,6 +922,11 @@ class Server:
             return activity_md(a) + (f"\nMateriaal: {', '.join(g['name'] for g in used)}" if used else "")
         if name == "list_gear":
             return gear_md(gear_overview(self.engine, s.activities, today)["gear"])
+        if name in ("set_activity_gear", "add_gear", "update_gear", "delete_gear"):
+            try:
+                return self._gear(name, args)
+            except ApiError as e:
+                raise ToolError(e.detail) from None
         if name == "get_day":
             try:
                 day = date.fromisoformat(args["day"]) if args.get("day") else None
