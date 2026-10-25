@@ -67,7 +67,7 @@ MONTHS = {
     "nov": 11,
     "dec": 12,
 }
-STATUSES = ("active", "finished", "stopped")
+STATUSES = ("draft", "active", "finished", "stopped")
 
 
 # --- parsing ------------------------------------------------------------------------------
@@ -431,6 +431,43 @@ def enrich(plan: dict, activities: list[dict], routes: list[dict], today: date) 
     return {**plan, "sessions": sessions, "weeks": weekly_summary(sessions, activities)}
 
 
+def plan_summary(sessions: list[dict]) -> dict:
+    """What a plan asked and what was done, from its matched sessions (`match_sessions`): the period, the training
+    sessions (rest days left out) done, missed and still to come, and the km planned against the km of the sessions
+    done. `complete`: every session that is due was done, and there was at least one."""
+    train = [s for s in sessions if s["sport"] != "rest"]
+    days = sorted(s["date"] for s in sessions)
+    done = [s for s in train if s.get("status") == "done"]
+    missed = sum(1 for s in train if s.get("status") == "missed")
+    return {
+        "start": days[0] if days else None,
+        "end": days[-1] if days else None,
+        "planned": len(train),
+        "done": len(done),
+        "missed": missed,
+        "open": len(train) - len(done) - missed,
+        "planned_km": round(sum(s.get("distance_km") or 0 for s in train), 1),
+        "done_km": round(sum((s.get("done") or {}).get("distance_km") or 0 for s in done), 1),
+        "complete": bool(done) and missed == 0 and len(done) == len(train),
+    }
+
+
+def plan_achievement(plan: dict, summary: dict) -> dict:
+    """A finished plan as an item in the achievements timeline (dated on its last session)."""
+    return {
+        "source": "plan",
+        "id": f"plan-{plan['id']}",
+        "plan_id": plan["id"],
+        "day": summary["end"] or plan["created_at"][:10],
+        "title": plan["title"],
+        "body": plan.get("goal"),
+        "kind": "plan",
+        "sport": None,
+        "author": plan["author"],
+        "summary": summary,
+    }
+
+
 # --- API ----------------------------------------------------------------------------------
 
 
@@ -452,6 +489,8 @@ class PlanIn(BaseModel):
     race: str | None = Field(None, max_length=200)
     notes: str | None = Field(None, max_length=50_000)
     sessions: list[SessionIn] = Field([], max_length=2000)
+    # "draft": saved next to the active plan instead of replacing it.
+    status: str = "active"
 
 
 class PlanPatch(BaseModel):
@@ -460,6 +499,15 @@ class PlanPatch(BaseModel):
     race: str | None = Field(None, max_length=200)
     notes: str | None = Field(None, max_length=50_000)
     status: str | None = None
+
+
+class AchievementIn(BaseModel):
+    day: str = Field(max_length=10)
+    title: str = Field(min_length=1, max_length=200)
+    body: str | None = Field(None, max_length=5000)
+    kind: str = "milestone"
+    sport: str | None = Field(None, max_length=40)
+    plan_id: int | None = None
 
 
 class LinkIn(BaseModel):
@@ -474,6 +522,13 @@ class ImportIn(BaseModel):
     goal: str | None = Field(None, max_length=5000)
     race: str | None = Field(None, max_length=200)
     preview: bool = False
+    status: str = "active"
+
+
+def _check_new_status(status: str) -> str:
+    if status not in ("active", "draft"):
+        raise ApiError(422, "invalid_plan_status", options=["active", "draft"])
+    return status
 
 
 def _check_session(s: dict) -> dict:
@@ -499,9 +554,44 @@ def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
             raise ApiError(404, "plan_not_found")
         return plan
 
+    def summarized(u) -> list[dict]:
+        """Every plan of the user, newest first, each with its `summary` (plan_summary)."""
+        out = []
+        for p in db.list_plans(u.scope):
+            full_plan = full(u, db.get_plan(u.scope, p["id"]))
+            out.append({**p, "summary": plan_summary(full_plan["sessions"] if full_plan else [])})
+        return out
+
     @r.get("/api/plans")
     def list_plans(u=Depends(current_user)):
-        return {"persistent": True, "plans": db.list_plans(u.scope)}
+        return {"persistent": True, "plans": summarized(u)}
+
+    @r.get("/api/achievements")
+    def list_achievements(u=Depends(current_user)):
+        """The user's own achievements and every finished plan, newest first."""
+        items = [{**a, "source": "manual"} for a in db.list_achievements(u.scope)]
+        items += [plan_achievement(p, p["summary"]) for p in summarized(u) if p["status"] == "finished"]
+        return {"items": sorted(items, key=lambda a: (a["day"], str(a["id"])), reverse=True)}
+
+    @r.post("/api/achievements")
+    def add_achievement(body: AchievementIn, u=Depends(current_user)):
+        try:
+            date.fromisoformat(body.day)
+        except ValueError:
+            raise ApiError(422, "invalid_date", date=body.day)
+        if body.kind not in db.ACHIEVEMENT_KINDS:
+            raise ApiError(422, "invalid_achievement_kind", options=list(db.ACHIEVEMENT_KINDS))
+        if body.plan_id is not None:
+            must(u, body.plan_id)
+        sport = (parse_sport(body.sport) if body.sport not in SPORTS else body.sport) if body.sport else None
+        aid = db.add_achievement(u.scope, body.day, body.title.strip(), u.author, body.kind, body.body, sport, body.plan_id)
+        return next(a for a in db.list_achievements(u.scope) if a["id"] == aid)
+
+    @r.delete("/api/achievements/{achievement_id}")
+    def delete_achievement(achievement_id: int, u=Depends(current_user)):
+        if not db.delete_achievement(u.scope, achievement_id):
+            raise ApiError(404, "achievement_not_found")
+        return {"ok": True}
 
     @r.get("/api/plans/active")
     def active(u=Depends(current_user)):
@@ -513,18 +603,20 @@ def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
 
     @r.post("/api/plans")
     def create(body: PlanIn, u=Depends(current_user)):
+        status = _check_new_status(body.status)
         items = [_check_session(s.model_dump()) for s in body.sessions]
-        pid = db.create_plan(u.scope, body.title, u.author, body.goal, body.race, body.notes)
+        pid = db.create_plan(u.scope, body.title, u.author, body.goal, body.race, body.notes, status=status)
         db.add_sessions(u.scope, pid, items)
         return full(u, db.get_plan(u.scope, pid))
 
     @r.post("/api/plans/import")
     def import_plan(body: ImportIn, u=Depends(current_user)):
+        status = _check_new_status(body.status)
         items, coded = parse_table_coded(body.text, today().year)
         warnings = {"warnings": [warning_text(w) for w in coded], "warning_codes": coded}
         if body.preview or not items:
             return {"sessions": items, **warnings, "saved": False}
-        pid = db.create_plan(u.scope, body.title or f"Schema vanaf {items[0]['date']}", u.author, body.goal, body.race)
+        pid = db.create_plan(u.scope, body.title or f"Schema vanaf {items[0]['date']}", u.author, body.goal, body.race, status=status)
         db.add_sessions(u.scope, pid, items)
         return {"sessions": items, **warnings, "saved": True, "plan": full(u, db.get_plan(u.scope, pid))}
 

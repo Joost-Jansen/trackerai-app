@@ -44,6 +44,7 @@ EXAMPLE_PATHS = (
     "/api/heatmap",
     "/api/trends",
     "/api/plans",
+    "/api/achievements",
     "/api/docs",
     "/api/entries",
     "/api/context",

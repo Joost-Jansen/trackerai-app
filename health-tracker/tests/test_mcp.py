@@ -116,3 +116,27 @@ def test_tokens_made_on_the_site_work_for_api_and_mcp(client):
     assert client.delete(f"/api/agent-tokens/{made['id']}").json() == {"ok": True}
     assert fresh.get("/api/me", headers={"Authorization": f"Bearer {made['token']}"}).status_code == 401
     assert client.delete(f"/api/agent-tokens/{made['id']}").status_code == 404
+
+
+def test_plans_listed_opened_by_id_drafted_and_achievements(client):
+    table = "| Datum | Sport | Km |\n|---|---|---|\n| 2026-09-29 | lopen | 10 |"
+    call(client, "create_plan", title="Marathon", table=table)
+    text, err = call(
+        client, "create_plan", title="Advent", table="| Datum | Sport | Km |\n|---|---|---|\n| 2026-12-01 | lopen | 5 |", draft=True
+    )
+    assert not err and "concept" in text
+    assert "Marathon" in call(client, "get_plan")[0]  # the draft did not replace the active plan
+    listing = call(client, "list_plans")[0]
+    assert "| Advent | concept |" in listing and "| Marathon | actief | 2026-09-29 | 2026-09-29 | 1/1 |" in listing
+    draft_id = int(next(line for line in listing.splitlines() if "Advent" in line).split("|")[1])
+    assert "2026-12-01" in call(client, "get_plan", plan_id=draft_id)[0]
+    assert call(client, "get_plan", plan_id=999)[1] is True
+
+    call(client, "set_plan_status", status="active", plan_id=draft_id)
+    assert "| Marathon | afgerond |" in call(client, "list_plans")[0]
+    text, err = call(client, "add_achievement", title="Adventskalender voltooid", day="2026-12-24", kind="challenge", body="24/24 runs")
+    assert not err and "2026-12-24" in text
+    assert call(client, "add_achievement", title="x", kind="fout")[1] is True
+    out = call(client, "list_achievements")[0]
+    assert out.index("Adventskalender voltooid (challenge)") < out.index("Marathon (schema afgerond")
+    assert "1/1 sessies gedaan, 0 gemist, 10.0 van 10.0 km" in out and "24/24 runs" in out
