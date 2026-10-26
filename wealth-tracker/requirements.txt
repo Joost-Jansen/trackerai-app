@@ -11,7 +11,7 @@
 # Pinned to exact versions for reproducible, reviewable installs (all have
 # wheels for x86-64 and arm64, Python 3.11-3.13). Upgrade deliberately: bump a
 # version here, run the tests (CI does), deploy.
-pandas==3.0.6
+pandas==3.1.0
 openpyxl==3.1.5   # required by pandas to read DeGiro .xlsx exports
 defusedxml==0.7.1 # openpyxl parses the xlsx XML with it when installed (no entity tricks)
 yfinance==1.7.0
