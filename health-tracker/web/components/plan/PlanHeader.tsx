@@ -1,6 +1,6 @@
 "use client";
 
-// Head of the active plan: title and goal, countdown to the race, progress, and the notes as markdown
+// Head of a plan (the active one, or any other from All plans): title and goal, countdown to the race, progress, and the notes as markdown
 // (long notes collapsed with "more").
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -69,6 +69,7 @@ export default function PlanHeader({
   onEdit,
   onNew,
   onFinish,
+  onActivate,
 }: {
   plan: Plan;
   race: { name: string; date: string | null };
@@ -76,8 +77,11 @@ export default function PlanHeader({
   weekIndex: number | null;
   weekCount: number;
   onEdit: () => void;
-  onNew: () => void;
-  onFinish: () => void;
+  /** Only for the active plan: "New plan" and "Finish". */
+  onNew?: () => void;
+  onFinish?: () => void;
+  /** Only for a plan that is not active: make it the active one. */
+  onActivate?: () => void;
 }) {
   const t = useT();
   const h = t.plan.header;
@@ -92,7 +96,8 @@ export default function PlanHeader({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between">
         <div className="min-w-0">
           <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
-            {h.active} · {weekIndex != null ? h.weekOf(weekIndex + 1, weekCount) : h.weeks(weekCount)}
+            {plan.status === "active" ? h.active : t.plans.statuses[plan.status]} ·{" "}
+            {weekIndex != null ? h.weekOf(weekIndex + 1, weekCount) : h.weeks(weekCount)}
           </span>
           <h1 className="mt-1 font-display text-[28px] font-light leading-tight sm:text-[32px]">{plan.title}</h1>
           {plan.goal && (
@@ -141,13 +146,22 @@ export default function PlanHeader({
         <Button size="sm" onClick={onEdit}>
           {t.common.edit}
         </Button>
-        <Button size="sm" variant="ghost" onClick={onNew}>
-          {h.newPlan}
-        </Button>
+        {onNew && (
+          <Button size="sm" variant="ghost" onClick={onNew}>
+            {h.newPlan}
+          </Button>
+        )}
         <span className="flex-1" />
-        <Button size="sm" variant="ghost" onClick={onFinish}>
-          {h.finish}
-        </Button>
+        {onFinish && (
+          <Button size="sm" variant="ghost" onClick={onFinish}>
+            {h.finish}
+          </Button>
+        )}
+        {onActivate && (
+          <Button size="sm" variant="primary" onClick={onActivate}>
+            {t.plans.activate}
+          </Button>
+        )}
       </div>
     </section>
   );

@@ -28,7 +28,7 @@ from api.errors import ApiError
 from api.gear import gear_of
 from api.gear import overview as gear_overview
 from api.history import activity_detail, list_activities
-from api.plans import enrich, parse_table
+from api.plans import enrich, parse_table, plan_achievement, plan_summary
 from api.readiness import as_text as readiness_text
 from api.readiness import readiness
 from api.routes_api import suggest
@@ -84,7 +84,14 @@ SESSION_TABLE_HELP = (
 
 
 # Codes in the data are English; the text for the agent is Dutch (see INSTRUCTIONS).
-PLAN_STATUS_NL = {"active": "actief", "finished": "afgerond", "stopped": "gestopt"}
+PLAN_STATUS_NL = {"draft": "concept", "active": "actief", "finished": "afgerond", "stopped": "gestopt"}
+ACHIEVEMENT_KIND_NL = {
+    "challenge": "challenge",
+    "race": "wedstrijd",
+    "record": "record",
+    "milestone": "mijlpaal",
+    "plan": "schema afgerond",
+}
 SESSION_STATUS_NL = {"done": "gedaan", "missed": "gemist", "today": "vandaag", "planned": "gepland", "rest": "rust"}
 FORM_STATUS_NL = {
     "transition": "overgang (fitheid zakt weg)",
@@ -144,13 +151,18 @@ TOOLS = [
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
-        "name": "get_plan",
-        "description": "Het actieve trainingsschema als tabel, per sessie met status (gedaan, gemist, vandaag, gepland, rust), wat er gedaan is en een voorgesteld rondje. Een activiteit tot 2 dagen voor of na een open sessie van dezelfde sport telt voor die sessie; Gedaan km per week telt alle activiteiten van de sporten in het schema.",
+        "name": "list_plans",
+        "description": "Alle trainingsschema's, nieuwste eerst: id, titel, status (concept, actief, afgerond, gestopt), periode, sessies gedaan/gemist/gepland en km gedaan/gepland. Open er een met get_plan(plan_id).",
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
+        "name": "get_plan",
+        "description": "Een trainingsschema als tabel (standaard het actieve, of plan_id uit list_plans), per sessie met status (gedaan, gemist, vandaag, gepland, rust), wat er gedaan is en een voorgesteld rondje. Een activiteit tot 2 dagen voor of na een open sessie van dezelfde sport telt voor die sessie; Gedaan km per week telt alle activiteiten van de sporten in het schema.",
+        "inputSchema": {"type": "object", "properties": {"plan_id": {"type": "integer"}}},
+    },
+    {
         "name": "create_plan",
-        "description": "Nieuw trainingsschema uit een tabel. Wordt het actieve schema; het vorige gaat naar afgerond. Gebruik preview=true om eerst te zien hoe de tabel gelezen wordt.",
+        "description": "Nieuw trainingsschema uit een tabel. Wordt het actieve schema en het vorige gaat naar afgerond, tenzij draft=true: dan wordt het een concept naast het actieve schema (later activeren met set_plan_status). Gebruik preview=true om eerst te zien hoe de tabel gelezen wordt.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -159,6 +171,7 @@ TOOLS = [
                 "goal": _str("doel, bv. 10 km onder 50 minuten"),
                 "race": _str("wedstrijd en datum"),
                 "notes": _str("toelichting bij het schema"),
+                "draft": {"type": "boolean", "default": False, "description": "true: concept, het actieve schema blijft actief"},
                 "preview": {"type": "boolean", "default": False},
             },
             "required": ["title", "table"],
@@ -179,18 +192,39 @@ TOOLS = [
     },
     {
         "name": "set_plan_status",
-        "description": "Zet het actieve schema (of plan_id) op afgerond, gestopt of weer actief.",
+        "description": "Zet het actieve schema (of plan_id) op afgerond, gestopt, concept of (weer) actief. Een schema activeren zet het huidige actieve op afgerond.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "status": {
                     "type": "string",
-                    "enum": ["active", "finished", "stopped"],
-                    "description": "active (actief), finished (afgerond) of stopped (gestopt)",
+                    "enum": ["active", "finished", "stopped", "draft"],
+                    "description": "active (actief), finished (afgerond), stopped (gestopt) of draft (concept)",
                 },
                 "plan_id": {"type": "integer"},
             },
             "required": ["status"],
+        },
+    },
+    {
+        "name": "list_achievements",
+        "description": "Behaalde prestaties door de tijd, nieuwste eerst: zelf vastgelegde (challenge, wedstrijd, record, mijlpaal) en elk afgerond schema met sessies en km gedaan tegen gepland.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "add_achievement",
+        "description": "Leg een behaalde prestatie vast, bv. een afgeronde challenge (adventskalender), een wedstrijd of een record. Reken eerst met de data (get_plan, list_activities) en zet de cijfers in body.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "title": _str("korte titel, bv. Adventskalender-challenge voltooid"),
+                "day": _str("YYYY-MM-DD, de dag van de prestatie; standaard vandaag"),
+                "kind": {"type": "string", "enum": ["challenge", "race", "record", "milestone"], "default": "milestone"},
+                "body": _str("markdown: wat, cijfers, bijzonderheden"),
+                "sport": _str("run, ride, swim, ..."),
+                "plan_id": {"type": "integer", "description": "het schema waar het bij hoort"},
+            },
+            "required": ["title"],
         },
     },
     {
@@ -255,6 +289,7 @@ TOOLS = [
 
 WRITE_NAMES = {
     "create_plan",
+    "add_achievement",
     "replace_plan_sessions",
     "set_plan_status",
     "add_log",
@@ -520,6 +555,38 @@ def gear_md(items: list[dict]) -> str:
         for g in items
     ]
     return "\n".join(out)
+
+
+def plans_md(items: list[dict]) -> str:
+    if not items:
+        return "Nog geen schema's."
+    out = [
+        "| Id | Titel | Status | Van | Tot | Sessies gedaan | Gemist | Nog te gaan | Km gedaan / gepland |",
+        "|---|---|---|---|---|---|---|---|---|",
+    ]
+    for p in items:
+        m = p["summary"]
+        out.append(
+            f"| {p['id']} | {p['title']} | {PLAN_STATUS_NL.get(p['status'], p['status'])} | {m['start'] or '-'} | {m['end'] or '-'} | "
+            f"{m['done']}/{m['planned']} | {m['missed']} | {m['open']} | {m['done_km']} / {m['planned_km']} |"
+        )
+    return "\n".join(out)
+
+
+def achievements_md(items: list[dict]) -> str:
+    if not items:
+        return "Nog geen prestaties."
+    out = []
+    for a in items:
+        head = f"## {a['day']}: {a['title']} ({ACHIEVEMENT_KIND_NL.get(a['kind'], a['kind'])}"
+        head += f", schema {a['plan_id']})" if a.get("plan_id") else ")"
+        out.append(head)
+        if a.get("summary"):
+            m = a["summary"]
+            out.append(f"{m['done']}/{m['planned']} sessies gedaan, {m['missed']} gemist, {m['done_km']} van {m['planned_km']} km")
+        if a.get("body"):
+            out.append(a["body"].strip())
+    return "\n\n".join(out)
 
 
 def plan_md(plan: dict | None) -> str:
@@ -819,8 +886,38 @@ class Server:
             t["recovery_daily"] = t.get("recovery_daily", [])[-60:]  # keeps the agent response small
             t["weekly"] = t["weekly"][-26:]
             return json.dumps(t, ensure_ascii=False)
+        if name == "list_plans":
+            return plans_md(
+                [
+                    {**p, "summary": plan_summary(self._full(db.get_plan(self.engine, p["id"]))["sessions"])}
+                    for p in db.list_plans(self.engine)
+                ]
+            )
         if name == "get_plan":
+            if args.get("plan_id"):
+                return plan_md(self._full(self._plan(int(args["plan_id"]))))
             return plan_md(self._full(db.active_plan(self.engine)))
+        if name == "list_achievements":
+            items = [{**a, "source": "manual"} for a in db.list_achievements(self.engine)]
+            for p in db.list_plans(self.engine):
+                if p["status"] == "finished":
+                    items.append(plan_achievement(p, plan_summary(self._full(db.get_plan(self.engine, p["id"]))["sessions"])))
+            return achievements_md(sorted(items, key=lambda a: (a["day"], str(a["id"])), reverse=True))
+        if name == "add_achievement":
+            day = args.get("day") or today.isoformat()
+            try:
+                date.fromisoformat(day)
+            except ValueError:
+                raise ToolError("day als YYYY-MM-DD")
+            kind = args.get("kind") or "milestone"
+            if kind not in db.ACHIEVEMENT_KINDS:
+                raise ToolError("kind is challenge, race, record of milestone")
+            plan_id = int(args["plan_id"]) if args.get("plan_id") else None
+            if plan_id is not None:
+                self._plan(plan_id)
+            sport = args.get("sport") or None
+            aid = db.add_achievement(self.engine, day, args["title"].strip(), who, kind, args.get("body"), sport, plan_id)
+            return f"Prestatie {aid} vastgelegd voor {day}: {args['title'].strip()}."
         if name in ("create_plan", "replace_plan_sessions"):
             items, warnings = parse_table(args.get("table", ""), today.year)
             note = "".join(f"\nLet op: {w}" for w in warnings)
@@ -841,7 +938,8 @@ class Server:
                     + note
                 )
             if name == "create_plan":
-                pid = db.create_plan(self.engine, args["title"], who, args.get("goal"), args.get("race"), args.get("notes"))
+                status = "draft" if args.get("draft") else "active"
+                pid = db.create_plan(self.engine, args["title"], who, args.get("goal"), args.get("race"), args.get("notes"), status=status)
                 db.add_sessions(self.engine, pid, items)
             else:
                 pid = self._plan(args.get("plan_id"))["id"]
@@ -851,7 +949,7 @@ class Server:
             status = args.get("status")
             status = {nl: code for code, nl in PLAN_STATUS_NL.items()}.get(status, status)  # the Dutch words still work
             if status not in PLAN_STATUS_NL:
-                raise ToolError("status is active, finished of stopped")
+                raise ToolError("status is active, finished, stopped of draft")
             plan = self._plan(args.get("plan_id"))
             if status == "active":
                 for p in db.list_plans(self.engine):
