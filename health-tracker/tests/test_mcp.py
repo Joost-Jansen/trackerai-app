@@ -140,3 +140,38 @@ def test_plans_listed_opened_by_id_drafted_and_achievements(client):
     out = call(client, "list_achievements")[0]
     assert out.index("Adventskalender voltooid (challenge)") < out.index("Marathon (schema afgerond")
     assert "1/1 sessies gedaan, 0 gemist, 10.0 van 10.0 km" in out and "24/24 runs" in out
+
+
+def tool(client, name, args):
+    """As call(), for tools with an argument called `name`."""
+    res = rpc(client, "tools/call", {"name": name, "arguments": args}).json()["result"]
+    return res["content"][0]["text"], res["isError"]
+
+
+def test_gear_added_set_per_run_cleared_retired_and_removed(client):
+    text, err = tool(client, "add_gear", {"name": "Pegasus", "kind": "shoes", "max_km": 600, "default_for": ["run"]})
+    assert not err and "| Pegasus | shoes | 10.0 |" in text  # the default reaches the 10 km run in the fixture
+    pegasus = int(text.splitlines()[-1].split("|")[1])
+    racer = int(tool(client, "add_gear", {"name": "Racer", "kind": "shoes"})[0].splitlines()[-1].split("|")[1])
+    aid = call(client, "list_activities", sport="run")[0].splitlines()[2].split("|")[1].strip()
+    assert "| Pegasus |" in call(client, "list_activities", sport="run")[0]  # the gear column
+
+    text, err = call(client, "set_activity_gear", activity_ids=[aid], gear_ids=[racer])
+    assert not err and f"{aid}: Racer" in text
+    assert "Materiaal: Racer" in call(client, "get_activity", id=aid)[0]
+    assert f"{aid}: geen materiaal" in call(client, "set_activity_gear", activity_ids=[aid], gear_ids=[])[0]
+    assert f"{aid}: Pegasus (automatisch)" in call(client, "set_activity_gear", activity_ids=[aid], automatic=True)[0]
+    # nothing changes on a wrong id
+    assert call(client, "set_activity_gear", activity_ids=[aid, "bestaat-niet"], gear_ids=[racer])[1] is True
+    assert call(client, "set_activity_gear", activity_ids=[aid], gear_ids=[999])[1] is True
+    assert call(client, "set_activity_gear", activity_ids=[aid])[1] is True
+    assert "Materiaal: Pegasus" in call(client, "get_activity", id=aid)[0]
+
+    text, err = tool(client, "update_gear", {"id": pegasus, "retired_on": "2026-09-01", "name": "Pegasus oud"})
+    assert not err and "| Pegasus oud |" in text and "buiten gebruik" in text
+    assert "Materiaal:" not in call(client, "get_activity", id=aid)[0]  # retired before the run: no default any more
+    assert "| ok |" in call(client, "update_gear", id=pegasus, retired_on="")[0]
+    assert call(client, "update_gear", id=pegasus, kind="boot")[1] is True
+    assert "verwijderd" in call(client, "delete_gear", id=racer)[0]
+    assert call(client, "delete_gear", id=racer)[1] is True
+    assert "Racer" not in call(client, "list_gear")[0]

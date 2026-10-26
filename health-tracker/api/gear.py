@@ -127,30 +127,82 @@ def overview(scope, activities: list[dict], today: date) -> dict:
     return {"gear": gear, "defaults": defaults, "sports": sports}
 
 
+# --- the changes, shared by the routes below and the agent (api/mcp.py) -----------------------------------------------
+# `u` is an api.users.User (its scope and its store, whose cache a change invalidates). Wrong input raises ApiError.
+
+
+def _check(fields: dict) -> dict:
+    """The gear fields from a request (only those given), checked and cleaned."""
+    fields = {k: v for k, v in fields.items() if k in db.GEAR_FIELDS}
+    if "kind" in fields and fields["kind"] not in db.GEAR_KINDS:
+        raise ApiError(422, "invalid_choice", options=", ".join(db.GEAR_KINDS))
+    if "name" in fields and not (fields["name"] or "").strip():
+        raise ApiError(422, "gear_name_required")
+    if "name" in fields:
+        fields["name"] = fields["name"].strip()
+    for k in ("since", "retired_on"):
+        if k in fields:
+            fields[k] = _day(fields[k], k)
+    return fields
+
+
+def _apply(u, gid: int, default_for: list[str] | None) -> None:
+    if default_for is not None:
+        defaults = {k: v for k, v in (db.get_setting(u.scope, db.GEAR_DEFAULTS_KEY) or {}).items() if v != gid}
+        for sport in default_for:
+            defaults[str(sport)[:40]] = gid  # one default per sport: this one takes it over
+        db.set_setting(u.scope, db.GEAR_DEFAULTS_KEY, defaults)
+    db.apply_gear_defaults(u.scope)
+    u.store.invalidate()
+
+
+def add_gear(u, fields: dict, default_for: list[str] | None = None) -> int:
+    fields = _check(fields)
+    if not fields.get("name") or not fields.get("kind"):
+        raise ApiError(422, "gear_name_required")
+    gid = db.create_gear(u.scope, **fields)["id"]
+    _apply(u, gid, default_for)
+    return gid
+
+
+def change_gear(u, gid: int, fields: dict, default_for: list[str] | None = None) -> None:
+    """Also to retire it (retired_on) or to make it the default of sports (default_for replaces its sports)."""
+    if not db.update_gear(u.scope, gid, **_check(fields)):
+        raise ApiError(404, "gear_not_found")
+    _apply(u, gid, default_for)
+
+
+def remove_gear(u, gid: int) -> None:
+    """Only gear added here: Garmin's comes back at the next sync, so that is retired instead."""
+    g = db.get_gear(u.scope, gid)
+    if not g:
+        raise ApiError(404, "gear_not_found")
+    if g.get("garmin_uuid"):
+        raise ApiError(409, "garmin_gear")
+    db.delete_gear(u.scope, gid)
+    db.apply_gear_defaults(u.scope)
+    u.store.invalidate()
+
+
+def choose_gear(u, aid: str, gear_ids: list[int] | None) -> list[dict]:
+    """The gear of one activity: a list is the user's choice, [] none, None automatic again (Garmin, else the
+    default). Returns the gear it now counts."""
+    if not any(a["id"] == aid for a in u.store.activities):
+        raise ApiError(404, "activity_not_found")
+    mine = {g["id"] for g in db.list_gear(u.scope)}
+    if gear_ids and any(gid not in mine for gid in gear_ids):
+        raise ApiError(404, "gear_not_found")
+    db.set_activity_gear(u.scope, aid, gear_ids)
+    db.apply_gear_defaults(u.scope)
+    u.store.invalidate()
+    return gear_of(db.gear_links(u.scope), db.list_gear(u.scope), aid)
+
+
 def make_router(current_user: Callable, today: Callable[[], date]) -> APIRouter:
     r = APIRouter()
 
-    def _apply(u, gid: int, body: GearIn) -> None:
-        if body.default_for is not None:
-            defaults = {k: v for k, v in (db.get_setting(u.scope, db.GEAR_DEFAULTS_KEY) or {}).items() if v != gid}
-            for sport in body.default_for:
-                defaults[str(sport)[:40]] = gid  # one default per sport: this one takes it over
-            db.set_setting(u.scope, db.GEAR_DEFAULTS_KEY, defaults)
-        db.apply_gear_defaults(u.scope)
-        u.store.invalidate()
-
     def _fields(body: GearIn) -> dict:
-        fields = body.model_dump(exclude_unset=True, exclude={"default_for"})
-        if "kind" in fields and fields["kind"] not in db.GEAR_KINDS:
-            raise ApiError(422, "invalid_choice", options=", ".join(db.GEAR_KINDS))
-        if "name" in fields and not (fields["name"] or "").strip():
-            raise ApiError(422, "gear_name_required")
-        if "name" in fields:
-            fields["name"] = fields["name"].strip()
-        for k in ("since", "retired_on"):
-            if k in fields:
-                fields[k] = _day(fields[k], k)
-        return fields
+        return body.model_dump(exclude_unset=True, exclude={"default_for"})
 
     @r.get("/api/gear")
     def list_(u=Depends(current_user)):
@@ -158,30 +210,17 @@ def make_router(current_user: Callable, today: Callable[[], date]) -> APIRouter:
 
     @r.post("/api/gear", status_code=201)
     def create(body: GearIn, u=Depends(current_user)):
-        fields = _fields(body)
-        if not fields.get("name") or not fields.get("kind"):
-            raise ApiError(422, "gear_name_required")
-        g = db.create_gear(u.scope, **fields)
-        _apply(u, g["id"], body)
-        return next(x for x in overview(u.scope, u.store.activities, today())["gear"] if x["id"] == g["id"])
+        gid = add_gear(u, _fields(body), body.default_for)
+        return next(x for x in overview(u.scope, u.store.activities, today())["gear"] if x["id"] == gid)
 
     @r.patch("/api/gear/{gid}")
     def change(gid: int, body: GearIn, u=Depends(current_user)):
-        if not db.update_gear(u.scope, gid, **_fields(body)):
-            raise ApiError(404, "gear_not_found")
-        _apply(u, gid, body)
+        change_gear(u, gid, _fields(body), body.default_for)
         return next(x for x in overview(u.scope, u.store.activities, today())["gear"] if x["id"] == gid)
 
     @r.delete("/api/gear/{gid}")
     def remove(gid: int, u=Depends(current_user)):
-        g = db.get_gear(u.scope, gid)
-        if not g:
-            raise ApiError(404, "gear_not_found")
-        if g.get("garmin_uuid"):
-            raise ApiError(409, "garmin_gear")
-        db.delete_gear(u.scope, gid)
-        db.apply_gear_defaults(u.scope)
-        u.store.invalidate()
+        remove_gear(u, gid)
         return {"ok": True}
 
     @r.get("/api/gear/{gid}/activities")
@@ -197,11 +236,6 @@ def make_router(current_user: Callable, today: Callable[[], date]) -> APIRouter:
 
     @r.put("/api/activities/{aid}/gear")
     def choose(aid: str, body: ActivityGearIn, u=Depends(current_user)):
-        if not any(a["id"] == aid for a in u.store.activities):
-            raise ApiError(404, "activity_not_found")
-        db.set_activity_gear(u.scope, aid, body.gear_ids)
-        db.apply_gear_defaults(u.scope)
-        u.store.invalidate()
-        return {"gear": gear_of(db.gear_links(u.scope), db.list_gear(u.scope), aid), "automatic": body.gear_ids is None}
+        return {"gear": choose_gear(u, aid, body.gear_ids), "automatic": body.gear_ids is None}
 
     return r

@@ -385,6 +385,7 @@ The site is an MCP server at `/api/mcp` (streamable HTTP, stateless, JSON respon
 Settings, Agents; it is shown once. Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `list_plans`,
 `get_plan` (the active plan or any `plan_id`), `create_plan` (`draft` keeps the active plan), `replace_plan_sessions`, `set_plan_status`,
 `list_achievements`, `add_achievement`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, `list_gear`,
+`set_activity_gear` (gear per activity, none, or automatic again), `add_gear`, `update_gear` (also to retire it), `delete_gear`,
 with Nutrition on also `get_nutrition`, `log_meal` and `search_foods` (and a Nutrition section in `get_context` and `get_day`), and
 `sync_now` (fetches new data from Garmin and Wahoo, as the button on the site does, so your agent works with today's data).
 

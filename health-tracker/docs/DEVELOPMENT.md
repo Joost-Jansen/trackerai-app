@@ -253,7 +253,8 @@ and real data never share the cache.
 only (no session cookie); 20 failed tokens per IP in 15 minutes; the path token is masked in the logs.
 Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `list_plans`, `get_plan` (active or `plan_id`),
 `create_plan` (`draft`: next to the active plan) and `replace_plan_sessions` (markdown/CSV table, `preview`), `set_plan_status`
-(draft, active, finished, stopped), `list_achievements`, `add_achievement`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, `list_gear`, `sync_now`
+(draft, active, finished, stopped), `list_achievements`, `add_achievement`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, `list_gear`, `set_activity_gear`,
+`add_gear`, `update_gear`, `delete_gear` (api/gear.py, the same checks as the site), `sync_now`
 (the site's sync from api/sync_runner.py, waits up to `SYNC_WAIT_S` and then reports; a longer sync runs on). MCP calls are
 answered in a threadpool, so a waiting sync never blocks the server. With the beta `nutrition`: `get_nutrition` (a day or a
 range as markdown, with targets and coverage), `log_meal` (a table of foods and grams, `preview`; api/nutrition_agent.py) and
