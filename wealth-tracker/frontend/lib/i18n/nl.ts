@@ -462,7 +462,7 @@ export const nl: Record<string, string> = {
   "Costs": "Kosten",
   "Costs (€)": "Kosten (€)",
   "Couldn't save. Try again.": "Opslaan lukte niet. Probeer het opnieuw.",
-  "Count as income and expense. If they are really other people's money or your own account, label them differently.": "Tellen mee als inkomen en uitgave. Zijn het eigenlijk geld van anderen of je eigen rekening, label ze dan anders.",
+  "Both count as spending in the same group: what friends pay you back comes off what you paid for them, so splitting a dinner nets out. If they are really other people's money or your own account, label them differently.": "Tellen allebei als uitgave in dezelfde groep: wat vrienden je terugbetalen gaat af van wat jij voor ze betaalde, zo valt een gedeeld etentje tegen elkaar weg. Is het eigenlijk geld van anderen of je eigen rekening, label het dan anders.",
   "Count {0} as a fixed cost, also in other months": "{0} als vaste last tellen, ook in andere maanden",
   "Counterparties": "Tegenpartijen",
   "Counterparty": "Tegenpartij",

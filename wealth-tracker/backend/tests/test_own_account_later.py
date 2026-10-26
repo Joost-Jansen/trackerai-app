@@ -11,6 +11,8 @@ eleven thousand euros.
 Made-up IBANs and names.
 """
 
+from domain.money import categorization
+
 BUNQ_HEADER = '"Date","Interest Date","Amount","Account","Counterparty","Name","Description"'
 
 SAVINGS = "NL00BUNQ0000000040"
@@ -51,10 +53,10 @@ def _on_counterparty(client) -> dict[str, list[dict]]:
     return off
 
 
-def test_at_first_money_from_an_unknown_account_is_income(client):
+def test_at_first_money_from_an_unknown_account_is_from_friends(client):
     _login(client)
     _upload(client, "savings.csv", SAVINGS_ACCOUNT)
-    assert all(t["type"] == "INCOME" for t in _on_counterparty(client)[PAY])
+    assert all(t["category"] == categorization.FRIENDS[1] for t in _on_counterparty(client)[PAY])
 
 
 def test_after_uploading_that_account_it_is_internal(client):
@@ -70,7 +72,7 @@ def test_a_counterparty_not_known_yet_stays_as_it_was(client):
     _login(client)
     _upload(client, "savings.csv", SAVINGS_ACCOUNT)
     _upload(client, "pay.csv", CURRENT_ACCOUNT)
-    assert _on_counterparty(client)[UNKNOWN_ELSEWHERE][0]["type"] == "INCOME"
+    assert _on_counterparty(client)[UNKNOWN_ELSEWHERE][0]["category"] == categorization.FRIENDS[1]
 
 
 def test_labelling_new_reports_the_coverage_of_everything(client):

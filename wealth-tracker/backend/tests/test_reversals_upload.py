@@ -11,6 +11,8 @@ import io
 
 import pandas as pd
 
+from domain.money import categorization
+
 COLUMNS = [
     "Datum",
     "Tijd",
@@ -87,7 +89,7 @@ def _withdrawal(client) -> dict:
 def test_first_the_bank_then_the_overview(client):
     _login(client)
     _upload_bank(client)
-    assert _withdrawal(client)["type"] == "INCOME"  # no counterpart known yet
+    assert _withdrawal(client)["category"] == categorization.FRIENDS[1]  # no counterpart known yet
     _upload_overview(client)
     assert _withdrawal(client)["type"] == "INTERNAL"
 
