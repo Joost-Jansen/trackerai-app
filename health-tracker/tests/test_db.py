@@ -199,3 +199,16 @@ def test_streams_stored_before_owners_were_kept_stay_with_the_better_source(tmp_
     db.upsert_activity(s, wahoo)
     assert db.load_streams(s, aid)["heartrate"] == [120, 121]
     assert set(db.load_activities(s)[0]["sources"]) == {"garmin", "wahoo_api"}
+
+
+def test_schema_v9_adds_the_achievements_table_to_a_v8_database():
+    from sqlalchemy import inspect, update
+
+    e = db.connect(new_database_url())
+    db.create_schema(e)
+    with e.begin() as c:
+        db.achievements.drop(c)
+        c.execute(update(db.app_settings).where(db.app_settings.c.key == "schema_version").values(value=8))
+    db.create_schema(e)
+    assert "achievements" in inspect(e).get_table_names()
+    assert db.get_app_setting(e, "schema_version") == db.SCHEMA_VERSION == 9

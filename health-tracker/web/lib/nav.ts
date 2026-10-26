@@ -39,7 +39,13 @@ export const NAV: NavGroup[] = [
       },
       { id: "routes", label: "", href: "/routes/", icon: "route" },
       { id: "history", label: "", href: "/history/", icon: "map" },
-      { id: "plan", label: "", href: "/plan/", icon: "clipboard" },
+      {
+        id: "plan",
+        label: "",
+        href: "/plan/",
+        icon: "clipboard",
+        tabs: [tab("activePlan", "/plan/"), tab("plans", "/plan/all/"), tab("achievements", "/plan/achievements/")],
+      },
       {
         id: "nutrition",
         label: "",

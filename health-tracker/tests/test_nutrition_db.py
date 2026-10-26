@@ -38,7 +38,7 @@ def test_schema_v8_adds_the_nutrition_tables_to_a_v7_database(tmp_path):
         c.execute(update(db.app_settings).where(db.app_settings.c.key == "schema_version").values(value=7))
     db.create_schema(e)
     assert {"foods", "meals", "meal_items", "portion_memory"} <= set(inspect(e).get_table_names())
-    assert db.get_app_setting(e, "schema_version") == db.SCHEMA_VERSION == 8
+    assert db.get_app_setting(e, "schema_version") == db.SCHEMA_VERSION
 
 
 def test_the_import_reads_nevos_format_and_is_idempotent(engine):

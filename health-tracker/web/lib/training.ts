@@ -375,7 +375,7 @@ export type Plan = {
   goal?: string | null;
   race?: string | null;
   notes?: string | null;
-  status: "active" | "finished" | "stopped";
+  status: PlanStatus;
   author: string;
   created_at: string;
   sessions: PlanSession[];
@@ -384,7 +384,38 @@ export type Plan = {
   links?: Record<string, string | null>;
 };
 
-export type PlanListItem = Omit<Plan, "sessions" | "weeks" | "links">;
+export type PlanStatus = "draft" | "active" | "finished" | "stopped";
+
+/** What a plan asked and what was done (api/plans.py plan_summary). Rest days are not counted. */
+export type PlanSummary = {
+  start: string | null;
+  end: string | null;
+  planned: number;
+  done: number;
+  missed: number;
+  open: number;
+  planned_km: number;
+  done_km: number;
+  complete: boolean;
+};
+
+export type PlanListItem = Omit<Plan, "sessions" | "weeks" | "links"> & { summary: PlanSummary };
+
+export type AchievementKind = "challenge" | "race" | "record" | "milestone";
+
+/** An item of the achievements timeline: one you recorded (`manual`) or a finished plan (`plan`, with its summary). */
+export type Achievement = {
+  source: "manual" | "plan";
+  id: number | string;
+  day: string;
+  title: string;
+  body?: string | null;
+  kind: AchievementKind | "plan";
+  sport?: string | null;
+  plan_id?: number | null;
+  author: string;
+  summary?: PlanSummary;
+};
 
 // ── Routes (T7) ──────────────────────────────────────────────────────────────
 
