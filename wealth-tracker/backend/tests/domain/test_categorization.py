@@ -350,15 +350,21 @@ def test_the_ported_engine_gives_the_same_answers():
 # ---------------------------------------------------------------------------
 
 
-def test_money_received_counts_as_income_not_as_spending():
-    """In the original these two were EXPENSE.
-
-    Because of that received money counted with a minus sign in the spending
-    total, which could therefore go negative.
+def test_rent_from_housemates_counts_as_income_not_as_spending():
+    """In the original this was EXPENSE: received money counted with a minus sign
+    in the spending total, which could therefore go negative.
     """
     types = {n: t for _g, n, t in categorization.DEFAULT_CATEGORIES}
-    assert types["Ontvangen van vrienden"] == "INCOME"
     assert types["Huur ontvangen huisgenoten"] == "INCOME"
+
+
+def test_money_from_friends_counts_against_money_to_friends():
+    """Both friends categories are spending, so what comes back is deducted from
+    what you advanced in the same group (version 8), like a refund. As income the
+    group's budget only ever saw the outgoing half.
+    """
+    types = {n: t for _g, n, t in categorization.DEFAULT_CATEGORIES}
+    assert {types[n] for n in categorization.FRIENDS} == {"EXPENSE"}
 
 
 def test_every_category_has_a_valid_type():

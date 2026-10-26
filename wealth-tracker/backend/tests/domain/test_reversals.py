@@ -87,8 +87,7 @@ def test_seven_withdrawals_are_seven_pairs(conn, bank, broker):
 def test_a_movement_pairs_with_at_most_one_bank_row(conn, bank, broker):
     _entries(conn, broker, ("2025-11-14", -10000.0))
     _bank(conn, bank, ("2025-11-14", -10000.0, "A. B. VOORBEELD"), ("2025-11-15", -10000.0, "A. B. VOORBEELD"))
-    types = [c[3] for c in _categories(conn)]
-    assert types == ["INTERNAL", "INCOME"]
+    assert [c[2] for c in _categories(conn)] == ["Naar beleggen", categorization.FRIENDS[1]]
 
 
 def test_a_reversed_reservation_is_not_a_withdrawal(conn, bank, broker):
@@ -103,27 +102,27 @@ def test_a_reversed_reservation_is_not_a_withdrawal(conn, bank, broker):
         ("2025-11-19", -15000.0, "A. B. VOORBEELD"),  # in, from elsewhere
         ("2025-11-19", 15000.0, "WILLEKEURIGE NAAM 2"),
     )  # out, to the broker
-    off = {c[1]: c[3] for c in _categories(conn)}
-    assert off == {-15000.0: "INCOME", 15000.0: "INTERNAL"}
+    off = {c[1]: c[2] for c in _categories(conn)}
+    assert off == {-15000.0: categorization.FRIENDS[1], 15000.0: "Naar beleggen"}
 
 
 def test_too_far_apart_is_not_a_pair(conn, bank, broker):
     _entries(conn, broker, ("2025-11-01", -5000.0))
     _bank(conn, bank, ("2025-11-07", -5000.0, "A. B. VOORBEELD"))
-    assert _categories(conn)[0][3] == "INCOME"
+    assert _categories(conn)[0][2] == categorization.FRIENDS[1]
 
 
 def test_small_amounts_do_not_pair(conn, bank, broker):
     """A €3.90 transaction fee and a €3.90 Tikkie are a coincidence."""
     _entries(conn, broker, ("2025-11-07", -3.90))
     _bank(conn, bank, ("2025-11-08", -3.90, "A. B. VOORBEELD"))
-    assert _categories(conn)[0][3] == "INCOME"
+    assert _categories(conn)[0][2] == categorization.FRIENDS[1]
 
 
 def test_a_manual_row_does_not_pair(conn, bank, broker):
     _entries(conn, broker, ("2025-11-07", -500.0))
     bank_transactions.add_manually(conn, account_id=bank, date="2025-11-07", amount=-500.0, name="A. B. VOORBEELD")
-    assert _categories(conn)[0][3] == "INCOME"
+    assert _categories(conn)[0][2] == categorization.FRIENDS[1]
 
 
 def test_a_category_you_set_yourself_stays(conn, bank, broker):

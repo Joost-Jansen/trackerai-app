@@ -231,7 +231,9 @@ const SPECIAL: { name: string; when: React.ReactNode; totals: string; net_worth:
   {
     name: "Ontvangen van en Betaald aan vrienden",
     when: tr("Tikkies and payments from and to people."),
-    totals: tr("Count as income and expense. If they are really other people's money or your own account, label them differently."),
+    totals: tr(
+      "Both count as spending in the same group: what friends pay you back comes off what you paid for them, so splitting a dinner nets out. If they are really other people's money or your own account, label them differently.",
+    ),
     net_worth: tr("Simply counts."),
   },
   {
