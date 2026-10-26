@@ -120,7 +120,7 @@ The order of certainty, and it stays that way:
 5. **Claude** (optional), only when it is at least 80% sure.
 
 **Versions of the default rules.** `DEFAULT_RULES_VERSION` with `RULES_SINCE`,
-`CATEGORIES_SINCE` and `GROUPS_SINCE`: an existing user gets only what was added
+`CATEGORIES_SINCE`, `GROUPS_SINCE` and `TYPES_SINCE`: an existing user gets only what was added
 on the first `seed()` after an update, once, and then everything is relabelled
 once. What a user threw away, moved or renamed stays as they did it
 (`category_renamed` remembers renames).

@@ -265,3 +265,24 @@ def test_a_fixed_cost_later_in_the_month_is_not_expected_yet(conn, groups, accou
     budget.put(conn, group_name, 350)
     row = next(r for r in budget.overview(conn, present_day=date(2026, 9, 3))["groups"] if r["group_name"] == group_name)
     assert row["expected"] == pytest.approx(30.0)
+
+
+def test_money_from_friends_comes_off_the_friends_budget(conn, account):
+    """Paid to and received from friends are one group, and its budget is net:
+    what you advanced minus what came back. Received money used to count as
+    income, so the group's budget showed only the outgoing half while the
+    transactions behind it showed both.
+    """
+    from domain.money import net_worth
+
+    paid, received = categorization.FRIENDS
+    group_name = next(c["group_name"] for c in categorization.load_categories(conn) if c["name"] == paid)
+    _month_full(conn, account, "2026-01", {paid: 30.0})
+    _expense(conn, account, "2026-01-15", -20.0, received)
+
+    row = next(r for r in budget.overview(conn)["groups"] if r["group_name"] == group_name)
+    assert row["actual"]["2026-01"] == pytest.approx(10.01)
+    assert row["back"]["2026-01"] == pytest.approx(20.0)
+    [month] = net_worth.per_month(conn)
+    assert month["income"] == pytest.approx(0.0), "a Tikkie back is not income"
+    assert month["spending"] == pytest.approx(10.01)

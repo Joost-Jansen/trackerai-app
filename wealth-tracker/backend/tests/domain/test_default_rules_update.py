@@ -211,3 +211,51 @@ def test_a_budget_on_an_old_main_category_moves_along(conn):
     categorization.seed(conn)
     budgets = {r["group_name"]: r["amount"] for r in conn.execute("SELECT * FROM budgets")}
     assert budgets == {"Eten & vrije tijd": 300.0}
+
+
+def _type(conn, name):
+    return next(c["type"] for c in categorization.load_categories(conn) if c["name"] == name)
+
+
+def _from_version_7(conn, received_type="INCOME"):
+    """A user from version 7: money received from friends was still income."""
+    categorization.seed(conn)
+    conn.execute("UPDATE categories SET type = ? WHERE name = ?", (received_type, categorization.FRIENDS[1]))
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('default_rules_version', '7')")
+    conn.commit()
+
+
+def test_money_from_friends_becomes_spending(conn):
+    """From version 7 to 8: received from friends counts against paid to friends."""
+    _from_version_7(conn)
+    categorization.seed(conn)
+    assert _type(conn, categorization.FRIENDS[1]) == "EXPENSE"
+
+
+def test_a_type_you_chose_yourself_stays(conn):
+    _from_version_7(conn, received_type="INTERNAL")
+    categorization.seed(conn)
+    assert _type(conn, categorization.FRIENDS[1]) == "INTERNAL"
+
+
+def test_the_type_change_follows_a_rename(conn):
+    """The app does not let you rename it, but a database may hold an older rename."""
+    _from_version_7(conn)
+    conn.execute("UPDATE categories SET name = 'Terug van vrienden' WHERE name = ?", (categorization.FRIENDS[1],))
+    conn.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES ('category_renamed', ?)",
+        (f'{{"{categorization.FRIENDS[1]}": "Terug van vrienden"}}',),
+    )
+    conn.commit()
+    categorization.seed(conn)
+    assert _type(conn, "Terug van vrienden") == "EXPENSE"
+
+
+def test_the_type_change_happens_once(conn):
+    """Set it back to income after the update, and it stays income."""
+    _from_version_7(conn)
+    categorization.seed(conn)
+    conn.execute("UPDATE categories SET type = 'INCOME' WHERE name = ?", (categorization.FRIENDS[1],))
+    conn.commit()
+    categorization.seed(conn)
+    assert _type(conn, categorization.FRIENDS[1]) == "INCOME"

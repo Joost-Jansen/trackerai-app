@@ -103,12 +103,18 @@ def bars(monkeypatch):
     today = datetime.date.today()
     yesterday = today - datetime.timedelta(days=1)
 
+    def utc(day: datetime.date, hour: int, minute: int) -> str:
+        """A local (Amsterdam) time as the series writes it, in UTC: 09:00 is 07:00 UTC in summer and 08:00 in
+        winter, so a fixed UTC hour would move the open across the planted 08:05 visit twice a year."""
+        local = datetime.datetime.combine(day, datetime.time(hour, minute)).astimezone()
+        return local.astimezone(datetime.UTC).strftime("%Y-%m-%dT%H:%M+00:00")
+
     def _fake_intraday(conn, transactions, prices, positions=None):
         return {
             "points": [
-                {"d": f"{yesterday.isoformat()}T15:25+00:00", "value": 1000.0},
-                {"d": f"{today.isoformat()}T07:00+00:00", "value": 1005.0},
-                {"d": f"{today.isoformat()}T07:05+00:00", "value": 1010.0},
+                {"d": utc(yesterday, 17, 25), "value": 1000.0},
+                {"d": utc(today, 9, 0), "value": 1005.0},
+                {"d": utc(today, 9, 5), "value": 1010.0},
             ],
             "prev_close": 1000.0,
         }

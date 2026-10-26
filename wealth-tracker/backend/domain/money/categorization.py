@@ -257,8 +257,11 @@ DEFAULT_CATEGORIES = [
     ("Shoppen", "Persoonlijke verzorging", "EXPENSE"),
     ("Shoppen", "Cadeaus & goede doelen", "EXPENSE"),
     ("Vrienden & delen", "Betaald aan vrienden", "EXPENSE"),
-    # Likewise.
-    ("Vrienden & delen", "Ontvangen van vrienden", "INCOME"),
+    # Not income, unlike rent from housemates: what friends pay you back is
+    # deducted from what you advanced for them, like a refund. That way the group
+    # and its budget are net, and splitting a dinner nets out. INCOME until
+    # version 8, see TYPES_SINCE.
+    ("Vrienden & delen", "Ontvangen van vrienden", "EXPENSE"),
     ("Intern", "Naar spaarrekening", "INTERNAL"),
     ("Intern", "Naar beleggen", "INTERNAL"),
     ("Intern", "Creditcard aflossing", "INTERNAL"),
@@ -541,7 +544,7 @@ DEFAULT_RULES += _NEW_IN_5
 # Only additions, never changes: a pattern you sharpened yourself must not
 # quietly jump back. Where an existing pattern was broadened, only the new part
 # is here, as a rule of its own.
-DEFAULT_RULES_VERSION = 7
+DEFAULT_RULES_VERSION = 8
 # Categories that later moved to another group, per version: (category, old
 # group, new group). Only when the category is still in that old group: what you
 # moved to another group yourself stays there.
@@ -555,6 +558,14 @@ GROUPS_SINCE = {
         ("Vakantie", "Vrije tijd", "Vakantie"),
     ],
     7: [("Sport & hobby", "Eten & vrije tijd", "Shoppen")],
+}
+# Categories whose default type changed later, per version: (category, old
+# type, new type). Only when the category still has that old type: a type you
+# chose yourself stays.
+TYPES_SINCE = {
+    # Received from friends was income, so the friends budget only saw the money
+    # going out. Now it counts against it.
+    8: [("Ontvangen van vrienden", "INCOME", "EXPENSE")],
 }
 # Categories that were added later, same agreement: once, by name.
 CATEGORIES_SINCE = {
@@ -622,6 +633,8 @@ def _update_default_rules(conn: sqlite3.Connection) -> int:
             conn.execute(
                 "UPDATE categories SET group_name = ? WHERE name = ? AND group_name = ?", (new_group, renamed.get(name, name), old_group)
             )
+        for name, old_type, new_type in TYPES_SINCE.get(v, []):
+            conn.execute("UPDATE categories SET type = ? WHERE name = ? AND type = ?", (new_type, renamed.get(name, name), old_type))
     _budgets_after_move(conn)
     clean_up_rules(conn)
     _set_version(conn, DEFAULT_RULES_VERSION)
