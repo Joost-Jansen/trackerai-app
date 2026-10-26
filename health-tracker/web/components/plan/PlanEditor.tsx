@@ -254,9 +254,12 @@ export default function PlanEditor({
   onSaved,
   onCancel,
   onPaste,
+  draft = false,
 }: {
   /** Empty = new plan. */
   plan?: Plan | null;
+  /** A new plan is saved as a draft next to the active plan instead of replacing it. */
+  draft?: boolean;
   onSaved: () => void;
   onCancel?: () => void;
   /** To "paste from table" (only for a new plan). */
@@ -365,7 +368,14 @@ export default function PlanEditor({
         await api.patch(`/api/plans/${plan.id}`, body);
         await api.put(`/api/plans/${plan.id}/sessions`, sessions);
       } else {
-        await api.post("/api/plans", { ...body, goal: body.goal || null, race: body.race || null, notes: body.notes || null, sessions });
+        await api.post("/api/plans", {
+          ...body,
+          goal: body.goal || null,
+          race: body.race || null,
+          notes: body.notes || null,
+          sessions,
+          status: draft ? "draft" : "active",
+        });
       }
       initial.current = JSON.stringify({ meta, rows: rows.map(({ key, ...r }) => r) });
       onSaved();
@@ -393,7 +403,7 @@ export default function PlanEditor({
         <div>
           <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">{plan ? m.editing : m.newPlan}</span>
           <h1 className="mt-1 font-display text-[28px] font-light leading-tight">{meta.title.trim() || (plan ? plan.title : m.newPlan)}</h1>
-          {!plan && <p className="mt-1 text-[12.5px] text-ink-muted">{m.becomesActive}</p>}
+          {!plan && <p className="mt-1 text-[12.5px] text-ink-muted">{draft ? t.plans.becomesDraft : m.becomesActive}</p>}
         </div>
         {onPaste && (
           <Button size="sm" variant="ghost" onClick={onPaste}>

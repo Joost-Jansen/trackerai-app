@@ -48,7 +48,7 @@ from tools.sports import sport_of
 from tools.store import _rank, activity_id, merge, prepare, same_start, source_distance
 from tools.store import remove_source as _strip_source
 
-SCHEMA_VERSION = 8  # v8: the nutrition tables (new tables only: create_all makes them)
+SCHEMA_VERSION = 9  # v9: achievements (a new table only: create_all makes it)
 meta = MetaData()
 
 # --- global tables -------------------------------------------------------------------------------------------
@@ -184,7 +184,7 @@ plans = Table(
     Column("goal", Text),
     Column("race", String(200)),
     Column("notes", Text),
-    Column("status", String(20), nullable=False),  # active | finished | stopped
+    Column("status", String(20), nullable=False),  # draft | active | finished | stopped
     Column("author", String(40), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
 )
@@ -212,6 +212,22 @@ plan_links = Table(
     Column("activity_id", String(80), nullable=False),
     Column("session_date", String(10)),
     PrimaryKeyConstraint("plan_id", "activity_id"),
+)
+achievements = Table(
+    # What the user achieved and wants to keep: a challenge finished, a race, a record. Finished plans are achievements
+    # too; those are derived from the plans (api/plans.py), not stored here.
+    "achievements",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", Integer, nullable=False, index=True),
+    Column("day", String(10), nullable=False),
+    Column("title", String(200), nullable=False),
+    Column("body", Text),
+    Column("kind", String(20), nullable=False),  # challenge | race | record | milestone
+    Column("sport", String(40)),
+    Column("plan_id", Integer),
+    Column("author", String(40), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
 )
 routes = Table(
     "routes",
@@ -452,6 +468,7 @@ USER_TABLES = (
     entries,
     plan_links,
     plans,
+    achievements,
     routes,
     feedback,
     gear,
@@ -901,6 +918,7 @@ def export_tables(s: Scope):
             entries,
             plans,
             plan_links,
+            achievements,
             routes,
             gear,
             activity_gear,
@@ -1644,13 +1662,24 @@ def list_entries(s: Scope, kind: str | None = None, limit: int = 100) -> list[di
 # --- plans -----------------------------------------------------------------------------------------------------------
 
 
-def create_plan(s: Scope, title: str, author: str, goal: str | None = None, race: str | None = None, notes: str | None = None) -> int:
-    """A new plan becomes the active one; the user's previous active plan is marked finished."""
+def create_plan(
+    s: Scope,
+    title: str,
+    author: str,
+    goal: str | None = None,
+    race: str | None = None,
+    notes: str | None = None,
+    status: str = "active",
+) -> int:
+    """A new plan. An active one replaces the user's previous active plan (marked finished); a draft leaves it alone."""
+    if status not in ("active", "draft"):
+        raise ValueError(f"status {status}")
     with s.engine.begin() as conn:
-        conn.execute(update(plans).where(plans.c.user_id == s.user_id, plans.c.status == "active").values(status="finished"))
+        if status == "active":
+            conn.execute(update(plans).where(plans.c.user_id == s.user_id, plans.c.status == "active").values(status="finished"))
         res = conn.execute(
             insert(plans).values(
-                user_id=s.user_id, title=title, goal=goal, race=race, notes=notes, status="active", author=author, created_at=_now()
+                user_id=s.user_id, title=title, goal=goal, race=race, notes=notes, status=status, author=author, created_at=_now()
             )
         )
         return res.inserted_primary_key[0]
@@ -1733,6 +1762,57 @@ def update_plan(s: Scope, plan_id: int, **fields) -> None:
             conn.execute(update(plans).where(plans.c.user_id == s.user_id, plans.c.status == "active").values(status="finished"))
         if values:
             conn.execute(update(plans).where(plans.c.id == plan_id, plans.c.user_id == s.user_id).values(**values))
+
+
+# --- achievements ------------------------------------------------------------------------------------------------------
+
+ACHIEVEMENT_KINDS = ("challenge", "race", "record", "milestone")
+
+
+def add_achievement(
+    s: Scope,
+    day: str,
+    title: str,
+    author: str,
+    kind: str = "milestone",
+    body: str | None = None,
+    sport: str | None = None,
+    plan_id: int | None = None,
+) -> int:
+    if kind not in ACHIEVEMENT_KINDS:
+        raise ValueError(f"kind {kind}")
+    with s.engine.begin() as conn:
+        if plan_id is not None and not _owns_plan(conn, s, plan_id):
+            raise KeyError(f"plan {plan_id}")
+        res = conn.execute(
+            insert(achievements).values(
+                user_id=s.user_id,
+                day=day,
+                title=title,
+                body=body,
+                kind=kind,
+                sport=sport,
+                plan_id=plan_id,
+                author=author,
+                created_at=_now(),
+            )
+        )
+        return res.inserted_primary_key[0]
+
+
+def list_achievements(s: Scope) -> list[dict]:
+    q = select(achievements).where(achievements.c.user_id == s.user_id).order_by(achievements.c.day.desc(), achievements.c.id.desc())
+    with s.engine.connect() as conn:
+        return [
+            {**{k: v for k, v in r.items() if k != "user_id"}, "created_at": r["created_at"].isoformat()}
+            for r in conn.execute(q).mappings()
+        ]
+
+
+def delete_achievement(s: Scope, achievement_id: int) -> bool:
+    with s.engine.begin() as conn:
+        res = conn.execute(delete(achievements).where(achievements.c.id == achievement_id, achievements.c.user_id == s.user_id))
+        return res.rowcount > 0
 
 
 # --- routes ------------------------------------------------------------------------------------------------------------

@@ -94,7 +94,10 @@ and rides. Each route shows its most typical track, every other run drawn lightl
 
 **Training plan.** Create a plan in the editor, paste a markdown/CSV table, or let an agent write it. Planned
 sessions are matched to what you actually did (done, missed, today, planned), with zone compliance per session, weekly
-planned-versus-done kilometres, a race countdown and a suggested route for every run or ride.
+planned-versus-done kilometres, a race countdown and a suggested route for every run or ride. All plans lists drafts
+(saved next to the active plan, activated when you start), the active plan and every earlier one with what it asked
+against what was done; Achieved keeps what you achieved over time: challenges, races and records you or your agent
+record, and every finished plan.
 
 | | |
 |---|---|
@@ -380,8 +383,9 @@ Garmin is never called in tests: the sync takes an injectable client and FIT rea
 ## Connect your own agent (MCP)
 
 The site is an MCP server at `/api/mcp` (streamable HTTP, stateless, JSON responses). Create a token under
-Settings, Agents; it is shown once. Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `get_plan`,
-`create_plan`, `replace_plan_sessions`, `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, `list_gear`,
+Settings, Agents; it is shown once. Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `list_plans`,
+`get_plan` (the active plan or any `plan_id`), `create_plan` (`draft` keeps the active plan), `replace_plan_sessions`, `set_plan_status`,
+`list_achievements`, `add_achievement`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`, `list_gear`,
 `set_activity_gear` (gear per activity, none, or automatic again), `add_gear`, `update_gear` (also to retire it), `delete_gear`,
 with Nutrition on also `get_nutrition`, `log_meal` and `search_foods` (and a Nutrition section in `get_context` and `get_day`), and
 `sync_now` (fetches new data from Garmin and Wahoo, as the button on the site does, so your agent works with today's data).

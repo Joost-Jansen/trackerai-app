@@ -190,3 +190,26 @@ def test_chosen_route_replaces_the_suggestion():
     assert sessions[0]["route"] == {"id": "r2", "name": "Dijk", "distance_km": 14.2}
     assert "route_suggestion" not in sessions[0]
     assert "route" not in sessions[1] and sessions[1]["route_suggestion"]["parts"] == ["r1"]
+
+
+def test_plan_summary_counts_training_sessions_and_done_km():
+    from api.plans import plan_summary
+
+    sessions = [
+        {"date": "2026-09-28", "sport": "run", "distance_km": 10, "status": "done", "done": {"distance_km": 10.4}},
+        {"date": "2026-09-29", "sport": "rest", "status": "rest"},
+        {"date": "2026-09-30", "sport": "run", "distance_km": 8, "status": "missed"},
+        {"date": "2026-10-02", "sport": "run", "distance_km": 12, "status": "planned"},
+    ]
+    assert plan_summary(sessions) == {
+        "start": "2026-09-28",
+        "end": "2026-10-02",
+        "planned": 3,
+        "done": 1,
+        "missed": 1,
+        "open": 1,
+        "planned_km": 30.0,
+        "done_km": 10.4,
+        "complete": False,
+    }
+    assert plan_summary([])["complete"] is False and plan_summary([])["start"] is None

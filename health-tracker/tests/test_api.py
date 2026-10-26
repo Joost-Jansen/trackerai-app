@@ -215,3 +215,59 @@ def test_trends_uses_the_active_plan_goal_and_reports_the_sync_stop(client, engi
 def test_trends_without_plan_has_no_goal(client):
     login(client)
     assert client.get("/api/trends").json()["goal"] is None
+
+
+def test_a_draft_plan_leaves_the_active_plan_alone_until_activated(client):
+    login(client)
+    active = client.post(
+        "/api/plans", json={"title": "Marathon", "sessions": [{"date": "2026-09-29", "sport": "run", "distance_km": 10}]}
+    ).json()
+    draft = client.post(
+        "/api/plans", json={"title": "Advent", "status": "draft", "sessions": [{"date": "2026-12-01", "sport": "run"}]}
+    ).json()
+    assert draft["status"] == "draft" and client.get("/api/plans/active").json()["plan"]["id"] == active["id"]
+    assert client.post("/api/plans", json={"title": "x", "status": "finished"}).json()["code"] == "invalid_plan_status"
+
+    plans = {p["title"]: p for p in client.get("/api/plans").json()["plans"]}
+    assert plans["Marathon"]["summary"] == {
+        "start": "2026-09-29",
+        "end": "2026-09-29",
+        "planned": 1,
+        "done": 1,
+        "missed": 0,
+        "open": 0,
+        "planned_km": 10.0,
+        "done_km": 10.0,
+        "complete": True,
+    }
+    assert plans["Advent"]["status"] == "draft" and plans["Advent"]["summary"]["open"] == 1
+
+    client.patch(f"/api/plans/{draft['id']}", json={"status": "active"})
+    statuses = {p["title"]: p["status"] for p in client.get("/api/plans").json()["plans"]}
+    assert statuses == {"Marathon": "finished", "Advent": "active"}
+
+
+def test_achievements_are_your_own_plus_every_finished_plan(client):
+    login(client)
+    plan = client.post("/api/plans", json={"title": "Blok", "sessions": [{"date": "2026-09-29", "sport": "run", "distance_km": 10}]}).json()
+    assert client.get("/api/achievements").json() == {"items": []}
+    client.patch(f"/api/plans/{plan['id']}", json={"status": "finished"})
+    added = client.post(
+        "/api/achievements",
+        json={"day": "2026-12-24", "title": "Adventskalender", "kind": "challenge", "sport": "lopen", "plan_id": plan["id"]},
+    ).json()
+    assert added["sport"] == "run" and added["author"] == "alice"
+    items = client.get("/api/achievements").json()["items"]
+    assert [(a["source"], a["title"], a["day"]) for a in items] == [
+        ("manual", "Adventskalender", "2026-12-24"),
+        ("plan", "Blok", "2026-09-29"),
+    ]
+    assert items[1]["summary"]["complete"] is True
+
+    assert client.post("/api/achievements", json={"day": "24-12", "title": "x"}).json()["code"] == "invalid_date"
+    assert (
+        client.post("/api/achievements", json={"day": "2026-12-24", "title": "x", "kind": "x"}).json()["code"] == "invalid_achievement_kind"
+    )
+    assert client.post("/api/achievements", json={"day": "2026-12-24", "title": "x", "plan_id": 999}).json()["code"] == "plan_not_found"
+    assert client.delete(f"/api/achievements/{added['id']}").json() == {"ok": True}
+    assert client.delete(f"/api/achievements/{added['id']}").json()["code"] == "achievement_not_found"
