@@ -416,6 +416,7 @@ export default function ReturnPage() {
             ariaLabel={tr("Portfolio against benchmarks, indexed to 100")}
             dateAxis
             onSelect={setZoom}
+            onReset={zoom ? () => setZoom(null) : undefined}
           />
           {gaps.length > 0 && (
             <p className="max-w-measure text-xs leading-relaxed text-ink-muted">
@@ -465,6 +466,7 @@ export default function ReturnPage() {
             ariaLabel={tr("Rolling return over 3 months")}
             dateAxis
             onSelect={setZoom}
+            onReset={zoom ? () => setZoom(null) : undefined}
           />
         </Section>
       )}

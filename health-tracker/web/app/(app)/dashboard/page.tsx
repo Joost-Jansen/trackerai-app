@@ -74,6 +74,8 @@ export default function DashboardPage() {
   const m = t.dashboard;
   const [period, setPeriod] = useState<"week" | "month">("week");
   const [offset, setOffset] = useState(0);
+  // The form chart: drag across it to zoom in on that stretch, double-click for all of it again.
+  const [formZoom, setFormZoom] = useState<{ from: string; to: string } | null>(null);
   const q = useQuery({ queryKey: ["dashboard"], queryFn: () => api.get<Dashboard>("/api/dashboard") });
   const apple = useOnboarding().data?.status.apple;
   const zq = useQuery({
@@ -96,6 +98,9 @@ export default function DashboardPage() {
   const multiSport = zoneSports.length > 1;
   const volSports = Array.from(new Set([...Object.keys(d.volume.week), ...Object.keys(d.volume.avg4w)])).sort(bySportOrder);
   const form = d.form;
+  const all = form?.series ?? [];
+  const zoomed = formZoom ? all.filter((r) => r.date >= formZoom.from && r.date <= formZoom.to) : all;
+  const formSeries = zoomed.length >= 2 ? zoomed : all;
   const syncDay = /^\d{4}-\d{2}-\d{2}/.test(d.last_sync ?? "") ? d.last_sync.slice(0, 10) : null;
   const syncAge = syncDay ? dayNo(d.today) - dayNo(syncDay) : 0;
   const importAge = apple?.imported_at ? dayNo(d.today) - dayNo(apple.imported_at.slice(0, 10)) : 0;
@@ -226,12 +231,14 @@ export default function DashboardPage() {
                 endLabels={false}
                 height={190}
                 ariaLabel={m.formAria}
+                onSelect={setFormZoom}
+                onReset={formZoom ? () => setFormZoom(null) : undefined}
                 format={(v) => String(Math.round(v))}
                 baseline={0}
                 series={[
-                  { label: m.fitness, colour: "var(--chart-1)", width: 2, points: form.series.map((r) => ({ d: r.date, v: r.ctl })) },
-                  { label: m.fatigue, colour: "var(--chart-3)", points: form.series.map((r) => ({ d: r.date, v: r.atl })) },
-                  { label: m.form, colour: "var(--chart-4)", dash: "dashed", points: form.series.map((r) => ({ d: r.date, v: r.tsb })) },
+                  { label: m.fitness, colour: "var(--chart-1)", width: 2, points: formSeries.map((r) => ({ d: r.date, v: r.ctl })) },
+                  { label: m.fatigue, colour: "var(--chart-3)", points: formSeries.map((r) => ({ d: r.date, v: r.atl })) },
+                  { label: m.form, colour: "var(--chart-4)", dash: "dashed", points: formSeries.map((r) => ({ d: r.date, v: r.tsb })) },
                 ]}
               />
             </div>

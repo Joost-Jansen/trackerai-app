@@ -43,7 +43,7 @@ import type { useTimeline } from "@/components/money/TimelineControls";
 import { Button, Explained, Tabs } from "@/components/ds";
 import { Setting } from "@/components/money/charts/base";
 import { TERMS } from "@/lib/net-worth-terms";
-import { dayNumber, sampleBalances, windowWithBase } from "@/lib/timeline";
+import { dayNumber, sampleBalances, windowWithBase, type DateWindow } from "@/lib/timeline";
 import { dateTicks } from "@/lib/date-ticks";
 import { trueMinus } from "@trackerai/ui/lib/typography";
 import { tr, trx } from "@/lib/i18n";
@@ -107,6 +107,8 @@ function firstBanked(sources: SourcePoint[]): number {
   return i < 0 ? sources.length : i;
 }
 
+const sameWindow = (a: DateWindow, b: DateWindow) => a.from === b.from && a.to === b.to;
+
 /** "Sat 26 Sep 2026": with the weekday, because over a month that is what you place a day by. */
 function fmtLongDay(d: string): string {
   const weekday = WEEKDAY_ABBR[(new Date(`${d}T00:00:00Z`).getUTCDay() + 6) % 7];
@@ -125,6 +127,7 @@ function NetWorthPlot({
   view,
   stepLabel,
   onSelect,
+  onReset,
   sources = null,
   only = null,
 }: {
@@ -141,6 +144,8 @@ function NetWorthPlot({
   stepLabel: string;
   /** Drag across the chart to make that stretch the page's period. */
   onSelect?: (window: { from: string; to: string }) => void;
+  /** Double-click: back to the period from before the dragging. */
+  onReset?: () => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(720);
@@ -420,6 +425,7 @@ function NetWorthPlot({
             // A click is not a selection: it needs two different days.
             if (b > a) onSelect({ from: points[a].d, to: points[b].d });
           }}
+          onDoubleClick={onReset}
         >
           {gridValues.map((v) => (
             <g key={v}>
@@ -667,6 +673,20 @@ export default function NetWorthChart({
     { id: "breakdown", label: tr("Breakdown") },
     { id: "change", label: tr("Change") },
   ];
+  // Dragging over the chart zooms in; a double click goes back to the period from before the first drag. Only
+  // while the period is still the one dragged to: a period picked another way since then is not undone.
+  const [beforeZoom, setBeforeZoom] = useState<{ period: string; window: DateWindow; zoomed: DateWindow } | null>(null);
+  const zoomedIn = beforeZoom && sameWindow(beforeZoom.zoomed, timeline.window) ? beforeZoom : null;
+  const zoom = (w: DateWindow) => {
+    setBeforeZoom({ period: zoomedIn?.period ?? timeline.period, window: zoomedIn?.window ?? timeline.window, zoomed: w });
+    timeline.change(w);
+  };
+  const unzoom = () => {
+    if (!zoomedIn) return;
+    if (zoomedIn.period === "Custom") timeline.change(zoomedIn.window);
+    else timeline.choose(zoomedIn.period);
+    setBeforeZoom(null);
+  };
   const stepLabel = granularity === "day" ? tr("vs the day before") : tr("vs the previous point");
   return (
     <div>
@@ -759,7 +779,7 @@ export default function NetWorthChart({
                   : view === "change"
                     ? tr("Net worth only, with the axis fitted to it: small changes become visible.")
                     : tr("Investments, bank and debt stacked, from zero.")
-              } ${tr("Drag across the chart to show that stretch.")}`}
+              } ${tr("Drag across the chart to show that stretch; double-click to go back.")}`}
             >
               {tr("How to read this")}
             </Explained>
@@ -798,7 +818,8 @@ export default function NetWorthChart({
           points={points}
           view={view}
           stepLabel={stepLabel}
-          onSelect={timeline.change}
+          onSelect={zoom}
+          onReset={zoomedIn ? unzoom : undefined}
           sources={view === "sources" ? sources : null}
           only={only}
         />

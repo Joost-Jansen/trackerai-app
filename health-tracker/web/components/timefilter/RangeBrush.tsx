@@ -28,12 +28,15 @@ export default function RangeBrush({
   last,
   window,
   onChange,
+  onReset,
   points = [],
 }: {
   first: string;
   last: string;
   window: DateWindow;
   onChange: (w: DateWindow) => void;
+  /** Double-click: back to the period that was chosen. */
+  onReset?: () => void;
   /** A series as a silhouette under the bar, for example fitness. */
   points?: DayPoint[];
 }) {
@@ -133,6 +136,7 @@ export default function RangeBrush({
         onPointerMove={move}
         onPointerUp={up}
         onPointerCancel={up}
+        onDoubleClick={onReset}
         role="img"
         aria-label={t.trendsPage.brushAria(fmtWindow(toWindow({ a: Math.round(r.a), b: Math.round(r.b) }), locale))}
       >

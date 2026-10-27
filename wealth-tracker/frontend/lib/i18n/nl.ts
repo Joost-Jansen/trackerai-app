@@ -565,7 +565,7 @@ export const nl: Record<string, string> = {
   "Download these figures as CSV: opens in Excel": "Download deze cijfers als CSV: opent in Excel",
   "Download this file as .xlsx too": "Download ook dit bestand als .xlsx",
   "Download this file too with the download icon": "Download ook dit bestand met het download-icoon",
-  "Drag across the chart to show that stretch.": "Sleep over de grafiek om dat stuk te tonen.",
+  "Drag across the chart to show that stretch; double-click to go back.": "Sleep over de grafiek om dat stuk te tonen; dubbelklik om terug te gaan.",
   "Drag the Account statement file to the Account statement box": "Sleep het Rekeningoverzicht-bestand naar het vak Rekeningoverzicht",
   "Drag the Transactions file to the Transactions box": "Sleep het Transacties-bestand naar het vak Transacties",
   "Dutch dividend tax is a prepayment: you can offset it in your income tax return.{0}{1}Foreign withholding tax works differently and can often only be partly reclaimed. This overview doesn't make that distinction: it shows what DeGiro withheld.": "Nederlandse dividendbelasting is een voorheffing: je kunt hem in je aangifte inkomstenbelasting verrekenen.{0}{1}Buitenlandse bronbelasting werkt anders en is vaak maar deels terug te vragen. Dit overzicht maakt dat onderscheid niet: het toont wat DeGiro heeft ingehouden.",

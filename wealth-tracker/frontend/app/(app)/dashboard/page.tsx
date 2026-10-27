@@ -443,6 +443,7 @@ export default function DashboardPage() {
                   baseline={intradayPoints !== null ? (intradayQ.data?.prev_close ?? null) : null}
                   onProbe={setProbe}
                   onSelect={setZoom}
+                  onReset={zoom ? () => setZoom(null) : undefined}
                 />
                 {/* Which part of the line is filled in. Often empty, and often harmless when it
                     isn't — a fund from last month has no history from 2019 — but a replaced

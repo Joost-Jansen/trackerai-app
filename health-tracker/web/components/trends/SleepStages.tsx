@@ -65,7 +65,19 @@ function group(nights: SleepNight[], p: Period, today: string): Bar[] {
   });
 }
 
-export default function SleepStages({ nights, window: win }: { nights: SleepNight[]; window?: { from: string; to: string } }) {
+export default function SleepStages({
+  nights,
+  window: win,
+  onWindow,
+  onReset,
+}: {
+  nights: SleepNight[];
+  window?: { from: string; to: string };
+  /** Drag across the chart: that stretch becomes the page's window. */
+  onWindow?: (w: { from: string; to: string }) => void;
+  /** Double-click: the page's window back to its period. */
+  onReset?: () => void;
+}) {
   const t = useT();
   const f = useFormat();
   const S = t.texts.trends.sleepStages;
@@ -201,6 +213,8 @@ export default function SleepStages({ nights, window: win }: { nights: SleepNigh
               </div>
               {/* Each goal in its stage's colour with its own dash and its name on the line, so the two are told apart. */}
               <LineChart
+                onSelect={onWindow}
+                onReset={onReset}
                 height={200}
                 references={(["rem", "deep"] as const).map((st) => {
                   const goal = mode === "hours" ? GOAL_STAGE_H[st] : GOAL_PCT[st];

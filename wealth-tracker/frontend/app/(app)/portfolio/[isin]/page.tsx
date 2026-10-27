@@ -341,6 +341,7 @@ function Position() {
               xLabel={xLabel}
               dateAxis={!useIntraday}
               onSelect={useIntraday ? undefined : setZoom}
+              onReset={zoom ? () => setZoom(null) : undefined}
             />
             {/* Tradegate provides no price history: the line is from Yahoo, and its last point may
                 differ a fraction from the price at the top. That should be stated, not come as a

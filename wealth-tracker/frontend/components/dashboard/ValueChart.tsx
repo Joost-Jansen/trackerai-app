@@ -75,6 +75,7 @@ export default function ValueChart({
   baseline = null,
   onProbe,
   onSelect,
+  onReset,
   className = "h-[150px] sm:h-[188px]",
 }: {
   points: ValuePoint[];
@@ -99,6 +100,8 @@ export default function ValueChart({
   onProbe?: (probe: Probe | null) => void;
   /** Drag across the chart and let go: that stretch becomes the period. Not on intraday bars. */
   onSelect?: (window: ZoomWindow) => void;
+  /** Double-click: back to the period from before the dragging. */
+  onReset?: () => void;
   /** Height utilities for the svg. Shorter on a phone by default: at 188px in a
    *  ~310px-wide card the 620x188 viewBox is stretched to twice its intended
    *  vertical scale, which turns an ordinary month into a cliff. */
@@ -296,6 +299,7 @@ export default function ValueChart({
             else setHover(indexAt(e.clientX));
           }}
           onMouseUp={release}
+          onDoubleClick={onReset}
           onMouseLeave={clear}
           onTouchStart={(e) => {
             if (e.touches.length >= 2) measure(indexAt(e.touches[0].clientX), indexAt(e.touches[1].clientX));
