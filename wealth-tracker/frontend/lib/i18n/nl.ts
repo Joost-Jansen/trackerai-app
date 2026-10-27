@@ -2062,4 +2062,7 @@ export const nl: Record<string, string> = {
   "Per source": "Per bron",
   "From the start of the period: how much saving, the market, bank & cash and debt each added to your net worth. Together they make the net line; at the end they are the tiles above.": "Vanaf het begin van de periode: hoeveel sparen, de markt, bank & contant en schulden elk aan je vermogen toevoegden. Samen vormen ze de netto lijn; aan het eind zijn het de tegels hierboven.",
   "Show one source": "Toon één bron",
+  "No bank data yet": "Nog geen bankgegevens",
+  "Not split": "Niet verdeeld",
+  "From the start of the period: how much saving, the market, bank & cash and debt each added to your net worth. Together they make the net line. Before {0} there is no bank data, so saving and bank & cash are one line there: Not split.": "Vanaf het begin van de periode: hoeveel sparen, de markt, bank & contant en schulden elk aan je vermogen toevoegden. Samen vormen ze de netto lijn. Voor {0} zijn er geen bankgegevens, dus zijn sparen en bank & contant daar één lijn: Niet verdeeld.",
 };

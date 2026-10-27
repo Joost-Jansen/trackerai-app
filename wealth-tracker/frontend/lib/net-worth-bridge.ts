@@ -69,7 +69,7 @@ export type Bridge = {
  */
 export function bridge(from: Balance, to: Balance, flows: Flow[], sharedAsSpending = false): Bridge {
   const change = to.net - from.net;
-  const debt = to.debt - (to.held ?? 0) - (from.debt - (from.held ?? 0));
+  const debt = ownDebt(from, to);
   // Before the first bank transaction there is nothing to split with.
   if (!flows.length || from.d < dayBefore(flows[0].d)) {
     return { change, saved: null, market: null, bank: null, debt: null, detail: null, shared: 0 };
@@ -90,17 +90,7 @@ export function bridge(from: Balance, to: Balance, flows: Flow[], sharedAsSpendi
       bankTx += f.bank_tx ?? 0;
     }
   }
-  const onHoldings =
-    from.portfolio_invested !== undefined &&
-    to.portfolio_invested !== undefined &&
-    from.portfolio !== undefined &&
-    to.portfolio !== undefined;
-  const market = onHoldings
-    ? to.portfolio! -
-      from.portfolio! -
-      (to.portfolio_invested! - from.portfolio_invested!) +
-      ((to.portfolio_dividends ?? 0) - (from.portfolio_dividends ?? 0))
-    : to.investments - from.investments - deposited;
+  const market = onHoldings(from) && onHoldings(to) ? holdingsMarket(from, to) : to.investments - from.investments - deposited;
   let friends = (to.held ?? 0) - (from.held ?? 0) + others;
   const shared = sharedAsSpending ? friends : 0;
   saved += shared;
@@ -112,30 +102,84 @@ export function bridge(from: Balance, to: Balance, flows: Flow[], sharedAsSpendi
   return { change, saved, market, bank, debt, detail: { friends, unlabelled, corrections, transfers, listed }, shared };
 }
 
+/** The change in your own debts: repayments positive, interest negative; money held for friends left out. */
+function ownDebt(from: Balance, to: Balance): number {
+  return to.debt - (to.held ?? 0) - (from.debt - (from.held ?? 0));
+}
+
+const onHoldings = (p: Balance) => p.portfolio !== undefined && p.portfolio_invested !== undefined;
+
+/** What the holdings did: their change in value, minus what went into them, plus dividend. */
+function holdingsMarket(from: Balance, to: Balance): number {
+  return (
+    to.portfolio! -
+    from.portfolio! -
+    (to.portfolio_invested! - from.portfolio_invested!) +
+    ((to.portfolio_dividends ?? 0) - (from.portfolio_dividends ?? 0))
+  );
+}
+
 function dayBefore(d: string): string {
   const t = new Date(`${d}T00:00:00Z`);
   t.setUTCDate(t.getUTCDate() - 1);
   return t.toISOString().slice(0, 10);
 }
 
-/** Where the change came from, so far: one point of `bridgeSeries`. */
-export type SourcePoint = { d: string; change: number; saved: number; market: number; bank: number; debt: number };
+/**
+ * Where the change came from, so far: one point of `bridgeSeries`. `unsplit` is what saving and bank & cash added
+ * together before the bank data starts (nothing to tell them apart with); `banked` says whether this point is in
+ * the bank data, so `saved` and `bank` mean something.
+ */
+export type SourcePoint = {
+  d: string;
+  change: number;
+  saved: number;
+  market: number;
+  bank: number;
+  debt: number;
+  unsplit: number;
+  banked: boolean;
+};
 
 /**
  * The split of `bridge`, at every point: from the first point to each later one. That is how much saving, the
- * market, bank & cash and debt have added to net worth since the start of the period, day by day, and at the last
- * point it is exactly what the tiles above the chart show. Null when the bank data does not cover the start (then
- * there is nothing to split with, as in `bridge`).
+ * market, bank & cash and debt have added to net worth since the start, day by day; at the last point it is exactly
+ * what the tiles above the chart show.
+ *
+ * Market (on the holdings) and debt (from the balances) need no bank data, so they run from the start even when the
+ * bank data starts later. Saving and bank & cash do need it: until then their sum is `unsplit`, which stays where it
+ * was once the bank data starts, and from there `bridge` splits the rest. Null without any bank data, or when the
+ * points before it lack the holdings to measure the market on.
  */
 export function bridgeSeries(points: Balance[], flows: Flow[], sharedAsSpending = false): SourcePoint[] | null {
-  if (points.length < 2) return null;
+  if (points.length < 2 || !flows.length) return null;
+  const covered = dayBefore(flows[0].d);
+  let k = points.findIndex((p) => p.d >= covered);
+  if (k < 0) k = points.length - 1; // the bank data starts after the last point: nothing is split
+  if (k > 0 && !points.slice(0, k + 1).every(onHoldings)) return null;
   const from = points[0];
-  const zero = { d: from.d, change: 0, saved: 0, market: 0, bank: 0, debt: 0 };
-  const out: SourcePoint[] = [zero];
-  for (const to of points.slice(1)) {
-    const b = bridge(from, to, flows, sharedAsSpending);
-    if (b.saved === null) return null;
-    out.push({ d: to.d, change: b.change, saved: b.saved, market: b.market!, bank: b.bank!, debt: b.debt! });
+  // Before the bank data: market and debt measured directly, the rest unsplit.
+  const early = (to: Balance): SourcePoint => {
+    const change = to.net - from.net;
+    const market = k > 0 ? holdingsMarket(from, to) : 0;
+    const debt = ownDebt(from, to);
+    return { d: to.d, change, saved: 0, market, bank: 0, debt, unsplit: change - market - debt, banked: false };
+  };
+  const out = points.slice(0, k + 1).map(early);
+  out[k] = { ...out[k], banked: true };
+  const base = out[k];
+  for (const to of points.slice(k + 1)) {
+    const b = bridge(points[k], to, flows, sharedAsSpending);
+    out.push({
+      d: to.d,
+      change: base.change + b.change,
+      saved: b.saved!,
+      market: base.market + b.market!,
+      bank: b.bank!,
+      debt: base.debt + b.debt!,
+      unsplit: base.unsplit,
+      banked: true,
+    });
   }
   return out;
 }
