@@ -72,6 +72,7 @@ def request_flow(owner, host, app="wealth", scopes=None, cid=None, **extra):
         "code_challenge_method": "S256",
         **extra,
     }
+    p = {k: v for k, v in p.items() if v is not None}
     r = host.get("/api/oauth/authorize?" + urlencode(p), follow_redirects=False)
     assert r.status_code == 302, r.text
     nonce = parse_qs(urlsplit(r.headers["location"]).query)["request"][0]
@@ -338,3 +339,164 @@ def test_private_consent_and_connections_are_not_cached(setup):
     _, _, nonce = request_flow(owner, host)
     for path in ["/api/oauth/consent?request=" + nonce, "/api/account/agent-connections"]:
         assert owner.get(path).headers["cache-control"] == "no-store"
+
+
+# --- owned clients (client ID and secret, as Gemini Enterprise asks for) and requests without a resource ---
+
+
+def owned_client(owner, app="wealth"):
+    r = owner.post("/api/account/agent-clients", headers={"Origin": ORIGIN}, json={"app": app, "redirect_uri": CALLBACK})
+    assert r.status_code == 201, r.text
+    assert r.headers["cache-control"] == "no-store"
+    return r.json()
+
+
+def gemini_flow(owner, host, made, **extra):
+    p = {
+        "client_id": made["client_id"],
+        "redirect_uri": CALLBACK,
+        "response_type": "code",
+        "scope": made["scopes"],
+        "state": secrets.token_urlsafe(24),
+        **extra,
+    }
+    r = host.get("/api/oauth/authorize?" + urlencode(p), follow_redirects=False)
+    assert r.status_code == 302, r.text
+    return p, parse_qs(urlsplit(r.headers["location"]).query)["request"][0]
+
+
+def basic(cid, secret):
+    return {"Authorization": "Basic " + base64.b64encode(f"{cid}:{secret}".encode()).decode()}
+
+
+def test_owned_client_without_resource_or_pkce(setup):
+    accounts, owner, host, _ = setup
+    made = owned_client(owner)
+    assert made["client_secret"].startswith("ta_s_") and made["scopes"] == "wealth:read wealth:write"
+    assert made["authorization_url"] == ORIGIN + "/api/oauth/authorize" and made["server_url"] == RESOURCES["wealth"]
+    p, nonce = gemini_flow(owner, host, made)
+    consent = owner.get("/api/oauth/consent", params={"request": nonce}).json()
+    assert consent["app"] == "wealth" and consent["write_requested"] and consent["choices"] == []
+    code = parse_qs(urlsplit(approve(owner, nonce, write=True).json()["redirect"]).query)["code"][0]
+    body = {"grant_type": "authorization_code", "redirect_uri": CALLBACK, "code": code}
+    assert host.post("/api/oauth/token", data=body, headers=basic(made["client_id"], "wrong")).status_code == 401
+    assert host.post("/api/oauth/token", data={**body, "client_id": made["client_id"]}).status_code == 401
+    r = host.post("/api/oauth/token", data=body, headers=basic(made["client_id"], made["client_secret"]))
+    assert r.status_code == 200, r.text
+    token = r.json()
+    assert token["scope"] == "wealth:read wealth:write"
+    assert OAuth(accounts).resolve(token["access_token"], "wealth")["scope"] == "write"
+    assert OAuth(accounts).resolve(token["access_token"], "health") is None
+    # The secret in the body works too (client_secret_post), for the refresh.
+    r = host.post(
+        "/api/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": token["refresh_token"],
+            "client_id": made["client_id"],
+            "client_secret": made["client_secret"],
+        },
+    )
+    assert r.status_code == 200, r.text
+    meta = host.get("/.well-known/oauth-authorization-server").json()
+    assert {"client_secret_basic", "client_secret_post"} <= set(meta["token_endpoint_auth_methods_supported"])
+
+
+def test_owned_client_with_pkce_and_listed(setup):
+    _, owner, host, _ = setup
+    made = owned_client(owner)
+    verifier = secrets.token_urlsafe(48)
+    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+    p, nonce = gemini_flow(owner, host, made, code_challenge=challenge, code_challenge_method="S256")
+    code = parse_qs(urlsplit(approve(owner, nonce).json()["redirect"]).query)["code"][0]
+    body = {"grant_type": "authorization_code", "redirect_uri": CALLBACK, "code": code}
+    auth = basic(made["client_id"], made["client_secret"])
+    assert host.post("/api/oauth/token", data=body, headers=auth).status_code == 400  # PKCE started: verifier needed
+    assert host.post("/api/oauth/token", data={**body, "code_verifier": verifier}, headers=auth).status_code == 200
+    listed = owner.get("/api/account/agent-connections").json()
+    assert [c["id"] for c in listed["clients"]] == [made["client_id"]]
+    assert listed["token_url"] == ORIGIN + "/api/oauth/token"
+    assert "client_secret" not in str(listed)
+
+
+def test_owned_client_is_for_its_own_account_only(setup):
+    accounts, owner, host, _ = setup
+    made = owned_client(owner)
+    accounts.set_registration_mode(accounts.by_username("sample"), "open")
+    other = TestClient(host.app, base_url=ORIGIN)
+    r = other.post(
+        "/api/auth/register",
+        json={
+            "username": "other",
+            "password": secrets.token_urlsafe(32),
+            "email": "other@example.org",
+            "apps": ["wealth"],
+            "consent": True,
+        },
+    )
+    assert r.status_code == 200
+    _, nonce = gemini_flow(other, host, made)
+    assert other.get("/api/oauth/consent", params={"request": nonce}).status_code == 403
+    assert other.post("/api/oauth/consent", headers={"Origin": ORIGIN}, json={"request": nonce, "allow": True}).status_code == 403
+    # Nor can another account remove it.
+    other.delete(f"/api/account/agent-clients/{made['client_id']}", headers={"Origin": ORIGIN})
+    assert owner.get("/api/account/agent-connections").json()["clients"]
+
+
+def test_removed_owned_client_ends_access(setup):
+    accounts, owner, host, _ = setup
+    made = owned_client(owner)
+    _, nonce = gemini_flow(owner, host, made)
+    code = parse_qs(urlsplit(approve(owner, nonce).json()["redirect"]).query)["code"][0]
+    auth = basic(made["client_id"], made["client_secret"])
+    token = host.post(
+        "/api/oauth/token", data={"grant_type": "authorization_code", "redirect_uri": CALLBACK, "code": code}, headers=auth
+    ).json()
+    assert owner.delete(f"/api/account/agent-clients/{made['client_id']}", headers={"Origin": ORIGIN}).status_code == 200
+    assert OAuth(accounts).resolve(token["access_token"], "wealth") is None
+    r = host.post("/api/oauth/token", data={"grant_type": "refresh_token", "refresh_token": token["refresh_token"]}, headers=auth)
+    assert r.status_code in (400, 401)
+    p = {"client_id": made["client_id"], "redirect_uri": CALLBACK, "response_type": "code", "state": "s"}
+    assert host.get("/api/oauth/authorize?" + urlencode(p), follow_redirects=False).status_code == 400
+    assert owner.get("/api/account/agent-connections").json()["clients"] == []
+
+
+def test_owned_client_needs_csrf_a_tracker_and_a_safe_callback(setup):
+    _, owner, _, _ = setup
+    assert owner.post("/api/account/agent-clients", json={"app": "wealth"}).status_code == 403
+    for body in ({"app": "elsewhere"}, {"app": "wealth", "redirect_uri": "http://evil.example/cb"}, {"app": "wealth", "name": " "}):
+        assert owner.post("/api/account/agent-clients", headers={"Origin": ORIGIN}, json=body).status_code == 400
+
+
+def test_public_client_sending_a_secret_is_refused(setup):
+    _, owner, host, _ = setup
+    p, verifier, nonce = request_flow(owner, host)
+    code = parse_qs(urlsplit(approve(owner, nonce).json()["redirect"]).query)["code"][0]
+    body = {
+        "grant_type": "authorization_code",
+        "client_id": p["client_id"],
+        "redirect_uri": CALLBACK,
+        "code_verifier": verifier,
+        "code": code,
+        "client_secret": "x",
+    }
+    assert host.post("/api/oauth/token", data=body).status_code == 401
+    del body["client_secret"]
+    assert host.post("/api/oauth/token", data=body).status_code == 200  # and the resource may be left out
+
+
+def test_without_resource_the_tracker_comes_from_scope_or_choice(setup):
+    accounts, owner, host, _ = setup
+    _, _, nonce = request_flow(owner, host, scopes="health:read", resource=None)
+    assert owner.get("/api/oauth/consent", params={"request": nonce}).json()["app"] == "health"
+    p, verifier, nonce = request_flow(owner, host, scopes="openid", resource=None)
+    consent = owner.get("/api/oauth/consent", params={"request": nonce}).json()
+    assert consent["app"] is None and set(consent["choices"]) == {"health", "wealth"}
+    assert approve(owner, nonce).status_code == 403  # no tracker chosen
+    p, verifier, nonce = request_flow(owner, host, scopes="openid", resource=None)
+    code = parse_qs(urlsplit(approve(owner, nonce, app="wealth").json()["redirect"]).query)["code"][0]
+    token = exchange(host, {**p, "resource": RESOURCES["wealth"]}, verifier, code).json()
+    assert OAuth(accounts).resolve(token["access_token"], "wealth")["scope"] == "read"
+    # Two trackers at once is not one grant.
+    q = {**p, "scope": "wealth:read health:read", "state": "s"}
+    assert host.get("/api/oauth/authorize?" + urlencode(q), follow_redirects=False).status_code == 400

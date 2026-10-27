@@ -69,6 +69,8 @@ MESSAGES: dict[str, str] = {
     "token_name_length": "naam van {min} tot {max} tekens",
     "too_many_tokens": "maximaal {max} tokens; trek er eerst een in",
     "token_not_found": "token niet gevonden",
+    "invalid_token_settings": "kies lezen of lezen en schrijven, en een geldigheid van 1 tot 3650 dagen",
+    "read_only_token": "dit token mag alleen lezen",
     # Garmin (api/connections.py)
     "connections_site_only": "koppelingen beheer je ingelogd op de site",
     "no_encryption_key": "de server heeft geen sleutel om de koppeling veilig op te slaan (TOKEN_ENCRYPTION_KEY)",

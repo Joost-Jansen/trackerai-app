@@ -119,8 +119,8 @@ def test_deleting_a_user_deletes_their_feedback(app, anna, engine):  # noqa: F81
 def test_mcp_feedback_tools_only_for_admins(app, anna):  # noqa: F811
     fid = send(anna).json()["id"]
     admin = as_admin(app)
-    token = admin.post("/api/agent-tokens", json={"name": "Claude"}).json()["token"]
-    anna_token = anna.post("/api/agent-tokens", json={"name": "Claude"}).json()["token"]
+    token = admin.post("/api/agent-tokens", json={"name": "Claude", "scope": "write"}).json()["token"]
+    anna_token = anna.post("/api/agent-tokens", json={"name": "Claude", "scope": "write"}).json()["token"]
 
     def rpc(tok, method, params=None):
         return (

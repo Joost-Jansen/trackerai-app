@@ -437,3 +437,15 @@ def test_mcp_finds_and_removes_a_wrong_balance(client):
     assert _json(_call(agent, "delete_balance", {"account": "Spaar", "date": "2026-01-15"}))["deleted"]["date"] == "2026-01-15"
     assert _json(_call(read, "get_bank_corrections", {"from": "2026-01-10", "to": "2026-01-20"}))["total"] == 0
     assert _call(agent, "delete_balance", {"account": "Spaar", "date": "2026-01-15"})["isError"]  # gone already
+
+
+def test_mcp_tools_say_whether_they_read_or_change(client):
+    """Annotations (trackerai_accounts.mcp_tools) let an assistant ask before a change."""
+    _login(client)
+    read = _agent(client, _token(client, "read"))
+    assert all(t["annotations"]["readOnlyHint"] for t in _mcp(read, "tools/list")["result"]["tools"])
+    write = _agent(client, _token(client, "write"))
+    tools = {t["name"]: t["annotations"] for t in _mcp(write, "tools/list")["result"]["tools"]}
+    assert tools["get_portfolio"]["readOnlyHint"] and not tools["get_portfolio"]["destructiveHint"]
+    assert not tools["label_transactions"]["readOnlyHint"] and not tools["label_transactions"]["destructiveHint"]
+    assert tools["delete_balance"]["destructiveHint"] and tools["refresh_data"]["openWorldHint"]

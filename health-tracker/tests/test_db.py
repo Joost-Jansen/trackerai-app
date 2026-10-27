@@ -211,4 +211,22 @@ def test_schema_v9_adds_the_achievements_table_to_a_v8_database():
         c.execute(update(db.app_settings).where(db.app_settings.c.key == "schema_version").values(value=8))
     db.create_schema(e)
     assert "achievements" in inspect(e).get_table_names()
-    assert db.get_app_setting(e, "schema_version") == db.SCHEMA_VERSION == 9
+    assert db.get_app_setting(e, "schema_version") == db.SCHEMA_VERSION
+
+
+def test_schema_v10_gives_existing_tokens_write_access_and_no_end_date():
+    from sqlalchemy import text
+
+    e = db.connect(new_database_url())
+    db.create_schema(e)
+    s = db.Scope(e, db.create_user(e, "anna", "h"))
+    with e.begin() as c:
+        c.execute(text("ALTER TABLE agent_tokens DROP COLUMN scope"))
+        c.execute(text("ALTER TABLE agent_tokens DROP COLUMN expires_at"))
+        c.execute(
+            text("INSERT INTO agent_tokens (id, user_id, name, hash, created_at) VALUES ('old', :u, 'Old', :h, now())"),
+            {"u": s.user_id, "h": "a" * 64},
+        )
+    db.create_schema(e)
+    assert db.token_for_hash(e, "a" * 64) == {"user_id": s.user_id, "scope": "write"}
+    assert [(t["name"], t["scope"], t["expires_at"]) for t in db.list_agent_tokens(s)] == [("Old", "write", None)]

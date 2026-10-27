@@ -127,7 +127,7 @@ def test_only_admins_logged_in_on_the_site(hub, app):
     assert anna.get("/api/admin/tracker").status_code == 403
     assert anna.patch(f"/api/admin/tracker/betas/{ids['anna']}", json={"feature": "x", "enabled": True}).status_code == 403
     assert TestClient(app).get("/api/admin/tracker").status_code == 401
-    token = admin.post("/api/agent-tokens", json={"name": "Claude"}).json()["token"]
+    token = admin.post("/api/agent-tokens", json={"name": "Claude", "scope": "write"}).json()["token"]
     assert TestClient(app).get("/api/admin/tracker", headers={"Authorization": f"Bearer {token}"}).status_code == 403
 
 

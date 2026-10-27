@@ -246,10 +246,14 @@ def make_auth(
                 u.is_admin, u.agent_scope, u.agent_oauth = False, access["scope"], True
             return u
         digest = hashlib.sha256(token.encode()).hexdigest()
-        uid = db.user_for_token_hash(engine, digest)
+        found = db.token_for_hash(engine, digest)
+        uid, access = (found["user_id"], found["scope"]) if found else (None, "write")
         if uid is None and legacy_agent_hash and auth.same(digest, legacy_agent_hash):
             uid = next((u["id"] for u in db.list_users(engine) if u["is_admin"]), None)
-        return load(uid, "agent")
+        u = load(uid, "agent")
+        if u:
+            u.agent_scope = access  # a read token sees no write tools (mcp.py) and may not write (guards)
+        return u
 
     def current_user(request: Request, response: Response) -> User:
         header = request.headers.get("authorization", "")
@@ -263,6 +267,9 @@ def make_auth(
                 raise ApiError(401, "invalid_agent_token", headers=OAuth(accounts).challenge(APP))
             if u.agent_oauth and request.url.path != "/api/mcp":
                 raise ApiError(403, "tokens_site_only")
+            # A read-only token reads: outside MCP (which hides and refuses its write tools) only GET and HEAD.
+            if u.agent_scope == "read" and request.url.path != "/api/mcp" and request.method not in ("GET", "HEAD"):
+                raise ApiError(403, "read_only_token")
             return u
         s = sessions.ready(request, response)  # 401 without a session; 403 until required two-step login is on
         app = s.apps.get(APP)

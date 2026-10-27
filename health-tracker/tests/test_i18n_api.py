@@ -74,7 +74,7 @@ def test_register_with_unknown_locale_fails_before_creating_the_account(app):
 
 def test_agents_cannot_set_the_locale(app):
     c = admin(app)
-    token = c.post("/api/agent-tokens", json={"name": "Claude"}).json()["token"]
+    token = c.post("/api/agent-tokens", json={"name": "Claude", "scope": "write"}).json()["token"]
     agent = TestClient(app, headers={"Authorization": f"Bearer {token}"})
     r = agent.patch("/api/account", json={"locale": "en"})
     assert r.status_code == 403 and r.json()["code"] == "site_login_only"

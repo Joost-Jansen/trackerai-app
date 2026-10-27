@@ -41,6 +41,7 @@ from tools.nutrition import report as nutrition_report
 from tools.nutrition import targets as nutrition_targets
 from tools.sports import effort_kind
 from tools.summarize import last_90_days_md, this_week_md
+from trackerai_accounts.mcp_tools import describe
 from trackerai_accounts.oauth import PREFIX, OAuth
 from trackerai_websec import log_redact
 
@@ -367,6 +368,8 @@ WRITE_NAMES = {
     "update_gear",
     "delete_gear",
 }
+# Writes that delete or overwrite what was there: an assistant should ask first.
+DESTRUCTIVE_NAMES = {"delete_gear", "replace_plan_sessions", "update_doc"}
 
 MEAL_TABLE_HELP = (
     "Markdown- of CSV-tabel met kopregel. Kolommen: Voedingsmiddel (naam of code als nevo:1234 uit search_foods, verplicht), "
@@ -1050,14 +1053,14 @@ class Server:
             tools = TOOLS + (NUTRITION_TOOLS if nutrition_on(self.user) else []) + (FEEDBACK_TOOLS if self.user.is_admin else [])
             if getattr(self.user, "agent_scope", "write") == "read":
                 tools = [t for t in tools if t["name"] not in WRITE_NAMES]
-            if getattr(self.user, "agent_oauth", False):
-                tools = [
-                    {
-                        **t,
-                        "securitySchemes": [{"type": "oauth2", "scopes": ["health:write" if t["name"] in WRITE_NAMES else "health:read"]}],
-                    }
-                    for t in tools
-                ]
+            tools = describe(
+                tools,
+                "health",
+                WRITE_NAMES,
+                destructive=DESTRUCTIVE_NAMES,
+                open_world={"sync_now"},
+                oauth=getattr(self.user, "agent_oauth", False),
+            )
             return ok({"tools": tools})
         if method == "tools/call":
             try:

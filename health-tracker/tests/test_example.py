@@ -97,7 +97,7 @@ def test_personal_things_stay_the_real_user(alice):
     assert me["id"] == 1 and me["username"] == "alice"
     assert alice.get("/api/onboarding", headers=EX).json() == alice.get("/api/onboarding").json()
     assert alice.get("/api/connections", headers=EX).json() == alice.get("/api/connections").json()
-    assert alice.get("/api/agent-tokens", headers=EX).json() == []
+    assert alice.get("/api/agent-tokens", headers=EX).json()["tokens"] == []
     assert alice.get("/api/feedback", headers=EX).json() == []
 
 
