@@ -88,7 +88,7 @@ def test_session_from_another_key_says_reconnect(make, engine):  # noqa: F811
 
 def test_agents_cannot_change_connections(make, engine):  # noqa: F811
     app, c, _ = make()
-    tok = c.post("/api/agent-tokens", json={"name": "x"}).json()["token"]
+    tok = c.post("/api/agent-tokens", json={"name": "x", "scope": "write"}).json()["token"]
     agent = TestClient(app, headers={"Authorization": f"Bearer {tok}"})
     assert agent.post("/api/connections/garmin", json={"email": "a", "password": "b"}).status_code == 403
 
@@ -114,7 +114,9 @@ def test_an_agent_can_sync_through_mcp(make, engine):  # noqa: F811
         ).json()["result"]
         return res["content"][0]["text"], res["isError"]
 
-    write = c.post("/api/agent-tokens", json={"name": "w"}).json()["token"]  # a read-only connection is OAuth (test_mcp_oauth)
+    write = c.post("/api/agent-tokens", json={"name": "w", "scope": "write"}).json()[
+        "token"
+    ]  # a read-only connection is OAuth (test_mcp_oauth)
     text, err = sync_now(write)
     assert err and "Koppelingen" in text  # nothing connected yet
     db.set_setting(db.Scope(engine, 1), "garmin_tokens", encrypt("tok", key))

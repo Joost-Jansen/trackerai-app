@@ -47,7 +47,7 @@ from tools.sports import sport_of
 from tools.store import _rank, activity_id, merge, prepare, same_start, source_distance
 from tools.store import remove_source as _strip_source
 
-SCHEMA_VERSION = 9  # v9: achievements (a new table only: create_all makes it)
+SCHEMA_VERSION = 10  # v10: agent tokens get a scope and an end date (columns, _migrate_v10)
 meta = MetaData()
 
 # --- global tables -------------------------------------------------------------------------------------------
@@ -95,7 +95,12 @@ agent_tokens = Table(
     Column("name", String(60), nullable=False),
     Column("hash", String(64), nullable=False, unique=True),
     Column("created_at", DateTime(timezone=True), nullable=False),
+    # v10: "read" or "write", as in wealth; null for a token from before, which keeps write access.
+    Column("scope", String(10)),
+    # v10: after this the token stops working; null: no end date.
+    Column("expires_at", DateTime(timezone=True)),
 )
+V10_TOKEN_COLUMNS = ("scope", "expires_at")
 
 # --- per-user tables -------------------------------------------------------------------------------------------
 
@@ -638,6 +643,14 @@ def _migrate_v6(conn) -> None:
         conn.execute(text(f"ALTER TABLE users ADD COLUMN {name} {kind}{default}"))
 
 
+def _migrate_v10(conn) -> None:
+    """Scope and end date on `agent_tokens` (v10). Existing tokens keep write access and no end date."""
+    have = {c["name"] for c in inspect(conn).get_columns("agent_tokens")}
+    for name in V10_TOKEN_COLUMNS:
+        if name not in have:
+            conn.execute(text(f"ALTER TABLE agent_tokens ADD COLUMN {name} {agent_tokens.c[name].type.compile(dialect=conn.dialect)}"))
+
+
 def create_schema(engine: Engine) -> dict | None:
     """Create missing tables; migrate a single-user (v1) database to multi-user, Dutch stored values to English (v3)
     and stored sports to the codes of tools/sports.py (v4).
@@ -656,6 +669,7 @@ def create_schema(engine: Engine) -> dict | None:
         if version is None or int(version) < 5:
             _migrate_v5(conn)
         _migrate_v6(conn)  # checks the columns itself: cheap, and safe on a database another branch already moved on
+        _migrate_v10(conn)  # the same
         if version != SCHEMA_VERSION:
             conn.execute(delete(app_settings).where(app_settings.c.key == "schema_version"))
             conn.execute(insert(app_settings).values(key="schema_version", value=SCHEMA_VERSION))
@@ -1104,19 +1118,34 @@ def update_feedback(engine: Engine, feedback_id: int, **fields) -> bool:
 # --- agent tokens ------------------------------------------------------------------------------------------------
 
 
-def add_agent_token(s: Scope, token_id: str, name: str, token_hash: str) -> None:
+def add_agent_token(s: Scope, token_id: str, name: str, token_hash: str, scope: str = "read", expires_at: datetime | None = None) -> None:
     with s.engine.begin() as conn:
-        conn.execute(insert(agent_tokens).values(id=token_id, user_id=s.user_id, name=name, hash=token_hash, created_at=_now()))
+        conn.execute(
+            insert(agent_tokens).values(
+                id=token_id, user_id=s.user_id, name=name, hash=token_hash, created_at=_now(), scope=scope, expires_at=expires_at
+            )
+        )
 
 
 def list_agent_tokens(s: Scope) -> list[dict]:
+    """The same fields as wealth's tokens: id, name, scope, created_at, expires_at, expired."""
     with s.engine.connect() as conn:
         rows = conn.execute(
-            select(agent_tokens.c.id, agent_tokens.c.name, agent_tokens.c.created_at)
+            select(agent_tokens.c.id, agent_tokens.c.name, agent_tokens.c.created_at, agent_tokens.c.scope, agent_tokens.c.expires_at)
             .where(agent_tokens.c.user_id == s.user_id)
             .order_by(agent_tokens.c.created_at)
         ).mappings()
-        return [{**r, "created_at": r["created_at"].isoformat()} for r in rows]
+        return [
+            {
+                "id": r["id"],
+                "name": r["name"],
+                "scope": r["scope"] or "write",
+                "created_at": r["created_at"].isoformat(),
+                "expires_at": r["expires_at"].isoformat() if r["expires_at"] else None,
+                "expired": bool(r["expires_at"] and r["expires_at"] <= _now()),
+            }
+            for r in rows
+        ]
 
 
 def delete_agent_token(s: Scope, token_id: str) -> bool:
@@ -1125,8 +1154,23 @@ def delete_agent_token(s: Scope, token_id: str) -> bool:
 
 
 def user_for_token_hash(engine: Engine, token_hash: str) -> int | None:
+    found = token_for_hash(engine, token_hash)
+    return found["user_id"] if found else None
+
+
+def token_for_hash(engine: Engine, token_hash: str) -> dict | None:
+    """The user and scope of a token that still works; None for an unknown or expired one."""
     with engine.connect() as conn:
-        return conn.execute(select(agent_tokens.c.user_id).where(agent_tokens.c.hash == token_hash)).scalar_one_or_none()
+        row = (
+            conn.execute(
+                select(agent_tokens.c.user_id, agent_tokens.c.scope, agent_tokens.c.expires_at).where(agent_tokens.c.hash == token_hash)
+            )
+            .mappings()
+            .first()
+        )
+    if not row or (row["expires_at"] and row["expires_at"] <= _now()):
+        return None
+    return {"user_id": row["user_id"], "scope": row["scope"] or "write"}
 
 
 # --- activities ----------------------------------------------------------------------------------------------------

@@ -29,6 +29,7 @@ from fastapi.responses import JSONResponse
 from app.core import auth_store, feedback_store
 from domain.money import month_periods
 from domain.money import net_worth as net_worth_domain
+from trackerai_accounts.mcp_tools import describe
 from trackerai_accounts.oauth import PREFIX, OAuth
 
 router = APIRouter(tags=["mcp"])
@@ -326,6 +327,8 @@ WRITE_TOOLS = [
 ]
 
 WRITE_NAMES = {t["name"] for t in WRITE_TOOLS}
+# Writes that delete or overwrite what was there: an assistant should ask first.
+DESTRUCTIVE_NAMES = {"delete_rule", "delete_balance", "rename_category", "move_category", "set_balance"}
 
 # Only for an admin's token: feedback from all users (routers/feedback.py). A
 # token otherwise never gets admin rights; this is the one exception, kept
@@ -454,12 +457,14 @@ class Server:
         tools = READ_TOOLS + (WRITE_TOOLS if self.scope == "write" else []) + (FEEDBACK_TOOLS if self.is_admin() else [])
         from app.core.accounts import accounts
 
-        if OAuth(accounts).enabled:
-            return [
-                {**t, "securitySchemes": [{"type": "oauth2", "scopes": ["wealth:write" if t["name"] in WRITE_NAMES else "wealth:read"]}]}
-                for t in tools
-            ]
-        return tools
+        return describe(
+            tools,
+            "wealth",
+            WRITE_NAMES | {"update_feedback"},
+            destructive=DESTRUCTIVE_NAMES,
+            open_world={"refresh_data"},
+            oauth=OAuth(accounts).enabled,
+        )
 
     def _feedback(self, name: str, args: dict) -> str:
         if not self.is_admin():

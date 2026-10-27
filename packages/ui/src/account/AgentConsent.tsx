@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@trackerai/ui/ds/Button";
 import { useTr } from "@trackerai/ui/i18n";
 import { ApiError } from "@trackerai/ui/lib/api";
-import type { AccountApi } from "./AgentConnections";
+import type { AccountApi } from "./AgentsPage";
 
 export type AccountView = {
   id: number;
@@ -17,11 +17,14 @@ export type AccountView = {
   totp_enabled: boolean;
   email_codes: boolean;
 };
+type Tracker = "health" | "wealth";
 type Consent = {
   client: string;
   redirect_host: string;
-  app: "health" | "wealth";
-  resource: string;
+  /** null: the assistant did not say which tracker; you choose from `choices`. */
+  app: Tracker | null;
+  choices: Tracker[];
+  resource: string | null;
   username: string;
   write_requested: boolean;
 };
@@ -35,6 +38,7 @@ export default function AgentConsent({ api, setup }: { api: AccountApi; setup: (
   const [failed, setFailed] = useState(false);
   const [write, setWrite] = useState(false);
   const [health, setHealth] = useState(false);
+  const [chosen, setChosen] = useState<Tracker | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     const nonce = new URLSearchParams(window.location.search).get("request") ?? "";
@@ -71,6 +75,8 @@ export default function AgentConsent({ api, setup }: { api: AccountApi; setup: (
       setVersion((v) => v + 1);
     });
   }
+  const app = consent?.app ?? chosen;
+  const name = (a: Tracker) => (a === "health" ? tr("Health") : tr("Wealth"));
   async function decide(allow: boolean) {
     setBusy(true);
     try {
@@ -78,7 +84,8 @@ export default function AgentConsent({ api, setup }: { api: AccountApi; setup: (
         request,
         allow,
         write: allow && write,
-        health_consent: allow && health,
+        health_consent: allow && app === "health" && health,
+        app: consent?.app ? null : chosen,
       });
       // Only the server's validated, registered callback is returned here.
       window.location.assign(result.redirect);
@@ -98,9 +105,21 @@ export default function AgentConsent({ api, setup }: { api: AccountApi; setup: (
           <p>{tr("Loading…")}</p>
         ) : (
           <>
-            <p className="text-[14px] leading-relaxed">
-              {tr("{0} wants access to your {1} tracker.", consent.client, consent.app === "health" ? tr("Health") : tr("Wealth"))}
-            </p>
+            {consent.app ? (
+              <p className="text-[14px] leading-relaxed">
+                {tr("{0} wants access to your {1} tracker.", consent.client, name(consent.app))}
+              </p>
+            ) : (
+              <fieldset className="flex flex-col gap-2 text-[14px] leading-relaxed">
+                <legend className="mb-1">{tr("{0} wants access to one of your trackers. Which one?", consent.client)}</legend>
+                {consent.choices.map((a) => (
+                  <label key={a} className="flex items-center gap-2">
+                    <input type="radio" name="tracker" checked={chosen === a} onChange={() => setChosen(a)} />
+                    {name(a)}
+                  </label>
+                ))}
+              </fieldset>
+            )}
             <p className="text-[13px] text-ink-muted">{tr("Signed in as {0}.", consent.username)}</p>
             <p className="text-[13px] text-ink-muted">
               {tr("After approval, return to {0}. Check that this is the assistant you opened.", consent.redirect_host)}
@@ -108,7 +127,7 @@ export default function AgentConsent({ api, setup }: { api: AccountApi; setup: (
             <section className="rounded border border-border bg-surface p-4 text-[13px] leading-relaxed">
               <strong>{tr("Read-only")}</strong>
               <p className="mt-1 text-ink-muted">
-                {consent.app === "health"
+                {app === "health"
                   ? tr("Read your activities, recovery, plans and training notes.")
                   : tr("Read your portfolio, balances, spending and budgets.")}
               </p>
@@ -118,7 +137,7 @@ export default function AgentConsent({ api, setup }: { api: AccountApi; setup: (
                   <span>
                     {tr("Also allow editing")}
                     <span className="block text-ink-muted">
-                      {consent.app === "health"
+                      {app === "health"
                         ? tr("Create or change training plans, documents and log entries.")
                         : tr("Label transactions and change budgets and bookkeeping settings.")}
                     </span>
@@ -126,7 +145,7 @@ export default function AgentConsent({ api, setup }: { api: AccountApi; setup: (
                 </label>
               )}
             </section>
-            {consent.app === "health" && (
+            {app === "health" && (
               <label className="flex items-start gap-3 text-[13px] leading-relaxed">
                 <input type="checkbox" checked={health} onChange={(e) => setHealth(e.target.checked)} className="mt-1" />
                 <span>{tr("I explicitly agree to share my health data with this assistant for this connection.")}</span>
@@ -138,7 +157,7 @@ export default function AgentConsent({ api, setup }: { api: AccountApi; setup: (
               )}
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button variant="primary" disabled={busy || (consent.app === "health" && !health)} onClick={() => decide(true)}>
+              <Button variant="primary" disabled={busy || !app || (app === "health" && !health)} onClick={() => decide(true)}>
                 {tr("Allow access")}
               </Button>
               <Button disabled={busy} onClick={() => decide(false)}>

@@ -315,6 +315,8 @@ export const nl = {
     tokens_site_only: "Agent-tokens beheer je alleen ingelogd op de site.",
     token_name_length: (p: { min: number; max: number }) => `Een naam van ${p.min} tot ${p.max} tekens.`,
     too_many_tokens: (p: { max: number }) => `Maximaal ${p.max} tokens; trek er eerst een in.`,
+    invalid_token_settings: "Kies lezen of lezen en schrijven, en een geldigheid van 1 tot 3650 dagen.",
+    read_only_token: "Dit token mag alleen lezen.",
     upload_empty: "Leeg bestand.",
     upload_too_large: (p: { max_mb: number }) => `Bestand groter dan ${p.max_mb} MB.`,
     fit_unreadable: "Geen leesbare activiteit in dit FIT-bestand.",
@@ -633,39 +635,13 @@ export const nl = {
     intro1:
       "Een AI-assistent (Claude, ChatGPT, Codex, Copilot, Gemini of een andere MCP-client) kan je trainingsdata lezen en, als je dat toestaat, je schema, logboek en doelen bijwerken.",
     intro2: "Kies hieronder je assistent om die te verbinden. Je kunt de toegang hier altijd weer intrekken.",
-    tokenName: "Naam van het token",
-    newToken: "Nieuw token",
-    madeTitle: (name: string) => `Token "${name}" (alleen nu zichtbaar)`,
-    token: "Token",
-    assistant: "Assistent",
-    assistantHint: "Alleen voor de uitleg: het token werkt in elke MCP-client.",
-    clients: {
-      claude: "Claude (app, claude.ai, Claude Code)",
-      copilot: "GitHub Copilot (VS Code, CLI)",
-      other: "Een andere MCP-client (Cursor, Gemini CLI, …)",
-    },
-    otherAssistant: "Een andere assistent? Kies hem hierboven; dit token werkt daar ook.",
-    appText:
-      'Op <link>claude.ai/customize/connectors</link>, "Add custom connector". Naam: health-tracker. Eén keer per account: daarna kan Claude in elk nieuw gesprek je data lezen en je schema, doelen en log bijwerken, in de Claude-app, op claude.ai en in Claude Code als die met dat account is ingelogd (ook in de cloud). URL (bevat het token, behandel hem als wachtwoord):',
-    connectorUrl: "Connector-URL",
-    chatgpt:
-      "Zet in ChatGPT op het web Developer mode aan onder Settings (Apps of Connectors, Advanced). Maak dan een connector met de naam health-tracker, deze URL en als authenticatie “No authentication”. De URL bevat het token, behandel hem als wachtwoord:",
-    codex: "Zet dit in ~/.codex/config.toml. Het werkt voor de Codex CLI en de IDE-extensie:",
-    apiKeyCode: "Alleen voor Claude Code met een API-key in plaats van een claude.ai-login, één keer in een terminal",
-    copilot:
-      "VS Code en de Copilot CLI hebben elk een eigen lijst, dus voeg hem toe waar je Copilot gebruikt. In VS Code: Command Palette, “MCP: Open User Configuration”, en voeg deze server toe (binnen de bestaande “servers”, als die er al is).",
-    copilotCli: "Copilot CLI, één keer in een terminal",
-    other:
-      "De server spreekt MCP via streamable HTTP (zonder sessie, antwoorden als JSON). Geef de client de URL en de header, of, als hij alleen een URL aanneemt, de URL met het token erin.",
-    urlWithToken: "URL met het token erin",
+    levelRead: "Lezen: alles bekijken, niets wijzigen.",
+    levelWrite:
+      "Lezen en schrijven: ook schema's, documenten, logboek, doelen en materiaal maken en wijzigen, en een sync starten. Nooit je account, koppelingen of andere gebruikers.",
     cliTitle: "Alleen voor tools/tr.py (opdrachtregel)",
     cliText:
       "Niet nodig als je de connector gebruikt. Zet deze twee als variabelen in je eigen shell en sta netwerktoegang tot <code>host</code> toe.",
     variables: "Variabelen",
-    active: "Actieve tokens",
-    none: "Nog geen tokens op de site gemaakt. (Een token uit tools/set_agent_token.py werkt ook en staat hier niet.)",
-    created: (day: string) => `gemaakt ${day}`,
-    revokeConfirm: (name: string) => `Token "${name}" intrekken? Wat ermee gekoppeld is, werkt daarna niet meer.`,
   },
 
   history: {

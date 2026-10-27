@@ -1,17 +1,30 @@
 """OAuth for every TrackerAI MCP server. OAuthlib handles code/PKCE protocol
 validation; this module supplies shared account eligibility, consent and storage.
-Only hashes of codes/access/refresh tokens persist. Public clients use S256.
+Only hashes of codes/access/refresh tokens and client secrets persist.
+
+Two kinds of client:
+  * public clients register themselves (RFC 7591: Claude, ChatGPT, Gemini CLI,
+    VS Code) and must use S256 PKCE;
+  * owned clients are made on the Agents page for an assistant that asks for a
+    client ID and secret (Gemini Enterprise). One belongs to one account and one
+    tracker, always authenticates with its secret, and PKCE is optional.
+
+Which tracker a grant is for comes from the RFC 8707 `resource`; a client that
+sends none gets it from its owned client, from the scopes it asks for, or from
+the tracker you choose on the consent screen.
 """
 
 from __future__ import annotations
 
+import base64
 import hashlib
+import hmac
 import logging
 import re
 import secrets
 from datetime import timedelta
 from types import SimpleNamespace
-from urllib.parse import parse_qs, urlencode, urlsplit
+from urllib.parse import parse_qs, unquote_plus, urlencode, urlsplit
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -31,6 +44,9 @@ from .store import oauth_requests as pending
 from .store import oauth_tokens as tokens
 
 PREFIX = "ta_o_"
+# Where Gemini Enterprise sends you back after signing in (its docs: custom MCP server connection).
+GEMINI_REDIRECT = "https://vertexaisearch.cloud.google.com/oauth-redirect"
+MAX_OWNED_CLIENTS = 10
 NO_STORE = {"Cache-Control": "no-store", "Pragma": "no-cache", "Referrer-Policy": "no-referrer"}
 
 
@@ -93,6 +109,16 @@ class OAuth:
 
     def app_for(self, resource):
         return next((k for k, v in self.accounts.config.resources.items() if v == resource), None)
+
+    def app_of(self, client, resource, scopes):
+        """The tracker an authorization request is for, or None when the consent screen has to ask: the resource,
+        else the owned client's tracker, else the one tracker its scopes name."""
+        if resource:
+            return self.app_for(resource)
+        if client and client["app"]:
+            return client["app"]
+        named = {s.split(":")[0] for s in scopes if ":" in s} & set(self.accounts.config.resources)
+        return named.pop() if len(named) == 1 else None
 
     def challenge(self, app):
         resource = self.accounts.config.resources.get(app)
@@ -171,10 +197,24 @@ class Validator(RequestValidator):
         return bool(row)
 
     def authenticate_client_id(self, client_id, request, *args, **kwargs):
-        return self.validate_client_id(client_id, request)
+        row = self.client(client_id)
+        if not row or row["account_id"] is not None:
+            return False  # an owned client always authenticates with its secret
+        request.client = SimpleNamespace(client_id=client_id)
+        return True
 
     def client_authentication_required(self, request, *args, **kwargs):
-        return False
+        row = self.client(request.client_id) if request.client_id else None
+        return bool(row and row["account_id"] is not None)
+
+    def authenticate_client(self, request, *args, **kwargs):
+        row = self.client(request.client_id) if request.client_id else None
+        if not row or row["account_id"] is None or not row["secret_digest"]:
+            return False
+        if not hmac.compare_digest(digest(request.client_secret or ""), row["secret_digest"]):
+            return False
+        request.client = SimpleNamespace(client_id=row["id"])
+        return True
 
     def validate_redirect_uri(self, client_id, redirect_uri, request, *args, **kwargs):
         row = self.client(client_id)
@@ -190,15 +230,19 @@ class Validator(RequestValidator):
         return grant_type in ("authorization_code", "refresh_token")
 
     def is_pkce_required(self, client_id, request):
-        return True
+        row = self.client(client_id)
+        return not (row and row["account_id"] is not None)
 
     def get_default_scopes(self, client_id, request, *args, **kwargs):
-        app = self.oauth.app_for(request.resource)
+        app = self.oauth.app_of(self.client(client_id), request.resource, [])
         return [f"{app}:read"] if app else []
 
     def validate_scopes(self, client_id, scopes, client, request, *args, **kwargs):
-        app = self.oauth.app_for(request.resource)
-        return bool(app and scopes and set(scopes).issubset({f"{app}:read", f"{app}:write"}))
+        # Scopes we don't know (openid, email, …) are ignored rather than refused; what is granted is decided on
+        # the consent screen. Asking for two trackers at once is refused: one grant covers one tracker.
+        app = self.oauth.app_of(self.client(client_id), request.resource, scopes or [])
+        named = {s.split(":")[0] for s in scopes or [] if ":" in s} & set(self.oauth.accounts.config.resources)
+        return named <= ({app} if app else set())
 
     def save_authorization_code(self, client_id, code, request, *args, **kwargs):
         self.c.execute(
@@ -206,7 +250,7 @@ class Validator(RequestValidator):
                 digest=digest(code["code"]),
                 grant_id=request.grant_id,
                 redirect_uri=request.redirect_uri,
-                challenge=request.code_challenge,
+                challenge=request.code_challenge or "",
                 expires_at=now() + timedelta(minutes=5),
             )
         )
@@ -216,7 +260,8 @@ class Validator(RequestValidator):
         if not row or row["expires_at"] <= now():
             return False
         grant = self.c.execute(select(grants).where(grants.c.id == row["grant_id"])).mappings().first()
-        if not grant or grant["client_id"] != client_id or request.resource != grant["resource"]:
+        # The resource may be left out at the token endpoint (it is the grant's); one that is sent must match.
+        if not grant or grant["client_id"] != client_id or (request.resource and request.resource != grant["resource"]):
             return False
         if row["used_at"]:
             self.c.execute(update(grants).where(grants.c.id == grant["id"]).values(revoked_at=now()))
@@ -229,7 +274,7 @@ class Validator(RequestValidator):
         return True
 
     def get_code_challenge(self, code, request):
-        return request.code_row["challenge"]
+        return request.code_row["challenge"] or None  # none: an owned client that did not use PKCE
 
     def get_code_challenge_method(self, code, request):
         return "S256"
@@ -245,7 +290,7 @@ class Validator(RequestValidator):
         if not row:
             return False
         grant = self.c.execute(select(grants).where(grants.c.id == row["grant_id"])).mappings().first()
-        if not grant or grant["client_id"] != client.client_id or request.resource != grant["resource"]:
+        if not grant or grant["client_id"] != client.client_id or (request.resource and request.resource != grant["resource"]):
             return False
         if row["used_at"]:
             self.c.execute(update(grants).where(grants.c.id == grant["id"]).values(revoked_at=now()))
@@ -286,6 +331,26 @@ class Decision(BaseModel):
     allow: bool
     write: bool = False
     health_consent: bool = False
+    # The tracker, when the assistant's request does not say (no resource, no tracker in its scopes).
+    app: str | None = None
+
+
+class OwnedClient(BaseModel):
+    app: str
+    name: str = "Gemini"
+    redirect_uri: str = GEMINI_REDIRECT
+
+
+def basic_credentials(header: str | None) -> tuple[str, str] | None:
+    """client_id and client_secret from an HTTP Basic header (RFC 6749 2.3.1: form-encoded, then base64)."""
+    if not header or not header.lower().startswith("basic "):
+        return None
+    try:
+        raw = base64.b64decode(header[6:].strip(), validate=True).decode()
+        cid, secret = raw.split(":", 1)
+    except (ValueError, UnicodeError):
+        return None
+    return unquote_plus(cid), unquote_plus(secret)
 
 
 def make_router(accounts, sessions, app: str, client_ip) -> APIRouter:
@@ -324,7 +389,7 @@ def make_router(accounts, sessions, app: str, client_ip) -> APIRouter:
                 "revocation_endpoint": issuer + "/api/oauth/revoke",
                 "response_types_supported": ["code"],
                 "grant_types_supported": ["authorization_code", "refresh_token"],
-                "token_endpoint_auth_methods_supported": ["none"],
+                "token_endpoint_auth_methods_supported": ["none", "client_secret_basic", "client_secret_post"],
                 "code_challenge_methods_supported": ["S256"],
                 "scopes_supported": [f"{a}:{s}" for a in accounts.config.resources for s in ("read", "write")],
             },
@@ -392,18 +457,28 @@ def make_router(accounts, sessions, app: str, client_ip) -> APIRouter:
             headers=NO_STORE,
         )
 
-    def auth_params(query):
+    def client_row(c, cid):
+        return c.execute(select(clients).where(clients.c.id == cid)).mappings().first() if cid else None
+
+    def auth_params(query, c):
         p = params(query)
+        row = client_row(c, p.get("client_id"))
+        # PKCE: always for a public client; an owned client authenticates with its secret, and S256 when it sends one.
+        pkce = "code_challenge" in p or "code_challenge_method" in p or not (row and row["account_id"] is not None)
         if (
-            not p.get("redirect_uri")
-            or not oauth.app_for(p.get("resource"))
-            or p.get("code_challenge_method") != "S256"
-            or not re.fullmatch(r"[A-Za-z0-9_-]{43}", p.get("code_challenge", ""))
+            not row
+            or (row["account_id"] is not None and not row["secret_digest"])  # an owned client that was removed
+            or not p.get("redirect_uri")
+            or ("resource" in p and not oauth.app_for(p["resource"]))
+            or (pkce and (p.get("code_challenge_method") != "S256" or not re.fullmatch(r"[A-Za-z0-9_-]{43}", p.get("code_challenge", ""))))
             or not p.get("state")
             or len(p["state"]) > 1024
         ):
             raise ValueError("Invalid authorization request")
-        return p
+        return p, row
+
+    def target_of(p, row):
+        return oauth.app_of(row, p.get("resource"), p.get("scope", "").split())
 
     @r.get("/api/oauth/authorize")
     def authorize(request: Request):
@@ -415,8 +490,8 @@ def make_router(accounts, sessions, app: str, client_ip) -> APIRouter:
         authorize_limit.hit(ip)
         query = request.url.query
         try:
-            auth_params(query)
             with accounts.engine.begin() as c:
+                auth_params(query, c)
                 oauth.server(c).validate_authorization_request(accounts.config.oauth_issuer + "/api/oauth/authorize?" + query)
                 nonce = secrets.token_urlsafe(32)
                 c.execute(insert(pending).values(digest=digest(nonce), query=query, expires_at=now() + timedelta(minutes=10)))
@@ -449,18 +524,25 @@ def make_router(accounts, sessions, app: str, client_ip) -> APIRouter:
             row = pending_request(c, request, s)
             if not row:
                 return fail("invalid_request")
-            p = auth_params(row["query"])
-            client = c.execute(select(clients).where(clients.c.id == p["client_id"])).mappings().one()
-        target = oauth.app_for(p["resource"])
-        if target not in s.apps:
+            p, client = auth_params(row["query"], c)
+        if client["account_id"] is not None and client["account_id"] != s.id:
+            return fail("invalid_request", 403)  # an owned client works for its own account only
+        target = target_of(p, client)
+        choices = [a for a in accounts.config.resources if a in s.apps]
+        if target and target not in s.apps or not target and not choices:
             return fail("not_in_app", 403)
+        scopes = p.get("scope", "").split()
         return {
             "client": client["name"],
             "redirect_host": urlsplit(p["redirect_uri"]).netloc,
             "app": target,
-            "resource": p["resource"],
+            # Without a tracker in the request, the consent screen asks which one.
+            "choices": [] if target else choices,
+            "resource": accounts.config.resources.get(target) if target else None,
             "username": s.username,
-            "write_requested": f"{target}:write" in p.get("scope", "").split(),
+            # An owned client was made for this; a public one asks with the write scope (or any write scope, when
+            # the tracker is chosen here).
+            "write_requested": any(x.endswith(":write") for x in scopes) or client["account_id"] is not None,
         }
 
     @r.post("/api/oauth/consent")
@@ -473,22 +555,30 @@ def make_router(accounts, sessions, app: str, client_ip) -> APIRouter:
             row = pending_request(c, body.request, s)
             if not row:
                 return fail("invalid_request")
-            p = auth_params(row["query"])
-            target = oauth.app_for(p["resource"])
+            p, client = auth_params(row["query"], c)
+            if client["account_id"] is not None and client["account_id"] != s.id:
+                return fail("invalid_request", 403)
+            target = target_of(p, client) or body.app
             if body.allow:
-                if target not in s.apps or (target in CONSENT_APPS and (not body.health_consent or not s.apps[target].get("consent_at"))):
+                if (
+                    target not in accounts.config.resources
+                    or target not in s.apps
+                    or (target in CONSENT_APPS and (not body.health_consent or not s.apps[target].get("consent_at")))
+                ):
                     return fail("consent_required", 403)
-                write_requested = f"{target}:write" in p.get("scope", "").split()
+                scopes = p.get("scope", "").split()
+                write_requested = any(x.endswith(":write") for x in scopes) or client["account_id"] is not None
                 if body.write and not write_requested:
                     return fail("invalid_scope")
                 scope = [f"{target}:read"] + ([f"{target}:write"] if body.write else [])
                 gid = secrets.token_urlsafe(24)
+                resource = accounts.config.resources[target]
                 grant = {
                     "id": gid,
                     "account_id": s.id,
                     "client_id": p["client_id"],
                     "app": target,
-                    "resource": p["resource"],
+                    "resource": resource,
                     "scope": " ".join(scope),
                     "session_version": s.account["session_version"] or 0,
                     "created_at": now(),
@@ -503,8 +593,11 @@ def make_router(accounts, sessions, app: str, client_ip) -> APIRouter:
                 if used.rowcount != 1:
                     return fail("invalid_request")
                 c.execute(insert(grants).values(**grant))
+                # The request as validated, with the tracker made explicit; the code and state go back to the
+                # client's registered callback only.
+                query = row["query"] if "resource" in p else row["query"] + "&" + urlencode({"resource": resource})
                 headers, _, _ = oauth.server(c).create_authorization_response(
-                    accounts.config.oauth_issuer + "/api/oauth/authorize?" + row["query"],
+                    accounts.config.oauth_issuer + "/api/oauth/authorize?" + query,
                     scopes=scope,
                     credentials={"user": s.id, "grant_id": gid},
                 )
@@ -535,11 +628,28 @@ def make_router(accounts, sessions, app: str, client_ip) -> APIRouter:
             p = params(body)
             if not request.headers.get("content-type", "").startswith("application/x-www-form-urlencoded"):
                 return fail("invalid_request")
-            if not oauth.app_for(p.get("resource")) or p.get("client_secret") or request.headers.get("authorization"):
+            if "resource" in p and not oauth.app_for(p["resource"]):
                 return fail("invalid_request")
-            if p.get("grant_type") == "authorization_code" and not re.fullmatch(r"[A-Za-z0-9._~-]{43,128}", p.get("code_verifier", "")):
-                return fail("invalid_grant")
+            # An owned client may send its secret as HTTP Basic or in the body (client_secret_basic / _post); it is
+            # moved into the body here, once, so OAuthlib checks it in one place.
+            header = request.headers.get("authorization")
+            basic = basic_credentials(header)
+            if header and not basic or basic and ("client_secret" in p or p.get("client_id", basic[0]) != basic[0]):
+                return fail("invalid_client", 401)
+            if basic:
+                p = {**p, "client_id": basic[0], "client_secret": basic[1]}
+                body = urlencode(p)
             with accounts.engine.begin() as c:
+                row = client_row(c, p.get("client_id"))
+                owned = bool(row and row["account_id"] is not None)
+                if not row or ("client_secret" in p) != owned:
+                    return fail("invalid_client", 401)
+                if (
+                    p.get("grant_type") == "authorization_code"
+                    and (not owned or "code_verifier" in p)
+                    and not re.fullmatch(r"[A-Za-z0-9._~-]{43,128}", p.get("code_verifier", ""))
+                ):
+                    return fail("invalid_grant")
                 headers, result, status = oauth.server(c).create_token_response(
                     accounts.config.oauth_issuer + "/api/oauth/token", http_method="POST", body=body, headers={}
                 )
@@ -557,6 +667,9 @@ def make_router(accounts, sessions, app: str, client_ip) -> APIRouter:
                 return fail("invalid_request")
         except (ValueError, UnicodeError):
             return fail("invalid_request")
+        basic = basic_credentials(request.headers.get("authorization"))
+        if basic:
+            p = {**p, "client_id": basic[0]}
         with accounts.engine.begin() as c:
             row = (
                 c.execute(
@@ -594,13 +707,93 @@ def make_router(accounts, sessions, app: str, client_ip) -> APIRouter:
                 for g in rows
                 if oauth.eligible(c, g)
             ]
+            owned = [
+                {
+                    "id": o["id"],
+                    "name": o["name"],
+                    "app": o["app"],
+                    "redirect_host": urlsplit((o["redirects"] or [""])[0]).netloc,
+                    "created_at": o["created_at"],
+                }
+                for o in c.execute(
+                    select(clients).where(clients.c.account_id == s.id, clients.c.secret_digest != "").order_by(clients.c.created_at)
+                ).mappings()
+            ]
         plugin = accounts.config.agent_plugin_url
+        issuer = accounts.config.oauth_issuer
         return {
             "enabled": bool(oauth.enabled and accounts.config.resources.get(app)),
             "resource": accounts.config.resources.get(app),
             "plugin_url": plugin if safe_url(plugin) and urlsplit(plugin).hostname == "chatgpt.com" else None,
+            # What an assistant that asks for them (Gemini Enterprise) needs next to a client ID and secret.
+            "authorization_url": issuer + "/api/oauth/authorize" if oauth.enabled else None,
+            "token_url": issuer + "/api/oauth/token" if oauth.enabled else None,
             "connections": connected,
+            "clients": owned,
         }
+
+    @r.post("/api/account/agent-clients")
+    def make_client(body: OwnedClient, request: Request, response: Response, s=Depends(sessions.ready)):
+        """A client ID and secret for an assistant that asks for them, for one tracker of this account. The secret
+        is only in this response; a hash is stored."""
+        response.headers.update(NO_STORE)
+        if not configured():
+            return fail("not_found", 404)
+        if not csrf(request):
+            return fail("invalid_request", 403)
+        name = body.name.strip()
+        if (
+            body.app not in accounts.config.resources
+            or body.app not in s.apps
+            or not 1 <= len(name) <= 100
+            or len(body.redirect_uri) > 2048
+            or not safe_url(body.redirect_uri)
+        ):
+            return fail("invalid_client_metadata")
+        cid, secret = "ta_client_" + secrets.token_urlsafe(24), "ta_s_" + secrets.token_urlsafe(32)
+        with accounts.engine.begin() as c:
+            mine = c.execute(select(clients.c.id).where(clients.c.account_id == s.id, clients.c.secret_digest != "")).all()
+            if len(mine) >= MAX_OWNED_CLIENTS:
+                return fail("too_many_clients", 422)
+            c.execute(
+                insert(clients).values(
+                    id=cid,
+                    name=name,
+                    redirects=[body.redirect_uri],
+                    created_at=now(),
+                    account_id=s.id,
+                    app=body.app,
+                    secret_digest=digest(secret),
+                )
+            )
+        issuer = accounts.config.oauth_issuer
+        return JSONResponse(
+            {
+                "id": cid,
+                "client_id": cid,
+                "client_secret": secret,
+                "name": name,
+                "app": body.app,
+                "server_url": accounts.config.resources[body.app],
+                "authorization_url": issuer + "/api/oauth/authorize",
+                "token_url": issuer + "/api/oauth/token",
+                "scopes": f"{body.app}:read {body.app}:write",
+                "redirect_uri": body.redirect_uri,
+            },
+            status_code=201,
+            headers=NO_STORE,
+        )
+
+    @r.delete("/api/account/agent-clients/{client_id}")
+    def remove_client(client_id: str, request: Request, s=Depends(sessions.ready)):
+        """Ends every connection made with this client and makes its secret useless. The row stays (grants point
+        at it), with an empty secret digest, which no secret matches."""
+        if not csrf(request):
+            return fail("invalid_request", 403)
+        with accounts.engine.begin() as c:
+            c.execute(update(grants).where(grants.c.client_id == client_id, grants.c.account_id == s.id).values(revoked_at=now()))
+            c.execute(update(clients).where(clients.c.id == client_id, clients.c.account_id == s.id).values(secret_digest=""))
+        return {"ok": True}
 
     @r.delete("/api/account/agent-connections/{grant_id}")
     def disconnect(grant_id: str, request: Request, s=Depends(sessions.ready)):

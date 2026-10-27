@@ -90,6 +90,6 @@ def test_admin_can_turn_it_off_for_a_user_who_lost_the_phone(app, engine):  # no
 def test_agents_cannot_manage_two_step_login(app, engine):  # noqa: F811
     c = TestClient(app)
     login(c)
-    tok = c.post("/api/agent-tokens", json={"name": "x"}).json()["token"]
+    tok = c.post("/api/agent-tokens", json={"name": "x", "scope": "write"}).json()["token"]
     agent = TestClient(app, headers={"Authorization": f"Bearer {tok}"})
     assert agent.post("/api/account/totp/setup").status_code == 401  # a site login only: a token is no session

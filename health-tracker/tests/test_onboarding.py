@@ -153,7 +153,7 @@ def test_each_user_their_own_onboarding(admin, anna):
 
 
 def test_agent_token_sees_its_own_user(app, anna):
-    tok = anna.post("/api/agent-tokens", json={"name": "Claude"}).json()["token"]
+    tok = anna.post("/api/agent-tokens", json={"name": "Claude", "scope": "write"}).json()["token"]
     agent = TestClient(app, headers={"Authorization": f"Bearer {tok}"})
     r = agent.get("/api/onboarding").json()
     assert r["status"]["agents"]["tokens"] == 1 and r["status"]["activities"]["count"] == 0

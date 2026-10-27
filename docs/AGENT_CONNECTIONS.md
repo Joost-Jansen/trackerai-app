@@ -1,20 +1,33 @@
 # Assistant connections:
 
 Health and wealth use one authorization server in `packages/accounts`, the existing TrackerAI account and the
-existing two-step login. `packages/ui` supplies both the consent screen and the connected-apps card. The apps
-only translate an approved shared account into their own data key and enforce their own tool permissions.
+existing two-step login. `packages/ui` supplies the whole Agents page (`account/AgentsPage.tsx`) and the consent
+screen (`account/AgentConsent.tsx`); each app only passes its name, its API and what read and write mean for its data.
+The apps translate an approved shared account into their own data key and enforce their own tool permissions.
 
-From Agents, select the single **ChatGPT / Codex** dropdown option. Only that choice shows the shared account
-connection panel and its plugin button. Other assistants show their own token setup; manual OpenAI configuration
-remains under Advanced setup. The dropdown itself is shared between both apps.
+The Agents page, the same in both apps:
 
-Open the existing TrackerAI plugin in ChatGPT or Codex, add it and choose Connect. The assistant
-opens TrackerAI's consent page. Users choose access separately for each tracker; approving wealth never gives
-health access. Read-only is the default even when a client requests editing. Sharing health data requires an
-additional explicit checkbox. Users can revoke either tracker's connection from either Agents page.
+1. **Assistant**: Claude, ChatGPT / Codex, Gemini (Workspace, Gemini Enterprise), Gemini CLI, GitHub Copilot, or
+   another MCP client.
+2. **Sign in with your TrackerAI account** (OAuth, no token to copy), with the steps for that assistant:
+   - Claude, ChatGPT, Codex, Gemini CLI, VS Code and any client that follows the MCP authorization spec register
+     themselves (RFC 7591) as public clients with PKCE. They only need the server URL.
+   - Gemini in a work account asks for a client ID and secret. The page makes an **owned client**: one per tracker,
+     for this account only, with Gemini's callback `https://vertexaisearch.cloud.google.com/oauth-redirect`. It shows
+     the server URL, authorization URL, token URL, client ID, the secret (once) and the scopes to paste into Gemini.
+   - The personal Gemini app cannot add your own MCP servers; the page points to Gemini CLI.
+3. **Connected**: every approved connection and every owned client, each with a button to end it.
+4. **Advanced setup: tokens**, for a client that cannot sign in and for scripts: read-only unless write is chosen,
+   with an end date unless none is chosen. Health and wealth tokens behave the same (`/api/agent-tokens` answers
+   `{"tokens": [...], "scopes": [...]}`); a read-only health token can only use GET outside MCP.
 
-OpenAI's installation and consent screens still require user interaction. There is no silent installation or
-secret in a plugin ZIP. Manually created tokens remain available in Advanced setup.
+Users choose access separately for each tracker; approving wealth never gives health access. Read-only is the
+default even when a client requests editing. Sharing health data requires an additional explicit checkbox. When a
+client does not say which tracker (no `resource`, no tracker in its scopes), the consent screen asks.
+
+Every MCP tool carries annotations (`readOnlyHint`, `destructiveHint`, `openWorldHint`) from
+`trackerai_accounts.mcp_tools.describe`, so assistants can ask before a change; Gemini Enterprise asks for
+confirmation on destructive tools.
 
 ## Deployment configuration:
 
@@ -38,12 +51,18 @@ rollout complete. Do not merge, deploy or publish the plugin without Joost's pro
 ## Protocol and security:
 
 - OAuthlib's authorization-code implementation checks the protocol and PKCE. Public clients register through
-  RFC 7591, with authentication method `none`, and must send S256 PKCE. No password or implicit grants.
+  RFC 7591, with authentication method `none`, and must send S256 PKCE; a public client that sends a secret is
+  refused. Owned clients always authenticate with their secret (`client_secret_basic` or `client_secret_post`);
+  PKCE is optional for them and checked when used. Only the SHA-256 hash of a secret is stored; removing an owned
+  client empties it, so no secret matches, and revokes its grants. An owned client works for its own account only.
+  No password or implicit grants.
 - RFC 8414 authorization-server discovery, RFC 9728 protected-resource metadata, and a Bearer challenge on MCP
   authentication failures advertise the same issuer to both clients.
 - Exact registered redirect matching; HTTPS redirects or native-client HTTP loopback only. No metadata URL
   fetching, which avoids client-metadata SSRF. The consent screen shows the callback host and the account.
-- RFC 8707 `resource` is required at authorization, code exchange and refresh. One grant covers one tracker.
+- RFC 8707 `resource` decides the tracker; without one, it comes from the owned client, from the one tracker the
+  scopes name, or from the consent screen. A sent resource must match the grant at code exchange and refresh. Asking
+  for two trackers at once is refused: one grant covers one tracker. Unknown scopes (`openid`, …) are ignored.
 - Codes expire in five minutes and work once; access tokens last one hour. Refresh tokens rotate, and reuse ends
   the grant. Connections expire absolutely after 90 days. Codes and tokens are stored only as SHA-256 hashes.
 - Token validity includes account suspension/deletion, app membership/health consent, email verification,

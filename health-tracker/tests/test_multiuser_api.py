@@ -74,11 +74,11 @@ def test_open_registration_and_data_isolation(app, engine):  # noqa: F811
     assert anna.get("/api/context").json()["goals"] is None
 
     # agent tokens act as their own user
-    tok = anna.post("/api/agent-tokens", json={"name": "Claude"}).json()["token"]
+    tok = anna.post("/api/agent-tokens", json={"name": "Claude", "scope": "write"}).json()["token"]
     agent = TestClient(app, headers={"Authorization": f"Bearer {tok}"})
     assert agent.get("/api/me").json()["username"] == "anna"
     assert agent.get("/api/activities").json() == []
-    assert [t["name"] for t in admin.get("/api/agent-tokens").json()] == []
+    assert [t["name"] for t in admin.get("/api/agent-tokens").json()["tokens"]] == []
     mcp = agent.post(
         "/api/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "list_activities", "arguments": {}}}
     ).json()

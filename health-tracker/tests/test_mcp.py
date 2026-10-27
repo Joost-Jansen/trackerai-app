@@ -104,9 +104,9 @@ def test_tokens_made_on_the_site_work_for_api_and_mcp(client):
     bearer = {"Authorization": f"Bearer {TOKEN}"}
     assert client.post("/api/agent-tokens", headers=bearer, json={"name": "x"}).status_code == 403  # agents cannot mint
     client.post("/api/login", json={"username": "alice", "password": "test-wachtwoord-123"})
-    made = client.post("/api/agent-tokens", json={"name": "Claude app"}).json()
+    made = client.post("/api/agent-tokens", json={"name": "Claude app", "scope": "write"}).json()
     assert made["token"].startswith("tr_") and made["name"] == "Claude app"
-    assert "hash" not in client.get("/api/agent-tokens").json()[0]
+    assert "hash" not in client.get("/api/agent-tokens").json()["tokens"][0]
 
     fresh = TestClient(client.app)  # no cookie
     me = fresh.get("/api/me", headers={"Authorization": f"Bearer {made['token']}"}).json()
@@ -175,3 +175,42 @@ def test_gear_added_set_per_run_cleared_retired_and_removed(client):
     assert "verwijderd" in call(client, "delete_gear", id=racer)[0]
     assert call(client, "delete_gear", id=racer)[1] is True
     assert "Racer" not in call(client, "list_gear")[0]
+
+
+def test_read_tokens_read_and_tokens_end(client, engine):  # noqa: F811
+    """A token is read-only unless write is chosen (as in wealth): no write tools, no writes over the API either.
+    One with an end date stops working after it."""
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import update
+
+    from tools import db
+
+    client.post("/api/login", json={"username": "alice", "password": "test-wachtwoord-123"})
+    made = client.post("/api/agent-tokens", json={"name": "Reader", "expires_days": 30}).json()
+    assert made["scope"] == "read" and made["expires_at"]
+    listed = client.get("/api/agent-tokens").json()
+    assert listed["scopes"] == ["read", "write"] and {t["name"]: t["scope"] for t in listed["tokens"]}["Reader"] == "read"
+    agent = TestClient(client.app, headers={"Authorization": f"Bearer {made['token']}"})
+    tools = agent.post("/api/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"}).json()["result"]["tools"]
+    assert tools and all(t["annotations"]["readOnlyHint"] for t in tools)
+    assert agent.post("/api/entries", json={}).status_code == 403
+    assert agent.get("/api/me").status_code == 200
+    assert client.post("/api/agent-tokens", json={"name": "x", "scope": "admin"}).status_code == 422
+    assert client.post("/api/agent-tokens", json={"name": "x", "expires_days": 0}).status_code == 422
+    with engine.begin() as c:
+        c.execute(update(db.agent_tokens).values(expires_at=datetime.now(UTC) - timedelta(days=1)))
+    assert agent.get("/api/me").status_code == 401
+
+
+def test_write_tools_say_what_they_do(client):
+    client.post("/api/login", json={"username": "alice", "password": "test-wachtwoord-123"})
+    token = client.post("/api/agent-tokens", json={"name": "Writer", "scope": "write"}).json()["token"]
+    agent = TestClient(client.app, headers={"Authorization": f"Bearer {token}"})
+    tools = {
+        t["name"]: t["annotations"]
+        for t in agent.post("/api/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"}).json()["result"]["tools"]
+    }
+    assert tools["list_activities"]["readOnlyHint"] and not tools["list_activities"]["destructiveHint"]
+    assert not tools["add_log"]["readOnlyHint"] and not tools["add_log"]["destructiveHint"]
+    assert tools["delete_gear"]["destructiveHint"] and tools["sync_now"]["openWorldHint"]

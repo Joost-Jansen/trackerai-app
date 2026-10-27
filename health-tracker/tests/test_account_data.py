@@ -83,7 +83,7 @@ def test_export_is_a_zip_of_own_data_without_secrets(app, engine):  # noqa: F811
     assert all(s["key"] != "garmin_tokens" for s in load("settings.json"))
     assert "hash" not in load("agent_tokens.json")[0] and load("plan_sessions.json")[0]["sport"] == "run"
     assert b"Ochtendloop" not in r.content
-    agent_token = c.post("/api/agent-tokens", json={"name": "x"}).json()["token"]
+    agent_token = c.post("/api/agent-tokens", json={"name": "x", "scope": "write"}).json()["token"]
     assert TestClient(app, headers={"Authorization": f"Bearer {agent_token}"}).get("/api/account/export").status_code == 403
 
 

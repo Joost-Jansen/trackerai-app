@@ -139,6 +139,12 @@ oauth_clients = Table(
     Column("name", String(100), nullable=False),
     Column("redirects", JSON, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
+    # A client made on the Agents page (for an assistant that wants a client ID and secret, such as Gemini
+    # Enterprise): it belongs to one account and one tracker and always authenticates with its secret. Null for
+    # clients that registered themselves (RFC 7591), which are public and use PKCE.
+    Column("account_id", Integer, index=True),
+    Column("app", String(20)),
+    Column("secret_digest", String(64)),
 )
 
 oauth_requests = Table(
@@ -214,7 +220,10 @@ def connect(url: str) -> Engine:
 
 
 # Columns added after the first release: create_all makes new tables, not new columns in existing ones.
-LATER_COLUMNS = {"accounts": ("email", "email_verified_at", "email_codes_at")}
+LATER_COLUMNS = {
+    "accounts": ("email", "email_verified_at", "email_codes_at"),
+    "oauth_clients": ("account_id", "app", "secret_digest"),
+}
 
 
 def _add_columns(engine: Engine) -> None:

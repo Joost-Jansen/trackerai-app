@@ -324,6 +324,8 @@ export const en: Messages = {
     tokens_site_only: "Agent tokens can only be managed when logged in on the site.",
     token_name_length: (p: { min: number; max: number }) => `A name of ${p.min} to ${p.max} characters.`,
     too_many_tokens: (p: { max: number }) => `At most ${p.max} tokens; revoke one first.`,
+    invalid_token_settings: "Choose read or read and write, and a validity of 1 to 3650 days.",
+    read_only_token: "This token may only read.",
     upload_empty: "Empty file.",
     upload_too_large: (p: { max_mb: number }) => `File larger than ${p.max_mb} MB.`,
     fit_unreadable: "No readable activity in this FIT file.",
@@ -639,41 +641,15 @@ export const en: Messages = {
   agents: {
     title: "Access for AI assistants (agents)",
     intro1:
-      "An AI assistant (Claude, ChatGPT, Codex, Copilot, Gemini or any other MCP client) can read your training data and, if you allow it, update your plan, log and goals.",
-    intro2: "Choose your assistant below to connect it. You can revoke its access here at any time.",
-    tokenName: "Token name",
-    newToken: "New token",
-    madeTitle: (name: string) => `Token "${name}" (only visible now)`,
-    token: "Token",
-    assistant: "Assistant",
-    assistantHint: "Only for the instructions: the token works in every MCP client.",
-    clients: {
-      claude: "Claude (app, claude.ai, Claude Code)",
-      copilot: "GitHub Copilot (VS Code, CLI)",
-      other: "Another MCP client (Cursor, Gemini CLI, …)",
-    },
-    otherAssistant: "Another assistant? Choose it above; this token works there too.",
-    appText:
-      'At <link>claude.ai/customize/connectors</link>, "Add custom connector". Name: health-tracker. Once per account: after that Claude can read your data and update your plan, goals and log in every new conversation, in the Claude app, on claude.ai and in Claude Code logged in with that account (also in the cloud). URL (contains the token, treat it as a password):',
-    connectorUrl: "Connector URL",
-    chatgpt:
-      "In ChatGPT on the web, switch on Developer mode under Settings (Apps or Connectors, Advanced). Then create a connector named health-tracker with this URL and authentication “No authentication”. The URL contains the token, treat it as a password:",
-    codex: "Add this to ~/.codex/config.toml. It works for the Codex CLI and the IDE extension:",
-    apiKeyCode: "Only for Claude Code with an API key instead of a claude.ai login, once in a terminal",
-    copilot:
-      "VS Code and the Copilot CLI each keep their own list, so add it where you use Copilot. In VS Code: Command Palette, “MCP: Open User Configuration”, and add this server (inside the existing “servers”, if there is one).",
-    copilotCli: "Copilot CLI, once in a terminal",
-    other:
-      "The server speaks MCP over streamable HTTP (no session, answers as JSON). Give the client the URL and the header, or, if it only takes a URL, the URL with the token in it.",
-    urlWithToken: "URL with the token in it",
+      "An AI assistant (Claude, ChatGPT, Codex, Copilot, Gemini or another MCP client) can read your training data and, if you allow it, update your plan, log and goals.",
+    intro2: "Choose your assistant below to connect it. You can revoke access here at any time.",
+    levelRead: "Read: view everything, change nothing.",
+    levelWrite:
+      "Read and write: also create and change plans, documents, log, goals and gear, and start a sync. Never your account, connections or other users.",
     cliTitle: "Only for tools/tr.py (command line)",
     cliText:
       "Not needed if you use the connector. Set these two as variables in your own shell and allow network access to <code>host</code>.",
     variables: "Variables",
-    active: "Active tokens",
-    none: "No tokens made on the site yet. (A token from tools/set_agent_token.py works too and is not listed here.)",
-    created: (day: string) => `created ${day}`,
-    revokeConfirm: (name: string) => `Revoke token "${name}"? Whatever uses it stops working.`,
   },
 
   history: {
