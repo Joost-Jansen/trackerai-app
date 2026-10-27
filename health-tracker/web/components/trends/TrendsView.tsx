@@ -456,7 +456,7 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
               series={volume.series}
             />
           </Card>
-          <ZonesOverTime window={win} sport={sport} />
+          <ZonesOverTime window={win} sport={sport} onWindow={range.change} onReset={range.reset} />
           {/* Every chart across the full width: the time axis is what you read, it needs the room. */}
           {running && (
             <>
@@ -666,7 +666,7 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
 
       {tab === "recovery" && (
         <>
-          <SleepStages nights={t.sleep_stages ?? []} window={win} />
+          <SleepStages nights={t.sleep_stages ?? []} window={win} onWindow={range.change} onReset={range.reset} />
           <Card title={daily ? TT.recovery.titleDay : TT.recovery.titleWeek}>
             <div className="grid gap-6 md:grid-cols-2">
               {recoveryCharts.map((c) => (

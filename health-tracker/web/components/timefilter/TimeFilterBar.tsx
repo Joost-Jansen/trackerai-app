@@ -255,7 +255,7 @@ export default function TimeFilterBar({
             </div>
           </div>
           <div className="mt-4">
-            <RangeBrush first={first} last={last} window={w} onChange={change} points={overview} />
+            <RangeBrush first={first} last={last} window={w} onChange={change} onReset={custom ? reset : undefined} points={overview} />
           </div>
           <p className="mt-3 text-[11.5px] leading-relaxed text-ink-muted">{TF.help}</p>
         </div>

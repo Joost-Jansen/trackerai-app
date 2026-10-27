@@ -52,6 +52,7 @@ export default function PriceChart({
   className = "h-[170px] sm:h-[208px]",
   dateAxis = false,
   onSelect,
+  onReset,
 }: {
   points: PricePoint[];
   baseline?: number | null;
@@ -67,6 +68,8 @@ export default function PriceChart({
   dateAxis?: boolean;
   /** Drag across the chart and let go: that stretch becomes the period. */
   onSelect?: (window: ZoomWindow) => void;
+  /** Double-click: back to the period from before the dragging. */
+  onReset?: () => void;
 }) {
   const clipId = useId();
   const wrap = useRef<HTMLDivElement>(null);
@@ -206,6 +209,7 @@ export default function PriceChart({
             else setHover(indexAt(e.clientX));
           }}
           onMouseUp={release}
+          onDoubleClick={onReset}
           onMouseLeave={clear}
           onTouchStart={(e) => {
             if (e.touches.length >= 2) measure(indexAt(e.touches[0].clientX), indexAt(e.touches[1].clientX));

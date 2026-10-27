@@ -43,7 +43,19 @@ function MiniBar({ pct, label }: { pct: Record<Zone, number> | null; label: stri
 }
 
 /** `sport`: the page's sport filter ("all" or one sport). Then the card follows it and shows no choice of its own. */
-export default function ZonesOverTime({ window: win, sport: pageSport }: { window?: { from: string; to: string }; sport?: string }) {
+export default function ZonesOverTime({
+  window: win,
+  sport: pageSport,
+  onWindow,
+  onReset,
+}: {
+  window?: { from: string; to: string };
+  sport?: string;
+  /** Drag across the chart: that stretch becomes the page's window. */
+  onWindow?: (w: { from: string; to: string }) => void;
+  /** Double-click: the page's window back to its period. */
+  onReset?: () => void;
+}) {
   const t = useT();
   const f = useFormat();
   const z = t.zones;
@@ -194,6 +206,8 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
                 </span>
               </div>
               <LineChart
+                onSelect={onWindow}
+                onReset={onReset}
                 endLabels={false}
                 height={180}
                 baseline={EASY_TARGET}

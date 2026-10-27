@@ -71,6 +71,7 @@ export default function LineChart({
   xFormat,
   dateAxis = false,
   onSelect,
+  onReset,
 }: {
   series: LineSeries[];
   /** Dotted line at this value, for example 100 (index) or 0 (%). */
@@ -93,6 +94,8 @@ export default function LineChart({
   dateAxis?: boolean;
   /** Drag across the chart and let go: that stretch becomes the period. */
   onSelect?: (window: ZoomWindow) => void;
+  /** Double-click: back to the period from before the dragging. */
+  onReset?: () => void;
 }) {
   const tr = useTr();
   const locale = useUiLocale();
@@ -234,6 +237,7 @@ export default function LineChart({
         const [a, b] = dragFrom < to ? [dragFrom, to] : [to, dragFrom];
         onSelect({ from: dates[a], to: dates[b] });
       }}
+      onDoubleClick={onReset}
       onTouchStart={(e) => locate(e.touches[0].clientX)}
       onTouchMove={(e) => locate(e.touches[0].clientX)}
       onTouchEnd={() => setHover(null)}
