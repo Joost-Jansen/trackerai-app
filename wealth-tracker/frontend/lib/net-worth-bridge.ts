@@ -117,3 +117,25 @@ function dayBefore(d: string): string {
   t.setUTCDate(t.getUTCDate() - 1);
   return t.toISOString().slice(0, 10);
 }
+
+/** Where the change came from, so far: one point of `bridgeSeries`. */
+export type SourcePoint = { d: string; change: number; saved: number; market: number; bank: number; debt: number };
+
+/**
+ * The split of `bridge`, at every point: from the first point to each later one. That is how much saving, the
+ * market, bank & cash and debt have added to net worth since the start of the period, day by day, and at the last
+ * point it is exactly what the tiles above the chart show. Null when the bank data does not cover the start (then
+ * there is nothing to split with, as in `bridge`).
+ */
+export function bridgeSeries(points: Balance[], flows: Flow[], sharedAsSpending = false): SourcePoint[] | null {
+  if (points.length < 2) return null;
+  const from = points[0];
+  const zero = { d: from.d, change: 0, saved: 0, market: 0, bank: 0, debt: 0 };
+  const out: SourcePoint[] = [zero];
+  for (const to of points.slice(1)) {
+    const b = bridge(from, to, flows, sharedAsSpending);
+    if (b.saved === null) return null;
+    out.push({ d: to.d, change: b.change, saved: b.saved, market: b.market!, bank: b.bank!, debt: b.debt! });
+  }
+  return out;
+}

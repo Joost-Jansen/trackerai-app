@@ -2057,4 +2057,9 @@ export const nl: Record<string, string> = {
   "Month of the month cards": "Maand van de maandkaarten",
   "Next {0}": "Volgende {0}",
   "Back to this {0}": "Terug naar deze {0}",
+  "Since {0}": "Sinds {0}",
+  "since {0}": "sinds {0}",
+  "Per source": "Per bron",
+  "From the start of the period: how much saving, the market, bank & cash and debt each added to your net worth. Together they make the net line; at the end they are the tiles above.": "Vanaf het begin van de periode: hoeveel sparen, de markt, bank & contant en schulden elk aan je vermogen toevoegden. Samen vormen ze de netto lijn; aan het eind zijn het de tegels hierboven.",
+  "Show one source": "Toon één bron",
 };

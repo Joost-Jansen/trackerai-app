@@ -29,6 +29,12 @@
 // "Change" view drops the stacks and fits the axis to the net line itself, with
 // the starting value as a dashed reference, so a week of spending is visible.
 // Breakdown is the default; a choice for Change is remembered.
+//
+// **Per source** is the change split over time: from the start of the period, how
+// much saving, the market, bank & cash and debt each added, one line per source
+// from zero (bridgeSeries, the same arithmetic as the tiles, so the lines end
+// exactly at the tiles). It answers "did I save this, or was it the market?". A
+// line's name sits at its end, and one source can be shown alone.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { fmtDayMonthYear, WEEKDAY_ABBR } from "@/lib/format";
@@ -39,7 +45,7 @@ import { dayNumber, sampleBalances, windowWithBase } from "@/lib/timeline";
 import { dateTicks } from "@/lib/date-ticks";
 import { trueMinus } from "@trackerai/ui/lib/typography";
 import { tr, trx } from "@/lib/i18n";
-import { bridge, type Flow } from "@/lib/net-worth-bridge";
+import { bridge, bridgeSeries, type Flow, type SourcePoint } from "@/lib/net-worth-bridge";
 
 export type NetWorthPoint = {
   d: string;
@@ -71,7 +77,17 @@ const STACKS: Stack[] = [
 
 const PATH = { top: 16, right: 96, bottom: 20 };
 
-export type NetWorthView = "change" | "breakdown";
+export type NetWorthView = "change" | "breakdown" | "sources";
+
+type SourceKey = "saved" | "market" | "bank" | "debt";
+
+// The same order as the tiles above the chart. Market and bank & cash take the colours of their stacks.
+const SOURCES: { key: SourceKey; label: string; colour: string }[] = [
+  { key: "saved", label: tr("Saved"), colour: "var(--chart-2)" },
+  { key: "market", label: tr("Market"), colour: "var(--chart-3)" },
+  { key: "bank", label: tr("Bank & cash"), colour: "var(--chart-5)" },
+  { key: "debt", label: tr("Debt"), colour: "var(--chart-4)" },
+];
 
 /** "Sat 26 Sep 2026": with the weekday, because over a month that is what you place a day by. */
 function fmtLongDay(d: string): string {
@@ -91,8 +107,14 @@ function NetWorthPlot({
   view,
   stepLabel,
   onSelect,
+  sources = null,
+  only = null,
 }: {
   points: NetWorthPoint[];
+  /** Per source: the split from the first point to each point, the same length as `points`. */
+  sources?: SourcePoint[] | null;
+  /** Per source: show this one source alone (with the net change for reference). */
+  only?: SourceKey | null;
   format: (v: number) => string;
   height?: number;
   ariaLabel: string;
@@ -118,8 +140,17 @@ function NetWorthPlot({
     return () => ro.disconnect();
   }, []);
 
+  const shownSources = useMemo(() => SOURCES.filter((s) => only === null || s.key === only), [only]);
   const model = useMemo(() => {
     if (points.length < 2) return null;
+    if (view === "sources" && sources) {
+      // Around zero, the start: every line begins there.
+      const values = sources.flatMap((p) => [0, p.change, ...shownSources.map((s) => p[s.key])]);
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const pad = Math.max((max - min) * 0.08, 10);
+      return { lo: min - pad, hi: max + pad };
+    }
     if (view === "change") {
       // Fitted to the net line, with some air. A floor under the span keeps a
       // change of a few euros from filling the whole chart.
@@ -135,7 +166,7 @@ function NetWorthPlot({
     // debt of 200, and you do not see that you are below zero.
     const values = points.flatMap((p) => [0, p.net, p.investments, p.investments + p.bank, p.debt]);
     return { lo: Math.min(...values), hi: Math.max(...values) };
-  }, [points, view]);
+  }, [points, view, sources, shownSources]);
 
   if (!model) return null;
 
@@ -194,7 +225,8 @@ function NetWorthPlot({
   const active = hover !== null ? points[hover] : null;
   const last = points[points.length - 1];
   const first = points[0];
-  const gridValues = view === "change" ? [lo + span * 0.1, lo + span / 2, hi - span * 0.1] : [lo, lo + span / 2, hi];
+  const fitted = view === "change" || view === "sources";
+  const gridValues = fitted ? [lo + span * 0.1, lo + span / 2, hi - span * 0.1] : [lo, lo + span / 2, hi];
   const ticks = dateTicks(first.d, last.d, innerW);
 
   // The change view's fill: between the net line and the starting value.
@@ -213,7 +245,21 @@ function NetWorthPlot({
     netLabelY = above;
     startLabelY = above + 12;
   }
-  const taken = view === "change" ? [netLabelY, startLabelY] : [netLabelY];
+  // Per source: a name at the end of each line, pushed apart where they would land on each other.
+  const sourceLabels: { key: string; label: string; colour: string; y: number }[] = [];
+  if (view === "sources" && sources) {
+    const end = sources[sources.length - 1];
+    const wanted = [
+      ...shownSources.map((s) => ({ key: s.key, label: s.label, colour: s.colour, y: y(end[s.key]) + 3.5 })),
+      { key: "change", label: tr("Net"), colour: "var(--chart-1)", y: y(end.change) + 3.5 },
+      { key: "start", label: tr("Start"), colour: "var(--text-faint)", y: y(0) + 3.5 },
+    ].sort((a, b) => a.y - b.y);
+    for (const l of wanted) {
+      const prev = sourceLabels[sourceLabels.length - 1];
+      sourceLabels.push({ ...l, y: prev && l.y - prev.y < 12 ? prev.y + 12 : l.y });
+    }
+  }
+  const taken = view === "sources" ? sourceLabels.map((l) => l.y) : view === "change" ? [netLabelY, startLabelY] : [netLabelY];
   const freeForAxis = (v: number) => taken.every((t) => Math.abs(y(v) + 3.5 - t) >= 12);
 
   const signed = (v: number) => `${v > 0 ? "+" : ""}${trueMinus(format(v))}`;
@@ -239,6 +285,37 @@ function NetWorthPlot({
                 </span>
                 {" · "}
                 <span className="text-xs text-ink-muted">{tr("let go to show this period")}</span>
+              </span>
+            );
+          })()
+        ) : view === "sources" && sources ? (
+          (() => {
+            const at = sources[hover ?? sources.length - 1];
+            return (
+              <span className="text-[13px]">
+                <span className="font-semibold">{hover !== null ? fmtLongDay(at.d) : trx("Since {0}", fmtDayMonthYear(first.d))}</span>
+                {hover !== null && (
+                  <span className="text-xs text-ink-muted">
+                    {" · "}
+                    {trx("since {0}", fmtDayMonthYear(first.d))}
+                  </span>
+                )}
+                {SOURCES.map((s) => (
+                  <span key={s.key} className="num text-xs">
+                    {" · "}
+                    <span className="text-ink-muted">{s.label}</span>{" "}
+                    <span className="whitespace-nowrap" style={{ color: tone(at[s.key]) }}>
+                      {signed(at[s.key])}
+                    </span>
+                  </span>
+                ))}
+                <span className="num text-xs">
+                  {" · "}
+                  <span className="text-ink-muted">{tr("Net")}</span>{" "}
+                  <strong className="whitespace-nowrap" style={{ color: tone(at.change) }}>
+                    {signed(at.change)}
+                  </strong>
+                </span>
               </span>
             );
           })()
@@ -354,12 +431,42 @@ function NetWorthPlot({
               />
             ))}
 
-          <path d={netLine} fill="none" stroke="var(--chart-1)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+          {view === "sources" && sources ? (
+            <>
+              <line x1={0} x2={innerW} y1={y(0)} y2={y(0)} stroke="var(--text-faint)" strokeDasharray="4 4" />
+              {shownSources.map((s) => (
+                <path
+                  key={s.key}
+                  d={sources.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p[s.key]).toFixed(1)}`).join("")}
+                  fill="none"
+                  stroke={s.colour}
+                  strokeWidth={1.75}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              ))}
+              {/* The net change on top: the sum of the lines below it. Thinner and fainter when one source is
+                  shown alone, as a reference. */}
+              <path
+                d={sources.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.change).toFixed(1)}`).join("")}
+                fill="none"
+                stroke="var(--chart-1)"
+                strokeWidth={only === null ? 2.25 : 1.25}
+                strokeOpacity={only === null ? 1 : 0.5}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+            </>
+          ) : (
+            <>
+              <path d={netLine} fill="none" stroke="var(--chart-1)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
 
-          {/* A faint dot on each real measurement: the line between them is extrapolated
-              balance. Kept small, the hover readout says it outright. */}
-          {points.map((p, i) =>
-            p.measured ? <circle key={p.d} cx={x(i)} cy={y(p.net)} r={1.5} fill="var(--chart-1)" fillOpacity={0.45} /> : null,
+              {/* A faint dot on each real measurement: the line between them is extrapolated
+                  balance. Kept small, the hover readout says it outright. */}
+              {points.map((p, i) =>
+                p.measured ? <circle key={p.d} cx={x(i)} cy={y(p.net)} r={1.5} fill="var(--chart-1)" fillOpacity={0.45} /> : null,
+              )}
+            </>
           )}
 
           {/* The stretch being dragged over. */}
@@ -379,15 +486,37 @@ function NetWorthPlot({
           {hover !== null && (
             <>
               <line x1={x(hover)} x2={x(hover)} y1={PATH.top} y2={PATH.top + innerH} stroke="var(--border-strong)" strokeDasharray="2 3" />
-              <circle cx={x(hover)} cy={y(points[hover].net)} r={4} fill="var(--chart-1)" stroke="var(--surface)" strokeWidth={2} />
+              {view === "sources" && sources ? (
+                [...shownSources, { key: "change" as const, colour: "var(--chart-1)" }].map((s) => (
+                  <circle
+                    key={s.key}
+                    cx={x(hover)}
+                    cy={y(sources[hover][s.key])}
+                    r={3}
+                    fill={s.colour}
+                    stroke="var(--surface)"
+                    strokeWidth={1.5}
+                  />
+                ))
+              ) : (
+                <circle cx={x(hover)} cy={y(points[hover].net)} r={4} fill="var(--chart-1)" stroke="var(--surface)" strokeWidth={2} />
+              )}
             </>
           )}
 
           {/* Names at the end of each area, as LineChart does — that saves a legend block and makes
               identity independent of colour. */}
-          <text x={innerW + 6} y={netLabelY} fontSize={10} fill="var(--chart-1)">
-            {tr("Net")}
-          </text>
+          {view === "sources" ? (
+            sourceLabels.map((l) => (
+              <text key={l.key} x={innerW + 6} y={l.y} fontSize={10} fill={l.colour}>
+                {l.label}
+              </text>
+            ))
+          ) : (
+            <text x={innerW + 6} y={netLabelY} fontSize={10} fill="var(--chart-1)">
+              {tr("Net")}
+            </text>
+          )}
           {view === "breakdown" &&
             STACKS.map((s) => {
               const middle =
@@ -451,12 +580,18 @@ export default function NetWorthChart({
   useEffect(() => {
     try {
       const saved = localStorage.getItem("net-worth-view");
-      if (saved === "change" || saved === "breakdown") choose(saved);
+      if (saved === "change" || saved === "breakdown" || saved === "sources") choose(saved);
     } catch {
       /* no storage: the default applies */
     }
   }, []);
-  const view: NetWorthView = chosen ?? "breakdown";
+  // Per source needs the bank data from the start of the window; without it the view is not offered.
+  const sources = useMemo(
+    () => (points.length > 1 ? bridgeSeries(points, flows, sharedAsSpending) : null),
+    [points, flows, sharedAsSpending],
+  );
+  const [only, setOnly] = useState<SourceKey | null>(null);
+  const view: NetWorthView = chosen === "sources" && !sources ? "breakdown" : (chosen ?? "breakdown");
   const pick = (v: NetWorthView) => {
     choose(v);
     try {
@@ -468,6 +603,7 @@ export default function NetWorthChart({
   const VIEWS: { id: NetWorthView; label: string }[] = [
     { id: "breakdown", label: tr("Breakdown") },
     { id: "change", label: tr("Change") },
+    ...(sources ? [{ id: "sources" as const, label: tr("Per source") }] : []),
   ];
   const stepLabel = granularity === "day" ? tr("vs the day before") : tr("vs the previous point");
   return (
@@ -544,11 +680,44 @@ export default function NetWorthChart({
           <Tabs items={VIEWS} value={view} variant="segmented" ariaLabel={tr("Chart view")} onChange={(v) => pick(v as NetWorthView)} />
           <span className="text-xs text-ink-muted">
             <Explained
-              text={`${view === "change" ? tr("Net worth only, with the axis fitted to it: small changes become visible.") : tr("Investments, bank and debt stacked, from zero.")} ${tr("Drag across the chart to show that stretch.")}`}
+              text={`${
+                view === "sources"
+                  ? tr(
+                      "From the start of the period: how much saving, the market, bank & cash and debt each added to your net worth. Together they make the net line; at the end they are the tiles above.",
+                    )
+                  : view === "change"
+                    ? tr("Net worth only, with the axis fitted to it: small changes become visible.")
+                    : tr("Investments, bank and debt stacked, from zero.")
+              } ${tr("Drag across the chart to show that stretch.")}`}
             >
               {tr("How to read this")}
             </Explained>
           </span>
+        </div>
+      )}
+      {view === "sources" && sources && (
+        // One source on its own, or all of them. Buttons, not colour, pick the line.
+        <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label={tr("Show one source")}>
+          {[{ key: null, label: tr("All"), colour: "var(--chart-1)" }, ...SOURCES].map((s) => {
+            const on = only === s.key;
+            return (
+              <button
+                key={s.key ?? "all"}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setOnly(s.key)}
+                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs"
+                style={{
+                  borderColor: on ? "var(--border-strong)" : "var(--rule)",
+                  background: on ? "var(--surface-raised, var(--surface))" : "transparent",
+                  fontWeight: on ? 600 : 400,
+                }}
+              >
+                <span aria-hidden className="inline-block h-0.5 w-3 rounded" style={{ background: s.colour }} />
+                {s.label}
+              </button>
+            );
+          })}
         </div>
       )}
       {points.length > 1 ? (
@@ -559,6 +728,8 @@ export default function NetWorthChart({
           view={view}
           stepLabel={stepLabel}
           onSelect={timeline.change}
+          sources={view === "sources" ? sources : null}
+          only={only}
         />
       ) : (
         <p className="py-6 text-sm text-ink-muted">{tr("Not enough data for a line in this period. Zoom out or choose another period.")}</p>
