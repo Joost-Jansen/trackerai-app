@@ -2059,11 +2059,11 @@ export const nl: Record<string, string> = {
   "Back to this {0}": "Terug naar deze {0}",
   "Since {0}": "Sinds {0}",
   "since {0}": "sinds {0}",
-  "Per source": "Per bron",
   "From the start of the period: how much saving, the market, bank & cash and debt each added to your net worth. Together they make the net line; at the end they are the tiles above.": "Vanaf het begin van de periode: hoeveel sparen, de markt, bank & contant en schulden elk aan je vermogen toevoegden. Samen vormen ze de netto lijn; aan het eind zijn het de tegels hierboven.",
-  "Show one source": "Toon één bron",
   "No bank data yet": "Nog geen bankgegevens",
   "Not split": "Niet verdeeld",
+  "Split by source": "Verdeel per bron",
+  "Off": "Uit",
   "From the start of the period: how much the market and debt each added to your net worth. There is no bank data in this period, so saving and bank & cash are one line: Not split.": "Vanaf het begin van de periode: hoeveel de markt en schulden elk aan je vermogen toevoegden. Er zijn geen bankgegevens in deze periode, dus zijn sparen en bank & contant één lijn: Niet verdeeld.",
   "From the start of the period: how much saving, the market, bank & cash and debt each added to your net worth. Together they make the net line. Before {0} there is no bank data, so saving and bank & cash are one line there: Not split.": "Vanaf het begin van de periode: hoeveel sparen, de markt, bank & contant en schulden elk aan je vermogen toevoegden. Samen vormen ze de netto lijn. Voor {0} zijn er geen bankgegevens, dus zijn sparen en bank & contant daar één lijn: Niet verdeeld.",
 };

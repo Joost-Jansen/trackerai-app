@@ -30,16 +30,18 @@
 // the starting value as a dashed reference, so a week of spending is visible.
 // Breakdown is the default; a choice for Change is remembered.
 //
-// **Per source** is the change split over time: from the start of the period, how
-// much saving, the market, bank & cash and debt each added, one line per source
-// from zero (bridgeSeries, the same arithmetic as the tiles, so the lines end
-// exactly at the tiles). It answers "did I save this, or was it the market?". A
-// line's name sits at its end, and one source can be shown alone.
+// **Split by source** (behind the ⚙ of Change, as on Spending) is the change split
+// over time: from the start of the period, how much saving, the market, bank & cash
+// and debt each added, one line per source from zero (bridgeSeries, the same
+// arithmetic as the tiles). It answers "did I save this, or was it the market?". A
+// line's name sits at its end, and one source can be shown alone; the axis then
+// reads as change since the start.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { fmtDayMonthYear, WEEKDAY_ABBR } from "@/lib/format";
 import type { useTimeline } from "@/components/money/TimelineControls";
-import { Explained, Tabs } from "@/components/ds";
+import { Button, Explained, Tabs } from "@/components/ds";
+import { Setting } from "@/components/money/charts/base";
 import { TERMS } from "@/lib/net-worth-terms";
 import { dayNumber, sampleBalances, windowWithBase } from "@/lib/timeline";
 import { dateTicks } from "@/lib/date-ticks";
@@ -77,7 +79,12 @@ const STACKS: Stack[] = [
 
 const PATH = { top: 16, right: 96, bottom: 20 };
 
-export type NetWorthView = "change" | "breakdown" | "sources";
+/** The tabs above the chart. */
+type NetWorthTab = "change" | "breakdown";
+/** What the plot draws: a tab, or Change split by source (its ⚙). */
+type NetWorthView = NetWorthTab | "sources";
+/** Change, split by source: off, all of them, or one on its own. */
+type Split = "off" | "all" | SourceKey;
 
 type SourceKey = "saved" | "market" | "bank" | "debt";
 
@@ -419,7 +426,7 @@ function NetWorthPlot({
               <line x1={0} x2={innerW} y1={y(v)} y2={y(v)} stroke="var(--border-hairline)" strokeDasharray="1 4" />
               {freeForAxis(v) && (
                 <text x={innerW + 6} y={y(v) + 3.5} className="num" fontSize={10} fill="var(--text-faint)">
-                  {trueMinus(format(v))}
+                  {view === "sources" ? signed(v) : trueMinus(format(v))}
                 </text>
               )}
             </g>
@@ -615,14 +622,22 @@ export default function NetWorthChart({
   const selected = windowWithBase(props.points, timeline.window);
   const points = sampleBalances(selected, granularity, boundaries);
   const change = selected.length > 1 ? selected[selected.length - 1].net - selected[0].net : null;
-  const [chosen, choose] = useState<NetWorthView | null>(null);
-  // A choice is remembered for this browser; without one it is Breakdown.
+  const [chosen, choose] = useState<NetWorthTab | null>(null);
+  const [chosenSplit, setSplit] = useState<Split>("off");
+  // Choices are remembered for this browser; without one it is Breakdown, not split. "sources" is the former
+  // Per source tab: now Change, split by all sources.
   useEffect(() => {
     try {
       const saved = localStorage.getItem("net-worth-view");
-      if (saved === "change" || saved === "breakdown" || saved === "sources") choose(saved);
+      if (saved === "change" || saved === "breakdown") choose(saved);
+      if (saved === "sources") {
+        choose("change");
+        setSplit("all");
+      }
+      const split = localStorage.getItem("net-worth-split");
+      if (split === "off" || split === "all" || SOURCES.some((s) => s.key === split)) setSplit(split as Split);
     } catch {
-      /* no storage: the default applies */
+      /* no storage: the defaults apply */
     }
   }, []);
   // Per source: each part where its own data is (see bridgeSeries).
@@ -630,22 +645,27 @@ export default function NetWorthChart({
     () => (points.length > 1 ? bridgeSeries(points, flows, sharedAsSpending) : null),
     [points, flows, sharedAsSpending],
   );
-  const [chosenOnly, setOnly] = useState<SourceKey | null>(null);
   const hasBank = !!sources && firstBanked(sources) < sources.length;
-  const only = chosenOnly && (hasBank || !BANKED_ONLY.includes(chosenOnly)) ? chosenOnly : null;
-  const view: NetWorthView = chosen === "sources" && !sources ? "breakdown" : (chosen ?? "breakdown");
-  const pick = (v: NetWorthView) => {
-    choose(v);
+  // Saved or Bank & cash alone means nothing without bank data in the period: then it is all of them.
+  const split: Split = chosenSplit !== "off" && !hasBank && BANKED_ONLY.includes(chosenSplit) ? "all" : chosenSplit;
+  const tab: NetWorthTab = chosen ?? "breakdown";
+  const view: NetWorthView = tab === "change" && split !== "off" && sources ? "sources" : tab;
+  const only = split === "off" || split === "all" ? null : split;
+  const [settingUp, setSettingUp] = useState(false);
+  const remember = (key: string, value: string) => {
     try {
-      localStorage.setItem("net-worth-view", v);
+      localStorage.setItem(key, value);
     } catch {
       /* fine */
     }
   };
-  const VIEWS: { id: NetWorthView; label: string }[] = [
+  const pick = (v: NetWorthTab) => {
+    choose(v);
+    remember("net-worth-view", v);
+  };
+  const VIEWS: { id: NetWorthTab; label: string }[] = [
     { id: "breakdown", label: tr("Breakdown") },
     { id: "change", label: tr("Change") },
-    ...(sources ? [{ id: "sources" as const, label: tr("Per source") }] : []),
   ];
   const stepLabel = granularity === "day" ? tr("vs the day before") : tr("vs the previous point");
   return (
@@ -719,7 +739,7 @@ export default function NetWorthChart({
         })()}
       {points.length > 1 && (
         <div className="mb-3 flex flex-wrap items-center gap-3">
-          <Tabs items={VIEWS} value={view} variant="segmented" ariaLabel={tr("Chart view")} onChange={(v) => pick(v as NetWorthView)} />
+          <Tabs items={VIEWS} value={tab} variant="segmented" ariaLabel={tr("Chart view")} onChange={(v) => pick(v as NetWorthTab)} />
           <span className="text-xs text-ink-muted">
             <Explained
               text={`${
@@ -744,34 +764,31 @@ export default function NetWorthChart({
               {tr("How to read this")}
             </Explained>
           </span>
+          {tab === "change" && sources && (
+            // As on Spending: what you can change about the chart sits behind ⚙.
+            <span className="ml-auto">
+              <Button size="sm" variant="ghost" aria-expanded={settingUp} onClick={() => setSettingUp((o) => !o)}>
+                <span aria-hidden>⚙</span> {settingUp ? tr("Done") : tr("Set up")}
+              </Button>
+            </span>
+          )}
         </div>
       )}
-      {view === "sources" && sources && (
-        // One source on its own, or all of them. Buttons, not colour, pick the line.
-        <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label={tr("Show one source")}>
-          {[
-            { key: null, label: tr("All"), colour: "var(--chart-1)" },
-            ...SOURCES.filter((s) => hasBank || !BANKED_ONLY.includes(s.key)),
-          ].map((s) => {
-            const on = only === s.key;
-            return (
-              <button
-                key={s.key ?? "all"}
-                type="button"
-                aria-pressed={on}
-                onClick={() => setOnly(s.key)}
-                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs"
-                style={{
-                  borderColor: on ? "var(--border-strong)" : "var(--rule)",
-                  background: on ? "var(--surface-raised, var(--surface))" : "transparent",
-                  fontWeight: on ? 600 : 400,
-                }}
-              >
-                <span aria-hidden className="inline-block h-0.5 w-3 rounded" style={{ background: s.colour }} />
-                {s.label}
-              </button>
-            );
-          })}
+      {settingUp && tab === "change" && sources && (
+        <div className="mb-4 flex flex-wrap gap-x-6 gap-y-2.5 rounded-md p-3" style={{ background: "var(--surface-inset)" }}>
+          <Setting
+            label={tr("Split by source")}
+            value={split}
+            options={[
+              ["off", tr("Off")],
+              ["all", tr("All")],
+              ...SOURCES.filter((s) => hasBank || !BANKED_ONLY.includes(s.key)).map((s): [string, string] => [s.key, s.label]),
+            ]}
+            onChange={(v) => {
+              setSplit(v as Split);
+              remember("net-worth-split", v);
+            }}
+          />
         </div>
       )}
       {points.length > 1 ? (
