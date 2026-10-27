@@ -28,7 +28,18 @@ test("market is what the holdings did, saving is what came in", () => {
   assert.equal(day2.market, 0); // the 100 more in investments was a deposit
 });
 
-test("nothing to split with before the bank data starts", () => {
+test("no bank data in the stretch: market and debt still run, the rest is unsplit", () => {
+  const held = [
+    point("2026-01-01", 1000, 500, -2000, { portfolio: 1000, portfolio_invested: 1000 }),
+    point("2026-01-02", 1050, 520, -1990, { portfolio: 1050, portfolio_invested: 1000 }),
+  ];
+  for (const none of [[], [flow("2026-02-01", 5)]]) {
+    const [, day2] = bridgeSeries(held, none);
+    assert.deepEqual(day2, { d: "2026-01-02", change: 80, saved: 0, market: 50, bank: 0, debt: 10, unsplit: 20, banked: false });
+  }
+});
+
+test("without the holdings, no market to measure before the bank data", () => {
   assert.equal(bridgeSeries(points, [flow("2026-02-01", 5)]), null);
   assert.equal(bridgeSeries(points.slice(0, 1), flows), null);
 });

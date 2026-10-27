@@ -143,29 +143,31 @@ export type SourcePoint = {
 
 /**
  * The split of `bridge`, at every point: from the first point to each later one. That is how much saving, the
- * market, bank & cash and debt have added to net worth since the start, day by day; at the last point it is exactly
- * what the tiles above the chart show.
+ * market, bank & cash and debt have added to net worth since the start, day by day; with bank data from the start,
+ * the last point is exactly what the tiles above the chart show.
  *
- * Market (on the holdings) and debt (from the balances) need no bank data, so they run from the start even when the
- * bank data starts later. Saving and bank & cash do need it: until then their sum is `unsplit`, which stays where it
- * was once the bank data starts, and from there `bridge` splits the rest. Null without any bank data, or when the
- * points before it lack the holdings to measure the market on.
+ * Each part runs where its own data is. Market (on the holdings) and debt (from the balances) need no bank
+ * transactions, so they run from the start. Saving and bank & cash do need them: until the bank data starts their
+ * sum is `unsplit`, which stays where it was from there while `bridge` splits the rest; without bank data in the
+ * stretch, all of it is unsplit. Null when the points before the bank data lack the holdings to measure the market on.
  */
 export function bridgeSeries(points: Balance[], flows: Flow[], sharedAsSpending = false): SourcePoint[] | null {
-  if (points.length < 2 || !flows.length) return null;
-  const covered = dayBefore(flows[0].d);
-  let k = points.findIndex((p) => p.d >= covered);
-  if (k < 0) k = points.length - 1; // the bank data starts after the last point: nothing is split
-  if (k > 0 && !points.slice(0, k + 1).every(onHoldings)) return null;
+  if (points.length < 2) return null;
+  // The first point in the bank data; points.length when there is none in this stretch.
+  const covered = flows.length ? dayBefore(flows[0].d) : null;
+  const found = covered === null ? -1 : points.findIndex((p) => p.d >= covered);
+  const k = found < 0 ? points.length : found;
+  const early = points.slice(0, Math.min(k + 1, points.length));
+  if (k > 0 && !early.every(onHoldings)) return null;
   const from = points[0];
   // Before the bank data: market and debt measured directly, the rest unsplit.
-  const early = (to: Balance): SourcePoint => {
+  const out = early.map((to): SourcePoint => {
     const change = to.net - from.net;
     const market = k > 0 ? holdingsMarket(from, to) : 0;
     const debt = ownDebt(from, to);
     return { d: to.d, change, saved: 0, market, bank: 0, debt, unsplit: change - market - debt, banked: false };
-  };
-  const out = points.slice(0, k + 1).map(early);
+  });
+  if (k === points.length) return out;
   out[k] = { ...out[k], banked: true };
   const base = out[k];
   for (const to of points.slice(k + 1)) {

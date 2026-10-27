@@ -94,6 +94,12 @@ const UNSPLIT = { key: "unsplit" as const, label: tr("Not split"), colour: "var(
 // Lines that only mean something from the start of the bank data.
 const BANKED_ONLY: string[] = ["saved", "bank"];
 
+/** The first point in the bank data, or the number of points when there is none. */
+function firstBanked(sources: SourcePoint[]): number {
+  const i = sources.findIndex((p) => p.banked);
+  return i < 0 ? sources.length : i;
+}
+
 /** "Sat 26 Sep 2026": with the weekday, because over a month that is what you place a day by. */
 function fmtLongDay(d: string): string {
   const weekday = WEEKDAY_ABBR[(new Date(`${d}T00:00:00Z`).getUTCDay() + 6) % 7];
@@ -146,15 +152,14 @@ function NetWorthPlot({
   }, []);
 
   // Per source: the first point in the bank data. Before it, saving and bank & cash are one line, "Not split".
-  const banked = sources
-    ? Math.max(
-        0,
-        sources.findIndex((p) => p.banked),
-      )
-    : 0;
+  // points.length when there is no bank data in the period: then saving and bank & cash have no line of their own.
+  const banked = sources ? firstBanked(sources) : 0;
   const shownSources = useMemo(
-    () => [...SOURCES.filter((s) => only === null || s.key === only), ...(only === null && banked > 0 ? [UNSPLIT] : [])],
-    [only, banked],
+    () => [
+      ...SOURCES.filter((s) => (only === null || s.key === only) && (banked < points.length || !BANKED_ONLY.includes(s.key))),
+      ...(only === null && banked > 0 ? [UNSPLIT] : []),
+    ],
+    [only, banked, points.length],
   );
   const model = useMemo(() => {
     if (points.length < 2) return null;
@@ -453,7 +458,7 @@ function NetWorthPlot({
             <>
               <line x1={0} x2={innerW} y1={y(0)} y2={y(0)} stroke="var(--text-faint)" strokeDasharray="4 4" />
               {/* Where the bank data starts, when that is after the start of the period. */}
-              {banked > 0 && (
+              {banked > 0 && banked < points.length && (
                 <>
                   <line x1={x(banked)} x2={x(banked)} y1={PATH.top} y2={PATH.top + innerH} stroke="var(--border-strong)" />
                   {x(banked) > 100 && (
@@ -620,12 +625,14 @@ export default function NetWorthChart({
       /* no storage: the default applies */
     }
   }, []);
-  // Per source needs some bank data in the window; without it the view is not offered.
+  // Per source: each part where its own data is (see bridgeSeries).
   const sources = useMemo(
     () => (points.length > 1 ? bridgeSeries(points, flows, sharedAsSpending) : null),
     [points, flows, sharedAsSpending],
   );
-  const [only, setOnly] = useState<SourceKey | null>(null);
+  const [chosenOnly, setOnly] = useState<SourceKey | null>(null);
+  const hasBank = !!sources && firstBanked(sources) < sources.length;
+  const only = chosenOnly && (hasBank || !BANKED_ONLY.includes(chosenOnly)) ? chosenOnly : null;
   const view: NetWorthView = chosen === "sources" && !sources ? "breakdown" : (chosen ?? "breakdown");
   const pick = (v: NetWorthView) => {
     choose(v);
@@ -717,14 +724,18 @@ export default function NetWorthChart({
             <Explained
               text={`${
                 view === "sources"
-                  ? sources && !sources[0].banked
-                    ? trx(
-                        "From the start of the period: how much saving, the market, bank & cash and debt each added to your net worth. Together they make the net line. Before {0} there is no bank data, so saving and bank & cash are one line there: Not split.",
-                        fmtDayMonthYear(sources[sources.findIndex((p) => p.banked)].d),
+                  ? sources && firstBanked(sources) === sources.length
+                    ? tr(
+                        "From the start of the period: how much the market and debt each added to your net worth. There is no bank data in this period, so saving and bank & cash are one line: Not split.",
                       )
-                    : tr(
-                        "From the start of the period: how much saving, the market, bank & cash and debt each added to your net worth. Together they make the net line; at the end they are the tiles above.",
-                      )
+                    : sources && firstBanked(sources) > 0
+                      ? tr(
+                          "From the start of the period: how much saving, the market, bank & cash and debt each added to your net worth. Together they make the net line. Before {0} there is no bank data, so saving and bank & cash are one line there: Not split.",
+                          fmtDayMonthYear(sources[firstBanked(sources)].d),
+                        )
+                      : tr(
+                          "From the start of the period: how much saving, the market, bank & cash and debt each added to your net worth. Together they make the net line; at the end they are the tiles above.",
+                        )
                   : view === "change"
                     ? tr("Net worth only, with the axis fitted to it: small changes become visible.")
                     : tr("Investments, bank and debt stacked, from zero.")
@@ -738,7 +749,10 @@ export default function NetWorthChart({
       {view === "sources" && sources && (
         // One source on its own, or all of them. Buttons, not colour, pick the line.
         <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label={tr("Show one source")}>
-          {[{ key: null, label: tr("All"), colour: "var(--chart-1)" }, ...SOURCES].map((s) => {
+          {[
+            { key: null, label: tr("All"), colour: "var(--chart-1)" },
+            ...SOURCES.filter((s) => hasBank || !BANKED_ONLY.includes(s.key)),
+          ].map((s) => {
             const on = only === s.key;
             return (
               <button
