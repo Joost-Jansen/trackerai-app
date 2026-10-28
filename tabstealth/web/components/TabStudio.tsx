@@ -179,8 +179,12 @@ export default function TabStudio({ vid }: { vid: string }) {
       });
       a.beatMouseDown.on((beat: any) => {
         select(beat);
-        if (sourceRef.current === "video" && clock.current && yt.current?.seekTo) {
-          yt.current.seekTo(clock.current.tickToTime(beat.absolutePlaybackStart), true);
+        const p = yt.current;
+        if (sourceRef.current === "video" && clock.current && p?.seekTo) {
+          // a seek on a video that has not played yet starts it: a click only moves, it does not play
+          const wasPlaying = p.getPlayerState() === YT_PLAYING;
+          p.seekTo(clock.current.tickToTime(beat.absolutePlaybackStart), true);
+          if (!wasPlaying) p.pauseVideo();
         }
       });
       a.load(`${tabUrl}?t=${Date.now()}`);
@@ -346,6 +350,24 @@ export default function TabStudio({ vid }: { vid: string }) {
   const dirty = !!selected && JSON.stringify(selected.state) !== JSON.stringify(selected.saved);
   const history = useQuery({ queryKey: ["history", vid], queryFn: () => api.get<{ undo: number; redo: number }>(`/api/songs/${vid}/history`) });
   const [showKeys, setShowKeys] = useState(false);
+  // Narrow screens: the video and the editor can fold away, so the tab gets the room (kept on this device).
+  // A phone starts with the editor folded; wide screens always show both.
+  const [videoOpen, setVideoOpen] = useState(true);
+  const [editorOpen, setEditorOpen] = useState(true);
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("tabstealth.video");
+      const e = localStorage.getItem("tabstealth.editor");
+      if (v) setVideoOpen(v === "open");
+      setEditorOpen(e ? e === "open" : window.innerWidth >= 640);
+    } catch {}
+  }, []);
+  const toggle = (key: "video" | "editor", open: boolean, set: (v: boolean) => void) => {
+    set(open);
+    try {
+      localStorage.setItem(`tabstealth.${key}`, open ? "open" : "closed");
+    } catch {}
+  };
 
   /** Reload the tab after the file changed, keeping the cursor and selecting `spot` (default: the current beat). */
   const reloadTab = (spot: Spot | null = selected ? { bar: selected.bar, beat: selected.beat } : null) => {
@@ -497,8 +519,26 @@ export default function TabStudio({ vid }: { vid: string }) {
             a third of the screen high, so the tab keeps room underneath. */}
         <div ref={pinned} style={{ top: barHeight }} className="sticky z-20 -mx-1 flex flex-col gap-2 bg-bg px-1 pb-2 lg:static lg:m-0 lg:gap-3 lg:p-0">
           {/* on a phone the top bar only has room for the transport: the song's name sits above the video */}
-          <div className="sm:hidden">{titleBar}</div>
-          <div className="ts-video mx-auto w-full" style={{ aspectRatio: `16 / ${9 * crop}`, maxWidth: `calc(34vh * ${16 / (9 * crop)})` }}>
+          <div className="flex items-center gap-2 lg:hidden">
+            {/* on a phone the top bar only has room for the transport: the song's name sits above the video */}
+            <div className="min-w-0 flex-1">
+              <div className="sm:hidden">{titleBar}</div>
+            </div>
+            <button
+              type="button"
+              className="ds-btn ds-btn--ghost ds-btn--sm flex-none !px-2 text-xs"
+              aria-expanded={videoOpen}
+              onClick={() => toggle("video", !videoOpen, setVideoOpen)}
+            >
+              <VideoIcon className="h-[15px] w-[15px]" />
+              {videoOpen ? t.song.hideVideo : t.song.showVideo}
+            </button>
+          </div>
+          {/* folded, the player keeps running at zero height: sound and sync carry on, the tab gets the room */}
+          <div
+            className={`ts-video mx-auto w-full ${videoOpen ? "" : "max-lg:!h-0 max-lg:!border-0"}`}
+            style={{ aspectRatio: videoOpen ? `16 / ${9 * crop}` : undefined, maxWidth: `calc(34vh * ${16 / (9 * crop)})` }}
+          >
             <div style={{ position: "absolute", inset: 0, height: `${100 / crop}%` }}>
               <div ref={ytEl} />
             </div>
@@ -534,6 +574,8 @@ export default function TabStudio({ vid }: { vid: string }) {
             canRedo={(history.data?.redo ?? 0) > 0}
             onUndo={() => void undo()}
             onRedo={() => void redo()}
+            collapsed={!editorOpen}
+            onToggleCollapsed={() => toggle("editor", !editorOpen, setEditorOpen)}
             showKeys={showKeys}
             onShowKeys={() => setShowKeys((v) => !v)}
             saving={saving}

@@ -172,3 +172,35 @@ def test_bend(library):
     assert got["3"]["bend"] == 100 and got["2"]["bend"] == 50
     c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"3": {"fret": 7}}})
     assert beat0(library).notes[0].effect.bend is None
+
+
+def test_song_meta(library):
+    c = TestClient(create_app(library, FakeJobs()))
+    assert c.get("/api/songs").json()[0]["status"] == "new"
+    c.patch("/api/songs/abcdefghijk", json={"status": "learning", "tags": [" Fingerstyle", "capo", "capo", ""], "favourite": True})
+    s = c.get("/api/songs").json()[0]
+    assert (s["status"], s["tags"], s["favourite"]) == ("learning", ["capo", "fingerstyle"], True)
+    assert c.patch("/api/songs/abcdefghijk", json={"status": "done"}).status_code == 422
+    assert c.patch("/api/songs/nope", json={"favourite": True}).status_code == 404
+
+
+def test_practice_log_and_summary(library):
+    c = TestClient(create_app(library, FakeJobs()))
+    log = lambda day, sec, speed, whole=False: c.post("/api/practice", json={
+        "video": "abcdefghijk", "day": day, "seconds": sec, "speed": speed, "source": "tab", "whole_song": whole})
+    assert log("2026-10-26", 120, 0.6).status_code == 200
+    log("2026-10-27", 300, 0.8, True)
+    log("2026-10-28", 60, 1.0)
+    log("2026-10-28", 30, 0.9, True)
+    assert c.post("/api/practice", json={"video": "nope", "day": "2026-10-28", "seconds": 5, "speed": 1, "source": "tab"}).status_code == 404
+    assert c.post("/api/practice", json={"video": "abcdefghijk", "day": "28-10-2026", "seconds": 5, "speed": 1, "source": "tab"}).status_code == 422
+    p = c.get("/api/practice", params={"today": "2026-10-28"}).json()
+    assert p["total_seconds"] == 510 and p["streak"] == 3
+    assert p["days"][-1] == {"day": "2026-10-28", "seconds": 90}
+    assert p["songs"][0]["best_speed"] == 0.9 and p["songs"][0]["last"] == "2026-10-28"
+    assert [x["speed"] for x in p["speed"]["abcdefghijk"]] == [0.6, 0.8, 1.0]
+    # not practised today yet: the streak runs up to yesterday
+    assert c.get("/api/practice", params={"today": "2026-10-29"}).json()["streak"] == 3
+    assert c.get("/api/practice", params={"today": "2026-10-31"}).json()["streak"] == 0
+    s = c.get("/api/songs").json()[0]
+    assert s["practised_seconds"] == 510 and s["last_practised"] == "2026-10-28"

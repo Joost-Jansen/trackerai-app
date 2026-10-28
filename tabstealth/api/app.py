@@ -66,6 +66,25 @@ class BeatEdit(BaseModel):
     chord: str | None = Field(default=None, max_length=40)
 
 
+Status = Literal["new", "checking", "learning", "mastered"]
+
+
+class SongPatch(BaseModel):
+    status: Status | None = None
+    tags: list[str] | None = Field(default=None, max_length=20)
+    favourite: bool | None = None
+
+
+class PracticeIn(BaseModel):
+    video: str = Field(max_length=20)
+    day: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")  # the player's own date: practice counts on your calendar
+    seconds: int = Field(ge=1, le=600)
+    speed: float = Field(ge=0.1, le=2)
+    source: Literal["video", "tab"]
+    bars: tuple[int, int] | None = None  # the looped range, if any (1-based, inclusive)
+    whole_song: bool = False  # played from the start to the end at this speed
+
+
 class BarEdit(BaseModel):
     bar: int = Field(ge=0)
     section: str | None = Field(default=None, max_length=60)
@@ -289,6 +308,50 @@ def apply_bar(path: Path, edit: BarEdit, lock: threading.Lock) -> None:
     _edit_gp5(path, lock, change)
 
 
+def read_meta(library: Path) -> dict:
+    p = library / "meta.json"
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+def read_practice(library: Path) -> list[dict]:
+    p = library / "practice.jsonl"
+    if not p.exists():
+        return []
+    return [json.loads(line) for line in p.read_text().splitlines() if line.strip()]
+
+
+def practice_summary(entries: list[dict], today: str | None = None) -> dict:
+    """Minutes per day, per song, the streak and the speed reached per song per day."""
+    from datetime import date, timedelta
+
+    per_day: dict[str, int] = {}
+    per_song: dict[str, dict] = {}
+    speed: dict[str, dict[str, float]] = {}
+    for e in entries:
+        per_day[e["day"]] = per_day.get(e["day"], 0) + e["seconds"]
+        s = per_song.setdefault(e["video"], {"video": e["video"], "seconds": 0, "last": e["day"], "best_speed": 0.0})
+        s["seconds"] += e["seconds"]
+        s["last"] = max(s["last"], e["day"])
+        if e.get("whole_song"):
+            s["best_speed"] = max(s["best_speed"], e["speed"])
+        sp = speed.setdefault(e["video"], {})
+        sp[e["day"]] = max(sp.get(e["day"], 0.0), e["speed"])
+    streak = 0
+    d = date.fromisoformat(today) if today else max((date.fromisoformat(k) for k in per_day), default=None)
+    if d is not None and d.isoformat() not in per_day:
+        d -= timedelta(days=1)  # today not practised yet: the streak still counts up to yesterday
+    while d is not None and d.isoformat() in per_day:
+        streak += 1
+        d -= timedelta(days=1)
+    return {
+        "days": [{"day": k, "seconds": v} for k, v in sorted(per_day.items())],
+        "songs": sorted(per_song.values(), key=lambda x: -x["seconds"]),
+        "speed": {v: [{"day": k, "speed": sp} for k, sp in sorted(days.items())] for v, days in speed.items()},
+        "streak": streak,
+        "total_seconds": sum(per_day.values()),
+    }
+
+
 def create_app(library: Path = LIBRARY, jobs: Jobs | None = None) -> FastAPI:
     app = FastAPI(title="tabstealth-api", docs_url=None, redoc_url=None)
     jobs = jobs or Jobs()
@@ -303,7 +366,42 @@ def create_app(library: Path = LIBRARY, jobs: Jobs | None = None) -> FastAPI:
     @app.get("/api/songs")
     def songs():
         idx = read_index(library)
-        return [{"video": vid, **e, "edited": is_edited(library / e["file"])} for vid, e in idx.items()]
+        meta = read_meta(library)
+        played = {x["video"]: x for x in practice_summary(read_practice(library))["songs"]}
+        out = []
+        for vid, e in idx.items():
+            m = meta.get(vid, {})
+            p = played.get(vid, {})
+            out.append({"video": vid, **e, "edited": is_edited(library / e["file"]),
+                        "status": m.get("status", "new"), "tags": m.get("tags", []), "favourite": m.get("favourite", False),
+                        "practised_seconds": p.get("seconds", 0), "last_practised": p.get("last")})
+        return out
+
+    @app.patch("/api/songs/{vid}")
+    def patch_song(vid: str, body: SongPatch):
+        song(vid)
+        with lock:
+            meta = read_meta(library)
+            m = meta.setdefault(vid, {})
+            if body.status is not None:
+                m["status"] = body.status
+            if body.tags is not None:
+                m["tags"] = sorted({t.strip().lower()[:30] for t in body.tags if t.strip()})
+            if body.favourite is not None:
+                m["favourite"] = body.favourite
+            (library / "meta.json").write_text(json.dumps(meta, indent=2))
+        return m
+
+    @app.post("/api/practice")
+    def log_practice(body: PracticeIn):
+        song(body.video)
+        with lock, open(library / "practice.jsonl", "a") as f:
+            f.write(json.dumps(body.model_dump(mode="json")) + "\n")
+        return {"ok": True}
+
+    @app.get("/api/practice")
+    def practice(today: str | None = None):
+        return practice_summary(read_practice(library), today)
 
     @app.get("/api/songs/{vid}/tab")
     def tab(vid: str):

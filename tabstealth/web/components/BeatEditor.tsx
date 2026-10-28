@@ -5,6 +5,7 @@
 
 import { Button } from "@trackerai/ui/ds/Button";
 import { Select } from "@trackerai/ui/ds/Field";
+import { ChevronDownIcon } from "@trackerai/ui/icons";
 import { nextBend, TECHNIQUES, type BeatState, type NoteState, type Strum, type Technique } from "@/lib/beat";
 import { useT } from "@/lib/i18n";
 
@@ -57,6 +58,8 @@ export default function BeatEditor({
   onRedo,
   showKeys,
   onShowKeys,
+  collapsed,
+  onToggleCollapsed,
 }: {
   title: string;
   value: BeatState;
@@ -76,6 +79,9 @@ export default function BeatEditor({
   onRedo: () => void;
   showKeys: boolean;
   onShowKeys: () => void;
+  /** Folded to its title row (narrow screens only; wide screens always show it all). */
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }) {
   const t = useT();
   const setNote = (i: number, patch: Partial<NoteState>) => {
@@ -91,11 +97,25 @@ export default function BeatEditor({
           onSave();
         }}
       >
-        <div className="mb-3 flex flex-wrap items-end gap-2">
+        <div className="flex items-center gap-2">
           <h2 className="mr-auto text-[13.5px] font-semibold tracking-[0.01em]">
             {title}
             {dirty && <span className="ml-1.5 text-brand" title={t.song.unsaved} aria-label={t.song.unsaved}>●</span>}
           </h2>
+          {/* narrow screens: fold the editor to its title, so the tab keeps the room */}
+          <button
+            type="button"
+            className="ds-btn ds-btn--ghost ds-btn--sm !px-1.5 lg:hidden"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? t.song.expand : t.song.collapse}
+            title={collapsed ? t.song.expand : t.song.collapse}
+            onClick={onToggleCollapsed}
+          >
+            <ChevronDownIcon className={`h-4 w-4 transition-transform ${collapsed ? "" : "rotate-180"}`} />
+          </button>
+        </div>
+        <div className={collapsed ? "hidden lg:block" : ""}>
+        <div className="mb-3 mt-2 flex flex-wrap items-end gap-2">
           <label className="flex flex-col gap-1 text-[11px] text-ink-muted">
             {t.song.section}
             <input className="ds-input !h-8 w-28 text-xs" value={value.section} maxLength={60} onChange={(e) => {
@@ -230,6 +250,7 @@ export default function BeatEditor({
             ))}
           </dl>
         )}
+        </div>
       </form>
     </section>
   );
