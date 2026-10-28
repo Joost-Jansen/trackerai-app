@@ -16,6 +16,9 @@
 .ts-sheet {
   background: #fdfdfe;
   color: #14131f;
+  /* alphaTab puts its cursor layer at a very high z-index; keep it inside the sheet, so it scrolls under the
+     pinned video and header instead of over them */
+  isolation: isolate;
 }
 .ts-sheet .at-cursor-bar {
   background: rgba(106, 98, 184, 0.12);
