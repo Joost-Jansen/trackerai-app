@@ -85,6 +85,11 @@ class PracticeIn(BaseModel):
     whole_song: bool = False  # played from the start to the end at this speed
 
 
+class ReviewMark(BaseModel):
+    bar: int = Field(ge=0)
+    checked: bool
+
+
 class BarEdit(BaseModel):
     bar: int = Field(ge=0)
     section: str | None = Field(default=None, max_length=60)
@@ -313,6 +318,12 @@ def read_meta(library: Path) -> dict:
     return json.loads(p.read_text()) if p.exists() else {}
 
 
+def read_review(library: Path, entry: dict) -> list[dict]:
+    """The converter's review list for a song (older conversions have none)."""
+    p = library / entry.get("review", "")
+    return json.loads(p.read_text()) if entry.get("review") and p.exists() else []
+
+
 def read_practice(library: Path) -> list[dict]:
     p = library / "practice.jsonl"
     if not p.exists():
@@ -368,13 +379,19 @@ def create_app(library: Path = LIBRARY, jobs: Jobs | None = None) -> FastAPI:
         idx = read_index(library)
         meta = read_meta(library)
         played = {x["video"]: x for x in practice_summary(read_practice(library))["songs"]}
+
+        def to_review(vid: str, e: dict) -> int:
+            checked = set(meta.get(vid, {}).get("checked", []))
+            return sum(1 for r in read_review(library, e) if r["bar"] not in checked)
+
         out = []
         for vid, e in idx.items():
             m = meta.get(vid, {})
             p = played.get(vid, {})
             out.append({"video": vid, **e, "edited": is_edited(library / e["file"]),
                         "status": m.get("status", "new"), "tags": m.get("tags", []), "favourite": m.get("favourite", False),
-                        "practised_seconds": p.get("seconds", 0), "last_practised": p.get("last")})
+                        "practised_seconds": p.get("seconds", 0), "last_practised": p.get("last"),
+                        "to_review": to_review(vid, e)})
         return out
 
     @app.patch("/api/songs/{vid}")
@@ -391,6 +408,24 @@ def create_app(library: Path = LIBRARY, jobs: Jobs | None = None) -> FastAPI:
                 m["favourite"] = body.favourite
             (library / "meta.json").write_text(json.dumps(meta, indent=2))
         return m
+
+    @app.get("/api/songs/{vid}/review")
+    def review(vid: str):
+        """The bars the converter was unsure about, with why, and whether you checked them."""
+        checked = set(read_meta(library).get(vid, {}).get("checked", []))
+        return [{**r, "checked": r["bar"] in checked} for r in read_review(library, song(vid))]
+
+    @app.post("/api/songs/{vid}/review")
+    def mark_review(vid: str, body: ReviewMark):
+        song(vid)
+        with lock:
+            meta = read_meta(library)
+            m = meta.setdefault(vid, {})
+            checked = set(m.get("checked", []))
+            (checked.add if body.checked else checked.discard)(body.bar)
+            m["checked"] = sorted(checked)
+            (library / "meta.json").write_text(json.dumps(meta, indent=2))
+        return review(vid)
 
     @app.post("/api/practice")
     def log_practice(body: PracticeIn):

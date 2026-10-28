@@ -154,6 +154,22 @@ export const en: Messages = {
     library: "Library",
     speed: "Speed per song",
   },
+  review: {
+    title: "Review",
+    lead: "Bars where the conversion was unsure. Go there, listen with the loop on, fix it in the editor and tick it off.",
+    left: (n: number) => (n === 1 ? "1 bar to check" : `${n} bars to check`),
+    allChecked: "all checked",
+    checked: "Checked",
+    bar: (n: number) => `Bar ${n}`,
+    go: "Go",
+    reasons: {
+      spacing: "rhythm from note spacing",
+      collision: "two notes on one slot",
+      timing: "timing unsure",
+      low_confidence: "digit unsure",
+      number: "bar number read differently",
+    },
+  },
   help: {
     title: "Help",
     how: "How it works",

@@ -204,3 +204,17 @@ def test_practice_log_and_summary(library):
     assert c.get("/api/practice", params={"today": "2026-10-31"}).json()["streak"] == 0
     s = c.get("/api/songs").json()[0]
     assert s["practised_seconds"] == 510 and s["last_practised"] == "2026-10-28"
+
+
+def test_review_queue(library):
+    (library / "A - B.review.json").write_text(json.dumps([{"bar": 0, "reasons": ["timing", "low_confidence"]}]))
+    idx = json.loads((library / "index.json").read_text())
+    idx["abcdefghijk"]["review"] = "A - B.review.json"
+    (library / "index.json").write_text(json.dumps(idx))
+    c = TestClient(create_app(library, FakeJobs()))
+    assert c.get("/api/songs").json()[0]["to_review"] == 1
+    assert c.get("/api/songs/abcdefghijk/review").json() == [{"bar": 0, "reasons": ["timing", "low_confidence"], "checked": False}]
+    assert c.post("/api/songs/abcdefghijk/review", json={"bar": 0, "checked": True}).json()[0]["checked"] is True
+    assert c.get("/api/songs").json()[0]["to_review"] == 0
+    c.post("/api/songs/abcdefghijk/review", json={"bar": 0, "checked": False})
+    assert c.get("/api/songs").json()[0]["to_review"] == 1

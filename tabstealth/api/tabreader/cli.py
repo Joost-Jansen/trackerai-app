@@ -4,6 +4,7 @@
   python -m tabreader --playlist URL [--cookies-from-browser chrome]
 """
 import argparse
+import filecmp
 import json
 import os
 import pickle
@@ -76,6 +77,33 @@ def view_numbers(img, lines, clf) -> dict[int, int]:
     """{measure number: bar x} for the bar lines of one view."""
     bars = find_barlines((gray(img) < 150).astype(np.uint8), lines)
     return {n: x for x in bars if (n := read_number(img, lines, x, clf)) is not None}
+
+
+REVIEW_TIMING = 0.08  # quarter notes: an onset this far from its grid slot was a guess
+
+
+def review_list(song, parsed) -> list[dict]:
+    """Per bar (0-based, as in the .gp5) the reasons to check it by ear: what the converter was unsure about."""
+    by_number = {m.number: m for m in parsed.measures if m.number is not None}
+    out = []
+    for i, m in enumerate(song.measures):
+        reasons = []
+        if "rhythm from note spacing" in m.flags:
+            reasons.append("spacing")
+        if "collision" in m.flags:
+            reasons.append("collision")
+        if m.timing_error > REVIEW_TIMING:
+            reasons.append("timing")
+        pm = by_number.get(m.number)
+        if pm is not None:
+            if any(n.score < 0.7 for c in pm.columns for n in c.notes + c.grace):
+                reasons.append("low_confidence")
+            read = parsed.numbers.get(pm.x0)
+            if read is not None and read != m.number:
+                reasons.append("number")
+        if reasons:
+            out.append({"bar": i, "reasons": reasons})
+    return out
 
 
 def video_timing(song, sc: dict, vid: str) -> dict:
@@ -198,12 +226,16 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
     gp5, txt = out_dir / f"{name}.gp5", out_dir / f"{name}.txt"
     timing = out_dir / f"{name}.timing.json"
     timing.write_text(json.dumps(video_timing(song, sc, vid)))
-    if (out_dir / f"{name}.orig.gp5").exists() and not overwrite_edits:
+    orig = out_dir / f"{name}.orig.gp5"
+    if orig.exists() and gp5.exists() and not filecmp.cmp(orig, gp5, shallow=False) and not overwrite_edits:
         log(f"  {gp5.name} has your edits: not overwritten (use --overwrite-edits)")
     else:
         write_gp5(song, str(gp5), meta)
     txt.write_text(gp5_to_ascii(str(gp5)))  # from the file itself, so an edited tab keeps its edits
     flagged = {m.number: m.flags for m in song.measures if m.flags}
+    review = review_list(song, parsed)
+    review_p = out_dir / f"{name}.review.json"
+    review_p.write_text(json.dumps(review, indent=1))
     report = {
         "video": url, "title": info["title"], "measures": len(song.measures),
         "tempo": song.tempo, "time_signature": f"{song.numerator}/{song.denominator}",
@@ -219,7 +251,7 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
     (work / "report.json").write_text(json.dumps(report, indent=2, default=str))
     index_p = out_dir / "index.json"
     index = json.loads(index_p.read_text()) if index_p.exists() else {}
-    index[vid] = {"file": gp5.name, "timing": timing.name, "text": txt.name, "title": song_name,
+    index[vid] = {"file": gp5.name, "timing": timing.name, "text": txt.name, "review": review_p.name, "title": song_name,
                   "artist": artist, "measures": len(song.measures), "tempo": song.tempo,
                   "time_signature": f"{song.numerator}/{song.denominator}", "capo": meta.capo,
                   "swing": song.triplet_feel, "flagged": len(flagged),

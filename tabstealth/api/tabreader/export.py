@@ -85,7 +85,9 @@ def write_gp5(song: Song, path: str, meta: Meta) -> None:
                             value=col.stroke[1])
                     if getattr(col, "chord", None):
                         beat.text = col.chord
-                for n in sorted(col.notes, key=lambda n: n.string):
+                # one note per string: Guitar Pro cannot store two (the file would not read back)
+                notes = list({n.string: n for n in sorted(col.notes, key=lambda n: -n.score)}.values())
+                for n in sorted(notes, key=lambda n: n.string):
                     note = gp.Note(beat, string=n.string,
                                    value=0 if n.dead else n.fret)
                     if k > 0:  # continuation of a long note: tie

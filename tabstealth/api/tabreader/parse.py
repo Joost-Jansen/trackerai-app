@@ -148,7 +148,9 @@ def parse_page(img: np.ndarray, lines: list[float], clf: Classifier) -> ParsedPa
             if n.grace:
                 pending_grace.append(n)
                 continue
-            if cols and abs(cols[-1].x - n.x) < 0.45 * sp and not pending_grace:
+            # same column when it lines up, unless that string already has a note there (then it is the next beat)
+            if (cols and abs(cols[-1].x - n.x) < 0.45 * sp and not pending_grace
+                    and n.string not in {m.string for m in cols[-1].notes}):
                 cols[-1].notes.append(n)
                 cols[-1].x = float(np.mean([m.x for m in cols[-1].notes]))
             else:

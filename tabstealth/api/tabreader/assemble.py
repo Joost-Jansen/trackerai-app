@@ -32,6 +32,7 @@ class Measure:
     duration_s: float = np.nan
     marker: str | None = None  # section name, e.g. "Verse 1"
     flags: list[str] = field(default_factory=list)
+    timing_error: float = 0.0  # largest distance (in quarter notes) between a measured onset and its grid slot
 
 
 @dataclass
@@ -159,6 +160,8 @@ def build_song(tape: ParsedPage, offsets: list[int], runs, scan: dict,
         if feel:
             pos = [unswing(p, ratio, 0.5 if feel == "16th" else 1.0) for p in pos]
         ticks = quantise_positions(pos)
+        if pos and "rhythm from note spacing" not in out.flags:
+            out.timing_error = max(abs(p - tk / TICKS_PER_QUARTER) for p, tk in zip(pos, ticks))
         beats: list[Beat] = []
         for c, tk in zip(m.columns, ticks):
             tk = min(max(tk, 0), measure_ticks - 1)

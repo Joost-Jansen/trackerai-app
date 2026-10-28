@@ -154,6 +154,22 @@ export const nl = {
     library: "Bibliotheek",
     speed: "Tempo per nummer",
   },
+  review: {
+    title: "Nakijken",
+    lead: "Maten waar de omzetting twijfelde. Ga erheen, luister met de herhaling aan, verbeter in de editor en vink af.",
+    left: (n: number) => (n === 1 ? "1 maat na te kijken" : `${n} maten na te kijken`),
+    allChecked: "alles nagekeken",
+    checked: "Nagekeken",
+    bar: (n: number) => `Maat ${n}`,
+    go: "Ga",
+    reasons: {
+      spacing: "ritme uit de notenafstand",
+      collision: "twee noten op één tel",
+      timing: "timing onzeker",
+      low_confidence: "cijfer onzeker",
+      number: "maatnummer anders gelezen",
+    },
+  },
   help: {
     title: "Uitleg",
     how: "Hoe het werkt",

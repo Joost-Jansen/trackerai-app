@@ -26,6 +26,7 @@ import { beatAtGpIndex, emptyNote, fromAlphaTab, fromApi, gpBeatIndex, invalid, 
 import BeatEditor from "@/components/BeatEditor";
 import SongMeta from "@/components/SongMeta";
 import PracticePanel, { PERCENTS } from "@/components/PracticePanel";
+import ReviewPanel from "@/components/ReviewPanel";
 import { barAt, beatAt as beatOf, DEFAULT_PRACTICE, nextSpeed, rangeTicks, type Practice } from "@/lib/practice";
 import { click, countIn } from "@/lib/click";
 import { localDay } from "@/lib/library";
@@ -341,6 +342,22 @@ export default function TabStudio({ vid }: { vid: string }) {
     } else p.playVideo();
   };
 
+  /** From the review queue: select the bar's first beat, move the video there and loop that bar. */
+  const goToBar = (bar: number) => {
+    const beat = beatAt(bar, 0);
+    if (!beat) return;
+    select(beat);
+    setPractice((p) => ({ ...p, loop: true, from: bar + 1, to: bar + 1 }));
+    const tick = bars.current[bar]?.start ?? 0;
+    if (at.current) at.current.tickPosition = tick;
+    const p = yt.current;
+    if (clock.current && p?.seekTo) {
+      const wasPlaying = p.getPlayerState() === YT_PLAYING;
+      p.seekTo(clock.current.tickToTime(tick), true);
+      if (!wasPlaying) p.pauseVideo();
+    }
+  };
+
   /** One pass through the loop: count it, and let the trainer speed up. */
   const onPass = () => {
     setPasses((n) => n + 1);
@@ -479,16 +496,18 @@ export default function TabStudio({ vid }: { vid: string }) {
   const [videoOpen, setVideoOpen] = useState(true);
   const [editorOpen, setEditorOpen] = useState(true);
   const [practiceOpen, setPracticeOpen] = useState(false); // folded until you open it, at every width
+  const [reviewOpen, setReviewOpen] = useState(false);
   useEffect(() => {
     try {
       const v = localStorage.getItem("tabstealth.video");
       const e = localStorage.getItem("tabstealth.editor");
       if (v) setVideoOpen(v === "open");
       setPracticeOpen(localStorage.getItem("tabstealth.practice") === "open");
+      setReviewOpen(localStorage.getItem("tabstealth.review") === "open");
       setEditorOpen(e ? e === "open" : window.innerWidth >= 640);
     } catch {}
   }, []);
-  const toggle = (key: "video" | "editor" | "practice", open: boolean, set: (v: boolean) => void) => {
+  const toggle = (key: "video" | "editor" | "practice" | "review", open: boolean, set: (v: boolean) => void) => {
     set(open);
     try {
       localStorage.setItem(`tabstealth.${key}`, open ? "open" : "closed");
@@ -696,6 +715,7 @@ export default function TabStudio({ vid }: { vid: string }) {
           <Checkbox checked={hands} onChange={setHands} label={t.song.hands} />
         </div>
         {song && <SongMeta song={song} />}
+        <ReviewPanel vid={vid} open={reviewOpen} onToggle={() => toggle("review", !reviewOpen, setReviewOpen)} onGo={goToBar} />
         <PracticePanel
           open={practiceOpen}
           onToggle={() => toggle("practice", !practiceOpen, setPracticeOpen)}
