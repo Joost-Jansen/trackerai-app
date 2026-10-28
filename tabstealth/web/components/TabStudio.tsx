@@ -20,18 +20,21 @@ import { useT } from "@/lib/i18n";
 import { ALPHATAB_BASE, loadAlphaTab, loadYouTube } from "@/lib/scripts";
 import RowMenu from "@trackerai/ui/ds/RowMenu";
 import { TOPBAR_ACTIONS, TOPBAR_TITLE } from "@/lib/nav";
-import { ChevronLeftIcon, DownloadIcon, MusicIcon, NewspaperIcon, PauseIcon, PlayIcon, RefreshIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
-import { makeClock, nearestRate, type Clock, type Timing } from "@/lib/sync";
+import { ChevronLeftIcon, DownloadIcon, RepeatIcon, MusicIcon, NewspaperIcon, PauseIcon, PlayIcon, RefreshIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
+import { makeClock, nearestRate, type BarTicks, type Clock, type Timing } from "@/lib/sync";
 import { beatAtGpIndex, emptyNote, fromAlphaTab, fromApi, gpBeatIndex, invalid, KEYS, mainBeat, nextBend, toRequest, type ApiBeat, type BeatState, type NoteState } from "@/lib/beat";
 import BeatEditor from "@/components/BeatEditor";
 import SongMeta from "@/components/SongMeta";
+import PracticePanel, { PERCENTS } from "@/components/PracticePanel";
+import { barAt, beatAt as beatOf, DEFAULT_PRACTICE, nextSpeed, rangeTicks, type Practice } from "@/lib/practice";
+import { click, countIn } from "@/lib/click";
+import { localDay } from "@/lib/library";
 
 type Source = "video" | "tab";
 // The beat being edited: its bar, its index in the Guitar Pro file (grace notes not counted), the form, and the
 // section it had (only a changed section is saved).
 type Selected = { bar: number; beat: number; state: BeatState; section: string; saved: BeatState };
 type Spot = { bar: number; beat: number };
-const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5];
 const YT_PLAYING = 1;
 
 /** A sound source in the switch: its icon, the name for screen readers and as a tooltip. */
@@ -85,7 +88,14 @@ export default function TabStudio({ vid }: { vid: string }) {
   const [source, setSourceState] = useState<Source>("video");
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const [loop, setLoop] = useState(false);
+  // practising (lib/practice.ts): loop range, speed trainer, count-in, metronome; the refs feed the player callbacks
+  const [practice, setPractice] = useState<Practice>(DEFAULT_PRACTICE);
+  const practiceRef = useRef(practice);
+  practiceRef.current = practice;
+  const [passes, setPasses] = useState(0);
+  const speedRef = useRef(1);
+  const bars = useRef<BarTicks[]>([]);
+  const meter = useRef({ numerator: 4, denominator: 4, tempo: 120 });
   const [hands, setHands] = useState(false); // full video by default: its own tab strip stays visible
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<Selected | null>(null);
@@ -151,9 +161,11 @@ export default function TabStudio({ vid }: { vid: string }) {
       });
       at.current = a;
       a.scoreLoaded.on((score: any) => {
-        clock.current = timing.data
-          ? makeClock(timing.data, score.masterBars.map((mb: any) => ({ start: mb.start, duration: mb.calculateDuration() })))
-          : null;
+        bars.current = score.masterBars.map((mb: any) => ({ start: mb.start, duration: mb.calculateDuration() }));
+        const first = score.masterBars[0];
+        meter.current = { numerator: first?.timeSignatureNumerator ?? 4, denominator: first?.timeSignatureDenominator ?? 4, tempo: score.tempo ?? 120 };
+        clock.current = timing.data ? makeClock(timing.data, bars.current) : null;
+        applyPractice();
       });
       a.renderFinished.on(() => {
         setLoaded(true);
@@ -171,8 +183,12 @@ export default function TabStudio({ vid }: { vid: string }) {
         setPlaying(on);
         if (!on) yt.current?.pauseVideo?.();
       });
-      // Tab plays: keep the (muted) video at the same moment.
+      // Tab plays: keep the (muted) video at the same moment. A jump back to the loop's start is one pass.
+      let lastTick = 0;
       a.playerPositionChanged.on((e: any) => {
+        // a jump you make yourself (isSeek) is not a pass
+        if (sourceRef.current === "tab" && practiceRef.current.loop && !e.isSeek && e.currentTick + 960 < lastTick) onPass();
+        lastTick = e.currentTick;
         if (sourceRef.current !== "tab" || a.playerState !== 1 || !clock.current || !yt.current?.getCurrentTime) return;
         const target = clock.current.tickToTime(e.currentTick);
         if (yt.current.getPlayerState() !== YT_PLAYING) yt.current.playVideo();
@@ -221,12 +237,35 @@ export default function TabStudio({ vid }: { vid: string }) {
       const r = bar.getBoundingClientRect();
       if (r.top < p.top + 8 || r.bottom > p.bottom - 8) panel.scrollBy({ top: r.top - p.top - 24, behavior: "smooth" });
     };
-    // Video plays: move the tab cursor along with its clock (about 15 times a second is smooth enough).
+    // Video plays: move the tab cursor along with its clock (about 15 times a second is smooth enough), loop the
+    // range and click the metronome.
+    let lastBeat = "";
+    let lastWrap = 0;
     const follow = (now: number) => {
       raf = requestAnimationFrame(follow);
       keepInView(now);
       const p = yt.current;
       if (sourceRef.current !== "video" || !p?.getPlayerState || p.getPlayerState() !== YT_PLAYING) return;
+      const c = clock.current;
+      const pr = practiceRef.current;
+      if (c && bars.current.length) {
+        const time = p.getCurrentTime();
+        const range = pr.loop ? rangeTicks(bars.current, pr.from, pr.to) : null;
+        // just after the seek the player still reports the old time for a frame: count one pass per jump
+        if (range && time >= c.tickToTime(range.endTick) - 0.03 && now - lastWrap > 300) {
+          lastWrap = now;
+          p.seekTo(c.tickToTime(range.startTick), true);
+          onPass();
+        }
+        if (pr.metronome) {
+          const b = beatOf(bars.current, c.timeToTick(time), (960 * 4) / meter.current.denominator);
+          const key = `${b.bar}:${b.beat}`;
+          if (key !== lastBeat) {
+            if (lastBeat) click(b.beat === 0);
+            lastBeat = key;
+          }
+        } else lastBeat = "";
+      }
       if (now - lastPush < 66 || !clock.current || !at.current) return;
       lastPush = now;
       at.current.tickPosition = clock.current.timeToTick(p.getCurrentTime());
@@ -269,25 +308,109 @@ export default function TabStudio({ vid }: { vid: string }) {
     sourceRef.current = s;
     setSourceState(s);
   };
+  const cancelCount = useRef<(() => void) | null>(null);
   const playPause = () => {
-    if (sourceRef.current === "tab") at.current?.playPause();
-    else if (yt.current?.getPlayerState) {
-      if (yt.current.getPlayerState() === YT_PLAYING) yt.current.pauseVideo();
-      else yt.current.playVideo();
+    if (sourceRef.current === "tab") {
+      at.current?.playPause(); // alphaTab does its own count-in and metronome
+      return;
     }
+    const p = yt.current;
+    if (!p?.getPlayerState) return;
+    if (p.getPlayerState() === YT_PLAYING || cancelCount.current) {
+      cancelCount.current?.();
+      cancelCount.current = null;
+      p.pauseVideo();
+      return;
+    }
+    // with a loop, start inside it
+    const pr = practiceRef.current;
+    const range = pr.loop && clock.current ? rangeTicks(bars.current, pr.from, pr.to) : null;
+    if (range && clock.current) {
+      const time = p.getCurrentTime();
+      if (time < clock.current.tickToTime(range.startTick) - 0.05 || time >= clock.current.tickToTime(range.endTick)) {
+        p.seekTo(clock.current.tickToTime(range.startTick), true);
+        p.pauseVideo();
+      }
+    }
+    if (pr.countIn) {
+      const bpm = meter.current.tempo * nearestRate(speedRef.current) * (meter.current.denominator / 4);
+      cancelCount.current = countIn(meter.current.numerator, bpm, () => {
+        cancelCount.current = null;
+        p.playVideo();
+      });
+    } else p.playVideo();
   };
+
+  /** One pass through the loop: count it, and let the trainer speed up. */
+  const onPass = () => {
+    setPasses((n) => n + 1);
+    const pr = practiceRef.current;
+    if (pr.trainer) setSpeed((sp) => nextSpeed(sp, pr, sourceRef.current));
+  };
+  /** Loop range, count-in and metronome onto alphaTab (the tab as sound source). */
+  const applyPractice = () => {
+    const a = at.current;
+    if (!a) return;
+    const pr = practiceRef.current;
+    const range = pr.loop ? rangeTicks(bars.current, pr.from, pr.to) : null;
+    a.playbackRange = range;
+    a.isLooping = !!range;
+    a.countInVolume = pr.countIn ? 1 : 0;
+    a.metronomeVolume = pr.metronome ? 1 : 0;
+  };
+  useEffect(applyPractice, [practice]);
+  // the trainer starts at its own speed; a new loop or trainer counts passes from zero
+  useEffect(() => {
+    if (practice.trainer) setSpeed(practice.start);
+    setPasses(0);
+  }, [practice.trainer, practice.start, practice.loop, practice.from, practice.to]);
   const stop = () => {
     at.current?.stop();
     yt.current?.pauseVideo?.();
     if (clock.current) yt.current?.seekTo?.(clock.current.tickToTime(0), true);
   };
   useEffect(() => {
+    speedRef.current = speed;
     if (at.current) at.current.playbackSpeed = speed;
     yt.current?.setPlaybackRate?.(nearestRate(speed));
   }, [speed]);
+
+  // ── practice log ───────────────────────────────────────────────────────────
+  // While something plays, count the seconds; report them every 30 s and when playback stops. A run from the first
+  // to the last bar without a loop counts as playing the whole song at that speed.
+  const session = useRef({ seconds: 0, startBar: -1, whole: false });
+  const flush = useCallback(() => {
+    const s = session.current;
+    if (s.seconds < 1) return;
+    const pr = practiceRef.current;
+    void fetch("/api/practice", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({
+        video: vid, day: localDay(), seconds: Math.min(600, s.seconds), speed: speedRef.current,
+        source: sourceRef.current, bars: pr.loop ? [Math.min(pr.from, pr.to), Math.max(pr.from, pr.to)] : null, whole_song: s.whole,
+      }),
+    }).then(() => qc.invalidateQueries({ queryKey: ["songs"] }));
+    session.current = { seconds: 0, startBar: s.startBar, whole: false };
+  }, [vid, qc]);
   useEffect(() => {
-    if (at.current) at.current.isLooping = loop;
-  }, [loop]);
+    if (!playing) {
+      flush();
+      session.current.startBar = -1;
+      return;
+    }
+    const id = window.setInterval(() => {
+      const s = session.current;
+      s.seconds += 1;
+      const bar = barAt(bars.current, at.current?.tickPosition ?? 0);
+      if (s.startBar < 0) s.startBar = bar;
+      if (!practiceRef.current.loop && s.startBar === 0 && bar === bars.current.length - 1) s.whole = true;
+      if (s.seconds >= 30) flush();
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [playing, flush]);
+  useEffect(() => () => flush(), [flush]);
   // ── keyboard ───────────────────────────────────────────────────────────────
   // Space plays and pauses. With a beat selected: arrows move between beats and strings, digits type the fret,
   // letters toggle techniques (KEYS below), Enter saves, Escape closes. Cmd/Ctrl+Z undoes, with Shift redoes.
@@ -355,15 +478,17 @@ export default function TabStudio({ vid }: { vid: string }) {
   // A phone starts with the editor folded; wide screens always show both.
   const [videoOpen, setVideoOpen] = useState(true);
   const [editorOpen, setEditorOpen] = useState(true);
+  const [practiceOpen, setPracticeOpen] = useState(false); // folded until you open it, at every width
   useEffect(() => {
     try {
       const v = localStorage.getItem("tabstealth.video");
       const e = localStorage.getItem("tabstealth.editor");
       if (v) setVideoOpen(v === "open");
+      setPracticeOpen(localStorage.getItem("tabstealth.practice") === "open");
       setEditorOpen(e ? e === "open" : window.innerWidth >= 640);
     } catch {}
   }, []);
-  const toggle = (key: "video" | "editor", open: boolean, set: (v: boolean) => void) => {
+  const toggle = (key: "video" | "editor" | "practice", open: boolean, set: (v: boolean) => void) => {
     set(open);
     try {
       localStorage.setItem(`tabstealth.${key}`, open ? "open" : "closed");
@@ -436,7 +561,7 @@ export default function TabStudio({ vid }: { vid: string }) {
 
   // In development the players are reachable from the console (window.__tabstealth), for checking the sync.
   useEffect(() => {
-    if (process.env.NODE_ENV !== "production") (window as any).__tabstealth = { at, yt, clock, sourceRef };
+    if (process.env.NODE_ENV !== "production") (window as any).__tabstealth = { at, yt, clock, sourceRef, setPractice, practiceRef, speedRef };
   }, []);
 
   const crop = hands ?Math.min(Math.max(timing.data?.overlay_top ?? 0.66, 0.4), 1) : 1;
@@ -454,6 +579,16 @@ export default function TabStudio({ vid }: { vid: string }) {
         icon={playing ? <PauseIcon className="h-[15px] w-[15px]" /> : <PlayIcon className="h-[15px] w-[15px]" />}
       />
       <Button size="sm" onClick={stop} disabled={!loaded} aria-label={t.song.stop} title={t.song.stop} icon={<StopIcon className="h-[15px] w-[15px]" />} />
+      <button
+        type="button"
+        aria-pressed={practice.loop}
+        aria-label={t.practice.loop}
+        title={practice.loop ? t.practice.loopOn(Math.min(practice.from, practice.to), Math.max(practice.from, practice.to)) : t.practice.loop}
+        onClick={() => setPractice((p) => ({ ...p, loop: !p.loop }))}
+        className={`ds-btn ds-btn--sm !px-2 ${practice.loop ? "ds-btn--secondary !border-brand !text-brand" : "ds-btn--secondary"}`}
+      >
+        <RepeatIcon className="h-[15px] w-[15px]" />
+      </button>
       <Tabs
         className="ml-1.5"
         items={[
@@ -551,17 +686,26 @@ export default function TabStudio({ vid }: { vid: string }) {
           <label className="flex items-center gap-2">
             <span className="text-xs text-ink-muted">{t.song.speed}</span>
             <Select value={String(speed)} onChange={(e) => setSpeed(Number(e.target.value))} aria-label={t.song.speed}>
-              {SPEEDS.map((s) => (
+              {PERCENTS.map((s) => (
                 <option key={s} value={s}>
                   {Math.round(s * 100)}%
                 </option>
               ))}
             </Select>
           </label>
-          <Checkbox checked={loop} onChange={setLoop} label={t.song.loop} />
           <Checkbox checked={hands} onChange={setHands} label={t.song.hands} />
         </div>
         {song && <SongMeta song={song} />}
+        <PracticePanel
+          open={practiceOpen}
+          onToggle={() => toggle("practice", !practiceOpen, setPracticeOpen)}
+          value={practice}
+          onChange={(update) => setPractice((p) => update(p))}
+          bars={bars.current.length}
+          selectedBar={selected ? selected.bar + 1 : null}
+          source={source}
+          passes={passes}
+        />
 
         {selected && (
           <BeatEditor

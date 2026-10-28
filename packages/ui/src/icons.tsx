@@ -485,3 +485,15 @@ export function MusicIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/** Repeat / loop: two arrows chasing each other round a rectangle. */
+export function RepeatIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M17 3.5l3 3-3 3" />
+      <path d="M4 11.5v-2a3 3 0 0 1 3-3h13" />
+      <path d="M7 20.5l-3-3 3-3" />
+      <path d="M20 12.5v2a3 3 0 0 1-3 3H4" />
+    </Icon>
+  );
+}
