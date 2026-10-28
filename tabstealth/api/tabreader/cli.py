@@ -228,6 +228,13 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
         for m in marked:
             if f"{m.marker} 2" in names:
                 m.marker = f"{m.marker} 1"
+        # "Verse" and "Verse 1" alternating were two labels; after numbering they are one section
+        last = None
+        for m in sorted({id(m): m for m in marked}.values(), key=lambda m: m.t_start):
+            if m.marker == last:
+                m.marker = None
+            else:
+                last = m.marker
     else:
         log("  tesseract not found: skipping chord names, sections, tuning/capo")
 

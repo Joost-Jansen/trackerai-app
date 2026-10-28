@@ -72,3 +72,11 @@ def test_a_bar_line_under_tie_arcs_still_counts():
     cv2.ellipse(ink, (500, 237), (40, 8), 0, 0, 180, 1, 2)  # and one on the bottom string
     ink[40:int(LINES[-1]) + 1, 700:702] = 1  # a stroke that runs on above the staff: not a bar line
     assert find_barlines(ink, LINES) == [200, 500]
+
+
+def test_section_labels_become_known_names_and_noise_is_dropped():
+    from tabreader.ocr import section_label
+    read = {"Intro  -": "Intro", "Verse 2 For forty": "Verse 2", "Verse2 open": "Verse 2", "Chorus a 7": "Chorus",
+            "Verse I  card": "Verse 1", "Sols": "Solo", "intro": "Intro", "Pre-Chorus  7": "Pre-Chorus",
+            "Post-Chorus": "Post-Chorus", "tll  is": None, "ll  18": None, "- eee ee": None, "AO": None, "": None}
+    assert {k: section_label(k) for k in read} == read

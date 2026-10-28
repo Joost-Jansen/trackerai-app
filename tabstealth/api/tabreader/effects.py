@@ -67,17 +67,18 @@ def _note_near(notes: list[Note], string: int, x: float, sp: float) -> Note | No
 
 
 def slurs(ink_clean: np.ndarray, lines: list[float], notes: list[Note]) -> None:
-    """Arcs joining two notes on one string: tie (same fret) or hammer-on/pull-off.
+    """Arcs joining notes on one string: a tie (same fret, nothing between) or hammer-ons/pull-offs.
 
     Guitar Pro draws the arc above the highest note of the column, not necessarily right
     above its own string, so we take the highest string below the arc whose notes sit
-    under both ends of the arc.
+    under both ends of the arc. One arc can span several notes (0-1-0: hammer, then pull);
+    a wider arc is also taller.
     """
     sp = (lines[-1] - lines[0]) / 5
     n, lab, stats, _ = cv2.connectedComponentsWithStats(ink_clean)
     for i in range(1, n):
         x, y, w, h, _ = stats[i]
-        if not (0.7 * sp < w < 4 * sp and 2 <= h < 0.7 * sp):
+        if not (0.7 * sp < w < 4 * sp and 2 <= h < max(0.7 * sp, 0.35 * w)):
             continue
         if y + h < lines[0] - 1.3 * sp or y > lines[-1]:
             continue  # chord names / lyrics area
@@ -88,11 +89,40 @@ def slurs(ink_clean: np.ndarray, lines: list[float], notes: list[Note]) -> None:
             b = _note_near(notes, s, x + w - 0.15 * w, sp)
             if a is None or b is None or a is b or b.x <= a.x:
                 continue
-            if a.fret is not None and a.fret == b.fret and not a.grace:
+            between = sorted((m for m in notes if m.string == s and a.x < m.x < b.x), key=lambda m: m.x)
+            if a.fret is not None and a.fret == b.fret and not a.grace and not between:
                 b.tied = True
             else:
-                a.hammer = True
+                for m in [a, *between]:
+                    m.hammer = True
             break
+
+
+def grace_slurs(ink_clean: np.ndarray, lines: list[float], cols: list[Column]) -> int:
+    """A grace note slurred into its main note ("2⌒4" with a small 2). The arc is short and crosses the staff line
+    above, which line removal cuts it at, so it is no single component: look at the ink between the two notes for an
+    arch instead (the farther from the middle, the lower the ink)."""
+    sp = (lines[-1] - lines[0]) / 5
+    found = 0
+    for c in cols:
+        for g in c.grace:
+            m = next((n for n in c.notes if n.string == g.string), None)
+            if m is None or g.slide or g.hammer or not 0.6 * sp < m.x - g.x < 2.5 * sp:
+                continue
+            if any(n.string == g.string - 1 and g.x - 0.3 * sp < n.x < m.x + 0.3 * sp for n in c.notes + c.grace):
+                continue  # a note on the string above would look like a leg
+            y = lines[g.string - 1]
+            band = ink_clean[int(y - 1.1 * sp):int(y - 0.55 * sp), int(g.x):int(m.x)]
+            if band.size == 0 or band.sum() > 0.6 * sp * sp:
+                continue
+            ys, xs = np.nonzero(band)
+            wd = band.shape[1]
+            if len(xs) < 8 or not (xs < 0.35 * wd).any() or not (xs > 0.65 * wd).any():
+                continue
+            if np.corrcoef(np.abs(xs - (wd - 1) / 2), ys)[0, 1] > 0.5:
+                g.hammer = True
+                found += 1
+    return found
 
 
 def slides(slide_glyphs: list[Glyph], lines: list[float], notes: list[Note]) -> None:
@@ -113,6 +143,7 @@ def annotate(img: np.ndarray, ink_clean: np.ndarray, lines: list[float], bars: l
     arpeggios(ink_clean, lines, cols)
     slurs(ink_clean, lines, notes)
     slides(slide_glyphs, lines, notes)
+    grace_slurs(ink_clean, lines, cols)
     vibrato(ink_clean, lines, cols)
     parentheses(cols)
 

@@ -50,8 +50,40 @@ def section_name(crop: np.ndarray) -> str | None:
     end = cols[gaps[0]] if len(gaps) else cols[-1]
     txt = tesseract(_prep(crop[:, :end + 10], invert=True))
     txt = re.sub(r"[^A-Za-z0-9 '\-]", "", txt).strip()
-    txt = re.sub(r"\b[Il|]$", "1", txt)  # "Verse I" -> "Verse 1" (Roman-style one)
-    return txt or None
+    return section_label(txt)
+
+
+SECTIONS = ["Intro", "Verse", "Pre-Chorus", "Chorus", "Post-Chorus", "Bridge", "Solo", "Break", "Interlude",
+            "Instrumental", "Riff", "Theme", "Hook", "Refrain", "Coda", "Ending", "Outro"]
+
+
+def _near(a: str, b: str) -> bool:
+    """Equal, or one letter off (Sols, Solb -> Solo) for words of four letters or more."""
+    if a == b:
+        return True
+    if len(b) < 4 or abs(len(a) - len(b)) > 1:
+        return False
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1] <= 1
+
+
+def section_label(txt: str) -> str | None:
+    """The section a label names, as a known name plus its number: "Verse 2 For forty" (lyrics leaking in) ->
+    "Verse 2", "Chorus a 7" -> "Chorus", "Sols" -> "Solo"; noise such as "tll is" -> None."""
+    tokens = re.findall(r"[A-Za-z]+(?:-[A-Za-z]+)?|\d+", txt)
+    if not tokens:
+        return None
+    name = next((n for n in SECTIONS if _near(tokens[0].lower(), n.lower())), None)
+    if name is None:
+        return None
+    nxt = tokens[1] if len(tokens) > 1 else ""
+    num = "1" if nxt in ("I", "l") else nxt if nxt.isdigit() and 1 <= int(nxt) <= 6 else ""
+    return f"{name} {num}" if num else name
 
 
 def chord_names(tape_img: np.ndarray, lines: list[float]) -> list[tuple[float, str]]:

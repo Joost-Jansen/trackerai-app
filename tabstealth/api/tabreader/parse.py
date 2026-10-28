@@ -88,13 +88,16 @@ def read_number(img, lines, bar_x, clf: Classifier) -> int | None:
 
 
 def merge_multidigit(notes: list[tuple[Glyph, str, float]], sp: float):
-    """Join digit glyphs that sit side by side on the same string into one number."""
+    """Join digit glyphs that sit side by side on the same string into one number.
+
+    Over seven videos the digits of one number sit 0.15-0.30 staff spaces apart and separate notes 0.55 or more, so
+    0.42 splits the two cleanly (0.25 split "12" into the notes 1 and 2 in some videos)."""
     notes.sort(key=lambda t: (round(t[0].cy / sp), t[0].x0))
     out: list[list] = []
     for g, lab, sc in notes:
         if (out and lab in DIGITS and out[-1][1][-1] in DIGITS
                 and abs(out[-1][0].cy - g.cy) < 0.2 * sp
-                and 0 <= g.x0 - out[-1][3] < 0.25 * sp):
+                and 0 <= g.x0 - out[-1][3] < 0.42 * sp):
             out[-1][1] += lab
             out[-1][3] = g.x1
             out[-1][2] = min(out[-1][2], sc)
@@ -102,6 +105,28 @@ def merge_multidigit(notes: list[tuple[Glyph, str, float]], sp: float):
         else:
             out.append([g, lab, sc, g.x1, g.cx])
     return out
+
+
+def bracketed(clean: np.ndarray, x0: int, x1: int, y0: int, y1: int, sp: float) -> bool:
+    """True when a curved stroke as tall as the digit stands right beside it: "(3)".
+
+    The parentheses often touch the tie arc that leads into them, so they are not glyphs of their own; this looks at
+    the ink beside the digit instead. Per row it takes the ink nearest the digit, which leaves out the arc: a "("
+    is farther away in the middle than at its ends, a ")" mirrors that, a slide's slash or a 1 is not curved."""
+    w = int(0.4 * sp)
+
+    def side(a: int, b: int, sign: int) -> bool:
+        win = clean[y0:y1, max(0, a):max(0, b)]
+        if win.shape[1] < 3 or win.any(axis=1).mean() < 0.8:
+            return False
+        near = np.array([(np.nonzero(r)[0].max() if sign < 0 else np.nonzero(r)[0].min()) if r.any() else np.nan
+                         for r in win], float)
+        h = len(near)
+        band = lambda p, q: np.nanmedian(near[int(p * h):max(int(q * h), int(p * h) + 1)])
+        bulge = (band(0, 0.2) + band(0.8, 1)) / 2 - band(0.4, 0.6)  # > 0: the middle lies left of the ends
+        return -sign * bulge > 0.15 * win.shape[1]
+
+    return side(x0 - w, x0 - 1, -1) or side(x1 + 1, x1 + w, 1)
 
 
 def find_rests(clean: np.ndarray, lines: list[float]) -> list[float]:
@@ -122,6 +147,7 @@ def parse_page(img: np.ndarray, lines: list[float], clf: Classifier) -> ParsedPa
     sp = (lines[-1] - lines[0]) / 5
     ink = (gray(img) < 150).astype(np.uint8)
     bars = find_barlines(ink, lines)
+    clean = remove_lines(ink, lines, bars)
     numbers = {b: n for b in bars if (n := read_number(img, lines, b, clf)) is not None}
     found, slide_marks, brackets = [], [], []
     for g in note_glyphs(img, lines, bars):
@@ -145,6 +171,8 @@ def parse_page(img: np.ndarray, lines: list[float], clf: Classifier) -> ParsedPa
             lab, ghost = lab[1:-1], True
         if lab != "X" and int(lab) > 24:
             continue  # not a fret: a misread mark, better no note than a wrong one
+        if not ghost and bracketed(clean, g.x0, x1, g.y0, g.y1, sp):
+            ghost = True  # "(3)": a tie or a ghost note, effects.parentheses decides which
         fret = None if lab == "X" else int(lab)
         note = Note(string, fret, grace=h < 0.8 * sp, x=cx, score=sc, ghost=ghost)
         # "<12>": angle brackets on both sides of the fret, on its string, make a natural harmonic
@@ -159,7 +187,7 @@ def parse_page(img: np.ndarray, lines: list[float], clf: Classifier) -> ParsedPa
             if fret is not None and fret < 10 and room > 1.5 * (x1 - g.x0) and 10 + fret in (12, 17, 19):
                 note.fret = 10 + fret
         raw.append(note)
-    rests = find_rests(remove_lines(ink, lines, bars), lines)
+    rests = find_rests(clean, lines)
     # group notes into measures and columns
     measures = []
     edges = [0] + bars + [img.shape[1]]
@@ -195,7 +223,7 @@ def parse_page(img: np.ndarray, lines: list[float], clf: Classifier) -> ParsedPa
         for i, m in enumerate(measures):
             m.number = i + k if i + k >= 1 else None
     from .effects import annotate  # effects builds on the dataclasses defined here
-    annotate(img, remove_lines(ink, lines, bars), lines, bars, measures, slide_marks)
+    annotate(img, clean, lines, bars, measures, slide_marks)
     return ParsedPage(bars, measures, numbers)
 
 
