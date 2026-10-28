@@ -24,6 +24,7 @@ import { ChevronLeftIcon, DownloadIcon, MusicIcon, NewspaperIcon, PauseIcon, Pla
 import { makeClock, nearestRate, type Clock, type Timing } from "@/lib/sync";
 import { beatAtGpIndex, emptyNote, fromAlphaTab, fromApi, gpBeatIndex, invalid, KEYS, mainBeat, nextBend, toRequest, type ApiBeat, type BeatState, type NoteState } from "@/lib/beat";
 import BeatEditor from "@/components/BeatEditor";
+import SongMeta from "@/components/SongMeta";
 
 type Source = "video" | "tab";
 // The beat being edited: its bar, its index in the Guitar Pro file (grace notes not counted), the form, and the
@@ -537,7 +538,8 @@ export default function TabStudio({ vid }: { vid: string }) {
           {/* folded, the player keeps running at zero height: sound and sync carry on, the tab gets the room */}
           <div
             className={`ts-video mx-auto w-full ${videoOpen ? "" : "max-lg:!h-0 max-lg:!border-0"}`}
-            style={{ aspectRatio: videoOpen ? `16 / ${9 * crop}` : undefined, maxWidth: `calc(34vh * ${16 / (9 * crop)})` }}
+            // the fold (max-lg:h-0) only applies below the two-column layout; wide, the video always shows
+            style={{ aspectRatio: `16 / ${9 * crop}`, maxWidth: `calc(34vh * ${16 / (9 * crop)})` }}
           >
             <div style={{ position: "absolute", inset: 0, height: `${100 / crop}%` }}>
               <div ref={ytEl} />
@@ -559,6 +561,7 @@ export default function TabStudio({ vid }: { vid: string }) {
           <Checkbox checked={loop} onChange={setLoop} label={t.song.loop} />
           <Checkbox checked={hands} onChange={setHands} label={t.song.hands} />
         </div>
+        {song && <SongMeta song={song} />}
 
         {selected && (
           <BeatEditor
