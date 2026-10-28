@@ -6,7 +6,7 @@ import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DownloadIcon } from "@trackerai/ui/icons";
-import SongMeta from "@/components/SongMeta";
+import SongChips from "@/components/SongChips";
 import TopbarTitle from "@/components/TopbarTitle";
 import { api, type Song } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -29,6 +29,7 @@ function Pdf({ id }: { id: string }) {
       <TopbarTitle
         title={item?.title ?? "…"}
         meta={item?.artist}
+        chips={item && <SongChips song={item} />}
         back="/library/"
         backLabel={t.song.back}
         actions={
@@ -38,11 +39,7 @@ function Pdf({ id }: { id: string }) {
         }
       />
       <div className="flex flex-wrap items-center gap-3">
-        {item && (
-          <div className="min-w-0 flex-1">
-            <SongMeta song={item} />
-          </div>
-        )}
+        <span className="flex-1" />
         <button type="button" className="text-xs text-ink-muted hover:underline" onClick={() => void remove()}>
           {t.watch.remove}
         </button>

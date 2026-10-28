@@ -87,6 +87,10 @@ class PracticeIn(BaseModel):
     whole_song: bool = False  # played from the start to the end at this speed
 
 
+class ReanalyseIn(BaseModel):
+    overwrite_edits: bool = False
+
+
 class VideoIn(BaseModel):
     url: str = Field(max_length=500)
     title: str | None = Field(default=None, max_length=200)
@@ -128,9 +132,9 @@ class Jobs:
         self.runner = runner or self._run
         threading.Thread(target=self._work, daemon=True).start()
 
-    def add(self, url: str) -> dict:
+    def add(self, url: str, args: list[str] | None = None) -> dict:
         jid = next(self.ids)
-        self.items[jid] = {"id": jid, "url": url, "status": "queued", "log": []}
+        self.items[jid] = {"id": jid, "url": url, "args": args or [], "status": "queued", "log": []}
         self.queue.put(jid)
         return self.items[jid]
 
@@ -145,6 +149,7 @@ class Jobs:
     def _run(job: dict) -> bool:
         url = job["url"]
         args = ["--playlist", url] if "list=" in url and "watch?v=" not in url else [url]
+        args += job.get("args", [])
         p = subprocess.Popen([sys.executable, "-m", "tabreader", *args], cwd=HERE,
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         for line in p.stdout:
@@ -465,11 +470,20 @@ def create_app(library: Path = LIBRARY, jobs: Jobs | None = None) -> FastAPI:
                             headers={"Content-Disposition": "inline"})
 
     @app.post("/api/songs/{vid}/convert")
-    def convert_saved(vid: str):
-        """A saved video turns out to have a tab after all: convert it (the tab replaces the saved video)."""
-        if song(vid).get("kind") != "video":
-            raise HTTPException(400, "only a saved video can be converted")
-        return jobs.add(f"https://www.youtube.com/watch?v={vid}")
+    def convert_saved(vid: str, body: ReanalyseIn | None = None):
+        """Convert a saved video that turns out to have a tab after all (the tab replaces the saved video), or read a
+        converted tab again with the current converter. That replaces edits, so an edited tab needs overwrite_edits."""
+        entry, url = song(vid), f"https://www.youtube.com/watch?v={vid}"
+        kind = entry.get("kind", "tab")
+        if kind == "pdf":
+            raise HTTPException(400, "a PDF cannot be converted")
+        if kind == "video":
+            return jobs.add(url)
+        overwrite = bool(body and body.overwrite_edits)
+        if is_edited(library / entry["file"]) and not overwrite:
+            raise HTTPException(409, "the tab has edits; reanalysing replaces them")
+        # --force is not needed: the frame scan is cached, only the reading runs again
+        return jobs.add(url, ["--overwrite-edits"] if overwrite else [])
 
     @app.delete("/api/songs/{vid}")
     def remove(vid: str):

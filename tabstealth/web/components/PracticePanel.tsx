@@ -1,9 +1,9 @@
 "use client";
 
 // Practice settings next to the video: loop a bar range, the speed trainer, count-in and metronome (lib/practice.ts).
+// Shown when its icon next to the speed is selected (TabStudio).
 
 import { Switch } from "@trackerai/ui/ds/Field";
-import { ChevronDownIcon, RepeatIcon } from "@trackerai/ui/icons";
 import type { Practice } from "@/lib/practice";
 import { useT } from "@/lib/i18n";
 
@@ -11,8 +11,6 @@ const pct = (v: number) => `${Math.round(v * 100)}%`;
 const PERCENTS = Array.from({ length: 26 }, (_, i) => Math.round((0.25 + i * 0.05) * 100) / 100); // 25% to 150%
 
 export default function PracticePanel({
-  open,
-  onToggle,
   value,
   onChange,
   bars,
@@ -20,9 +18,6 @@ export default function PracticePanel({
   source,
   passes,
 }: {
-  /** Folded to one row with a summary, or all settings. */
-  open: boolean;
-  onToggle: () => void;
   value: Practice;
   onChange: (update: (p: Practice) => Practice) => void;
   bars: number;
@@ -37,25 +32,9 @@ export default function PracticePanel({
   const bar = (v: string) => Math.min(Math.max(1, Number(v) || 1), Math.max(1, bars));
   const num = "ds-input !h-8 w-14 text-center text-xs";
   const sel = "ds-input !h-8 !px-1 text-xs";
-  // folded, one line says what is on
-  const summary = [
-    value.loop ? t.practice.loopOn(Math.min(value.from, value.to), Math.max(value.from, value.to)) : null,
-    value.trainer ? `${pct(value.start)} → ${pct(value.target)}` : null,
-    value.countIn ? t.practice.countIn : null,
-    value.metronome ? t.practice.metronome : null,
-    value.loop && passes > 0 ? t.practice.passes(passes) : null,
-  ].filter(Boolean).join(" · ");
-
   return (
     <section className="flex flex-col gap-2.5 rounded border border-border bg-surface p-3 text-sm">
-      <button type="button" className="flex items-center gap-2 text-left" aria-expanded={open} onClick={onToggle}>
-        <RepeatIcon className={`h-4 w-4 flex-none ${value.loop || value.trainer ? "text-brand" : "text-ink-muted"}`} />
-        <span className="text-[13.5px] font-semibold tracking-[0.01em]">{t.practice.title}</span>
-        <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">{summary}</span>
-        <ChevronDownIcon className={`h-4 w-4 flex-none text-ink-muted transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-      <>
+      <h2 className="text-[13.5px] font-semibold tracking-[0.01em]">{t.practice.title}</h2>
       <div className="flex flex-wrap items-center gap-2">
         <Switch checked={value.loop} onChange={(on) => set({ loop: on })} label={t.practice.loop} />
         <span className="text-xs text-ink-muted">{t.practice.bars}</span>
@@ -100,8 +79,6 @@ export default function PracticePanel({
         <Switch checked={value.countIn} onChange={(on) => set({ countIn: on })} label={t.practice.countIn} />
         <Switch checked={value.metronome} onChange={(on) => set({ metronome: on })} label={t.practice.metronome} />
       </div>
-      </>
-      )}
     </section>
   );
 }

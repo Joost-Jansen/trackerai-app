@@ -9,7 +9,7 @@ import Link from "next/link";
 import { ChevronLeftIcon } from "@trackerai/ui/icons";
 import { TOPBAR_ACTIONS, TOPBAR_TITLE } from "@/lib/nav";
 
-export default function TopbarTitle({ title, meta, back, backLabel, actions }: { title: string; meta?: string; back: string; backLabel: string; actions?: React.ReactNode }) {
+export default function TopbarTitle({ title, meta, chips, back, backLabel, actions }: { title: string; meta?: string; chips?: React.ReactNode; back: string; backLabel: string; actions?: React.ReactNode }) {
   const [slots, setSlots] = useState<{ title: HTMLElement | null; actions: HTMLElement | null }>({ title: null, actions: null });
   useEffect(() => setSlots({ title: document.getElementById(TOPBAR_TITLE), actions: document.getElementById(TOPBAR_ACTIONS) }), []);
   return (
@@ -22,7 +22,12 @@ export default function TopbarTitle({ title, meta, back, backLabel, actions }: {
             </Link>
             <div className="min-w-0">
               <h1 className="ds-topbar__title truncate !leading-tight">{title}</h1>
-              {meta && <div className="truncate text-xs text-ink-muted">{meta}</div>}
+              {(meta || chips) && (
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-muted">
+                  {meta && <span className="min-w-0 max-w-full truncate">{meta}</span>}
+                  {chips}
+                </div>
+              )}
             </div>
           </div>,
           slots.title,

@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@trackerai/ui/ds/Button";
 import { Select } from "@trackerai/ui/ds/Field";
 import { PauseIcon, PlayIcon, RepeatIcon } from "@trackerai/ui/icons";
-import SongMeta from "@/components/SongMeta";
+import SongChips from "@/components/SongChips";
 import TopbarTitle from "@/components/TopbarTitle";
 import { api, type Song } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -105,6 +105,7 @@ function Watch({ vid }: { vid: string }) {
       <TopbarTitle
         title={song?.title ?? "…"}
         meta={song?.artist}
+        chips={song && <SongChips song={song} />}
         back="/library/"
         backLabel={t.song.back}
         actions={
@@ -161,7 +162,6 @@ function Watch({ vid }: { vid: string }) {
         </span>
       </section>
       {message && <p className="text-xs text-ink-muted">{message}</p>}
-      {song && <SongMeta song={song} />}
     </div>
   );
 }

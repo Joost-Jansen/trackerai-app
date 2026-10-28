@@ -236,12 +236,21 @@ def test_collection_videos_and_pdfs(library, monkeypatch):
     assert r.status_code == 200 and r.headers["content-type"] == "application/pdf" and r.content.startswith(b"%PDF")
     kinds = {s["video"]: s["kind"] for s in c.get("/api/songs").json()}
     assert kinds == {"abcdefghijk": "tab", "AbCdEfGhIjK": "video", p["video"]: "pdf"}
-    # a saved video can be converted later; a tab cannot be "converted" again
+    # a saved video can be converted later; a PDF cannot be converted
     assert c.post("/api/songs/AbCdEfGhIjK/convert").json()["url"].endswith("v=AbCdEfGhIjK")
-    assert c.post("/api/songs/abcdefghijk/convert").status_code == 400
+    assert c.post(f"/api/songs/{p['video']}/convert").status_code == 400
     # removing moves the files to the trash
     assert c.delete(f"/api/songs/{p['video']}").json() == {"ok": True}
     assert p["video"] not in {s["video"] for s in c.get("/api/songs").json()}
     assert list((library / ".trash").glob("pdf-*/*.pdf"))
     c.delete("/api/songs/abcdefghijk")
     assert not (library / "A - B.gp5").exists() and list((library / ".trash").glob("abcdefghijk-*/A - B.gp5"))
+
+
+def test_reanalysing_a_tab_asks_before_replacing_edits(library):
+    c = TestClient(create_app(library, FakeJobs()))
+    assert c.post("/api/songs/abcdefghijk/convert").json()["args"] == []
+    c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"1": {"fret": 5}}})
+    assert c.post("/api/songs/abcdefghijk/convert").status_code == 409
+    job = c.post("/api/songs/abcdefghijk/convert", json={"overwrite_edits": True}).json()
+    assert job["args"] == ["--overwrite-edits"]

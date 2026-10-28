@@ -14,20 +14,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@trackerai/ui/ds/Button";
-import { Checkbox, Select } from "@trackerai/ui/ds/Field";
+import { Select } from "@trackerai/ui/ds/Field";
 import Tabs from "@trackerai/ui/ds/Tabs";
-import { api, type Song } from "@/lib/api";
+import { api, type Job, type Song } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { ALPHATAB_BASE, loadAlphaTab, loadYouTube } from "@/lib/scripts";
 import RowMenu from "@trackerai/ui/ds/RowMenu";
 import { TOPBAR_ACTIONS, TOPBAR_TITLE } from "@/lib/nav";
-import { ChevronLeftIcon, CloseIcon, DownloadIcon, RepeatIcon, MusicIcon, NewspaperIcon, PauseIcon, PlayIcon, RefreshIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
+import { CheckIcon, ChevronLeftIcon, HandIcon, RepeatIcon, MusicIcon, PauseIcon, PlayIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
 import { makeClock, nearestRate, type BarTicks, type Clock, type Timing } from "@/lib/sync";
 import { beatAtGpIndex, emptyNote, fromAlphaTab, fromApi, gpBeatIndex, invalid, KEYS, mainBeat, nextBend, toRequest, type ApiBeat, type BeatState, type NoteState } from "@/lib/beat";
 import BeatEditor from "@/components/BeatEditor";
-import SongMeta from "@/components/SongMeta";
+import SongChips from "@/components/SongChips";
 import PracticePanel, { PERCENTS } from "@/components/PracticePanel";
-import ReviewPanel from "@/components/ReviewPanel";
+import ReviewPanel, { type ReviewItem } from "@/components/ReviewPanel";
 import { barAt, beatAt as beatOf, DEFAULT_PRACTICE, nextSpeed, rangeTicks, type Practice } from "@/lib/practice";
 import { click, countIn } from "@/lib/click";
 import { localDay } from "@/lib/library";
@@ -498,6 +498,9 @@ export default function TabStudio({ vid }: { vid: string }) {
   const [editorOpen, setEditorOpen] = useState(true);
   const [practiceOpen, setPracticeOpen] = useState(false); // folded until you open it, at every width
   const [reviewOpen, setReviewOpen] = useState(false);
+  const review = useQuery({ queryKey: ["review", vid], queryFn: () => api.get<ReviewItem[]>(`/api/songs/${vid}/review`) });
+  const reviewList = review.data ?? [];
+  const reviewLeft = reviewList.filter((r) => !r.checked).length;
   useEffect(() => {
     try {
       const v = localStorage.getItem("tabstealth.video");
@@ -586,6 +589,28 @@ export default function TabStudio({ vid }: { vid: string }) {
     reloadTab();
   };
 
+  /** Read the video again with the current converter (the frame scan is cached, so it takes a minute at most). */
+  const [reanalysing, setReanalysing] = useState<"running" | "done" | "failed" | null>(null);
+  const reanalyse = async () => {
+    const overwrite = !!song?.edited;
+    if (overwrite && !window.confirm(t.song.reanalyseEdited)) return;
+    setReanalysing("running");
+    try {
+      const job = await api.post<Job>(`/api/songs/${vid}/convert`, { overwrite_edits: overwrite });
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const j = (await api.get<Job[]>("/api/jobs")).find((x) => x.id === job.id);
+        if (!j || j.status === "failed") throw new Error(j?.log.at(-1) ?? "");
+        if (j.status === "done") break;
+      }
+      await qc.invalidateQueries(); // timing, review queue, history: all of it may have changed
+      reloadTab(null);
+      setReanalysing("done");
+    } catch {
+      setReanalysing("failed");
+    }
+  };
+
   // In development the players are reachable from the console (window.__tabstealth), for checking the sync.
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") (window as any).__tabstealth = { at, yt, clock, sourceRef, setPractice, practiceRef, speedRef };
@@ -593,7 +618,22 @@ export default function TabStudio({ vid }: { vid: string }) {
 
   const crop = hands ?Math.min(Math.max(timing.data?.overlay_top ?? 0.66, 0.4), 1) : 1;
 
-  // Play, stop and the sound switch, in the song's header (pinned with the video on a narrow screen).
+  // The song's files (download, text), reading it again and removing it: rare actions, in the "⋯" menu in the top bar.
+  const download = (href: string, name?: string) => {
+    const a = document.createElement("a");
+    a.href = href;
+    if (name) a.download = name;
+    else a.target = "_blank";
+    a.click();
+  };
+  const files = [
+    { label: t.song.downloadGp5, run: () => download(tabUrl, song?.file) },
+    { label: t.song.downloadText, run: () => download(`/api/songs/${vid}/text`) },
+    { label: t.song.reanalyse, run: () => void reanalyse() },
+    ...(song?.edited ? [{ label: t.song.restore, run: () => void restoreOriginal() }] : []),
+    { label: t.watch.remove, run: () => void removeSong(), danger: true },
+  ];
+  // Play, stop, loop and the sound switch: the first controls in the row under the video.
   const transport = (
     <div className="flex min-w-0 items-center gap-1.5">
       <Button
@@ -637,19 +677,6 @@ export default function TabStudio({ vid }: { vid: string }) {
   const meta = [song?.artist, song?.tempo ? `♩ ${song.tempo}` : null, song?.capo ? t.library.capo(song.capo) : null, song?.swing ? t.library.swing : null]
     .filter(Boolean)
     .join(" · ");
-  const download = (href: string, name?: string) => {
-    const a = document.createElement("a");
-    a.href = href;
-    if (name) a.download = name;
-    else a.target = "_blank";
-    a.click();
-  };
-  const files = [
-    { label: t.song.downloadGp5, icon: <DownloadIcon className="h-[15px] w-[15px]" />, run: () => download(tabUrl, song?.file) },
-    { label: t.song.downloadText, icon: <NewspaperIcon className="h-[15px] w-[15px]" />, run: () => download(`/api/songs/${vid}/text`) },
-    ...(song?.edited ? [{ label: t.song.restore, icon: <RefreshIcon className="h-[15px] w-[15px]" />, run: () => void restoreOriginal() }] : []),
-    { label: t.watch.remove, icon: <CloseIcon className="h-[15px] w-[15px]" />, run: () => void removeSong() },
-  ];
   const titleBar = (
     <div className="flex min-w-0 items-center gap-1">
       <Link href="/library/" aria-label={t.song.back} title={t.song.back} className="ds-btn ds-btn--ghost ds-btn--sm -ml-1 !px-1.5">
@@ -657,17 +684,11 @@ export default function TabStudio({ vid }: { vid: string }) {
       </Link>
       <div className="min-w-0">
         <h1 className="ds-topbar__title truncate !leading-tight">{song?.title ?? "…"}</h1>
-        <div className="truncate text-xs text-ink-muted">{meta}</div>
-      </div>
-      <div className="ml-1 hidden items-center md:flex">
-        {files.map((f) => (
-          <button key={f.label} type="button" className="ds-btn ds-btn--ghost ds-btn--sm !px-1.5" onClick={f.run} title={f.label} aria-label={f.label}>
-            {f.icon}
-          </button>
-        ))}
-      </div>
-      <div className="md:hidden">
-        <RowMenu label={t.song.more} items={files.map((f) => ({ label: f.label, onSelect: f.run }))} />
+        {/* the chips stay together: when the line is too narrow they move under the facts as one group */}
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-muted">
+          <span className="min-w-0 max-w-full truncate">{meta}</span>
+          {song && <SongChips song={song} />}
+        </div>
       </div>
     </div>
   );
@@ -677,7 +698,7 @@ export default function TabStudio({ vid }: { vid: string }) {
     // video first; that column dissolves (`contents`) so the video can stick to the top above the tab.
     <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_minmax(360px,42%)] lg:gap-4">
       {slots.title && createPortal(<div className="hidden min-w-0 sm:block">{titleBar}</div>, slots.title)}
-      {slots.actions && createPortal(transport, slots.actions)}
+      {slots.actions && createPortal(<RowMenu label={t.song.more} items={files.map((f) => ({ label: f.label, onSelect: f.run, danger: f.danger }))} />, slots.actions)}
       <div style={{ ["--bar-top" as string]: `${barHeight + 16}px` }} className="contents lg:sticky lg:top-[var(--bar-top)] lg:order-2 lg:flex lg:flex-col lg:gap-3 lg:self-start">
         {/* The video. On a narrow screen it stays pinned under the top bar while you scroll the tab; it is at most about
             a third of the screen high, so the tab keeps room underneath. */}
@@ -708,33 +729,69 @@ export default function TabStudio({ vid }: { vid: string }) {
               <div ref={ytEl} />
             </div>
           </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-          <label className="flex items-center gap-2">
-            <span className="text-xs text-ink-muted">{t.song.speed}</span>
-            <Select value={String(speed)} onChange={(e) => setSpeed(Number(e.target.value))} aria-label={t.song.speed}>
+          {/* Everything for playing in one row under the video (pinned with it on a narrow screen): play, stop, loop, the
+              sound, the speed, hands only, and the review queue and practice settings, whose panels open below. */}
+          <div className="flex flex-wrap items-center gap-1.5 text-sm">
+            {transport}
+            <Select value={String(speed)} onChange={(e) => setSpeed(Number(e.target.value))} aria-label={t.song.speed} title={t.song.speed} className="!h-8 !w-auto">
               {PERCENTS.map((s) => (
                 <option key={s} value={s}>
                   {Math.round(s * 100)}%
                 </option>
               ))}
             </Select>
-          </label>
-          <Checkbox checked={hands} onChange={setHands} label={t.song.hands} />
+            <button
+              type="button"
+              aria-pressed={hands}
+              aria-label={t.song.hands}
+              title={t.song.hands}
+              onClick={() => setHands((v) => !v)}
+              className={`ds-btn ds-btn--sm ds-btn--secondary !px-2 ${hands ? "!border-brand !bg-brand-tint !text-brand" : ""}`}
+            >
+              <HandIcon className="h-[15px] w-[15px]" />
+            </button>
+            <div className="ml-auto flex items-center gap-1.5">
+              {reviewList.length > 0 && (
+                <button
+                  type="button"
+                  aria-pressed={reviewOpen}
+                  aria-label={t.review.title}
+                  title={`${t.review.title}: ${reviewLeft ? t.review.left(reviewLeft) : t.review.allChecked}`}
+                  onClick={() => toggle("review", !reviewOpen, setReviewOpen)}
+                  className={`ds-btn ds-btn--sm ds-btn--secondary !gap-1 !px-2 ${reviewOpen ? "!border-brand !bg-brand-tint !text-brand" : ""}`}
+                >
+                  <CheckIcon className={`h-[15px] w-[15px] ${reviewOpen ? "" : reviewLeft ? "text-warn" : "text-pos"}`} />
+                  {reviewLeft > 0 && <span className="text-xs tabular-nums">{reviewLeft}</span>}
+                </button>
+              )}
+              <button
+                type="button"
+                aria-pressed={practiceOpen}
+                aria-label={t.practice.title}
+                title={t.practice.title}
+                onClick={() => toggle("practice", !practiceOpen, setPracticeOpen)}
+                className={`ds-btn ds-btn--sm ds-btn--secondary !px-2 ${practiceOpen ? "!border-brand !bg-brand-tint !text-brand" : practice.loop || practice.trainer ? "!text-brand" : ""}`}
+              >
+                <RepeatIcon className="h-[15px] w-[15px]" />
+              </button>
+            </div>
+          </div>
+          {reanalysing && (
+            <p className={`text-xs ${reanalysing === "failed" ? "text-neg" : "text-ink-muted"}`}>{t.song.reanalysing[reanalysing]}</p>
+          )}
         </div>
-        {song && <SongMeta song={song} />}
-        <ReviewPanel vid={vid} open={reviewOpen} onToggle={() => toggle("review", !reviewOpen, setReviewOpen)} onGo={goToBar} />
-        <PracticePanel
-          open={practiceOpen}
-          onToggle={() => toggle("practice", !practiceOpen, setPracticeOpen)}
-          value={practice}
-          onChange={(update) => setPractice((p) => update(p))}
-          bars={bars.current.length}
-          selectedBar={selected ? selected.bar + 1 : null}
-          source={source}
-          passes={passes}
-        />
+
+        {reviewOpen && <ReviewPanel vid={vid} onGo={goToBar} />}
+        {practiceOpen && (
+          <PracticePanel
+            value={practice}
+            onChange={(update) => setPractice((p) => update(p))}
+            bars={bars.current.length}
+            selectedBar={selected ? selected.bar + 1 : null}
+            source={source}
+            passes={passes}
+          />
+        )}
 
         {selected && (
           <BeatEditor
