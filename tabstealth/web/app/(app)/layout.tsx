@@ -39,7 +39,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
   const collapsed = pref ? pref === "closed" : pathname.startsWith("/song");
-  const ownHeader = pathname.startsWith("/song"); // the song page fills the title slot itself
   const toggleSidebar = () => {
     const next = collapsed ? "open" : "closed";
     setPref(next);
@@ -50,7 +49,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   };
   const groups = nav(t);
   // A song page belongs to the library.
-  const item = groups[0].items.find((i) => pathname.startsWith(i.href)) ?? (pathname.startsWith("/song") ? groups[0].items[0] : null);
+  // the song, video and PDF pages fill the title slot themselves
+  const ownHeader = ["/song", "/watch", "/pdf"].some((p) => pathname.startsWith(p));
+  // a song, video or PDF belongs to the library
+  const item = groups[0].items.find((i) => pathname.startsWith(i.href)) ?? (ownHeader ? groups[0].items[0] : null);
 
   return (
     <div className="flex min-h-screen">

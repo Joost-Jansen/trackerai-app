@@ -5,7 +5,7 @@ strings, as in a 1080p video)."""
 import cv2
 import numpy as np
 
-from tabreader.effects import text_marks, vibrato
+from tabreader.effects import parentheses, text_marks, vibrato
 from tabreader.parse import Column, Note
 
 LINES = [100.0 + 27 * i for i in range(6)]
@@ -50,3 +50,12 @@ def test_vibrato_is_a_wave_and_a_slur_arc_is_not():
     cols = columns([200, 480])
     assert vibrato(ink, LINES, cols) == 1
     assert cols[0].notes[0].vibrato and not cols[1].notes[0].vibrato
+
+
+def test_parentheses_after_the_same_fret_are_a_tie_not_a_ghost_note():
+    a = Column(x=100, notes=[Note(2, 3, x=100)])
+    b = Column(x=200, notes=[Note(2, 3, x=200, ghost=True), Note(4, 5, x=200, ghost=True)])
+    parentheses([a, b])
+    tied, ghost = b.notes
+    assert tied.tied and not tied.ghost  # (3) after a 3 on the B string: still ringing
+    assert ghost.ghost and not ghost.tied  # (5) with nothing before it on the D string: a ghost note

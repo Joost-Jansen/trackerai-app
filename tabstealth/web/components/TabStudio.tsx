@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@trackerai/ui/ds/Button";
 import { Checkbox, Select } from "@trackerai/ui/ds/Field";
@@ -20,7 +21,7 @@ import { useT } from "@/lib/i18n";
 import { ALPHATAB_BASE, loadAlphaTab, loadYouTube } from "@/lib/scripts";
 import RowMenu from "@trackerai/ui/ds/RowMenu";
 import { TOPBAR_ACTIONS, TOPBAR_TITLE } from "@/lib/nav";
-import { ChevronLeftIcon, DownloadIcon, RepeatIcon, MusicIcon, NewspaperIcon, PauseIcon, PlayIcon, RefreshIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
+import { ChevronLeftIcon, CloseIcon, DownloadIcon, RepeatIcon, MusicIcon, NewspaperIcon, PauseIcon, PlayIcon, RefreshIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
 import { makeClock, nearestRate, type BarTicks, type Clock, type Timing } from "@/lib/sync";
 import { beatAtGpIndex, emptyNote, fromAlphaTab, fromApi, gpBeatIndex, invalid, KEYS, mainBeat, nextBend, toRequest, type ApiBeat, type BeatState, type NoteState } from "@/lib/beat";
 import BeatEditor from "@/components/BeatEditor";
@@ -572,6 +573,13 @@ export default function TabStudio({ vid }: { vid: string }) {
   const undo = () => step("undo");
   const redo = () => step("redo");
 
+  const router = useRouter();
+  const removeSong = async () => {
+    if (!window.confirm(t.watch.removeConfirm(song?.title ?? vid))) return;
+    await api.del(`/api/songs/${vid}`);
+    await qc.invalidateQueries({ queryKey: ["songs"] });
+    router.push("/library/");
+  };
   const restoreOriginal = async () => {
     if (!window.confirm(t.song.restoreConfirm)) return;
     await api.post(`/api/songs/${vid}/restore`);
@@ -640,6 +648,7 @@ export default function TabStudio({ vid }: { vid: string }) {
     { label: t.song.downloadGp5, icon: <DownloadIcon className="h-[15px] w-[15px]" />, run: () => download(tabUrl, song?.file) },
     { label: t.song.downloadText, icon: <NewspaperIcon className="h-[15px] w-[15px]" />, run: () => download(`/api/songs/${vid}/text`) },
     ...(song?.edited ? [{ label: t.song.restore, icon: <RefreshIcon className="h-[15px] w-[15px]" />, run: () => void restoreOriginal() }] : []),
+    { label: t.watch.remove, icon: <CloseIcon className="h-[15px] w-[15px]" />, run: () => void removeSong() },
   ];
   const titleBar = (
     <div className="flex min-w-0 items-center gap-1">

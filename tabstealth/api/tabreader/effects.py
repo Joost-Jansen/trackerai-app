@@ -114,6 +114,20 @@ def annotate(img: np.ndarray, ink_clean: np.ndarray, lines: list[float], bars: l
     slurs(ink_clean, lines, notes)
     slides(slide_glyphs, lines, notes)
     vibrato(ink_clean, lines, cols)
+    parentheses(cols)
+
+
+def parentheses(cols: list[Column]) -> None:
+    """A fret in parentheses is usually a tied note in these tabs ("3 ⌒ (3)": still ringing), not a ghost note: it
+    is a tie when the note before it on that string has the same fret (or a tie arc already said so)."""
+    last: dict[int, Note] = {}
+    for c in cols:
+        for n in c.notes:
+            if n.ghost:
+                prev = last.get(n.string)
+                if n.tied or (prev is not None and prev.fret == n.fret):
+                    n.ghost, n.tied = False, True
+            last[n.string] = n
 
 
 PALM_MUTE = re.compile(r"^P\.?M\.?$", re.I)

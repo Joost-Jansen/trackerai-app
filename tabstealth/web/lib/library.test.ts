@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { allTags, daysAgo, localDay, matches, sortSongs } from "./library.ts";
+import { allTags, daysAgo, itemHref, localDay, matches, sortSongs } from "./library.ts";
 
 const song = (title: string, artist: string, extra: object = {}) => ({
-  video: title, file: "", title, artist, edited: false, status: "new" as const, tags: [] as string[], favourite: false,
+  video: title, kind: "tab" as const, file: "", title, artist, edited: false, status: "new" as const, tags: [] as string[], favourite: false,
   practised_seconds: 0, last_practised: null as string | null, ...extra,
 });
 const list = [
@@ -38,4 +38,12 @@ test("sorting", () => {
 test("dates", () => {
   assert.equal(daysAgo("2026-10-25", new Date(2026, 9, 28)), 3);
   assert.equal(localDay(new Date(2026, 0, 5)), "2026-01-05");
+});
+
+test("kinds: filter and where each opens", () => {
+  const items = [...list, song("Lick 1", "Me", { kind: "video" }), song("Scales", "Book", { kind: "pdf", video: "pdf-1" })];
+  assert.deepEqual(items.filter((s) => matches(s as any, { query: "", status: "all", tag: null, kind: "video" })).map((s) => s.title), ["Lick 1"]);
+  assert.equal(itemHref({ video: "abc", kind: "video" }), "/watch/?v=abc");
+  assert.equal(itemHref({ video: "pdf-1", kind: "pdf" }), "/pdf/?id=pdf-1");
+  assert.equal(itemHref({ video: "abc", kind: "tab" }), "/song/?v=abc");
 });

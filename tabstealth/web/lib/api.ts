@@ -5,9 +5,14 @@ import { ApiError, createApi } from "@trackerai/ui/lib/api";
 export { ApiError };
 export const api = createApi();
 
+export type Kind = "tab" | "video" | "pdf";
+
 export type Song = {
+  /** the YouTube id, or pdf-… for an uploaded PDF */
   video: string;
-  file: string;
+  /** a converted tab, a video kept as it is (no tab to read), or a PDF */
+  kind: Kind;
+  file?: string;
   title: string;
   artist: string;
   measures?: number;

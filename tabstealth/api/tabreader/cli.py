@@ -241,6 +241,9 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
         log(f"  {gp5.name} has your edits: not overwritten (use --overwrite-edits)")
     else:
         write_gp5(song, str(gp5), meta)
+        # a fresh conversion is the new original: no old backup or undo history to compare it with
+        orig.unlink(missing_ok=True)
+        shutil.rmtree(out_dir / ".history" / gp5.stem, ignore_errors=True)
     txt.write_text(gp5_to_ascii(str(gp5)))  # from the file itself, so an edited tab keeps its edits
     flagged = {m.number: m.flags for m in song.measures if m.flags}
     review = review_list(song, parsed)

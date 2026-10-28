@@ -22,7 +22,7 @@ module.exports = {
       "img-src 'self' data: https://i.ytimg.com",
       "media-src 'self' blob:",
       "connect-src 'self' https://cdn.jsdelivr.net",
-      "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
+      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com", // 'self': the PDF viewer
     ].join("; ");
     return [{
       source: "/:path*",

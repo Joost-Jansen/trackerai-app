@@ -24,8 +24,13 @@ file, then plays it next to the original video.
   speed reached per song.
 - **Review queue**: the bars the converter was unsure about, with why; go there, loop it, fix it, tick it off.
 - **Text tab**: rendered from the current `.gp5`, edits included, with sections, chords, strums and technique marks.
-- **Library**: paste a YouTube link (a video or a playlist) and it converts in the background; search, sort, filter
-  by status (new, checking, learning, mastered), tag, favourite or "to review".
+- **Library**: paste a YouTube link (a video or a playlist) and it converts in the background; or keep a video as it
+  is (a lick or a lesson with no tab to read: speed and an A-B loop, convertible later), or upload a PDF (a tab, a
+  chord sheet). Search, sort, filter by kind, status (new, checking, learning, mastered), tag, favourite or "to review".
+- **Theory**: one interactive neck for a key and a scale (major, the minors, pentatonic and blues, the modes): every
+  note by name or interval, the positions as guitarists learn them, or every note on the neck; the chords of the key
+  as chord boxes, a clickable circle of fifths and common progressions in the key. Click to hear a note, play the
+  scale, strum a chord.
 
 The `.gp5` files open in [TuxGuitar](https://www.tuxguitar.app/) (the closest open-source match to Guitar Pro 8),
 MuseScore and Guitar Pro itself; the player renders them with [alphaTab](https://alphatab.net/).

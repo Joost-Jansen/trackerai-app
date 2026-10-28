@@ -57,6 +57,25 @@ The converter learns: **harmonics** (`<12>`), **ghost notes** (`(3)`), **palm mu
 `.gp5` like the others. The editor gets the bend (none, ½, full). The glyph classifier gets the `<`, `>`, `(`, `)`
 shapes; text labels come from Tesseract.
 
+## 8. Theory and the collection (built)
+
+A **Theory** page: key and scale on one neck (names or intervals, positions, all notes), the chords of the key, the
+circle of fifths and progressions, with sound. The **library** also keeps plain videos (speed, A-B loop, convert
+later) and uploaded PDFs, and can remove an item (its files go to `library/.trash`).
+
+## 9. Later: tabs from sound and rougher recognition
+
+For videos without a scrolling tab (lick and riff videos, lessons): a draft tab from the audio, and from the video
+where it shows a tab some other way.
+
+- **From sound**: separate the guitar from the mix (a source-separation model such as Demucs), transcribe it to notes
+  (a polyphonic model such as Basic Pitch), and place the notes on the neck by the cheapest fingering (a small
+  dynamic program over positions). Timing from beat tracking, so it snaps to bars. Expect a draft to correct in the
+  editor, not a finished tab; it fits single-note licks best.
+- **Rougher recognition**: tabs shown differently (a static image, a full page, a hand-written tab) by finding the six
+  lines and the digits without the scrolling cursor; rhythm from the audio onsets instead.
+- Both feed the same editor, review queue and practice tools.
+
 ## Out of scope for now
 
 Rhythm editing (durations, splitting and merging beats), deleting songs, and accounts / hosting.

@@ -13,7 +13,7 @@ import Tabs from "@trackerai/ui/ds/Tabs";
 import { HeartIcon, SearchIcon } from "@trackerai/ui/icons";
 import { EmptyState, Tag } from "@trackerai/ui/ds/Feedback";
 import { api, ApiError, STATUSES, type Job, type Song } from "@/lib/api";
-import { allTags, daysAgo, matches, SORTS, sortSongs, type Filter, type Sort } from "@/lib/library";
+import { allTags, daysAgo, itemHref, matches, SORTS, sortSongs, type Filter, type Sort } from "@/lib/library";
 import { useT } from "@/lib/i18n";
 
 const YT = /^(https?:\/\/(www\.|m\.|music\.)?(youtube\.com|youtu\.be)\/\S+|[\w-]{11})$/;
@@ -51,12 +51,44 @@ export default function LibraryPage() {
     },
     onError: (e) => setError(e instanceof ApiError ? e.message : t.common.error),
   });
+  // what the link or file becomes: a tab to convert, a video to keep as it is, or a PDF
+  const [mode, setMode] = useState<"tab" | "video" | "pdf">("tab");
+  const [done, setDone] = useState<string | null>(null);
+  const [pdf, setPdf] = useState<{ file: File | null; title: string; artist: string }>({ file: null, title: "", artist: "" });
+  const saveVideo = useMutation({
+    mutationFn: (u: string) => api.post<Song>("/api/library/video", { url: u }),
+    onSuccess: (s) => {
+      setUrl("");
+      setDone(t.library.savedItem(s.title));
+      void qc.invalidateQueries({ queryKey: ["songs"] });
+    },
+    onError: (e) => setError(e instanceof ApiError ? e.message : t.common.error),
+  });
+  const uploadPdf = useMutation({
+    mutationFn: () => {
+      const q = new URLSearchParams({ title: pdf.title || pdf.file!.name.replace(/\.pdf$/i, ""), artist: pdf.artist });
+      return api.upload<Song>(`/api/library/pdf?${q}`, pdf.file!);
+    },
+    onSuccess: (s) => {
+      setPdf({ file: null, title: "", artist: "" });
+      setDone(t.library.savedItem(s.title));
+      void qc.invalidateQueries({ queryKey: ["songs"] });
+    },
+    onError: (e) => setError(e instanceof ApiError ? e.message : t.common.error),
+  });
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    setDone(null);
+    if (mode === "pdf") {
+      if (!pdf.file) return setError(t.library.choosePdf);
+      setError(null);
+      return uploadPdf.mutate();
+    }
     const u = url.trim();
     if (!YT.test(u)) return setError(t.library.invalid);
     setError(null);
-    add.mutate(u);
+    if (mode === "video") saveVideo.mutate(u);
+    else add.mutate(u);
   };
 
   // search, filter and sort; the choice is kept for this visit in the URL-less state
@@ -75,24 +107,61 @@ export default function LibraryPage() {
     <div className="mx-auto flex max-w-content flex-col gap-4">
       <p className="max-w-[62ch] text-sm text-ink-muted">{t.library.lead}</p>
 
-      <Card title={t.library.addTitle}>
+      <Card
+        title={t.library.addTitle}
+        action={
+          <Tabs
+            variant="segmented"
+            items={[
+              { id: "tab", label: t.library.modes.tab },
+              { id: "video", label: t.library.modes.video },
+              { id: "pdf", label: t.library.modes.pdf },
+            ]}
+            value={mode}
+            onChange={(m) => {
+              setMode(m as typeof mode);
+              setError(null);
+              setDone(null);
+            }}
+            ariaLabel={t.library.addTitle}
+          />
+        }
+      >
         <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row sm:items-start">
-          <div className="min-w-0 flex-1">
-            <Input
-              label={t.library.addLabel}
-              hint={t.library.addHint}
-              error={error ?? undefined}
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://www.youtube.com/watch?v=…"
-              inputMode="url"
-              autoComplete="off"
-            />
-          </div>
-          <Button type="submit" variant="primary" className="sm:mt-[22px]" disabled={add.isPending}>
-            {t.library.addButton}
+          {mode === "pdf" ? (
+            <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-3">
+              <label className="flex flex-col gap-1 text-xs text-ink-muted sm:col-span-3">
+                {t.library.pdfLabel}
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  className="text-sm text-ink file:mr-3 file:rounded-md file:border file:border-border file:bg-surface file:px-3 file:py-1.5 file:text-sm"
+                  onChange={(e) => setPdf({ ...pdf, file: e.target.files?.[0] ?? null })}
+                />
+              </label>
+              <Input label={t.library.itemTitle} value={pdf.title} onChange={(e) => setPdf({ ...pdf, title: e.target.value })} placeholder={pdf.file?.name.replace(/\.pdf$/i, "") ?? ""} />
+              <Input label={t.library.itemArtist} value={pdf.artist} onChange={(e) => setPdf({ ...pdf, artist: e.target.value })} />
+              {error && <span className="text-xs text-neg sm:col-span-3">{error}</span>}
+            </div>
+          ) : (
+            <div className="min-w-0 flex-1">
+              <Input
+                label={t.library.addLabel}
+                hint={mode === "tab" ? t.library.addHint : t.library.videoHint}
+                error={error ?? undefined}
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=…"
+                inputMode="url"
+                autoComplete="off"
+              />
+            </div>
+          )}
+          <Button type="submit" variant="primary" className="sm:mt-[22px]" disabled={add.isPending || saveVideo.isPending || uploadPdf.isPending}>
+            {mode === "tab" ? t.library.addButton : mode === "video" ? t.library.saveButton : t.library.uploadButton}
           </Button>
         </form>
+        {done && <p className="mt-2 text-xs text-pos">{done}</p>}
         {active.length > 0 && (
           <div className="mt-4 border-t border-border pt-3">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">{t.library.jobs}</h3>
@@ -125,6 +194,13 @@ export default function LibraryPage() {
                 aria-label={t.library.search}
               />
             </div>
+            <Select value={filter.kind ?? "all"} onChange={(e) => setFilter({ ...filter, kind: e.target.value as Filter["kind"] })} aria-label={t.library.kindLabel}>
+              {(["all", "tab", "video", "pdf"] as const).map((k) => (
+                <option key={k} value={k}>
+                  {k === "all" ? t.library.allKinds : t.library.kinds[k]}
+                </option>
+              ))}
+            </Select>
             <Select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label={t.library.sort}>
               {SORTS.map((k) => (
                 <option key={k} value={k}>
@@ -173,9 +249,13 @@ export default function LibraryPage() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((s) => (
             <div key={s.video} className="group relative flex gap-3 rounded border border-border bg-surface p-3 transition-colors hover:border-border-strong">
-              <Link href={`/song/?v=${encodeURIComponent(s.video)}`} className="absolute inset-0 rounded" aria-label={`${s.title} – ${s.artist}`} />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`https://i.ytimg.com/vi/${s.video}/mqdefault.jpg`} alt="" className="h-[54px] w-24 flex-none rounded-sm object-cover" loading="lazy" />
+              <Link href={itemHref(s)} className="absolute inset-0 rounded" aria-label={`${s.title} – ${s.artist}`} />
+              {s.kind === "pdf" ? (
+                <span className="grid h-[54px] w-24 flex-none place-items-center rounded-sm bg-surface-2 font-mono text-xs font-semibold text-ink-muted">PDF</span>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={`https://i.ytimg.com/vi/${s.video}/mqdefault.jpg`} alt="" className="h-[54px] w-24 flex-none rounded-sm object-cover" loading="lazy" />
+              )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-start gap-1">
                   <div className="min-w-0 flex-1">
@@ -195,6 +275,7 @@ export default function LibraryPage() {
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-ink-muted">
                   <Tag tone={s.status === "mastered" ? "gain" : s.status === "learning" ? "brand" : "neutral"}>{t.library.statuses[s.status]}</Tag>
+                  {s.kind !== "tab" && <Tag outline>{t.library.kindTag[s.kind]}</Tag>}
                   {s.to_review ? <Tag tone="loss">{t.library.toReview(s.to_review)}</Tag> : null}
                   {s.tempo != null && <span>♩ {s.tempo}</span>}
                   {!!s.capo && <span>{t.library.capo(s.capo)}</span>}

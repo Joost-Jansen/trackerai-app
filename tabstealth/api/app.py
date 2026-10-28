@@ -13,17 +13,19 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
+import uuid
 from pathlib import Path
 
 import guitarpro as gp
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, PlainTextResponse
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from tabreader.ascii import gp5_to_ascii
-from tabreader.cli import LIBRARY
+from tabreader.cli import LIBRARY, split_title
 
 HERE = Path(__file__).resolve().parent
 YT_URL = re.compile(r"^(https?://(www\.|m\.|music\.)?(youtube\.com|youtu\.be)/\S+|[\w-]{11})$")
@@ -83,6 +85,27 @@ class PracticeIn(BaseModel):
     source: Literal["video", "tab"]
     bars: tuple[int, int] | None = None  # the looped range, if any (1-based, inclusive)
     whole_song: bool = False  # played from the start to the end at this speed
+
+
+class VideoIn(BaseModel):
+    url: str = Field(max_length=500)
+    title: str | None = Field(default=None, max_length=200)
+    artist: str | None = Field(default=None, max_length=200)
+
+
+PDF_MAX = 40 * 1024 * 1024
+VIDEO_ID = re.compile(r"(?:v=|youtu\.be/|shorts/|embed/)([\w-]{11})|^([\w-]{11})$")
+
+
+def youtube_title(vid: str) -> str | None:
+    """The video's title, by yt-dlp (which the converter needs anyway, and which brings its own certificates);
+    None when it is not installed or offline."""
+    try:
+        r = subprocess.run(["yt-dlp", "--skip-download", "--print", "%(title)s", f"https://www.youtube.com/watch?v={vid}"],
+                           capture_output=True, text=True, timeout=40)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return r.stdout.strip() or None if r.returncode == 0 else None
 
 
 class ReviewMark(BaseModel):
@@ -388,11 +411,84 @@ def create_app(library: Path = LIBRARY, jobs: Jobs | None = None) -> FastAPI:
         for vid, e in idx.items():
             m = meta.get(vid, {})
             p = played.get(vid, {})
-            out.append({"video": vid, **e, "edited": is_edited(library / e["file"]),
+            tab = e.get("kind", "tab") == "tab"
+            out.append({"video": vid, "kind": "tab", **e, "edited": tab and is_edited(library / e["file"]),
                         "status": m.get("status", "new"), "tags": m.get("tags", []), "favourite": m.get("favourite", False),
                         "practised_seconds": p.get("seconds", 0), "last_practised": p.get("last"),
                         "to_review": to_review(vid, e)})
         return out
+
+    # ── the collection: videos to keep (no tab to read) and PDFs ────────────────────
+
+    def add_entry(key: str, entry: dict) -> dict:
+        with lock:
+            idx = read_index(library)
+            if key in idx:
+                raise HTTPException(409, "already in the library")
+            idx[key] = {**entry, "converted": time.strftime("%Y-%m-%d")}
+            library.mkdir(parents=True, exist_ok=True)
+            (library / "index.json").write_text(json.dumps(idx, indent=2))
+        return {"video": key, **idx[key]}
+
+    @app.post("/api/library/video")
+    def save_video(body: VideoIn):
+        m = VIDEO_ID.search(body.url.strip())
+        if not m:
+            raise HTTPException(400, "not a YouTube link")
+        vid = m.group(1) or m.group(2)
+        title, artist = body.title, body.artist
+        if not title:
+            title, artist2 = split_title(youtube_title(vid) or vid)
+            artist = artist or artist2
+        return add_entry(vid, {"kind": "video", "title": title, "artist": artist or ""})
+
+    @app.post("/api/library/pdf")
+    async def upload_pdf(request: Request, title: str = "", artist: str = ""):
+        data = await request.body()
+        if len(data) > PDF_MAX:
+            raise HTTPException(413, "PDF larger than 40 MB")
+        if not data.startswith(b"%PDF"):
+            raise HTTPException(400, "not a PDF")
+        key = f"pdf-{uuid.uuid4().hex[:10]}"
+        files = library / "files"
+        files.mkdir(parents=True, exist_ok=True)
+        (files / f"{key}.pdf").write_bytes(data)
+        return add_entry(key, {"kind": "pdf", "file": f"files/{key}.pdf", "title": title.strip()[:200] or "PDF",
+                               "artist": artist.strip()[:200]})
+
+    @app.get("/api/songs/{vid}/pdf")
+    def pdf(vid: str):
+        e = song(vid)
+        if e.get("kind") != "pdf":
+            raise HTTPException(404, "not a PDF")
+        return FileResponse(library / e["file"], media_type="application/pdf",
+                            headers={"Content-Disposition": "inline"})
+
+    @app.post("/api/songs/{vid}/convert")
+    def convert_saved(vid: str):
+        """A saved video turns out to have a tab after all: convert it (the tab replaces the saved video)."""
+        if song(vid).get("kind") != "video":
+            raise HTTPException(400, "only a saved video can be converted")
+        return jobs.add(f"https://www.youtube.com/watch?v={vid}")
+
+    @app.delete("/api/songs/{vid}")
+    def remove(vid: str):
+        """Take an item out of the library. Its files go to library/.trash, not away: a mistake can be undone."""
+        e = song(vid)
+        with lock:
+            trash = library / ".trash" / f"{vid}-{time.strftime('%Y%m%d-%H%M%S')}"
+            trash.mkdir(parents=True, exist_ok=True)
+            names = [e.get(k) for k in ("file", "timing", "text", "review") if e.get(k)]
+            if e.get("file", "").endswith(".gp5"):
+                names.append(Path(e["file"]).stem + ".orig.gp5")
+            for n in names:
+                if (library / n).exists():
+                    shutil.move(library / n, trash / Path(n).name)
+            (trash / "entry.json").write_text(json.dumps({vid: e}, indent=2))
+            idx = read_index(library)
+            idx.pop(vid, None)
+            (library / "index.json").write_text(json.dumps(idx, indent=2))
+        return {"ok": True}
 
     @app.patch("/api/songs/{vid}")
     def patch_song(vid: str, body: SongPatch):

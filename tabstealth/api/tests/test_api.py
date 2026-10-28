@@ -218,3 +218,30 @@ def test_review_queue(library):
     assert c.get("/api/songs").json()[0]["to_review"] == 0
     c.post("/api/songs/abcdefghijk/review", json={"bar": 0, "checked": False})
     assert c.get("/api/songs").json()[0]["to_review"] == 1
+
+
+def test_collection_videos_and_pdfs(library, monkeypatch):
+    import app as app_module
+    monkeypatch.setattr(app_module, "youtube_title", lambda vid: "Hotel California Solo - Eagles | Lick")
+    c = TestClient(create_app(library, FakeJobs()))
+    v = c.post("/api/library/video", json={"url": "https://youtu.be/AbCdEfGhIjK?t=3"}).json()
+    assert (v["video"], v["kind"], v["title"], v["artist"]) == ("AbCdEfGhIjK", "video", "Hotel California Solo", "Eagles")
+    assert c.post("/api/library/video", json={"url": "https://youtu.be/AbCdEfGhIjK"}).status_code == 409
+    assert c.post("/api/library/video", json={"url": "https://example.com/x"}).status_code == 400
+    # a PDF: only real PDFs, kept in library/files and served inline
+    assert c.post("/api/library/pdf", content=b"hello", params={"title": "x"}).status_code == 400
+    p = c.post("/api/library/pdf", content=b"%PDF-1.4 test", params={"title": "Blues licks", "artist": "Me"}).json()
+    assert p["kind"] == "pdf" and p["title"] == "Blues licks"
+    r = c.get(f"/api/songs/{p['video']}/pdf")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/pdf" and r.content.startswith(b"%PDF")
+    kinds = {s["video"]: s["kind"] for s in c.get("/api/songs").json()}
+    assert kinds == {"abcdefghijk": "tab", "AbCdEfGhIjK": "video", p["video"]: "pdf"}
+    # a saved video can be converted later; a tab cannot be "converted" again
+    assert c.post("/api/songs/AbCdEfGhIjK/convert").json()["url"].endswith("v=AbCdEfGhIjK")
+    assert c.post("/api/songs/abcdefghijk/convert").status_code == 400
+    # removing moves the files to the trash
+    assert c.delete(f"/api/songs/{p['video']}").json() == {"ok": True}
+    assert p["video"] not in {s["video"] for s in c.get("/api/songs").json()}
+    assert list((library / ".trash").glob("pdf-*/*.pdf"))
+    c.delete("/api/songs/abcdefghijk")
+    assert not (library / "A - B.gp5").exists() and list((library / ".trash").glob("abcdefghijk-*/A - B.gp5"))
