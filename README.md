@@ -72,6 +72,12 @@ upload exports from ING or bunq, and your DeGiro export for the portfolio.
 
 More in [wealth-tracker/README.md](wealth-tracker/README.md).
 
+### tabstealth: tabs from guitar videos
+
+A personal practice tool next to the trackers: it reads the scrolling tab in a guitar video, turns it into a Guitar Pro
+file, and plays it side by side with the video, in sync, at your own speed, with every beat editable. Local only, no
+accounts. More in [tabstealth/README.md](tabstealth/README.md).
+
 ### Both trackers
 
 - **Your own agent.** Each tracker is an MCP server. Connect any AI agent that speaks MCP (Claude, ChatGPT, Codex,

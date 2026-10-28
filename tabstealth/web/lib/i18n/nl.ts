@@ -1,0 +1,75 @@
+// Dutch, the source catalog: en.ts has the same keys (TypeScript checks the shape, `npm run check:i18n` the rest).
+
+export const nl = {
+  common: {
+    loading: "Laden…",
+    error: "Er ging iets mis",
+    language: "English",
+  },
+  nav: {
+    library: "Bibliotheek",
+    openMenu: "Menu openen",
+    hideSidebar: "Zijbalk verbergen",
+    showSidebar: "Zijbalk tonen",
+    help: "Uitleg",
+  },
+  library: {
+    title: "Bibliotheek",
+    lead: "Tabs uit video's: speel ze af naast de video, in hetzelfde tempo, en pas ze aan waar het niet klopt.",
+    empty: "Nog geen nummers. Plak hieronder een YouTube-link om te beginnen.",
+    addTitle: "Toevoegen van YouTube",
+    addLabel: "Link naar een video of afspeellijst",
+    addHint: "Een video met een meelopende tab, zoals die van Kenneth Acoustic. Omzetten duurt een tot twee minuten per video.",
+    addButton: "Toevoegen",
+    invalid: "Dit is geen YouTube-link",
+    jobs: "Bezig met omzetten",
+    status: { queued: "In de wachtrij", running: "Bezig", done: "Klaar", failed: "Mislukt" },
+    measures: (n: number) => `${n} maten`,
+    capo: (n: number) => `capo ${n}`,
+    swing: "swing",
+    edited: "aangepast",
+    flagged: (n: number) => `${n} maten om na te kijken`,
+    converted: (d: string) => `omgezet ${d}`,
+  },
+  song: {
+    back: "Bibliotheek",
+    sound: "Geluid",
+    soundVideo: "Video",
+    soundTab: "Tab",
+    play: "Afspelen",
+    pause: "Pauze",
+    stop: "Stop",
+    speed: "Tempo",
+    loop: "Herhaal selectie",
+    hands: "Alleen handen",
+    loadingTab: "Tab laden…",
+    editTitle: (bar: number, beat: number) => `Maat ${bar}, slag ${beat}`,
+    editHint: "Klik op een slag in de tab om de noten aan te passen. Leeg is geen noot, x is een gedempte snaar.",
+    rest: "rust",
+    apply: "Opslaan",
+    clear: "Slag leegmaken",
+    restore: "Originele omzetting terugzetten",
+    restoreConfirm: "Al je aanpassingen aan deze tab weggooien?",
+    saved: "Opgeslagen",
+    downloadGp5: "Download .gp5",
+    downloadText: "Tekst-tab",
+    invalidFret: "Fret 0 tot 24, of x",
+  },
+  help: {
+    title: "Uitleg",
+    how: "Hoe het werkt",
+    howText:
+      "tabstealth leest de meelopende tab in een video: het plakt de verschuivende beelden aan elkaar tot één tabregel, leest de getallen per snaar, en haalt het ritme uit de afspeelcursor van de video. Het resultaat is een Guitar Pro 5-bestand dat ook in TuxGuitar, MuseScore en Guitar Pro opent.",
+    sync: "Video en tab samen",
+    syncText:
+      "Kies bij Geluid wat je hoort. Video: de video speelt en de tab loopt mee. Tab: de tab speelt (met je eigen tempo) en de video volgt zonder geluid. Klik op een slag om daarheen te springen.",
+    edit: "Aanpassen",
+    editText:
+      "Klopt een noot niet? Klik op de slag en verbeter de frets per snaar. De eerste aanpassing bewaart de originele omzetting, die je altijd terug kunt zetten. Opnieuw omzetten overschrijft een aangepaste tab niet.",
+    private: "Alleen voor jezelf",
+    privateText:
+      "De tabs zijn het werk van de makers van de video's, die ze vaak ook verkopen. Gebruik ze om zelf te oefenen en deel ze niet; steun de maker als je zijn tabs gebruikt.",
+  },
+};
+
+export type Messages = typeof nl;

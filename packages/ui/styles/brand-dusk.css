@@ -1,0 +1,111 @@
+/*
+ * The palette of tabstealth: cool violet-grey paper, a deep dusk ink panel, dusk violet.
+ * base.css and ds.css read only these names, so a brand is this one file: the neutral ladder, the brand
+ * ladder, the ink panel, the focus ring and the chart colours, light and dark.
+ */
+
+:root {
+  /* menu items on the ink panel */
+  --text-on-ink-nav: #c4c1dd;
+  --n-0:  #ffffff;
+  --n-25: #f8f8fb; /* paper: the page colour */
+  --n-50: #f1f1f6;
+  --n-100:#e9e9f1;
+  --n-150:#e0e0ea;
+  --n-200:#dcdce6; /* hairline */
+  --n-300:#bfbfcf;
+  --n-400:#727189; /* 4.1:1: axis labels, placeholders */
+  --n-500:#5f5e78; /* 5.6:1: muted text */
+  --n-600:#504e68; /* 7:1: secondary text */
+  --n-700:#37354c;
+  --n-800:#211f33; /* deep violet-black: the contrast anchor */
+  --n-900:#14131f; /* primary text */
+  --brand-50: #eeedf8;
+  --brand-100:#dcdaf1;
+  --brand-300:#a39ed6;
+  --brand-500:#6a62b8;
+  --brand-600:#574fa0;
+  --brand-700:#453f80;
+  --surface-ink:       #2b2843;
+  --surface-ink-hover: #34314f;
+  --surface-ink-active:#3d3a5b;
+  --border-ink:        #39365a;
+  --text-on-ink:       #ecebf6;
+  --text-on-ink-muted: #9d9ab9;
+  --ring-focus:      0 0 0 3px rgba(106, 98, 184, 0.22);
+  --chart-1: #6a62b8; /* dusk: the tab itself */
+  --chart-2: #211f33; /* violet-black: comparison line, dashed */
+  --chart-3: #5f93b0; /* lake */
+  --chart-4: #c09a5a; /* brass */
+  --chart-5: #b07a9a; /* heather */
+  --chart-6: #6fa58c; /* sage */
+  --chart-band: rgba(106, 98, 184, 0.09);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --n-0:  #121119;
+    --n-25: #100f17;
+    --n-50: #17161f;
+    --n-100:#1e1d28;
+    --n-150:#252431;
+    --n-200:#2d2c3a;
+    --n-300:#3f3d50;
+    --n-400:#757389;
+    --n-500:#908ea6;
+    --n-600:#b0aec3;
+    --n-700:#d0cfdd;
+    --n-800:#e9e8f1;
+    --n-900:#f4f4f8;
+    --brand-50: #1b1930;
+    --brand-100:#25223f;
+    --brand-300:#a39ed6;
+    --brand-500:#938ce0;
+    --brand-600:#aba5ea;
+    --surface-ink:       #1a1928;
+    --surface-ink-hover: #232233;
+    --surface-ink-active:#2c2a3e;
+    --border-ink:        #2a283b;
+    --ring-focus: 0 0 0 3px rgba(147, 140, 224, 0.28);
+    --chart-1: #938ce0;
+    --chart-2: #d0cfdd;
+    --chart-3: #8db7cf;
+    --chart-4: #d6b57a;
+    --chart-5: #cf9cbb;
+    --chart-6: #8fc4aa;
+    --chart-band: rgba(147, 140, 224, 0.12);
+  }
+}
+
+:root[data-theme="dark"] {
+  --n-0:  #121119;
+  --n-25: #100f17;
+  --n-50: #17161f;
+  --n-100:#1e1d28;
+  --n-150:#252431;
+  --n-200:#2d2c3a;
+  --n-300:#3f3d50;
+  --n-400:#757389;
+  --n-500:#908ea6;
+  --n-600:#b0aec3;
+  --n-700:#d0cfdd;
+  --n-800:#e9e8f1;
+  --n-900:#f4f4f8;
+  --brand-50: #1b1930;
+  --brand-100:#25223f;
+  --brand-300:#a39ed6;
+  --brand-500:#938ce0;
+  --brand-600:#aba5ea;
+  --surface-ink:       #1a1928;
+  --surface-ink-hover: #232233;
+  --surface-ink-active:#2c2a3e;
+  --border-ink:        #2a283b;
+  --ring-focus: 0 0 0 3px rgba(147, 140, 224, 0.28);
+  --chart-1: #938ce0;
+  --chart-2: #d0cfdd;
+  --chart-3: #8db7cf;
+  --chart-4: #d6b57a;
+  --chart-5: #cf9cbb;
+  --chart-6: #8fc4aa;
+  --chart-band: rgba(147, 140, 224, 0.12);
+}

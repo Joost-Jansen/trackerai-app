@@ -1,0 +1,7 @@
+# tabstealth-api. System tools needed next to these: ffmpeg and yt-dlp (download), tesseract (chord names,
+# sections, tuning and capo; optional).
+fastapi==0.142.2
+uvicorn[standard]==0.50.2
+numpy==2.5.4
+opencv-python-headless==5.0.0.93
+pyguitarpro==0.11

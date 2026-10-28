@@ -1,0 +1,112 @@
+"""Text in the video via Tesseract: section labels, chord names, tuning and capo."""
+import re
+import shutil
+import subprocess
+import tempfile
+
+import cv2
+import numpy as np
+
+from .glyphs import gray
+
+CHORD_RE = re.compile(r"^[A-G][#b]?(m|maj|min|dim|aug|sus|add|M)?[0-9]*"
+                      r"(sus[24]?|add[0-9]+|maj[0-9]*|[b#][0-9]+|[0-9]+|\([^)]*\))*(/[A-G][#b]?)?$")
+NOTE_PITCH = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+STANDARD = [64, 59, 55, 50, 45, 40]
+
+
+def available() -> bool:
+    return shutil.which("tesseract") is not None
+
+
+def tesseract(img: np.ndarray, psm: int = 7, extra: tuple[str, ...] = ()) -> str:
+    with tempfile.NamedTemporaryFile(suffix=".png") as f:
+        cv2.imwrite(f.name, img)
+        r = subprocess.run(["tesseract", f.name, "stdout", "--psm", str(psm), *extra],
+                           capture_output=True, text=True)
+    return r.stdout.strip()
+
+
+def _prep(img: np.ndarray, invert: bool = False, scale: float = 2.0) -> np.ndarray:
+    g = gray(img)
+    if invert:
+        g = 255 - g
+    g = cv2.resize(g, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+    _, b = cv2.threshold(g, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return cv2.copyMakeBorder(b, 20, 20, 20, 20, cv2.BORDER_CONSTANT, value=255)
+
+
+def section_name(crop: np.ndarray) -> str | None:
+    """Section label: light text at the left of the dark bar."""
+    g = gray(crop)
+    if g.mean() > 150:  # bar not dark: no label here
+        return None
+    light = (g > 170).astype(np.uint8)
+    cols = np.where(light.sum(axis=0) > 0)[0]
+    if len(cols) == 0:
+        return None
+    # the label is the first cluster of text from the left
+    gaps = np.where(np.diff(cols) > crop.shape[0])[0]
+    end = cols[gaps[0]] if len(gaps) else cols[-1]
+    txt = tesseract(_prep(crop[:, :end + 10], invert=True))
+    txt = re.sub(r"[^A-Za-z0-9 '\-]", "", txt).strip()
+    txt = re.sub(r"\b[Il|]$", "1", txt)  # "Verse I" -> "Verse 1" (Roman-style one)
+    return txt or None
+
+
+def chord_names(tape_img: np.ndarray, lines: list[float]) -> list[tuple[float, str]]:
+    """(x centre, chord) for chord names written above the staff."""
+    sp = (lines[-1] - lines[0]) / 5
+    y1 = int(lines[0] - 1.3 * sp)
+    band = tape_img[:y1]
+    ink = (gray(band) < 130).astype(np.uint8)
+    blobs = cv2.dilate(ink, np.ones((3, int(0.5 * sp)), np.uint8))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(blobs)
+    out = []
+    for i in range(1, n):
+        x, y, w, h, _ = st[i]
+        if h < 0.5 * sp or h > 1.6 * sp or w < 0.4 * sp:
+            continue
+        crop = band[max(0, y - 4):y + h + 4, max(0, x - 4):x + w + 4]
+        txt = tesseract(_prep(crop, scale=3.0), psm=7)
+        txt = txt.replace("♯", "#").replace("♭", "b").replace(" ", "")
+        txt = re.sub(r"(?<=[A-G])[♯]", "#", txt)
+        if CHORD_RE.match(txt):
+            out.append((x + w / 2, txt))
+    return out
+
+
+def tuning_capo(corner: np.ndarray) -> tuple[list[int], int, str]:
+    """Parse 'Tuning: ...' and 'Capo: ...' text. Returns (tuning, capo fret, raw text)."""
+    txt = tesseract(_prep(corner), psm=6)
+    tuning, capo = STANDARD, 0
+    m = re.search(r"Capo\s*[:.]?\s*(?:fret\s*)?(\w+)", txt, re.I)
+    if m:
+        v = m.group(1)
+        roman = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9}
+        capo = int(v) if v.isdigit() else roman.get(v.upper(), 0)
+    m = re.search(r"Tuning\s*:?\s*([^\n]+)", txt, re.I)
+    if m:
+        tuning = parse_tuning(m.group(1).strip()) or STANDARD
+    return tuning, capo, txt
+
+
+def parse_tuning(name: str) -> list[int] | None:
+    n = name.lower().replace(" ", "")
+    if n.startswith("standard") or n == "eadgbe":
+        return STANDARD
+    if n.startswith("dropd"):
+        return [64, 59, 55, 50, 45, 38]
+    if n.startswith("halfstep") or n.startswith("eb") or n.startswith("e♭"):
+        return [p - 1 for p in STANDARD]
+    # explicit six note names low->high, e.g. DADGAD, DGDGBD, CGDGBD
+    notes = re.findall(r"[A-G][#b]?", name)
+    if len(notes) == 6:
+        base = [40, 45, 50, 55, 59, 64]  # nearest to standard pitch, low -> high
+        out = []
+        for ref, nm in zip(base, notes):
+            pc = (NOTE_PITCH[nm[0]] + (1 if "#" in nm else -1 if nm.endswith("b") else 0)) % 12
+            cands = [p for p in range(ref - 6, ref + 6) if p % 12 == pc]
+            out.append(min(cands, key=lambda p: abs(p - ref)))
+        return out[::-1]
+    return None

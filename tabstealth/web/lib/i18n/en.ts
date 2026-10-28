@@ -1,0 +1,73 @@
+import type { Messages } from "./nl";
+
+export const en: Messages = {
+  common: {
+    loading: "Loading…",
+    error: "Something went wrong",
+    language: "Nederlands",
+  },
+  nav: {
+    library: "Library",
+    openMenu: "Open menu",
+    hideSidebar: "Hide sidebar",
+    showSidebar: "Show sidebar",
+    help: "Help",
+  },
+  library: {
+    title: "Library",
+    lead: "Tabs from videos: play them next to the video, in time, and fix them where they are wrong.",
+    empty: "No songs yet. Paste a YouTube link below to start.",
+    addTitle: "Add from YouTube",
+    addLabel: "Link to a video or playlist",
+    addHint: "A video with a scrolling tab, like Kenneth Acoustic's. Converting takes one to two minutes per video.",
+    addButton: "Add",
+    invalid: "This is not a YouTube link",
+    jobs: "Converting",
+    status: { queued: "Queued", running: "Running", done: "Done", failed: "Failed" },
+    measures: (n: number) => `${n} bars`,
+    capo: (n: number) => `capo ${n}`,
+    swing: "swing",
+    edited: "edited",
+    flagged: (n: number) => `${n} bars to check`,
+    converted: (d: string) => `converted ${d}`,
+  },
+  song: {
+    back: "Library",
+    sound: "Sound",
+    soundVideo: "Video",
+    soundTab: "Tab",
+    play: "Play",
+    pause: "Pause",
+    stop: "Stop",
+    speed: "Speed",
+    loop: "Loop selection",
+    hands: "Hands only",
+    loadingTab: "Loading tab…",
+    editTitle: (bar: number, beat: number) => `Bar ${bar}, beat ${beat}`,
+    editHint: "Click a beat in the tab to change its notes. Empty is no note, x is a muted string.",
+    rest: "rest",
+    apply: "Save",
+    clear: "Clear beat",
+    restore: "Restore the original conversion",
+    restoreConfirm: "Throw away all your edits to this tab?",
+    saved: "Saved",
+    downloadGp5: "Download .gp5",
+    downloadText: "Text tab",
+    invalidFret: "Fret 0 to 24, or x",
+  },
+  help: {
+    title: "Help",
+    how: "How it works",
+    howText:
+      "tabstealth reads the scrolling tab in a video: it stitches the shifting views into one line of tab, reads the numbers on every string, and takes the rhythm from the video's playback cursor. The result is a Guitar Pro 5 file that also opens in TuxGuitar, MuseScore and Guitar Pro.",
+    sync: "Video and tab together",
+    syncText:
+      "Choose what you hear under Sound. Video: the video plays and the tab follows. Tab: the tab plays (at your own speed) and the video follows without sound. Click a beat to jump there.",
+    edit: "Editing",
+    editText:
+      "A note wrong? Click the beat and correct the frets per string. Your first edit keeps the original conversion, which you can always restore. Converting again never overwrites an edited tab.",
+    private: "Just for you",
+    privateText:
+      "The tabs are the work of the people who make the videos, who often sell them too. Use them to practise yourself and do not share them; support the creator if you use their tabs.",
+  },
+};

@@ -439,3 +439,49 @@ export function SyncIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/** Media transport (tabstealth's player): play, pause, stop. */
+export function PlayIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M8 5.5v13l10.5-6.5z" />
+    </Icon>
+  );
+}
+
+export function PauseIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M8.5 5.5v13M15.5 5.5v13" />
+    </Icon>
+  );
+}
+
+export function StopIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="6.5" y="6.5" width="11" height="11" rx="1.5" />
+    </Icon>
+  );
+}
+
+/** A video: a screen with a play triangle. */
+export function VideoIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="5.5" width="18" height="13" rx="2" />
+      <path d="M10.5 9.5v5l4-2.5z" />
+    </Icon>
+  );
+}
+
+/** Music: two beamed eighth notes. */
+export function MusicIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M9 17.5V6l10-2v11.5" />
+      <circle cx="6.5" cy="17.5" r="2.5" />
+      <circle cx="16.5" cy="15.5" r="2.5" />
+    </Icon>
+  );
+}

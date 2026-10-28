@@ -2,7 +2,8 @@
 
 Two apps and their shared code in one repository: `health-tracker/`, `wealth-tracker/` (the former stock-tracker,
 portfolio plus money) and `packages/` (shared), plus `trackerai/`, the front door at trackerai.nl (login, sign-up,
-the admin page of every tracker; step 11 of the plan). Start with [README.md](README.md) and
+the admin page of every tracker; step 11 of the plan), and `tabstealth/` (tabs from guitar videos, local-only, see
+[tabstealth/README.md](tabstealth/README.md)). Start with [README.md](README.md) and
 [docs/PLAN.md](docs/PLAN.md).
 Each app has its own rules too: `wealth-tracker/CLAUDE.md` applies to everything in `wealth-tracker/`.
 
@@ -31,4 +32,5 @@ Agreements that apply everywhere:
   - `wealth-tracker/`: `TZ=Europe/Amsterdam python -m pytest backend/tests -q`; in `frontend/`:
     `npx tsc --noEmit -p .`, `npm run check:i18n` and `npm test`.
   - `trackerai/api`: `python -m pytest -q`.
+  - `tabstealth/`: in `api/` `python -m pytest -q`; in `web/` `npx tsc --noEmit -p .`, `npm run check:i18n` and `npm test`.
 - Renaming a stored name (table, column, settings key) needs a migration step so existing databases keep working.
