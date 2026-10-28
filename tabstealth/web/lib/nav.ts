@@ -7,6 +7,7 @@ export const nav = (t: Messages): NavGroup[] => [
   {
     items: [
       { id: "library", label: t.nav.library, href: "/library/", icon: "list" },
+      { id: "stats", label: t.nav.stats, href: "/stats/", icon: "chart" },
       { id: "help", label: t.nav.help, href: "/help/", icon: "help" },
     ],
   },
