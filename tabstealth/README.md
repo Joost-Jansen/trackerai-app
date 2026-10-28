@@ -12,8 +12,12 @@ file, then plays it next to the original video.
   cursor passes it. On top: rests, 16th and triplet grids, swing (Guitar Pro's triplet feel), grace notes, dead notes,
   hammer-ons and pull-offs, slides, ties, strums and arpeggios, chord names, sections, tempo, tuning and capo.
 - **Player** (`web`): the video and the tab side by side. Choose what you hear: the video (the tab cursor follows) or
-  the tab, at any speed and in a loop (the video follows, muted). Click a beat to jump there and to correct its frets;
-  edits go straight into the `.gp5`, and the converter's version is kept for a restore.
+  the tab, at any speed and in a loop (the video follows, muted). Click a beat to jump there and edit it: per string
+  the fret (or `x`), a grace note and the techniques (hammer-on/pull-off, slide, tie, let ring, palm mute, ghost note,
+  harmonic, vibrato); for the beat its strum (down, up, arpeggio) and chord name; for the bar its section. The editor
+  reads the beat from the `.gp5` itself, so nothing the converter wrote is lost, and what it does not show (a bend)
+  stays. Edits go straight into the file; the converter's version is kept for a restore.
+- **Text tab**: rendered from the current `.gp5`, edits included, with sections, chords, strums and h/p/slide marks.
 - **Library**: paste a YouTube link (a video or a playlist) and it converts in the background.
 
 The `.gp5` files open in [TuxGuitar](https://www.tuxguitar.app/) (the closest open-source match to Guitar Pro 8),

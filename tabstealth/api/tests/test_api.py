@@ -37,28 +37,90 @@ def test_songs_and_timing(library):
     assert c.get("/api/songs/nope/timing").status_code == 404
 
 
+def beat0(library):
+    return gp.parse(str(library / "A - B.gp5")).tracks[0].measures[0].voices[0].beats[0]
+
+
 def test_edit_beat_keeps_backup_and_restores(library):
     c = TestClient(create_app(library, FakeJobs()))
-    r = c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "frets": {"1": 3, "2": "x", "5": 0}})
+    r = c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"1": {"fret": 3}, "2": {"fret": "x"}, "5": {"fret": 0}}})
     assert r.status_code == 200
-    beat = gp.parse(str(library / "A - B.gp5")).tracks[0].measures[0].voices[0].beats[0]
-    assert sorted((n.string, n.value, n.type.name) for n in beat.notes) == [
+    assert sorted((n.string, n.value, n.type.name) for n in beat0(library).notes) == [
         (1, 3, "normal"), (2, 0, "dead"), (5, 0, "normal")]
     assert (library / "A - B.orig.gp5").exists()
     assert c.get("/api/songs").json()[0]["edited"] is True
-    # clearing every string turns the beat into a rest
-    c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "frets": {}})
-    beat = gp.parse(str(library / "A - B.gp5")).tracks[0].measures[0].voices[0].beats[0]
-    assert beat.status.name == "rest"
+    # no notes at all turns the beat into a rest
+    c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {}})
+    assert beat0(library).status.name == "rest"
     c.post("/api/songs/abcdefghijk/restore")
-    beat = gp.parse(str(library / "A - B.gp5")).tracks[0].measures[0].voices[0].beats[0]
-    assert sorted(n.string for n in beat.notes) == [2, 3, 5]
+    assert sorted(n.string for n in beat0(library).notes) == [2, 3, 5]
+
+
+def test_every_technique_round_trips(library):
+    c = TestClient(create_app(library, FakeJobs()))
+    body = {"bar": 0, "beat": 0, "stroke": "arpeggio", "chord": "Dsus2", "notes": {
+        "1": {"fret": 2, "hammer": True, "let_ring": True, "grace": {"fret": 0, "hammer": True}},
+        "2": {"fret": 3, "slide": True, "vibrato": True, "grace": {"fret": "x", "slide": True}},
+        "3": {"fret": 2, "tie": True, "palm_mute": True},
+        "4": {"fret": 12, "harmonic": True, "ghost": True},
+    }}
+    assert c.post("/api/songs/abcdefghijk/beats", json=body).status_code == 200
+    b = beat0(library)
+    n = {x.string: x for x in b.notes}
+    assert n[1].effect.hammer and n[1].effect.letRing and n[1].effect.grace.fret == 0
+    assert n[1].effect.grace.transition.name == "hammer"
+    assert n[2].effect.slides and n[2].effect.vibrato and n[2].effect.grace.isDead
+    assert n[2].effect.grace.transition.name == "slide"
+    assert n[3].type.name == "tie" and n[3].effect.palmMute
+    assert n[4].effect.harmonic is not None and n[4].effect.ghostNote and n[4].value == 12
+    assert b.effect.stroke.value == 16 and b.text == "Dsus2"
+    # reading the beat back gives the same form
+    got = c.get("/api/songs/abcdefghijk/beats/0/0").json()
+    assert got["stroke"] == "arpeggio" and got["chord"] == "Dsus2"
+    assert got["notes"]["1"]["grace"] == {"fret": 0, "slide": False, "hammer": True}
+    assert got["notes"]["2"]["grace"]["fret"] == "x" and got["notes"]["2"]["slide"] is True
+    assert got["notes"]["3"]["tie"] and got["notes"]["4"]["harmonic"] and got["notes"]["4"]["fret"] == 12
+    assert c.get("/api/songs/abcdefghijk/beats/0/9").status_code == 404
+    # switching techniques off clears them
+    c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "stroke": "up", "notes": {"1": {"fret": 2}}})
+    b = beat0(library)
+    e = b.notes[0].effect
+    assert not (e.hammer or e.letRing or e.slides or e.grace) and b.text is None
+    assert b.effect.stroke.direction.name == "up" and b.effect.stroke.value == 64
+
+
+def test_effects_the_form_does_not_show_are_kept(library):
+    song = gp.parse(str(library / "A - B.gp5"))
+    note = song.tracks[0].measures[0].voices[0].beats[0].notes[0]
+    note.effect.bend = gp.BendEffect(type=gp.BendType.bend, value=100, points=[gp.BendPoint(0, 0), gp.BendPoint(12, 4)])
+    gp.write(song, str(library / "A - B.gp5"), version=(5, 1, 0))
+    c = TestClient(create_app(library, FakeJobs()))
+    s = note.string
+    c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {str(s): {"fret": 4}}})
+    kept = [n for n in beat0(library).notes if n.string == s][0]
+    assert kept.value == 4 and kept.effect.bend is not None
+
+
+def test_section_and_text_tab(library):
+    c = TestClient(create_app(library, FakeJobs()))
+    assert c.post("/api/songs/abcdefghijk/bars", json={"bar": 0, "section": "Chorus"}).status_code == 200
+    assert gp.parse(str(library / "A - B.gp5")).measureHeaders[0].marker.title == "Chorus"
+    c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "chord": "Am", "stroke": "down",
+                                                 "notes": {"2": {"fret": 1, "hammer": True}, "6": {"fret": "x"}}})
+    text = c.get("/api/songs/abcdefghijk/text").text
+    assert "1 Chorus" in text and "Am" in text and "^" in text
+    assert "B|1" in text and "E|x" in text
+    c.post("/api/songs/abcdefghijk/bars", json={"bar": 0, "section": ""})
+    assert gp.parse(str(library / "A - B.gp5")).measureHeaders[0].marker is None
 
 
 def test_edit_rejects_bad_input(library):
     c = TestClient(create_app(library, FakeJobs()))
-    assert c.post("/api/songs/abcdefghijk/beats", json={"bar": 5, "beat": 0, "frets": {}}).status_code == 404
-    assert c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "frets": {"1": 30}}).status_code == 400
+    assert c.post("/api/songs/abcdefghijk/beats", json={"bar": 5, "beat": 0, "notes": {}}).status_code == 404
+    assert c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"1": {"fret": 30}}}).status_code == 400
+    assert c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"7": {"fret": 1}}}).status_code == 422
+    assert c.post("/api/songs/abcdefghijk/bars", json={"bar": 9, "section": "x"}).status_code == 404
+    assert not (library / "A - B.orig.gp5").exists()  # nothing changed, so nothing counts as edited
 
 
 def test_convert_queues_only_youtube_links(library):

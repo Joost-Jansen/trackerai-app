@@ -18,7 +18,7 @@ import cv2
 import numpy as np
 
 from . import ocr
-from .ascii import to_ascii
+from .ascii import gp5_to_ascii
 from .assemble import build_song
 from .export import Meta, write_gp5
 from .meter import read_tempo_mark
@@ -202,8 +202,7 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
         log(f"  {gp5.name} has your edits: not overwritten (use --overwrite-edits)")
     else:
         write_gp5(song, str(gp5), meta)
-    txt.write_text(
-        f"{song_name} - {artist}\n{meta.source}\n\n" + to_ascii(song))
+    txt.write_text(gp5_to_ascii(str(gp5)))  # from the file itself, so an edited tab keeps its edits
     flagged = {m.number: m.flags for m in song.measures if m.flags}
     report = {
         "video": url, "title": info["title"], "measures": len(song.measures),

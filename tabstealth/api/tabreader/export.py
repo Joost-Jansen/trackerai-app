@@ -103,8 +103,9 @@ def write_gp5(song: Song, path: str, meta: Meta) -> None:
                         if gr is not None:
                             note.effect.grace = gp.GraceEffect(
                                 fret=0 if gr.dead else gr.fret, duration=32, isDead=gr.dead,
-                                transition=gp.GraceEffectTransition.slide
-                                if getattr(gr, "slide", False) else gp.GraceEffectTransition.none)
+                                transition=gp.GraceEffectTransition.slide if getattr(gr, "slide", False)
+                                else gp.GraceEffectTransition.hammer if getattr(gr, "hammer", False)
+                                else gp.GraceEffectTransition.none)
                     beat.notes.append(note)
                 if k == 0:
                     # grace notes on strings without a main note: sound them with the beat

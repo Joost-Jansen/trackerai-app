@@ -11,7 +11,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import Card from "@trackerai/ui/components/Card";
 import { Button } from "@trackerai/ui/ds/Button";
 import { Checkbox, Select } from "@trackerai/ui/ds/Field";
 import Tabs from "@trackerai/ui/ds/Tabs";
@@ -19,11 +18,14 @@ import { api, type Song } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { ALPHATAB_BASE, loadAlphaTab, loadYouTube } from "@/lib/scripts";
 import { DownloadIcon, MusicIcon, NewspaperIcon, PauseIcon, PlayIcon, RefreshIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
-import { gpString, makeClock, nearestRate, type Clock, type Timing } from "@/lib/sync";
+import { makeClock, nearestRate, type Clock, type Timing } from "@/lib/sync";
+import { beatAtGpIndex, emptyNote, fromAlphaTab, fromApi, gpBeatIndex, invalid, mainBeat, toRequest, type ApiBeat, type BeatState } from "@/lib/beat";
+import BeatEditor from "@/components/BeatEditor";
 
 type Source = "video" | "tab";
-type Selected = { bar: number; beat: number; frets: string[] }; // frets[0] = high e
-const STRINGS = ["e", "B", "G", "D", "A", "E"];
+// The beat being edited: its bar, its index in the Guitar Pro file (grace notes not counted), the form, and the
+// section it had (only a changed section is saved).
+type Selected = { bar: number; beat: number; state: BeatState; section: string };
 const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5];
 const YT_PLAYING = 1;
 
@@ -67,20 +69,27 @@ export default function TabStudio({ vid }: { vid: string }) {
   const tabUrl = `/api/songs/${vid}/tab`;
 
   // ── selection ──────────────────────────────────────────────────────────────
-  const beatAt = (bar: number, beat: number) => at.current?.score?.tracks[0].staves[0].bars[bar]?.voices[0].beats[beat];
+  const beatAt = (bar: number, beat: number) => beatAtGpIndex(at.current?.score?.tracks[0].staves[0].bars[bar], beat);
   const outline = useCallback((beat: any) => {
     const b = beat && at.current?.renderer?.boundsLookup?.findBeat(beat);
     setBox(b ? { x: b.visualBounds.x, y: b.visualBounds.y, w: b.visualBounds.w, h: b.visualBounds.h } : null);
   }, []);
   const select = useCallback(
-    (beat: any, keepMessage = false) => {
-      const frets = ["", "", "", "", "", ""];
-      for (const n of beat.notes) frets[gpString(n.string) - 1] = n.isDead ? "x" : String(n.fret);
-      setSelected({ bar: beat.voice.bar.index, beat: beat.index, frets });
+    (clicked: any, keepMessage = false) => {
+      const beat = mainBeat(clicked); // a grace note belongs to the beat after it
+      const state = fromAlphaTab(beat);
+      const bar = beat.voice.bar.index;
+      const index = gpBeatIndex(beat);
+      setSelected({ bar, beat: index, state, section: state.section });
       if (!keepMessage) setMessage(null);
       outline(beat);
+      // then the beat exactly as the file has it, unless another beat was picked meanwhile
+      void api.get<ApiBeat>(`/api/songs/${vid}/beats/${bar}/${index}`).then((b) => {
+        const exact = fromApi(b);
+        setSelected((cur) => (cur && cur.bar === bar && cur.beat === index ? { ...cur, state: exact, section: exact.section } : cur));
+      });
     },
-    [outline],
+    [outline, vid],
   );
 
   // ── alphaTab ───────────────────────────────────────────────────────────────
@@ -247,20 +256,24 @@ export default function TabStudio({ vid }: { vid: string }) {
   });
 
   // ── editing ────────────────────────────────────────────────────────────────
-  const save = async (frets: string[]) => {
+  const save = async (state: BeatState) => {
     if (!selected) return;
-    if (frets.some((f) => f !== "" && f.toLowerCase() !== "x" && !(/^\d{1,2}$/.test(f) && Number(f) <= 24))) {
+    if (invalid(state)) {
       setMessage(t.song.invalidFret);
       return;
     }
     setSaving(true);
     try {
-      const body = Object.fromEntries(frets.map((f, i) => [String(i + 1), f === "" ? null : f.toLowerCase() === "x" ? "x" : Number(f)]));
-      await api.post(`/api/songs/${vid}/beats`, { bar: selected.bar, beat: selected.beat, frets: body });
+      await api.post(`/api/songs/${vid}/beats`, toRequest(selected.bar, selected.beat, state));
+      if (state.section.trim() !== selected.section.trim()) {
+        await api.post(`/api/songs/${vid}/bars`, { bar: selected.bar, section: state.section.trim() || null });
+      }
       restore.current = { tick: at.current?.tickPosition ?? 0, bar: selected.bar, beat: selected.beat };
       at.current?.load(`${tabUrl}?t=${Date.now()}`);
       setMessage(t.song.saved);
       void qc.invalidateQueries({ queryKey: ["songs"] });
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : t.common.error);
     } finally {
       setSaving(false);
     }
@@ -365,43 +378,15 @@ export default function TabStudio({ vid }: { vid: string }) {
         </div>
 
         {selected && (
-          <Card title={t.song.editTitle(selected.bar + 1, selected.beat + 1)}>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void save(selected.frets);
-              }}
-            >
-              <div className="grid grid-cols-6 gap-1.5">
-                {STRINGS.map((name, i) => (
-                  <label key={name + i} className="flex flex-col items-center gap-1">
-                    <span className="font-mono text-xs text-ink-muted">{name}</span>
-                    <input
-                      className="ds-input w-full text-center font-mono"
-                      value={selected.frets[i]}
-                      maxLength={2}
-                      inputMode="numeric"
-                      aria-label={`${name} string`}
-                      onChange={(e) => {
-                        const frets = [...selected.frets];
-                        frets[i] = e.target.value.trim();
-                        setSelected({ ...selected, frets });
-                      }}
-                    />
-                  </label>
-                ))}
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button type="submit" variant="primary" size="sm" disabled={saving}>
-                  {t.song.apply}
-                </Button>
-                <Button size="sm" disabled={saving} onClick={() => void save(["", "", "", "", "", ""])}>
-                  {t.song.clear}
-                </Button>
-                {message && <span className="text-xs text-ink-muted">{message}</span>}
-              </div>
-            </form>
-          </Card>
+          <BeatEditor
+            title={t.song.editTitle(selected.bar + 1, selected.beat + 1)}
+            value={selected.state}
+            onChange={(update) => setSelected((cur) => (cur ? { ...cur, state: update(cur.state) } : cur))}
+            onSave={() => void save(selected.state)}
+            onClear={() => void save({ ...selected.state, notes: selected.state.notes.map(() => emptyNote()), strum: "" })}
+            saving={saving}
+            message={message}
+          />
         )}
       </div>
 
