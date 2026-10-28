@@ -14,14 +14,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@trackerai/ui/ds/Button";
-import { Select } from "@trackerai/ui/ds/Field";
+import { Select, Switch } from "@trackerai/ui/ds/Field";
 import Tabs from "@trackerai/ui/ds/Tabs";
 import { api, type Job, type Song } from "@/lib/api";
+import { applyView, BARS_PER_ROW, readView, saveView, type SheetView } from "@/lib/sheetView";
 import { useT } from "@/lib/i18n";
 import { ALPHATAB_BASE, loadAlphaTab, loadYouTube } from "@/lib/scripts";
 import RowMenu from "@trackerai/ui/ds/RowMenu";
 import { TOPBAR_ACTIONS, TOPBAR_TITLE } from "@/lib/nav";
-import { CheckIcon, ChevronLeftIcon, HandIcon, RepeatIcon, MusicIcon, PauseIcon, PlayIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
+import { CheckIcon, ChevronLeftIcon, HandIcon, LayoutIcon, RepeatIcon, MusicIcon, PauseIcon, PlayIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
 import { makeClock, nearestRate, type BarTicks, type Clock, type Timing } from "@/lib/sync";
 import { beatAtGpIndex, emptyNote, fromAlphaTab, fromApi, gpBeatIndex, invalid, KEYS, mainBeat, nextBend, toRequest, type ApiBeat, type BeatState, type NoteState } from "@/lib/beat";
 import BeatEditor from "@/components/BeatEditor";
@@ -86,6 +87,7 @@ export default function TabStudio({ vid }: { vid: string }) {
   const sourceRef = useRef<Source>("video");
   // after a reload of the tab (save, undo, redo): where the cursor was and which beat to select
   const restore = useRef<{ tick: number; spot: Spot | null } | null>(null);
+  const [view, setViewState] = useState<SheetView | null>(null); // read from this device once mounted
 
   const [source, setSourceState] = useState<Source>("video");
   const [playing, setPlaying] = useState(false);
@@ -162,6 +164,9 @@ export default function TabStudio({ vid }: { vid: string }) {
         },
       });
       at.current = a;
+      const v = readView();
+      applyView(a, v);
+      setViewState(v);
       a.scoreLoaded.on((score: any) => {
         bars.current = score.masterBars.map((mb: any) => ({ start: mb.start, duration: mb.calculateDuration() }));
         const first = score.masterBars[0];
@@ -526,6 +531,30 @@ export default function TabStudio({ vid }: { vid: string }) {
     void qc.invalidateQueries({ queryKey: ["history", vid] });
   };
 
+  /** Bars per line or compact: lay the sheet out again, keeping the cursor and the selected beat. */
+  const setView = (v: SheetView) => {
+    setViewState(v);
+    saveView(v);
+    const a = at.current;
+    if (!a) return;
+    applyView(a, v);
+    restore.current = { tick: a.tickPosition ?? 0, spot: selected ? { bar: selected.bar, beat: selected.beat } : null };
+    a.render();
+  };
+  const [viewOpen, setViewOpen] = useState(false);
+  const viewBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!viewOpen) return;
+    const away = (e: MouseEvent) => viewBox.current && !viewBox.current.contains(e.target as Node) && setViewOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setViewOpen(false);
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [viewOpen]);
+
   const save = async (state: BeatState, next?: Spot) => {
     if (!selected) return;
     if (invalid(state)) {
@@ -825,6 +854,38 @@ export default function TabStudio({ vid }: { vid: string }) {
         style={{ top: sheetTop, height: `calc(100dvh - ${sheetTop}px - 16px)`, minHeight: 320 }}
       >
         {!loaded && <p className="absolute left-4 top-4 text-sm text-ink-muted">{t.song.loadingTab}</p>}
+        {/* how the sheet is laid out: a small button in its top corner, the choices in a popover under it */}
+        {view && (
+          <div className="sticky top-0 z-10 flex h-0 justify-end">
+            <div ref={viewBox} className="relative p-2">
+              <button
+                type="button"
+                aria-expanded={viewOpen}
+                aria-label={t.song.layout}
+                title={t.song.layout}
+                onClick={() => setViewOpen((o) => !o)}
+                className={`ds-btn ds-btn--sm ds-btn--secondary !px-2 shadow-sm ${viewOpen ? "!border-brand !text-brand" : ""}`}
+              >
+                <LayoutIcon className="h-[15px] w-[15px]" />
+              </button>
+              {viewOpen && (
+                <div className="absolute right-2 top-12 flex w-60 flex-col gap-3 rounded-md border border-border bg-surface p-3 text-sm text-ink shadow-lg">
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-xs text-ink-muted">{t.song.barsPerLine}</span>
+                    <Tabs
+                      variant="segmented"
+                      items={BARS_PER_ROW.map((n) => ({ id: String(n), label: n < 0 ? t.song.barsAuto : String(n) }))}
+                      value={String(view.barsPerRow)}
+                      onChange={(id: string) => setView({ ...view, barsPerRow: Number(id) })}
+                      ariaLabel={t.song.barsPerLine}
+                    />
+                  </div>
+                  <Switch checked={view.compact} onChange={(on) => setView({ ...view, compact: on })} label={t.song.compact} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         <div className="relative">
           <div ref={sheet} />
           {box && <div className="ts-selected" style={{ left: box.x - 3, top: box.y - 3, width: box.w + 6, height: box.h + 6 }} />}
