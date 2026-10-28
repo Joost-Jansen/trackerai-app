@@ -44,7 +44,6 @@ export const nl = {
     hands: "Alleen handen",
     loadingTab: "Tab laden…",
     editTitle: (bar: number, beat: number) => `Maat ${bar}, slag ${beat}`,
-    editHint: "Klik op een slag in de tab om de noten aan te passen. Leeg is geen noot, x is een gedempte snaar.",
     rest: "rust",
     apply: "Opslaan",
     clear: "Slag leegmaken",

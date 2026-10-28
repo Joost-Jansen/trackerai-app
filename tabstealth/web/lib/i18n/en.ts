@@ -44,7 +44,6 @@ export const en: Messages = {
     hands: "Hands only",
     loadingTab: "Loading tab…",
     editTitle: (bar: number, beat: number) => `Bar ${bar}, beat ${beat}`,
-    editHint: "Click a beat in the tab to change its notes. Empty is no note, x is a muted string.",
     rest: "rest",
     apply: "Save",
     clear: "Clear beat",

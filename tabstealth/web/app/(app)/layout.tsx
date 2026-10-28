@@ -22,7 +22,7 @@ function SidebarIcon({ collapsed }: { collapsed: boolean }) {
   );
 }
 import { useLocale, useT } from "@/lib/i18n";
-import { nav, TOPBAR_SLOT } from "@/lib/nav";
+import { nav } from "@/lib/nav";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -75,9 +75,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="sticky top-0 z-30">
           <header className="ds-topbar ds-topbar--flush !gap-3 !px-4 sm:!px-6 lg:!px-page">
             <IconButton label={t.nav.openMenu} onClick={() => setNavOpen(true)} icon={<MenuIcon className="h-[18px] w-[18px]" />} className={`-ml-2 ${collapsed ? "" : "lg:hidden"}`} />
-            <h1 className="ds-topbar__title hidden truncate sm:block">{item?.label ?? "tabstealth"}</h1>
-            {/* a page's own controls (the song page: play, stop, sound), right after the title */}
-            <div id={TOPBAR_SLOT} className="flex min-w-0 flex-1 items-center sm:ml-4" />
+            <h1 className="ds-topbar__title truncate">{item?.label ?? "tabstealth"}</h1>
+            <span className="ds-topbar__spacer" />
             <div className="flex flex-none items-center gap-1.5">
               {/* wide screens: fold the sidebar away or bring it back */}
               <IconButton

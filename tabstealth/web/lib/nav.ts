@@ -12,5 +12,3 @@ export const nav = (t: Messages): NavGroup[] => [
   },
 ];
 
-/** The element in the top bar where a page can put its own controls (the song page: play, stop, sound). */
-export const TOPBAR_SLOT = "topbar-slot";

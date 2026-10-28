@@ -9,7 +9,6 @@
 // seeks both and opens it in the editor; a saved edit reloads the tab where you were.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Card from "@trackerai/ui/components/Card";
@@ -18,9 +17,8 @@ import { Checkbox, Select } from "@trackerai/ui/ds/Field";
 import Tabs from "@trackerai/ui/ds/Tabs";
 import { api, type Song } from "@/lib/api";
 import { useT } from "@/lib/i18n";
-import { TOPBAR_SLOT } from "@/lib/nav";
 import { ALPHATAB_BASE, loadAlphaTab, loadYouTube } from "@/lib/scripts";
-import { MusicIcon, PauseIcon, PlayIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
+import { DownloadIcon, MusicIcon, NewspaperIcon, PauseIcon, PlayIcon, RefreshIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
 import { gpString, makeClock, nearestRate, type Clock, type Timing } from "@/lib/sync";
 
 type Source = "video" | "tab";
@@ -282,9 +280,7 @@ export default function TabStudio({ vid }: { vid: string }) {
 
   const crop = hands ?Math.min(Math.max(timing.data?.overlay_top ?? 0.66, 0.4), 1) : 1;
 
-  // Play, stop and the sound switch live in the sticky top bar (app/(app)/layout.tsx gives the slot), always in reach.
-  const [slot, setSlot] = useState<HTMLElement | null>(null);
-  useEffect(() => setSlot(document.getElementById(TOPBAR_SLOT)), []);
+  // Play, stop and the sound switch, in the song's header (pinned with the video on a narrow screen).
   const transport = (
     <div className="flex min-w-0 items-center gap-1.5">
       <Button
@@ -315,23 +311,37 @@ export default function TabStudio({ vid }: { vid: string }) {
     // Wide: video and settings in a sticky column next to the tab. Narrow: one column; the left column dissolves
     // (`contents`) so the video can stick to the top while you scroll through the tab.
     <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(360px,44%)_1fr] lg:gap-4">
-      {slot ? createPortal(transport, slot) : null}
       <div className="contents lg:sticky lg:top-[72px] lg:flex lg:flex-col lg:gap-3 lg:self-start">
-        <div>
-          <Link href="/library/" className="text-xs font-semibold text-brand hover:underline">
-            ← {t.song.back}
-          </Link>
-          <h2 className="mt-1 font-display text-xl font-light leading-tight">{song?.title ?? "…"}</h2>
-          <div className="text-sm text-ink-muted">
-            {[song?.artist, song?.tempo ? `♩ ${song.tempo}` : null, song?.capo ? t.library.capo(song.capo) : null, song?.swing ? t.library.swing : null]
-              .filter(Boolean)
-              .join(" · ")}
+        {/* The song's header and the video. On a narrow screen both stay pinned under the top bar while you scroll the
+            tab; the video is at most about a third of the screen high, so the tab keeps room underneath. */}
+        <div ref={pinned} className="sticky top-[52px] z-20 -mx-1 flex flex-col gap-2 bg-bg px-1 pb-2 lg:static lg:m-0 lg:gap-3 lg:p-0">
+          <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
+            <div className="min-w-0">
+              <Link href="/library/" className="text-xs font-semibold text-brand hover:underline">
+                ← {t.song.back}
+              </Link>
+              <div className="mt-1 flex items-center gap-1">
+                <h2 className="truncate font-display text-xl font-light leading-tight">{song?.title ?? "…"}</h2>
+                <a className="ds-btn ds-btn--ghost ds-btn--sm !px-1.5" href={tabUrl} download={song?.file} title={t.song.downloadGp5} aria-label={t.song.downloadGp5}>
+                  <DownloadIcon className="h-[15px] w-[15px]" />
+                </a>
+                <a className="ds-btn ds-btn--ghost ds-btn--sm !px-1.5" href={`/api/songs/${vid}/text`} target="_blank" rel="noreferrer" title={t.song.downloadText} aria-label={t.song.downloadText}>
+                  <NewspaperIcon className="h-[15px] w-[15px]" />
+                </a>
+                {song?.edited && (
+                  <button type="button" className="ds-btn ds-btn--ghost ds-btn--sm !px-1.5" onClick={() => void restoreOriginal()} title={t.song.restore} aria-label={t.song.restore}>
+                    <RefreshIcon className="h-[15px] w-[15px]" />
+                  </button>
+                )}
+              </div>
+              <div className="truncate text-sm text-ink-muted">
+                {[song?.artist, song?.tempo ? `♩ ${song.tempo}` : null, song?.capo ? t.library.capo(song.capo) : null, song?.swing ? t.library.swing : null]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </div>
+            </div>
+            {transport}
           </div>
-        </div>
-
-        {/* The video, whole by default; on a narrow screen it stays pinned under the top bar while you scroll the tab.
-            At most about a third of the screen high, so the tab keeps room underneath. */}
-        <div ref={pinned} className="sticky top-[52px] z-20 -mx-1 bg-bg px-1 pb-2 lg:static lg:m-0 lg:p-0">
           <div className="ts-video mx-auto w-full" style={{ aspectRatio: `16 / ${9 * crop}`, maxWidth: `calc(34vh * ${16 / (9 * crop)})` }}>
             <div style={{ position: "absolute", inset: 0, height: `${100 / crop}%` }}>
               <div ref={ytEl} />
@@ -354,10 +364,8 @@ export default function TabStudio({ vid }: { vid: string }) {
           <Checkbox checked={hands} onChange={setHands} label={t.song.hands} />
         </div>
 
-        <Card title={selected ? t.song.editTitle(selected.bar + 1, selected.beat + 1) : undefined}>
-          {!selected ? (
-            <p className="text-sm text-ink-muted">{t.song.editHint}</p>
-          ) : (
+        {selected && (
+          <Card title={t.song.editTitle(selected.bar + 1, selected.beat + 1)}>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -393,21 +401,8 @@ export default function TabStudio({ vid }: { vid: string }) {
                 {message && <span className="text-xs text-ink-muted">{message}</span>}
               </div>
             </form>
-          )}
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-xs">
-            <a className="font-semibold text-brand hover:underline" href={tabUrl} download={song?.file}>
-              {t.song.downloadGp5}
-            </a>
-            <a className="font-semibold text-brand hover:underline" href={`/api/songs/${vid}/text`} target="_blank" rel="noreferrer">
-              {t.song.downloadText}
-            </a>
-            {song?.edited && (
-              <button type="button" className="font-semibold text-ink-muted underline-offset-4 hover:underline" onClick={() => void restoreOriginal()}>
-                {t.song.restore}
-              </button>
-            )}
-          </div>
-        </Card>
+          </Card>
+        )}
       </div>
 
       <section className="ts-sheet relative min-h-[60vh] overflow-hidden rounded border border-border">
