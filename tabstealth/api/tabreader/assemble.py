@@ -175,6 +175,11 @@ def build_song(tape: ParsedPage, offsets: list[int], runs, scan: dict,
             a.duration = b.start - a.start
         out.beats = [b for b in beats if b.duration > 0]
         measures.append(out)
+    # Keep the video's bar numbers: a bar never seen whole (often bar 1 under a fade-in) becomes a rest bar in its
+    # place, so bar N of the file is bar N of the video (sync, review and loops count on that).
+    by_number = {m.number: m for m in measures}
+    measures = [by_number.get(n) or Measure(n, [Beat(0, measure_ticks)], flags=["missing"])
+                for n in range(1, max(by_number, default=0) + 1)]
     if backwards:
         measures[0].flags.append(f"cursor moved backwards {backwards}x (repeats?)")
     return Song(measures, tempo, numerator, denominator, feel)

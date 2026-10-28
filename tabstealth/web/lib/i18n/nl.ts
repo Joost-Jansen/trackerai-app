@@ -163,6 +163,7 @@ export const nl = {
     bar: (n: number) => `Maat ${n}`,
     go: "Ga",
     reasons: {
+      missing: "maat niet gevonden in de video",
       spacing: "ritme uit de notenafstand",
       collision: "twee noten op één tel",
       timing: "timing onzeker",

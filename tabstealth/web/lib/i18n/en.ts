@@ -163,6 +163,7 @@ export const en: Messages = {
     bar: (n: number) => `Bar ${n}`,
     go: "Go",
     reasons: {
+      missing: "bar not found in the video",
       spacing: "rhythm from note spacing",
       collision: "two notes on one slot",
       timing: "timing unsure",

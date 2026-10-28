@@ -88,6 +88,8 @@ def review_list(song, parsed) -> list[dict]:
     out = []
     for i, m in enumerate(song.measures):
         reasons = []
+        if "missing" in m.flags:
+            reasons.append("missing")
         if "rhythm from note spacing" in m.flags:
             reasons.append("spacing")
         if "collision" in m.flags:
