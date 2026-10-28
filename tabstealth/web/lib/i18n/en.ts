@@ -32,6 +32,7 @@ export const en: Messages = {
     converted: (d: string) => `converted ${d}`,
   },
   song: {
+    more: "More",
     back: "Library",
     sound: "Sound",
     soundVideo: "Video",

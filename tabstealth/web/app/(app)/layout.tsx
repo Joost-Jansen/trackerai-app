@@ -22,7 +22,7 @@ function SidebarIcon({ collapsed }: { collapsed: boolean }) {
   );
 }
 import { useLocale, useT } from "@/lib/i18n";
-import { nav } from "@/lib/nav";
+import { nav, TOPBAR_ACTIONS, TOPBAR_TITLE } from "@/lib/nav";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -39,6 +39,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
   const collapsed = pref ? pref === "closed" : pathname.startsWith("/song");
+  const ownHeader = pathname.startsWith("/song"); // the song page fills the title slot itself
   const toggleSidebar = () => {
     const next = collapsed ? "open" : "closed";
     setPref(next);
@@ -75,8 +76,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="sticky top-0 z-30">
           <header className="ds-topbar ds-topbar--flush !gap-3 !px-4 sm:!px-6 lg:!px-page">
             <IconButton label={t.nav.openMenu} onClick={() => setNavOpen(true)} icon={<MenuIcon className="h-[18px] w-[18px]" />} className={`-ml-2 ${collapsed ? "" : "lg:hidden"}`} />
-            <h1 className="ds-topbar__title truncate">{item?.label ?? "tabstealth"}</h1>
-            <span className="ds-topbar__spacer" />
+            {/* a page can put its own title and controls here (the song page: the song and its transport) */}
+            <div id={TOPBAR_TITLE} className="flex min-w-0 flex-1 items-center">
+              {!ownHeader && <h1 className="ds-topbar__title truncate">{item?.label ?? "tabstealth"}</h1>}
+            </div>
+            <div id={TOPBAR_ACTIONS} className="flex flex-none items-center" />
             <div className="flex flex-none items-center gap-1.5">
               {/* wide screens: fold the sidebar away or bring it back */}
               <IconButton
@@ -89,7 +93,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
         </div>
-        <main className="w-full flex-1 px-4 pb-20 pt-4 sm:px-6 lg:px-page lg:pt-5">{children}</main>
+        {/* a song page ends with its tab panel exactly at the bottom of the screen: no extra room to scroll into */}
+        <main className={`w-full flex-1 px-4 pt-4 sm:px-6 lg:px-page lg:pt-5 ${ownHeader ? "pb-4" : "pb-20"}`}>{children}</main>
       </div>
     </div>
   );

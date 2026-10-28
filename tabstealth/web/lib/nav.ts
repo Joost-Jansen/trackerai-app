@@ -12,3 +12,7 @@ export const nav = (t: Messages): NavGroup[] => [
   },
 ];
 
+
+/** Slots in the top bar that a page can fill with its own title and controls (the song page). */
+export const TOPBAR_TITLE = "topbar-title";
+export const TOPBAR_ACTIONS = "topbar-actions";

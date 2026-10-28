@@ -9,6 +9,7 @@
 // seeks both and opens it in the editor; a saved edit reloads the tab where you were.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@trackerai/ui/ds/Button";
@@ -17,7 +18,9 @@ import Tabs from "@trackerai/ui/ds/Tabs";
 import { api, type Song } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { ALPHATAB_BASE, loadAlphaTab, loadYouTube } from "@/lib/scripts";
-import { DownloadIcon, MusicIcon, NewspaperIcon, PauseIcon, PlayIcon, RefreshIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
+import RowMenu from "@trackerai/ui/ds/RowMenu";
+import { TOPBAR_ACTIONS, TOPBAR_TITLE } from "@/lib/nav";
+import { ChevronLeftIcon, DownloadIcon, MusicIcon, NewspaperIcon, PauseIcon, PlayIcon, RefreshIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
 import { makeClock, nearestRate, type Clock, type Timing } from "@/lib/sync";
 import { beatAtGpIndex, emptyNote, fromAlphaTab, fromApi, gpBeatIndex, invalid, mainBeat, toRequest, type ApiBeat, type BeatState } from "@/lib/beat";
 import BeatEditor from "@/components/BeatEditor";
@@ -48,6 +51,27 @@ export default function TabStudio({ vid }: { vid: string }) {
 
   const sheet = useRef<HTMLDivElement>(null);
   const pinned = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLElement>(null);
+  // Where the tab panel sticks: under the top bar, or on a narrow screen under the pinned video too.
+  const [sheetTop, setSheetTop] = useState(72);
+  const [barHeight, setBarHeight] = useState(52); // the sticky top bar's real height (taller on a phone)
+  useEffect(() => {
+    const pin = pinned.current;
+    if (!pin) return;
+    const measure = () => {
+      const bar = Math.round(document.querySelector(".ds-topbar")?.getBoundingClientRect().height ?? 52);
+      setBarHeight(bar);
+      setSheetTop(getComputedStyle(pin).position === "sticky" ? bar + pin.offsetHeight + 8 : bar + 16);
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(pin);
+    window.addEventListener("resize", measure);
+    measure();
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
   const ytEl = useRef<HTMLDivElement>(null);
   const at = useRef<any>(null);
   const yt = useRef<any>(null);
@@ -170,11 +194,12 @@ export default function TabStudio({ vid }: { vid: string }) {
         (sourceRef.current === "video" && yt.current?.getPlayerState?.() === YT_PLAYING);
       const bar = playingNow ? sheet.current?.querySelector(".at-cursor-bar") : null;
       if (!bar) return;
-      // below the top bar, or below the pinned video and controls on a narrow screen
-      const pin = pinned.current;
-      const top = pin && getComputedStyle(pin).position === "sticky" ? pin.getBoundingClientRect().bottom + 8 : 80;
+      // the tab scrolls inside its own panel: keep the bar within it, a little below its top edge
+      const panel = scroller.current;
+      if (!panel) return;
+      const p = panel.getBoundingClientRect();
       const r = bar.getBoundingClientRect();
-      if (r.top < top || r.bottom > window.innerHeight - 24) window.scrollBy({ top: r.top - top - 12, behavior: "smooth" });
+      if (r.top < p.top + 8 || r.bottom > p.bottom - 8) panel.scrollBy({ top: r.top - p.top - 24, behavior: "smooth" });
     };
     // Video plays: move the tab cursor along with its clock (about 15 times a second is smooth enough).
     const follow = (now: number) => {
@@ -320,41 +345,59 @@ export default function TabStudio({ vid }: { vid: string }) {
     </div>
   );
 
+  // The song's name, its facts and its files go in the top bar, where the page title would be (app/(app)/layout.tsx
+  // gives the slots); the transport sits at its right end.
+  const [slots, setSlots] = useState<{ title: HTMLElement | null; actions: HTMLElement | null }>({ title: null, actions: null });
+  useEffect(() => setSlots({ title: document.getElementById(TOPBAR_TITLE), actions: document.getElementById(TOPBAR_ACTIONS) }), []);
+  const meta = [song?.artist, song?.tempo ? `♩ ${song.tempo}` : null, song?.capo ? t.library.capo(song.capo) : null, song?.swing ? t.library.swing : null]
+    .filter(Boolean)
+    .join(" · ");
+  const download = (href: string, name?: string) => {
+    const a = document.createElement("a");
+    a.href = href;
+    if (name) a.download = name;
+    else a.target = "_blank";
+    a.click();
+  };
+  const files = [
+    { label: t.song.downloadGp5, icon: <DownloadIcon className="h-[15px] w-[15px]" />, run: () => download(tabUrl, song?.file) },
+    { label: t.song.downloadText, icon: <NewspaperIcon className="h-[15px] w-[15px]" />, run: () => download(`/api/songs/${vid}/text`) },
+    ...(song?.edited ? [{ label: t.song.restore, icon: <RefreshIcon className="h-[15px] w-[15px]" />, run: () => void restoreOriginal() }] : []),
+  ];
+  const titleBar = (
+    <div className="flex min-w-0 items-center gap-1">
+      <Link href="/library/" aria-label={t.song.back} title={t.song.back} className="ds-btn ds-btn--ghost ds-btn--sm -ml-1 !px-1.5">
+        <ChevronLeftIcon className="h-4 w-4" />
+      </Link>
+      <div className="min-w-0">
+        <h1 className="ds-topbar__title truncate !leading-tight">{song?.title ?? "…"}</h1>
+        <div className="truncate text-xs text-ink-muted">{meta}</div>
+      </div>
+      <div className="ml-1 hidden items-center md:flex">
+        {files.map((f) => (
+          <button key={f.label} type="button" className="ds-btn ds-btn--ghost ds-btn--sm !px-1.5" onClick={f.run} title={f.label} aria-label={f.label}>
+            {f.icon}
+          </button>
+        ))}
+      </div>
+      <div className="md:hidden">
+        <RowMenu label={t.song.more} items={files.map((f) => ({ label: f.label, onSelect: f.run }))} />
+      </div>
+    </div>
+  );
+
   return (
-    // Wide: video and settings in a sticky column next to the tab. Narrow: one column; the left column dissolves
-    // (`contents`) so the video can stick to the top while you scroll through the tab.
-    <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(360px,44%)_1fr] lg:gap-4">
-      <div className="contents lg:sticky lg:top-[72px] lg:flex lg:flex-col lg:gap-3 lg:self-start">
-        {/* The song's header and the video. On a narrow screen both stay pinned under the top bar while you scroll the
-            tab; the video is at most about a third of the screen high, so the tab keeps room underneath. */}
-        <div ref={pinned} className="sticky top-[52px] z-20 -mx-1 flex flex-col gap-2 bg-bg px-1 pb-2 lg:static lg:m-0 lg:gap-3 lg:p-0">
-          <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
-            <div className="min-w-0">
-              <Link href="/library/" className="text-xs font-semibold text-brand hover:underline">
-                ← {t.song.back}
-              </Link>
-              <div className="mt-1 flex items-center gap-1">
-                <h2 className="truncate font-display text-xl font-light leading-tight">{song?.title ?? "…"}</h2>
-                <a className="ds-btn ds-btn--ghost ds-btn--sm !px-1.5" href={tabUrl} download={song?.file} title={t.song.downloadGp5} aria-label={t.song.downloadGp5}>
-                  <DownloadIcon className="h-[15px] w-[15px]" />
-                </a>
-                <a className="ds-btn ds-btn--ghost ds-btn--sm !px-1.5" href={`/api/songs/${vid}/text`} target="_blank" rel="noreferrer" title={t.song.downloadText} aria-label={t.song.downloadText}>
-                  <NewspaperIcon className="h-[15px] w-[15px]" />
-                </a>
-                {song?.edited && (
-                  <button type="button" className="ds-btn ds-btn--ghost ds-btn--sm !px-1.5" onClick={() => void restoreOriginal()} title={t.song.restore} aria-label={t.song.restore}>
-                    <RefreshIcon className="h-[15px] w-[15px]" />
-                  </button>
-                )}
-              </div>
-              <div className="truncate text-sm text-ink-muted">
-                {[song?.artist, song?.tempo ? `♩ ${song.tempo}` : null, song?.capo ? t.library.capo(song.capo) : null, song?.swing ? t.library.swing : null]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </div>
-            </div>
-            {transport}
-          </div>
+    // Wide: the tab on the left, the video and settings in a sticky column on the right. Narrow: one column with the
+    // video first; that column dissolves (`contents`) so the video can stick to the top above the tab.
+    <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_minmax(360px,42%)] lg:gap-4">
+      {slots.title && createPortal(<div className="hidden min-w-0 sm:block">{titleBar}</div>, slots.title)}
+      {slots.actions && createPortal(transport, slots.actions)}
+      <div style={{ ["--bar-top" as string]: `${barHeight + 16}px` }} className="contents lg:sticky lg:top-[var(--bar-top)] lg:order-2 lg:flex lg:flex-col lg:gap-3 lg:self-start">
+        {/* The video. On a narrow screen it stays pinned under the top bar while you scroll the tab; it is at most about
+            a third of the screen high, so the tab keeps room underneath. */}
+        <div ref={pinned} style={{ top: barHeight }} className="sticky z-20 -mx-1 flex flex-col gap-2 bg-bg px-1 pb-2 lg:static lg:m-0 lg:gap-3 lg:p-0">
+          {/* on a phone the top bar only has room for the transport: the song's name sits above the video */}
+          <div className="sm:hidden">{titleBar}</div>
           <div className="ts-video mx-auto w-full" style={{ aspectRatio: `16 / ${9 * crop}`, maxWidth: `calc(34vh * ${16 / (9 * crop)})` }}>
             <div style={{ position: "absolute", inset: 0, height: `${100 / crop}%` }}>
               <div ref={ytEl} />
@@ -390,7 +433,13 @@ export default function TabStudio({ vid }: { vid: string }) {
         )}
       </div>
 
-      <section className="ts-sheet relative min-h-[60vh] overflow-hidden rounded border border-border">
+      {/* The tab is a panel of its own that scrolls inside its rounded edges, under the top bar (and under the pinned
+          video on a narrow screen), instead of being cut off square by them. */}
+      <section
+        ref={scroller}
+        className="ts-sheet sticky overflow-y-auto overscroll-contain rounded border border-border lg:order-1"
+        style={{ top: sheetTop, height: `calc(100dvh - ${sheetTop}px - 16px)`, minHeight: 320 }}
+      >
         {!loaded && <p className="absolute left-4 top-4 text-sm text-ink-muted">{t.song.loadingTab}</p>}
         <div className="relative">
           <div ref={sheet} />

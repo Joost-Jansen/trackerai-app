@@ -32,6 +32,7 @@ export const nl = {
     converted: (d: string) => `omgezet ${d}`,
   },
   song: {
+    more: "Meer",
     back: "Bibliotheek",
     sound: "Geluid",
     soundVideo: "Video",

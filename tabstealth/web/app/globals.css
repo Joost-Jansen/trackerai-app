@@ -19,6 +19,7 @@
   /* alphaTab puts its cursor layer at a very high z-index; keep it inside the sheet, so it scrolls under the
      pinned video and header instead of over them */
   isolation: isolate;
+  scrollbar-width: thin;
 }
 .ts-sheet .at-cursor-bar {
   background: rgba(106, 98, 184, 0.12);
