@@ -4,6 +4,7 @@
 
 Local-first: no accounts yet, so it binds to 127.0.0.1 and is not meant to be exposed (see README).
 """
+import filecmp
 import itertools
 import json
 import queue
@@ -52,6 +53,7 @@ class NoteIn(BaseModel):
     ghost: bool = False
     harmonic: bool = False  # natural harmonic
     vibrato: bool = False
+    bend: Literal[0, 50, 100] = 0  # none, half (1 semitone), full (2 semitones)
     grace: GraceIn | None = None  # a grace note just before the beat
 
 
@@ -117,21 +119,80 @@ def _fret(v: int | str) -> tuple[int, bool]:
     return int(v), False
 
 
+def _bend_of(bend) -> int:
+    """0, 50 or 100: the height of a bend (half or full) from its highest point, in semitones."""
+    if bend is None or not bend.points:
+        return 0
+    top = max(p.value for p in bend.points)
+    return 100 if top >= 2 else 50 if top >= 1 else 0
+
+
+class History:
+    """Undo and redo for a song's .gp5: two stacks of earlier versions next to the library.
+
+    library/.history/<file stem>/undo/00001.gp5 …; a change pushes the current file on undo and empties redo.
+    """
+
+    MAX = 100
+
+    def __init__(self, path: Path):
+        self.path = path
+        self.base = path.parent / ".history" / path.stem
+
+    def _dir(self, stack: str) -> Path:
+        d = self.base / stack
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def _files(self, stack: str) -> list[Path]:
+        return sorted(self._dir(stack).glob("*.gp5"))
+
+    def count(self, stack: str) -> int:
+        return len(self._files(stack))
+
+    def _push(self, stack: str) -> None:
+        files = self._files(stack)
+        n = int(files[-1].stem) + 1 if files else 1
+        shutil.copy2(self.path, self._dir(stack) / f"{n:05d}.gp5")
+        for old in files[: max(0, len(files) + 1 - self.MAX)]:
+            old.unlink()
+
+    def before_change(self) -> None:
+        self._push("undo")
+        for f in self._files("redo"):
+            f.unlink()
+
+    def step(self, frm: str, to: str) -> None:
+        """Undo (frm=undo, to=redo) or redo (frm=redo, to=undo)."""
+        files = self._files(frm)
+        if not files:
+            raise HTTPException(409, f"nothing to {frm}")
+        self._push(to)
+        shutil.move(files[-1], self.path)
+
+
 def _edit_gp5(path: Path, lock: threading.Lock, change) -> None:
-    """Change a .gp5 in place; the converter's version is kept once as .orig.gp5."""
+    """Change a .gp5 in place: the version before goes on the undo stack, and the converter's version is kept once
+    as .orig.gp5 (restore)."""
     backup = path.with_name(path.stem + ".orig.gp5")
     with lock:
         song = gp.parse(str(path))
         change(song)  # raises on a bad edit, before anything is written
         if not backup.exists():
             shutil.copy2(path, backup)
+        History(path).before_change()
         gp.write(song, str(path), version=(5, 1, 0))
+
+
+def is_edited(path: Path) -> bool:
+    backup = path.with_name(path.stem + ".orig.gp5")
+    return backup.exists() and not filecmp.cmp(backup, path, shallow=False)
 
 
 def apply_edit(path: Path, edit: BeatEdit, lock: threading.Lock) -> None:
     """Set one beat: its notes with their techniques, the strum and the chord name.
 
-    Built on the existing notes, so what this form does not show (a bend, a trill) stays as it was.
+    Built on the existing notes, so what this form does not show (staccato, a trill) stays as it was.
     """
     def change(song):
         measures = song.tracks[0].measures
@@ -158,6 +219,13 @@ def apply_edit(path: Path, edit: BeatEdit, lock: threading.Lock) -> None:
                 e.harmonic = None
             elif e.harmonic is None:
                 e.harmonic = gp.NaturalHarmonic()
+            have = _bend_of(e.bend)
+            if spec.bend == 0:
+                e.bend = None
+            elif have != spec.bend:  # an unchanged bend keeps its own shape
+                st = spec.bend // 50
+                e.bend = gp.BendEffect(type=gp.BendType.bend, value=spec.bend,
+                                       points=[gp.BendPoint(0, 0), gp.BendPoint(6, st), gp.BendPoint(12, st)])
             if spec.grace is None:
                 e.grace = None
             else:
@@ -196,6 +264,7 @@ def read_beat(path: Path, bar: int, beat_idx: int) -> dict:
             fret="x" if n.type == gp.NoteType.dead else n.value,
             tie=n.type == gp.NoteType.tie, hammer=e.hammer, slide=bool(e.slides), let_ring=e.letRing,
             palm_mute=e.palmMute, ghost=e.ghostNote, harmonic=e.harmonic is not None, vibrato=e.vibrato,
+            bend=_bend_of(e.bend),
             grace=None if g is None else GraceIn(
                 fret="x" if g.isDead else g.fret, slide=g.transition == gp.GraceEffectTransition.slide,
                 hammer=g.transition == gp.GraceEffectTransition.hammer),
@@ -234,8 +303,7 @@ def create_app(library: Path = LIBRARY, jobs: Jobs | None = None) -> FastAPI:
     @app.get("/api/songs")
     def songs():
         idx = read_index(library)
-        return [{"video": vid, **e, "edited": (library / e["file"]).with_name(
-            Path(e["file"]).stem + ".orig.gp5").exists()} for vid, e in idx.items()]
+        return [{"video": vid, **e, "edited": is_edited(library / e["file"])} for vid, e in idx.items()]
 
     @app.get("/api/songs/{vid}/tab")
     def tab(vid: str):
@@ -267,11 +335,31 @@ def create_app(library: Path = LIBRARY, jobs: Jobs | None = None) -> FastAPI:
 
     @app.post("/api/songs/{vid}/restore")
     def restore(vid: str):
+        """Back to the converter's version; undoable like any other change."""
         path = library / song(vid)["file"]
         backup = path.with_name(path.stem + ".orig.gp5")
-        if backup.exists():
-            shutil.move(backup, path)
+        with lock:
+            if is_edited(path):
+                History(path).before_change()
+                shutil.copy2(backup, path)
         return {"ok": True}
+
+    @app.get("/api/songs/{vid}/history")
+    def history(vid: str):
+        h = History(library / song(vid)["file"])
+        return {"undo": h.count("undo"), "redo": h.count("redo")}
+
+    @app.post("/api/songs/{vid}/undo")
+    def undo(vid: str):
+        with lock:
+            History(library / song(vid)["file"]).step("undo", "redo")
+        return history(vid)
+
+    @app.post("/api/songs/{vid}/redo")
+    def redo(vid: str):
+        with lock:
+            History(library / song(vid)["file"]).step("redo", "undo")
+        return history(vid)
 
     @app.post("/api/convert")
     def convert(body: ConvertIn):

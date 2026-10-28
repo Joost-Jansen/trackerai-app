@@ -92,13 +92,14 @@ def test_every_technique_round_trips(library):
 def test_effects_the_form_does_not_show_are_kept(library):
     song = gp.parse(str(library / "A - B.gp5"))
     note = song.tracks[0].measures[0].voices[0].beats[0].notes[0]
-    note.effect.bend = gp.BendEffect(type=gp.BendType.bend, value=100, points=[gp.BendPoint(0, 0), gp.BendPoint(12, 4)])
+    note.effect.staccato = True
+    note.effect.trill = gp.TrillEffect(fret=5, duration=gp.Duration(value=16))
     gp.write(song, str(library / "A - B.gp5"), version=(5, 1, 0))
     c = TestClient(create_app(library, FakeJobs()))
     s = note.string
     c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {str(s): {"fret": 4}}})
     kept = [n for n in beat0(library).notes if n.string == s][0]
-    assert kept.value == 4 and kept.effect.bend is not None
+    assert kept.value == 4 and kept.effect.staccato and kept.effect.trill.fret == 5
 
 
 def test_section_and_text_tab(library):
@@ -132,3 +133,42 @@ def test_convert_queues_only_youtube_links(library):
             break
         time.sleep(0.02)
     assert c.get("/api/jobs").json()[0] == {**job, "status": "done"}
+
+
+def test_undo_redo_and_restore(library):
+    c = TestClient(create_app(library, FakeJobs()))
+    frets = lambda: sorted((n.string, n.value) for n in beat0(library).notes)
+    original = frets()
+    c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"1": {"fret": 5}}})
+    c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"1": {"fret": 7}}})
+    assert frets() == [(1, 7)]
+    assert c.get("/api/songs/abcdefghijk/history").json() == {"undo": 2, "redo": 0}
+    assert c.post("/api/songs/abcdefghijk/undo").json() == {"undo": 1, "redo": 1}
+    assert frets() == [(1, 5)]
+    c.post("/api/songs/abcdefghijk/undo")
+    assert frets() == original
+    assert c.get("/api/songs").json()[0]["edited"] is False  # back to the converter's version
+    assert c.post("/api/songs/abcdefghijk/undo").status_code == 409
+    c.post("/api/songs/abcdefghijk/redo")
+    c.post("/api/songs/abcdefghijk/redo")
+    assert frets() == [(1, 7)]
+    # restoring the original is a change of its own: undo brings the edit back
+    c.post("/api/songs/abcdefghijk/restore")
+    assert frets() == original
+    c.post("/api/songs/abcdefghijk/undo")
+    assert frets() == [(1, 7)]
+    # a new change empties redo
+    c.post("/api/songs/abcdefghijk/undo")
+    c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"2": {"fret": 1}}})
+    assert c.get("/api/songs/abcdefghijk/history").json()["redo"] == 0
+
+
+def test_bend(library):
+    c = TestClient(create_app(library, FakeJobs()))
+    c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"3": {"fret": 7, "bend": 100}, "2": {"fret": 8, "bend": 50}}})
+    n = {x.string: x for x in beat0(library).notes}
+    assert max(p.value for p in n[3].effect.bend.points) == 2 and max(p.value for p in n[2].effect.bend.points) == 1
+    got = c.get("/api/songs/abcdefghijk/beats/0/0").json()["notes"]
+    assert got["3"]["bend"] == 100 and got["2"]["bend"] == 50
+    c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"3": {"fret": 7}}})
+    assert beat0(library).notes[0].effect.bend is None

@@ -12,7 +12,7 @@ function bar() {
   voice.beats = [
     mk(0, 0, [note(5, 2), note(4, 2), note(2, 0, { isLetRing: true })], { brushType: 2, brushDuration: 30, text: "A" }),
     mk(1, 2, [note(6, 0, { isHammerPullOrigin: true })]),
-    mk(2, 0, [note(6, 2), note(1, 0, { isDead: true }), note(3, 7, { slideOutType: 2, isPalmMute: true })], { brushType: 2, brushDuration: 120 }),
+    mk(2, 0, [note(6, 2), note(1, 0, { isDead: true }), note(3, 7, { slideOutType: 2, isPalmMute: true, bendPoints: [{ value: 0 }, { value: 2 }] })], { brushType: 2, brushDuration: 120 }),
   ];
   return { voices: [voice] };
 }
@@ -40,6 +40,7 @@ test("reading a beat: frets, techniques, grace, strum, chord and section", () =>
   assert.equal(m.notes[0].graceHammer, true);
   assert.equal(m.notes[5].fret, "x");
   assert.equal(m.notes[3].slide && m.notes[3].palmMute, true);
+  assert.equal(m.notes[3].bend, 50);
   assert.equal(m.strum, "arpeggio");
 });
 
@@ -67,8 +68,8 @@ test("frets are checked", () => {
 test("the API's beat maps onto the form and back without loss", () => {
   const api = {
     notes: {
-      "3": { fret: 2, tie: false, hammer: false, slide: true, let_ring: true, palm_mute: false, ghost: false, harmonic: false, vibrato: false, grace: null },
-      "1": { fret: "x" as const, tie: false, hammer: false, slide: false, let_ring: false, palm_mute: true, ghost: false, harmonic: false, vibrato: false, grace: { fret: 0, slide: true, hammer: false } },
+      "3": { fret: 2, tie: false, hammer: false, slide: true, let_ring: true, palm_mute: false, ghost: false, harmonic: false, vibrato: false, bend: 100 as const, grace: null },
+      "1": { fret: "x" as const, tie: false, hammer: false, slide: false, let_ring: false, palm_mute: true, ghost: false, harmonic: false, vibrato: false, bend: 0 as const, grace: { fret: 0, slide: true, hammer: false } },
     },
     stroke: "up" as const,
     chord: "Em",
@@ -79,7 +80,7 @@ test("the API's beat maps onto the form and back without loss", () => {
   assert.equal(s.notes[0].fret, "x");
   assert.equal(s.section, "Riff");
   const body: any = toRequest(0, 0, s);
-  assert.deepEqual(body.notes["3"], { fret: 2, tie: false, hammer: false, slide: true, let_ring: true, palm_mute: false, ghost: false, harmonic: false, vibrato: false, grace: null });
+  assert.deepEqual(body.notes["3"], { fret: 2, tie: false, hammer: false, slide: true, let_ring: true, palm_mute: false, ghost: false, harmonic: false, vibrato: false, bend: 100, grace: null });
   assert.deepEqual(body.notes["1"].grace, { fret: 0, slide: true, hammer: false });
   assert.equal(body.stroke, "up");
 });

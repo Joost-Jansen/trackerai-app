@@ -5,7 +5,7 @@
 
 import { Button } from "@trackerai/ui/ds/Button";
 import { Select } from "@trackerai/ui/ds/Field";
-import { TECHNIQUES, type BeatState, type NoteState, type Strum, type Technique } from "@/lib/beat";
+import { nextBend, TECHNIQUES, type BeatState, type NoteState, type Strum, type Technique } from "@/lib/beat";
 import { useT } from "@/lib/i18n";
 
 const STRINGS = ["e", "B", "G", "D", "A", "E"];
@@ -48,6 +48,15 @@ export default function BeatEditor({
   onClear,
   saving,
   message,
+  activeString,
+  onActiveString,
+  dirty,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  showKeys,
+  onShowKeys,
 }: {
   title: string;
   value: BeatState;
@@ -57,6 +66,16 @@ export default function BeatEditor({
   onClear: () => void;
   saving: boolean;
   message: string | null;
+  /** The string the keyboard types on (0 = high e). */
+  activeString: number;
+  onActiveString: (i: number) => void;
+  dirty: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  showKeys: boolean;
+  onShowKeys: () => void;
 }) {
   const t = useT();
   const setNote = (i: number, patch: Partial<NoteState>) => {
@@ -73,7 +92,10 @@ export default function BeatEditor({
         }}
       >
         <div className="mb-3 flex flex-wrap items-end gap-2">
-          <h2 className="mr-auto text-[13.5px] font-semibold tracking-[0.01em]">{title}</h2>
+          <h2 className="mr-auto text-[13.5px] font-semibold tracking-[0.01em]">
+            {title}
+            {dirty && <span className="ml-1.5 text-brand" title={t.song.unsaved} aria-label={t.song.unsaved}>●</span>}
+          </h2>
           <label className="flex flex-col gap-1 text-[11px] text-ink-muted">
             {t.song.section}
             <input className="ds-input !h-8 w-28 text-xs" value={value.section} maxLength={60} onChange={(e) => {
@@ -116,14 +138,19 @@ export default function BeatEditor({
               {value.notes.map((n, i) => {
                 const empty = n.fret === "";
                 return (
-                  <tr key={i}>
-                    <td className="pr-1 font-mono text-ink-muted">{STRINGS[i]}</td>
+                  <tr key={i} className={i === activeString ? "[&>td]:bg-brand-tint" : ""}>
+                    <td className="rounded-l-sm pr-1 font-mono text-ink-muted">
+                      <button type="button" className="w-full text-left" onClick={() => onActiveString(i)} title={t.song.activeString}>
+                        {STRINGS[i]}
+                      </button>
+                    </td>
                     <td className="pr-1.5">
                       <input
                         className={`${input} w-10`}
                         value={n.fret}
                         maxLength={2}
                         aria-label={`${STRINGS[i]} ${t.song.fret}`}
+                        onFocus={() => onActiveString(i)}
                         onChange={(e) => {
                           const fret = e.target.value.trim();
                           // a new note rings on, like the converter's notes
@@ -158,6 +185,13 @@ export default function BeatEditor({
                             onClick={() => setNote(i, k === "hammer" ? { hammer: !n.hammer, slide: false } : k === "slide" ? { slide: !n.slide, hammer: false } : { [k]: !n[k] })}
                           />
                         ))}
+                        <Toggle
+                          sign={n.bend === 100 ? "b1" : n.bend === 50 ? "b½" : "b"}
+                          label={`${t.song.tech.bend}: ${n.bend === 100 ? t.song.bendFull : n.bend === 50 ? t.song.bendHalf : t.song.bendNone}`}
+                          on={n.bend > 0}
+                          disabled={empty}
+                          onClick={() => setNote(i, { bend: nextBend(n.bend) })}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -174,8 +208,28 @@ export default function BeatEditor({
           <Button size="sm" disabled={saving} onClick={onClear}>
             {t.song.clear}
           </Button>
+          <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+          <Button size="sm" variant="ghost" disabled={!canUndo || saving} onClick={onUndo} title={`${t.song.undo} (⌘Z)`}>
+            {t.song.undo}
+          </Button>
+          <Button size="sm" variant="ghost" disabled={!canRedo || saving} onClick={onRedo} title={`${t.song.redo} (⇧⌘Z)`}>
+            {t.song.redo}
+          </Button>
+          <Button size="sm" variant="ghost" aria-pressed={showKeys} onClick={onShowKeys} title="?">
+            {t.song.keys}
+          </Button>
           {message && <span className="text-xs text-ink-muted">{message}</span>}
         </div>
+        {showKeys && (
+          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-border pt-3 text-xs">
+            {t.song.keyList.map(([k, what]) => (
+              <div key={k} className="contents">
+                <dt className="font-mono text-ink">{k}</dt>
+                <dd className="text-ink-muted">{what}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </form>
     </section>
   );

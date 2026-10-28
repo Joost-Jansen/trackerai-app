@@ -22,13 +22,14 @@ import RowMenu from "@trackerai/ui/ds/RowMenu";
 import { TOPBAR_ACTIONS, TOPBAR_TITLE } from "@/lib/nav";
 import { ChevronLeftIcon, DownloadIcon, MusicIcon, NewspaperIcon, PauseIcon, PlayIcon, RefreshIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
 import { makeClock, nearestRate, type Clock, type Timing } from "@/lib/sync";
-import { beatAtGpIndex, emptyNote, fromAlphaTab, fromApi, gpBeatIndex, invalid, mainBeat, toRequest, type ApiBeat, type BeatState } from "@/lib/beat";
+import { beatAtGpIndex, emptyNote, fromAlphaTab, fromApi, gpBeatIndex, invalid, KEYS, mainBeat, nextBend, toRequest, type ApiBeat, type BeatState, type NoteState } from "@/lib/beat";
 import BeatEditor from "@/components/BeatEditor";
 
 type Source = "video" | "tab";
 // The beat being edited: its bar, its index in the Guitar Pro file (grace notes not counted), the form, and the
 // section it had (only a changed section is saved).
-type Selected = { bar: number; beat: number; state: BeatState; section: string };
+type Selected = { bar: number; beat: number; state: BeatState; section: string; saved: BeatState };
+type Spot = { bar: number; beat: number };
 const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5];
 const YT_PLAYING = 1;
 
@@ -77,7 +78,8 @@ export default function TabStudio({ vid }: { vid: string }) {
   const yt = useRef<any>(null);
   const clock = useRef<Clock | null>(null);
   const sourceRef = useRef<Source>("video");
-  const restore = useRef<{ tick: number; bar: number; beat: number } | null>(null);
+  // after a reload of the tab (save, undo, redo): where the cursor was and which beat to select
+  const restore = useRef<{ tick: number; spot: Spot | null } | null>(null);
 
   const [source, setSourceState] = useState<Source>("video");
   const [playing, setPlaying] = useState(false);
@@ -98,22 +100,35 @@ export default function TabStudio({ vid }: { vid: string }) {
     const b = beat && at.current?.renderer?.boundsLookup?.findBeat(beat);
     setBox(b ? { x: b.visualBounds.x, y: b.visualBounds.y, w: b.visualBounds.w, h: b.visualBounds.h } : null);
   }, []);
+  // keep a selected beat in view inside the tab panel (keyboard navigation can move it off screen)
+  const reveal = useCallback((beat: any) => {
+    const b = at.current?.renderer?.boundsLookup?.findBeat(beat);
+    const panel = scroller.current;
+    if (!b || !panel) return;
+    const { y, h } = b.visualBounds;
+    if (y < panel.scrollTop + 16 || y + h > panel.scrollTop + panel.clientHeight - 16) {
+      panel.scrollTo({ top: Math.max(0, y - 80), behavior: "smooth" });
+    }
+  }, []);
   const select = useCallback(
     (clicked: any, keepMessage = false) => {
       const beat = mainBeat(clicked); // a grace note belongs to the beat after it
       const state = fromAlphaTab(beat);
       const bar = beat.voice.bar.index;
       const index = gpBeatIndex(beat);
-      setSelected({ bar, beat: index, state, section: state.section });
+      setSelected({ bar, beat: index, state, section: state.section, saved: state });
       if (!keepMessage) setMessage(null);
       outline(beat);
+      reveal(beat);
       // then the beat exactly as the file has it, unless another beat was picked meanwhile
       void api.get<ApiBeat>(`/api/songs/${vid}/beats/${bar}/${index}`).then((b) => {
         const exact = fromApi(b);
-        setSelected((cur) => (cur && cur.bar === bar && cur.beat === index ? { ...cur, state: exact, section: exact.section } : cur));
+        setSelected((cur) =>
+          cur && cur.bar === bar && cur.beat === index ? { ...cur, state: exact, section: exact.section, saved: exact } : cur,
+        );
       });
     },
-    [outline, vid],
+    [outline, reveal, vid],
   );
 
   // ── alphaTab ───────────────────────────────────────────────────────────────
@@ -145,7 +160,7 @@ export default function TabStudio({ vid }: { vid: string }) {
         if (r) {
           restore.current = null;
           a.tickPosition = r.tick;
-          const beat = beatAt(r.bar, r.beat);
+          const beat = r.spot && beatAt(r.spot.bar, r.spot.beat);
           if (beat) select(beat, true); // after a save: keep "Saved" in view
         }
       });
@@ -268,20 +283,79 @@ export default function TabStudio({ vid }: { vid: string }) {
   useEffect(() => {
     if (at.current) at.current.isLooping = loop;
   }, [loop]);
-  // Space plays and pauses, except while typing.
+  // ── keyboard ───────────────────────────────────────────────────────────────
+  // Space plays and pauses. With a beat selected: arrows move between beats and strings, digits type the fret,
+  // letters toggle techniques (KEYS below), Enter saves, Escape closes. Cmd/Ctrl+Z undoes, with Shift redoes.
+  const typed = useRef<{ digits: string; at: number }>({ digits: "", at: 0 });
+  const [activeString, setActiveString] = useState(0);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (e.code !== "Space" || tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || tag === "BUTTON") return;
-      e.preventDefault();
-      playPause();
+      const el = e.target as HTMLElement;
+      const typing = ["INPUT", "SELECT", "TEXTAREA"].includes(el?.tagName) || el?.isContentEditable;
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && !typing && (e.key.toLowerCase() === "z" || e.key.toLowerCase() === "y")) {
+        e.preventDefault();
+        void (e.key.toLowerCase() === "y" || e.shiftKey ? redo() : undo());
+        return;
+      }
+      if (typing || mod || e.altKey) return;
+      if (e.code === "Space" && el?.tagName !== "BUTTON") {
+        e.preventDefault();
+        playPause();
+        return;
+      }
+      if (!selected) return;
+      const s = activeString;
+      const note = selected.state.notes[s];
+      const patch = (p: Partial<NoteState>) =>
+        setSelected((cur) => cur && { ...cur, state: { ...cur.state, notes: cur.state.notes.map((n, i) => (i === s ? { ...n, ...p } : n)) } });
+      const key = e.key;
+      let handled = true;
+      if (key === "ArrowLeft" || key === "ArrowRight") void move(key === "ArrowLeft" ? -1 : 1);
+      else if (key === "ArrowUp") setActiveString(Math.max(0, s - 1));
+      else if (key === "ArrowDown") setActiveString(Math.min(5, s + 1));
+      else if (/^[0-9]$/.test(key)) {
+        // two digits typed quickly make one fret (12), as long as it stays on the neck
+        const now = performance.now();
+        const t2 = typed.current;
+        const joined = now - t2.at < 800 && t2.digits.length === 1 ? t2.digits + key : key;
+        const digits = Number(joined) <= 24 ? joined : key;
+        typed.current = { digits, at: now };
+        patch(note.fret === "" ? { fret: String(Number(digits)), letRing: true } : { fret: String(Number(digits)) });
+      } else if (key === "x" || key === "X") patch(note.fret === "" ? { fret: "x" } : { fret: "x", letRing: false });
+      else if (key === "Backspace" || key === "Delete") patch({ ...emptyNote() });
+      else if (key === "Enter") void save(selected.state);
+      else if (key === "Escape") {
+        setSelected(null);
+        setBox(null);
+      } else if (key === "?") setShowKeys((v) => !v);
+      else if (note.fret !== "" && KEYS[key]) {
+        const k = KEYS[key];
+        if (k === "bend") patch({ bend: nextBend(note.bend) });
+        else if (k === "hammer") patch({ hammer: !note.hammer, slide: false });
+        else if (k === "slide") patch({ slide: !note.slide, hammer: false });
+        else patch({ [k]: !note[k] } as Partial<NoteState>);
+      } else handled = false;
+      if (handled) e.preventDefault();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
 
   // ── editing ────────────────────────────────────────────────────────────────
-  const save = async (state: BeatState) => {
+  const dirty = !!selected && JSON.stringify(selected.state) !== JSON.stringify(selected.saved);
+  const history = useQuery({ queryKey: ["history", vid], queryFn: () => api.get<{ undo: number; redo: number }>(`/api/songs/${vid}/history`) });
+  const [showKeys, setShowKeys] = useState(false);
+
+  /** Reload the tab after the file changed, keeping the cursor and selecting `spot` (default: the current beat). */
+  const reloadTab = (spot: Spot | null = selected ? { bar: selected.bar, beat: selected.beat } : null) => {
+    restore.current = { tick: at.current?.tickPosition ?? 0, spot };
+    at.current?.load(`${tabUrl}?t=${Date.now()}`);
+    void qc.invalidateQueries({ queryKey: ["songs"] });
+    void qc.invalidateQueries({ queryKey: ["history", vid] });
+  };
+
+  const save = async (state: BeatState, next?: Spot) => {
     if (!selected) return;
     if (invalid(state)) {
       setMessage(t.song.invalidFret);
@@ -293,22 +367,48 @@ export default function TabStudio({ vid }: { vid: string }) {
       if (state.section.trim() !== selected.section.trim()) {
         await api.post(`/api/songs/${vid}/bars`, { bar: selected.bar, section: state.section.trim() || null });
       }
-      restore.current = { tick: at.current?.tickPosition ?? 0, bar: selected.bar, beat: selected.beat };
-      at.current?.load(`${tabUrl}?t=${Date.now()}`);
+      reloadTab(next ?? { bar: selected.bar, beat: selected.beat });
       setMessage(t.song.saved);
-      void qc.invalidateQueries({ queryKey: ["songs"] });
     } catch (e) {
       setMessage(e instanceof Error ? e.message : t.common.error);
     } finally {
       setSaving(false);
     }
   };
+
+  /** The previous or next beat (across bars), grace notes skipped; a changed beat is saved on the way. */
+  const move = async (delta: -1 | 1) => {
+    if (!selected || !at.current?.score) return;
+    const bars = at.current.score.tracks[0].staves[0].bars;
+    let { bar, beat } = selected;
+    beat += delta;
+    const count = (b: number) => bars[b].voices[0].beats.filter((x: any) => x.graceType === 0).length;
+    while (bar >= 0 && bar < bars.length && (beat < 0 || beat >= count(bar))) {
+      bar += delta;
+      if (bar < 0 || bar >= bars.length) return;
+      beat = delta > 0 ? 0 : count(bar) - 1;
+    }
+    if (dirty) return save(selected.state, { bar, beat });
+    const target = beatAt(bar, beat);
+    if (target) select(target);
+  };
+
+  const step = async (dir: "undo" | "redo") => {
+    try {
+      await api.post(`/api/songs/${vid}/${dir}`);
+      reloadTab();
+      setMessage(null);
+    } catch {
+      /* nothing to undo or redo */
+    }
+  };
+  const undo = () => step("undo");
+  const redo = () => step("redo");
+
   const restoreOriginal = async () => {
     if (!window.confirm(t.song.restoreConfirm)) return;
     await api.post(`/api/songs/${vid}/restore`);
-    restore.current = { tick: at.current?.tickPosition ?? 0, bar: selected?.bar ?? 0, beat: selected?.beat ?? 0 };
-    at.current?.load(`${tabUrl}?t=${Date.now()}`);
-    void qc.invalidateQueries({ queryKey: ["songs"] });
+    reloadTab();
   };
 
   // In development the players are reachable from the console (window.__tabstealth), for checking the sync.
@@ -427,6 +527,15 @@ export default function TabStudio({ vid }: { vid: string }) {
             onChange={(update) => setSelected((cur) => (cur ? { ...cur, state: update(cur.state) } : cur))}
             onSave={() => void save(selected.state)}
             onClear={() => void save({ ...selected.state, notes: selected.state.notes.map(() => emptyNote()), strum: "" })}
+            activeString={activeString}
+            onActiveString={setActiveString}
+            dirty={dirty}
+            canUndo={(history.data?.undo ?? 0) > 0}
+            canRedo={(history.data?.redo ?? 0) > 0}
+            onUndo={() => void undo()}
+            onRedo={() => void redo()}
+            showKeys={showKeys}
+            onShowKeys={() => setShowKeys((v) => !v)}
             saving={saving}
             message={message}
           />
