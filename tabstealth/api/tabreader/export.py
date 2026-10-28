@@ -101,6 +101,16 @@ def write_gp5(song: Song, path: str, meta: Meta) -> None:
                         note.effect.hammer = getattr(n, "hammer", False)
                         if getattr(n, "slide", False):
                             note.effect.slides = [gp.SlideType.legatoSlideTo]
+                        note.effect.palmMute = getattr(n, "palm_mute", False)
+                        note.effect.ghostNote = getattr(n, "ghost", False)
+                        note.effect.vibrato = getattr(n, "vibrato", False)
+                        if getattr(n, "harmonic", False):
+                            note.effect.harmonic = gp.NaturalHarmonic()
+                        if getattr(n, "bend", 0):
+                            st = n.bend // 50  # semitones: 1 half, 2 full
+                            note.effect.bend = gp.BendEffect(
+                                type=gp.BendType.bend, value=n.bend,
+                                points=[gp.BendPoint(0, 0), gp.BendPoint(6, st), gp.BendPoint(12, st)])
                         gr = next((x for x in col.grace if x.string == n.string), None)
                         if gr is not None:
                             note.effect.grace = gp.GraceEffect(

@@ -38,6 +38,11 @@ class Note:
     hammer: bool = False  # hammer-on / pull-off to the next note on this string
     slide: bool = False  # slide to the next note on this string
     tied: bool = False  # continues the previous note on this string
+    harmonic: bool = False  # natural harmonic, drawn as <12>
+    ghost: bool = False  # ghost note, drawn as (3)
+    palm_mute: bool = False
+    vibrato: bool = False
+    bend: int = 0  # 0, 50 (half) or 100 (full)
 
     @property
     def dead(self) -> bool:
@@ -118,7 +123,7 @@ def parse_page(img: np.ndarray, lines: list[float], clf: Classifier) -> ParsedPa
     ink = (gray(img) < 150).astype(np.uint8)
     bars = find_barlines(ink, lines)
     numbers = {b: n for b in bars if (n := read_number(img, lines, b, clf)) is not None}
-    found, slide_marks = [], []
+    found, slide_marks, brackets = [], [], []
     for g in note_glyphs(img, lines, bars):
         d_line = min(abs(g.cy - ly) for ly in lines)
         if g.w < 3 or d_line > 0.4 * sp:
@@ -126,14 +131,34 @@ def parse_page(img: np.ndarray, lines: list[float], clf: Classifier) -> ParsedPa
         lab, sc = clf(g)
         if lab == "/":
             slide_marks.append(g)
+        elif lab in "<>" and g.h >= 0.4 * sp and d_line <= 0.3 * sp:
+            brackets.append((g, lab))
         elif (lab in DIGITS or lab == "X") and g.h >= 0.55 * sp and d_line <= 0.15 * sp:
             found.append((g, lab, sc))
     raw = []
     for g, lab, sc, x1, cx in merge_multidigit(found, sp):
         h = g.y1 - g.y0
         string = int(np.argmin([abs(g.cy - ly) for ly in lines])) + 1
+        ghost = False
+        # "(3)": a parenthesis reads like a 1, so 1-3-1 comes in as fret 131; off the neck, it is a ghost note
+        if lab not in ("X",) and len(lab) >= 3 and lab[0] == "1" and lab[-1] == "1" and int(lab) > 24:
+            lab, ghost = lab[1:-1], True
+        if lab != "X" and int(lab) > 24:
+            continue  # not a fret: a misread mark, better no note than a wrong one
         fret = None if lab == "X" else int(lab)
-        raw.append(Note(string, fret, grace=h < 0.8 * sp, x=cx, score=sc))
+        note = Note(string, fret, grace=h < 0.8 * sp, x=cx, score=sc, ghost=ghost)
+        # "<12>": angle brackets on both sides of the fret, on its string, make a natural harmonic
+        near = [(b, k) for b, k in brackets if abs(b.cy - g.cy) < 0.3 * sp and abs(b.cx - cx) < 1.4 * sp]
+        left = [b for b, k in near if k == "<" and b.cx < cx]
+        right = [b for b, k in near if k == ">" and b.cx > cx]
+        if left and right:
+            note.harmonic = True
+            # the small "1" inside <12> looks like a stroke fragment and can drop out: if the brackets hold room
+            # for two digits but one was read, it was 12, 17 or 19 (the two-digit natural harmonics)
+            room = min(b.x0 for b in right) - max(b.x1 for b in left)
+            if fret is not None and fret < 10 and room > 1.5 * (x1 - g.x0) and 10 + fret in (12, 17, 19):
+                note.fret = 10 + fret
+        raw.append(note)
     rests = find_rests(remove_lines(ink, lines, bars), lines)
     # group notes into measures and columns
     measures = []

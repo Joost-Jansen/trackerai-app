@@ -181,6 +181,13 @@ export const en: Messages = {
     edit: "Editing",
     editText:
       "A note wrong? Click the beat and correct, per string, the fret, the grace note and the techniques (hammer-on, slide, tie, palm mute and more), and for the beat the strum, the chord and the section. Your first edit keeps the original conversion, which you can always restore. Converting again never overwrites an edited tab.",
+    practice: "Practising",
+    practiceText:
+      "The loop button next to the sound switch repeats a stretch; under Practice you choose the bars, a speed trainer that gets a little faster every pass, a count-in and a metronome. The time you play shows up by itself under Practice in the menu.",
+    review: "Review",
+    reviewText:
+      "Where the conversion was unsure, the bar is listed under Review with the reason. Go there, listen with the loop on, fix it in the editor and tick it off.",
+    keys: "Keys",
     private: "Just for you",
     privateText:
       "The tabs are the work of the people who make the videos, who often sell them too. Use them to practise yourself and do not share them; support the creator if you use their tabs.",

@@ -1,6 +1,8 @@
 # tabstealth: plan for the next features
 
-Built in this order; each step ends with its tests green and is usable on its own.
+Built in this order; each step ends with its tests green and is usable on its own. **Status: steps 1 to 7 are
+built** (2026-10-28). Palm mute, bends and vibrato are read with tested rules but none of the test videos has them,
+so they are not yet checked on real footage; harmonics and ghost notes are.
 
 ## 1. The song in the top bar
 

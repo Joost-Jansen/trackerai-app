@@ -1,4 +1,6 @@
 """Detect playing techniques around the parsed notes: strums, arpeggios, slurs, slides."""
+import re
+
 import cv2
 import numpy as np
 
@@ -111,3 +113,78 @@ def annotate(img: np.ndarray, ink_clean: np.ndarray, lines: list[float], bars: l
     arpeggios(ink_clean, lines, cols)
     slurs(ink_clean, lines, notes)
     slides(slide_glyphs, lines, notes)
+    vibrato(ink_clean, lines, cols)
+
+
+PALM_MUTE = re.compile(r"^P\.?M\.?$", re.I)
+HARMONIC = re.compile(r"^(N\.?H\.?|Harm\.?)$", re.I)
+BENDS = {"full": 100, "1/2": 50, "½": 50, "1/4": 50, "¼": 50}
+
+
+def _dashes_end(ink: np.ndarray, y: int, x: int, sp: float) -> int:
+    """Where the dashed line after a label (P.M. - - - -|) ends: follow ink on that row across small gaps."""
+    row = ink[max(0, y - 2):y + 3].max(axis=0)
+    end, gap = x, 0
+    for xx in range(x, min(len(row), x + int(40 * sp))):
+        if row[xx]:
+            end, gap = xx, 0
+        else:
+            gap += 1
+            if gap > 1.2 * sp:
+                break
+    return end
+
+
+def text_marks(words: list[tuple[int, int, int, int, str]], ink: np.ndarray, lines: list[float],
+               cols: list[Column]) -> dict[str, int]:
+    """Palm mute, harmonics and bends from the words Guitar Pro writes above the staff. Returns counts."""
+    sp = (lines[-1] - lines[0]) / 5
+    found = {"palm_mute": 0, "harmonic": 0, "bend": 0}
+    for x, y, w, h, text in words:
+        word = text.strip(" .:-").replace(" ", "")
+        if PALM_MUTE.match(text.strip()) or HARMONIC.match(text.strip()):
+            kind = "palm_mute" if PALM_MUTE.match(text.strip()) else "harmonic"
+            end = max(x + w + sp, _dashes_end(ink, y + h // 2, x + w, sp))
+            for c in cols:
+                if x - 0.3 * sp <= c.x <= end + 0.3 * sp:
+                    for n in c.notes:
+                        setattr(n, kind, True)
+                        found[kind] += 1
+        elif word.lower() in BENDS:
+            # the bend arrow rises from the note to its label: the column just left of (or under) the word
+            cands = [c for c in cols if x + w / 2 - 2.0 * sp <= c.x <= x + w / 2 + 0.3 * sp and c.notes]
+            if cands:
+                col = max(cands, key=lambda c: c.x)
+                note = min(col.notes, key=lambda n: n.string)  # the highest string: where the arrow starts
+                note.bend = BENDS[word.lower()]
+                found["bend"] += 1
+    return found
+
+
+def vibrato(ink_clean: np.ndarray, lines: list[float], cols: list[Column]) -> int:
+    """A wavy line just above the staff: vibrato on the highest note of the column it starts at."""
+    sp = (lines[-1] - lines[0]) / 5
+    y0, y1 = max(0, int(lines[0] - 1.6 * sp)), int(lines[0] - 0.15 * sp)
+    band = ink_clean[y0:y1]
+    n, lab, st, _ = cv2.connectedComponentsWithStats(band)
+    count = 0
+    for i in range(1, n):
+        x, y, w, h, _ = st[i]
+        if w < 0.9 * sp or h > 0.45 * sp or h < 3:
+            continue
+        mask = lab[y:y + h, x:x + w] == i
+        top = np.array([np.argmax(col) if col.any() else -1 for col in mask.T], dtype=float)
+        top = top[top >= 0]
+        if len(top) < 6:
+            continue
+        d = np.sign(np.diff(np.convolve(top, np.ones(3) / 3, mode="valid")))
+        d = d[d != 0]
+        turns = int((np.diff(d) != 0).sum())
+        if turns < 4:  # one hump is a slur arc, not a wave
+            continue
+        near = [c for c in cols if abs(c.x - x) < 0.8 * sp and c.notes]
+        if near:
+            col = min(near, key=lambda c: abs(c.x - x))
+            min(col.notes, key=lambda nn: nn.string).vibrato = True
+            count += 1
+    return count

@@ -10,15 +10,22 @@ file, then plays it next to the original video.
   the cursor, so a repeating riff cannot fool it), reads the frets per string with a glyph classifier trained on the
   Guitar Pro font, and takes the rhythm from the video's own playback cursor: every note's onset is the moment the
   cursor passes it. On top: rests, 16th and triplet grids, swing (Guitar Pro's triplet feel), grace notes, dead notes,
-  hammer-ons and pull-offs, slides, ties, strums and arpeggios, chord names, sections, tempo, tuning and capo.
+  hammer-ons and pull-offs, slides, ties, strums and arpeggios, harmonics (`<12>`), ghost notes, palm mute, bends,
+  vibrato, chord names, sections, tempo, tuning and capo. It also lists the bars it was unsure about (review queue).
 - **Player** (`web`): the video and the tab side by side. Choose what you hear: the video (the tab cursor follows) or
   the tab, at any speed and in a loop (the video follows, muted). Click a beat to jump there and edit it: per string
   the fret (or `x`), a grace note and the techniques (hammer-on/pull-off, slide, tie, let ring, palm mute, ghost note,
   harmonic, vibrato); for the beat its strum (down, up, arpeggio) and chord name; for the bar its section. The editor
   reads the beat from the `.gp5` itself, so nothing the converter wrote is lost, and what it does not show (a bend)
   stays. Edits go straight into the file; the converter's version is kept for a restore.
-- **Text tab**: rendered from the current `.gp5`, edits included, with sections, chords, strums and h/p/slide marks.
-- **Library**: paste a YouTube link (a video or a playlist) and it converts in the background.
+  Undo and redo (also after a reload), and keyboard editing: arrows, digits, letters for the techniques.
+- **Practising**: loop a bar range, a speed trainer that speeds up every pass, count-in and metronome, with either
+  sound source. Playing time is logged; the **Practice** page shows minutes per day and per song, the streak and the
+  speed reached per song.
+- **Review queue**: the bars the converter was unsure about, with why; go there, loop it, fix it, tick it off.
+- **Text tab**: rendered from the current `.gp5`, edits included, with sections, chords, strums and technique marks.
+- **Library**: paste a YouTube link (a video or a playlist) and it converts in the background; search, sort, filter
+  by status (new, checking, learning, mastered), tag, favourite or "to review".
 
 The `.gp5` files open in [TuxGuitar](https://www.tuxguitar.app/) (the closest open-source match to Guitar Pro 8),
 MuseScore and Guitar Pro itself; the player renders them with [alphaTab](https://alphatab.net/).

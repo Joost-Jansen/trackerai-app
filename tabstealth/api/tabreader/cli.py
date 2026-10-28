@@ -18,7 +18,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from . import ocr
+from . import effects, ocr
 from .ascii import gp5_to_ascii
 from .assemble import build_song
 from .export import Meta, write_gp5
@@ -177,6 +177,14 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
     tape = stitch(views, lines, numbers, shifts)
     cv2.imwrite(str(work / "tape.png"), tape.image)
     parsed = parse_page(tape.image, lines, clf)
+    marks = {}
+    if ocr.available():  # P.M., bend amounts and harmonic marks are words above the staff
+        words = ocr.words_above_staff(tape.image, lines)
+        cols = [c for m in parsed.measures for c in m.columns]
+        marks = effects.text_marks(words, (gray(tape.image) < 150).astype(np.uint8), lines, cols)
+    notes_all = [n for m in parsed.measures for c in m.columns for n in c.notes]
+    marks.update(ghost=sum(n.ghost for n in notes_all), harmonic_brackets=sum(n.harmonic for n in notes_all),
+                 vibrato=sum(n.vibrato for n in notes_all))
     misreads = sum(1 for m in parsed.measures if m.x0 in parsed.numbers
                    and parsed.numbers[m.x0] != m.number)
     tempo_mark = read_tempo_mark(tape.image, lines, parsed.bars[2] if len(parsed.bars) > 2
@@ -246,7 +254,7 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
         "notes": sum(len(b.column.notes) for m in song.measures for b in m.beats if b.column),
         "low_confidence_notes": sum(1 for m in parsed.measures for c in m.columns
                                     for n in c.notes if n.score < 0.7),
-        "flagged_measures": flagged, **extras,
+        "flagged_measures": flagged, "techniques_read": marks, **extras,
     }
     (work / "report.json").write_text(json.dumps(report, indent=2, default=str))
     index_p = out_dir / "index.json"

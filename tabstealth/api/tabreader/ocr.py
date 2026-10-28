@@ -110,3 +110,29 @@ def parse_tuning(name: str) -> list[int] | None:
             out.append(min(cands, key=lambda p: abs(p - ref)))
         return out[::-1]
     return None
+
+
+def words_above_staff(img: np.ndarray, lines: list[float], window: int = 3000) -> list[tuple[int, int, int, int, str]]:
+    """(x, y, w, h, text) of every word between the chord names and the top string (tape coordinates):
+    where Guitar Pro writes P.M., bend amounts and harmonic marks."""
+    sp = (lines[-1] - lines[0]) / 5
+    y0, y1 = max(0, int(lines[0] - 2.6 * sp)), int(lines[0] - 0.1 * sp)
+    out, seen = [], set()
+    for x0 in range(0, img.shape[1], window):
+        crop = gray(img[y0:y1, x0:x0 + window + 200])
+        big = cv2.resize(crop, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+        with tempfile.NamedTemporaryFile(suffix=".png") as f:
+            cv2.imwrite(f.name, big)
+            tsv = subprocess.run(["tesseract", f.name, "stdout", "--psm", "11", "tsv"],
+                                 capture_output=True, text=True).stdout
+        for row in tsv.splitlines()[1:]:
+            c = row.split("\t")
+            if len(c) < 12 or not c[11].strip():
+                continue
+            x, y, w, h = (int(v) // 2 for v in c[6:10])
+            key = (x + x0) // 10
+            if key in seen:
+                continue  # the overlap between windows
+            seen.add(key)
+            out.append((x + x0, y + y0, w, h, c[11].strip()))
+    return out

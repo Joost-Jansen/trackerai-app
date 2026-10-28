@@ -4,8 +4,9 @@ One cell (three characters) per 16th note; a triplet lands on its nearest 16th. 
 measure number, the chord names, and the strum of each beat. In the strings:
 
   7   fret          x   dead note        h / p   hammer-on / pull-off to the next note on the string
-  /   slide up      \\   slide down       (7)     tied note, still ringing          a grace note sits two characters
+  /   slide up      \\   slide down       a tied note keeps ringing: no number   a grace note sits two characters
   ^   downstroke    v   upstroke         ~       arpeggio (rolled chord)            before its beat
+  <12> harmonic     (3) ghost note       7b      bend                7~  vibrato
 """
 import guitarpro as gp
 
@@ -67,9 +68,18 @@ def gp5_to_ascii(path: str, per_line: int = 4) -> str:
                     if n.type == gp.NoteType.dead:
                         txt = "x"
                     elif n.type == gp.NoteType.tie:
-                        txt = f"({n.value})"
+                        continue  # a tied note keeps ringing: nothing new to play
                     else:
                         txt = str(n.value)
+                    e = n.effect
+                    if e.harmonic is not None:
+                        txt = f"<{txt}>"
+                    if e.ghostNote:
+                        txt = f"({txt})"
+                    if e.bend is not None:
+                        txt += "b"
+                    if e.vibrato:
+                        txt += "~"
                     nxt = _next_on_string(flat, i, n.string)
                     if n.effect.hammer and nxt is not None:
                         txt += "h" if nxt.value > n.value else "p"

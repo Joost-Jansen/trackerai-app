@@ -181,6 +181,13 @@ export const nl = {
     edit: "Aanpassen",
     editText:
       "Klopt een noot niet? Klik op de slag en verbeter per snaar de fret, de voorslag en de technieken (hamer-on, slide, overbinding, palm mute en meer), en voor de slag de aanslag, het akkoord en de sectie. De eerste aanpassing bewaart de originele omzetting, die je altijd terug kunt zetten. Opnieuw omzetten overschrijft een aangepaste tab niet.",
+    practice: "Oefenen",
+    practiceText:
+      "Met de herhaalknop naast de geluidskeuze herhaal je een stuk; in Oefenen kies je de maten, een tempotrainer die elke keer iets sneller gaat, aftellen en een metronoom. De tijd die je speelt komt vanzelf in Oefenen in het menu.",
+    review: "Nakijken",
+    reviewText:
+      "Waar de omzetting twijfelde staat de maat in Nakijken, met de reden. Ga erheen, luister met de herhaling aan, verbeter het in de editor en vink de maat af.",
+    keys: "Toetsen",
     private: "Alleen voor jezelf",
     privateText:
       "De tabs zijn het werk van de makers van de video's, die ze vaak ook verkopen. Gebruik ze om zelf te oefenen en deel ze niet; steun de maker als je zijn tabs gebruikt.",
