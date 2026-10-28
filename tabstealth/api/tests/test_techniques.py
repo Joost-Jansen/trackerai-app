@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 
 from tabreader.effects import parentheses, text_marks, vibrato
+from tabreader.glyphs import find_barlines
 from tabreader.parse import Column, Note
 
 LINES = [100.0 + 27 * i for i in range(6)]
@@ -59,3 +60,15 @@ def test_parentheses_after_the_same_fret_are_a_tie_not_a_ghost_note():
     tied, ghost = b.notes
     assert tied.tied and not tied.ghost  # (3) after a 3 on the B string: still ringing
     assert ghost.ghost and not ghost.tied  # (5) with nothing before it on the D string: a ghost note
+
+
+def test_a_bar_line_under_tie_arcs_still_counts():
+    ink = np.zeros((300, 900), np.uint8)
+    for y in LINES:
+        ink[int(y), :] = 1
+    for x in (200, 500, 700):
+        ink[int(LINES[0]):int(LINES[-1]) + 1, x:x + 2] = 1
+    cv2.ellipse(ink, (500, 98), (40, 8), 0, 180, 360, 1, 2)  # a tie on the top string, over the bar line
+    cv2.ellipse(ink, (500, 237), (40, 8), 0, 0, 180, 1, 2)  # and one on the bottom string
+    ink[40:int(LINES[-1]) + 1, 700:702] = 1  # a stroke that runs on above the staff: not a bar line
+    assert find_barlines(ink, LINES) == [200, 500]

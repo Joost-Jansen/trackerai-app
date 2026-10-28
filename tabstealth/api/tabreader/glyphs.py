@@ -60,7 +60,9 @@ def find_barlines(ink: np.ndarray, lines: list[float]) -> list[int]:
     cover = span.mean(axis=0)
     above = ink[int(top - 0.45 * sp):top - 2].mean(axis=0)
     below = ink[bot + 3:int(bot + 0.45 * sp)].mean(axis=0) if bot + 3 < ink.shape[0] else 0 * cover
-    cand = np.where((cover > 0.95) & (above < 0.2) & (below < 0.2))[0]
+    # a stroke that runs on past the staff is not a bar line; a tie arc that crosses just above the top string or
+    # below the bottom one (a note tied over the bar line) only touches a few of those rows
+    cand = np.where((cover > 0.95) & (above < 0.6) & (below < 0.6))[0]
     xs, cur = [], []
     for x in cand:
         if cur and x - cur[-1] > 2:
