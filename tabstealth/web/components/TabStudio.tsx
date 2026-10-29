@@ -957,6 +957,7 @@ export default function TabStudio({ vid }: { vid: string }) {
                     />
                   </div>
                   <Switch checked={view.compact} onChange={(on) => setView({ ...view, compact: on })} label={t.song.compact} />
+                  <Switch checked={view.rhythm} onChange={(on) => setView({ ...view, rhythm: on })} label={t.song.rhythm} />
                 </div>
               )}
             </div>

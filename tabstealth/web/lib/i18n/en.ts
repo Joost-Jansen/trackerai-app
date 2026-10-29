@@ -152,6 +152,7 @@ export const en: Messages = {
     barsPerLine: "Bars per line",
     barsAuto: "Fit",
     compact: "Compact, as in the video",
+    rhythm: "Rhythm under the tab",
     restoreConfirm: "Throw away all your edits to this tab?",
     saved: "Saved",
     downloadGp5: "Download .gp5",

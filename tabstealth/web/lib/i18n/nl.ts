@@ -156,6 +156,7 @@ export const nl = {
     barsPerLine: "Maten per regel",
     barsAuto: "Passend",
     compact: "Compact, zoals in de video",
+    rhythm: "Ritme onder de tab",
     restoreConfirm: "Al je aanpassingen aan deze tab weggooien?",
     saved: "Opgeslagen",
     downloadGp5: "Download .gp5",
