@@ -7,9 +7,11 @@ import { loginReturn } from "@trackerai/ui/lib/oauthReturn";
 // otherwise only what has to be there.
 //
 // No card around it — the border added nothing the space did not already do.
+// "Forgot password?" opens the shared reset (packages/ui ForgotPassword) when the server can mail its code.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import ForgotPassword, { ForgotPasswordLink } from "@trackerai/ui/account/ForgotPassword";
 import { api, ApiError } from "@/lib/api";
 import { APP } from "@/lib/app";
 import { Button, Checkbox, Input, Logomark } from "@/components/ds";
@@ -36,13 +38,17 @@ export default function LoginPage() {
   // "Stay logged in": on by default; off on a shared computer (a browser session). The length comes from the server.
   const [remember, setRemember] = useState(true);
   const [days, setDays] = useState(30);
+  // A forgotten password: offered only when the server can mail the code.
+  const [canReset, setCanReset] = useState(false);
+  const [forgot, setForgot] = useState(false);
 
   useEffect(() => {
     api
-      .get<{ mode: "open" | "invite" | "closed"; session_days?: number }>("/api/auth/registration-status")
+      .get<{ mode: "open" | "invite" | "closed"; session_days?: number; password_reset?: boolean }>("/api/auth/registration-status")
       .then((s) => {
         setCanRegister(s.mode !== "closed");
         if (s.session_days) setDays(s.session_days);
+        setCanReset(!!s.password_reset);
       })
       .catch(() => setCanRegister(false));
   }, []);
@@ -86,17 +92,50 @@ export default function LoginPage() {
     }
   }
 
+  // The brand above the name, not next to it: this is the only screen where the brand itself may be something for a
+  // moment instead of a label on a menu. Below it the name, and only then where you are.
+  const header = (
+    <div className="flex flex-col gap-1.5">
+      <Logomark height={38} className="mb-3" />
+      <h1 className="font-display text-[34px] font-light leading-tight tracking-[-0.03em]">{APP.name}</h1>
+      <p className="text-[13px] text-ink-muted">{tr("Log in to see your net worth, spending and portfolio.")}</p>
+    </div>
+  );
+  const footer = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-[12.5px] text-ink-muted">
+        <a href="/privacy" className="underline underline-offset-2">
+          Privacy
+        </a>
+        {" · "}
+        <a href="/terms" className="underline underline-offset-2">
+          {tr("Terms")}
+        </a>
+      </p>
+      <LanguageChoice />
+    </div>
+  );
+
+  if (forgot)
+    return (
+      <ForgotPassword
+        api={api}
+        header={header}
+        footer={footer}
+        initialLogin={username}
+        onBack={(login) => {
+          setForgot(false);
+          setError(null);
+          setPassword("");
+          if (login && !login.includes("@")) setUsername(login);
+        }}
+      />
+    );
+
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
       <form onSubmit={handleSubmit} className="flex w-full max-w-[320px] flex-col gap-6">
-        {/* The brand above the name, not next to it: this is the only screen where the brand itself
-            may be something for a moment instead of a label on a menu. Below it the name, and only
-            then where you are. */}
-        <div className="flex flex-col gap-1.5">
-          <Logomark height={38} className="mb-3" />
-          <h1 className="font-display text-[34px] font-light leading-tight tracking-[-0.03em]">{APP.name}</h1>
-          <p className="text-[13px] text-ink-muted">{tr("Log in to see your net worth, spending and portfolio.")}</p>
-        </div>
+        {header}
 
         {/* id/name/type/autoComplete are what a password manager matches on; without those four
             this form was invisible to autofill. */}
@@ -147,6 +186,14 @@ export default function LoginPage() {
               </span>
             }
           />
+          {canReset && !needsCode && (
+            <ForgotPasswordLink
+              onClick={() => {
+                setError(null);
+                setForgot(true);
+              }}
+            />
+          )}
           {needsCode && (
             <div className="flex flex-wrap items-center gap-4">
               {(canEmail || sentTo !== null) && (
@@ -175,18 +222,7 @@ export default function LoginPage() {
             )}
           </p>
         )}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[12.5px] text-ink-muted">
-            <a href="/privacy" className="underline underline-offset-2">
-              Privacy
-            </a>
-            {" · "}
-            <a href="/terms" className="underline underline-offset-2">
-              {tr("Terms")}
-            </a>
-          </p>
-          <LanguageChoice />
-        </div>
+        {footer}
       </form>
     </main>
   );

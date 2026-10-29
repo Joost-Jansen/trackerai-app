@@ -152,6 +152,7 @@ def test_registration_status_is_public_and_hides_the_code(admin_client, client):
         "first_user": False,
         "session_days": 30,
         "email_codes": False,
+        "password_reset": False,
         "front_door_url": None,
         "tracker_urls": {"health": None, "wealth": None},
     }

@@ -37,6 +37,7 @@ def test_first_env_user_is_admin_and_registration_is_closed(app):
         "first_user": False,
         "privacy": None,
         "session_days": 30,
+        "password_reset": False,
         "front_door_url": None,
     }
     _, r = register(app)
@@ -174,6 +175,7 @@ def test_first_person_to_register_is_admin_on_an_empty_install(tmp_path):
         "first_user": True,
         "privacy": None,
         "session_days": 30,
+        "password_reset": False,
         "front_door_url": None,
     }
     c, r = register(app, username="eerste")

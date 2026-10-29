@@ -80,6 +80,19 @@ type Copy = {
     wrongAddress: string;
     sendHere: string;
     sent: string;
+    forgot: string;
+    forgotIntro: string;
+    forgotLogin: string;
+    forgotSend: string;
+    forgotSent: string;
+    forgotAgain: string;
+    forgotResent: string;
+    newPassword: string;
+    newPasswordHint: string;
+    resetSubmit: string;
+    resetDone: string;
+    resetInvalid: string;
+    backToLogin: string;
   };
   footer: { made: string; privacy: string; language: string };
   visual: { health: string; wealth: string };
@@ -273,6 +286,19 @@ const en: Copy = {
     wrongAddress: "Wrong address?",
     sendHere: "Send the code here",
     sent: "Sent to {to}.",
+    forgot: "Forgot password?",
+    forgotIntro: "Enter your username or email address: we email a code to that account's confirmed address.",
+    forgotLogin: "Username or email address",
+    forgotSend: "Send code",
+    forgotSent: "If an account with that name or address has a confirmed email, a code is on its way. It works for 10 minutes.",
+    forgotAgain: "Send a new code",
+    forgotResent: "A new code is on its way, if the account has a confirmed email. Only the newest one works.",
+    newPassword: "New password",
+    newPasswordHint: "At least 10 characters.",
+    resetSubmit: "Set new password",
+    resetDone: "Your password is changed, and every device is logged out. Log in with your new password.",
+    resetInvalid: "That code is not correct or no longer works. Ask for a new one.",
+    backToLogin: "Back to log in",
   },
   footer: { made: "trackerai: health-tracker and wealth-tracker", privacy: "Privacy", language: "Language" },
   visual: { health: "Illustration of the health-tracker Today page", wealth: "Illustration of the wealth-tracker net worth page" },
@@ -466,6 +492,20 @@ const nl: Copy = {
     wrongAddress: "Verkeerd adres?",
     sendHere: "Stuur de code hierheen",
     sent: "Verstuurd naar {to}.",
+    forgot: "Wachtwoord vergeten?",
+    forgotIntro: "Vul je gebruikersnaam of e-mailadres in: we mailen een code naar het bevestigde adres van dat account.",
+    forgotLogin: "Gebruikersnaam of e-mailadres",
+    forgotSend: "Stuur code",
+    forgotSent:
+      "Als er een account met die naam of dat adres is met een bevestigd e-mailadres, is er een code onderweg. Hij werkt 10 minuten.",
+    forgotAgain: "Stuur een nieuwe code",
+    forgotResent: "Er is een nieuwe code onderweg, als het account een bevestigd e-mailadres heeft. Alleen de nieuwste werkt.",
+    newPassword: "Nieuw wachtwoord",
+    newPasswordHint: "Minstens 10 tekens.",
+    resetSubmit: "Nieuw wachtwoord instellen",
+    resetDone: "Je wachtwoord is gewijzigd en elk apparaat is uitgelogd. Log in met je nieuwe wachtwoord.",
+    resetInvalid: "Die code klopt niet of werkt niet meer. Vraag een nieuwe aan.",
+    backToLogin: "Terug naar inloggen",
   },
   footer: { made: "trackerai: health-tracker en wealth-tracker", privacy: "Privacy", language: "Taal" },
   visual: {

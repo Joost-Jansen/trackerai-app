@@ -300,6 +300,7 @@ export const nl = {
     too_many_codes: "Te veel codes verstuurd. Probeer het over een kwartier opnieuw.",
     email_verify_required: "Bevestig eerst je e-mailadres: vul de code uit de welkomstmail in.",
     email_already_verified: "Je e-mailadres is al bevestigd.",
+    reset_code_invalid: "Die code klopt niet of werkt niet meer. Vraag een nieuwe aan.",
     accounts_key_missing: "De server heeft geen sleutel om inloggen in twee stappen veilig op te slaan.",
     last_admin: "Je bent de enige beheerder: maak eerst iemand anders beheerder.",
     account_busy: "Er loopt nog een synchronisatie of import; probeer het over een paar minuten opnieuw.",

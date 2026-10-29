@@ -196,6 +196,136 @@ function ConfirmEmail({ locale, account }: { locale: Locale; account: Account })
   );
 }
 
+/** A forgotten password (packages/accounts: /api/auth/password/forgot and /reset), in the front door's own styles:
+ *  the trackers' shared component (packages/ui ForgotPassword) is built on their Tailwind design system, which this
+ *  page does not load. Same steps and the same uniform answer: a code to the account's confirmed address, then the code
+ *  and a new password; every device is logged out after. */
+function Forgot({ locale, initialLogin, onBack }: { locale: Locale; initialLogin: string; onBack: (login: string) => void }) {
+  const a = COPY[locale].account;
+  const [step, setStep] = useState<"ask" | "reset" | "done">("ask");
+  const [login, setLogin] = useState(initialLogin);
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const text = (r: { code?: string; detail?: string }) => (r.code === "reset_code_invalid" ? a.resetInvalid : (r.detail ?? a.failed));
+
+  async function sendCode(): Promise<boolean> {
+    setError(null);
+    setBusy(true);
+    const r = await post("/api/auth/password/forgot", { login: login.trim() }).catch(() => ({ ok: false, code: undefined }));
+    setBusy(false);
+    if (!r.ok) setError(text(r));
+    return r.ok;
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (step === "done") return onBack(login.trim());
+    if (step === "ask") {
+      if (await sendCode()) {
+        setNote(null);
+        setStep("reset");
+      }
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    const r = await post("/api/auth/password/reset", { login: login.trim(), code: code.trim(), new_password: password }).catch(() => ({
+      ok: false,
+      code: undefined,
+    }));
+    setBusy(false);
+    if (r.ok) {
+      setPassword("");
+      setStep("done");
+    } else setError(text(r));
+  }
+
+  return (
+    <div className="mk-account">
+      <p className="mk-account-who">{a.forgot}</p>
+      <form className="mk-form" onSubmit={submit}>
+        {step === "ask" && (
+          <>
+            <p className="mk-small">{a.forgotIntro}</p>
+            <label className="mk-field">
+              <span>{a.forgotLogin}</span>
+              <input name="username" autoComplete="username" value={login} onChange={(e) => setLogin(e.target.value)} autoFocus required />
+            </label>
+          </>
+        )}
+        {step === "reset" && (
+          <>
+            <p className="mk-small" role="status">
+              {note ?? a.forgotSent}
+            </p>
+            <input type="text" name="username" autoComplete="username" value={login} readOnly hidden />
+            <label className="mk-field">
+              <span>{a.emailCode}</span>
+              <input
+                name="one-time-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                autoFocus
+                required
+              />
+            </label>
+            <label className="mk-field">
+              <span>{a.newPassword}</span>
+              <input
+                name="new-password"
+                type="password"
+                autoComplete="new-password"
+                minLength={10}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <small>
+                {a.newPasswordHint}{" "}
+                <button
+                  type="button"
+                  className="mk-link"
+                  onClick={async () => {
+                    if (await sendCode()) setNote(a.forgotResent);
+                  }}
+                >
+                  {a.forgotAgain}
+                </button>
+              </small>
+            </label>
+          </>
+        )}
+        {step === "done" && (
+          <p className="mk-small" role="status">
+            {a.resetDone}
+          </p>
+        )}
+        {error && (
+          <p className="mk-error" role="alert">
+            {error}
+          </p>
+        )}
+        <button type="submit" className="mk-btn mk-btn--accent mk-btn--lg mk-duo-accent" disabled={busy}>
+          {busy ? a.working : step === "ask" ? a.forgotSend : step === "reset" ? a.resetSubmit : a.backToLogin}
+        </button>
+      </form>
+      {step !== "done" && (
+        <p className="mk-small">
+          <button type="button" className="mk-link" onClick={() => onBack(login.trim())}>
+            {a.backToLogin}
+          </button>
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** Signing up: one trackerai account, with the trackers of choice. */
 function SignUp({ locale, urls, onLogin }: { locale: Locale; urls: Partial<Record<BrandId, string>>; onLogin: () => void }) {
   const a = COPY[locale].account;
@@ -354,6 +484,15 @@ export function AccountPanel({ locale, urls, days = 30 }: { locale: Locale; urls
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [signingUp, setSigningUp] = useState(false);
+  // A forgotten password: offered only when the server can mail the code.
+  const [canReset, setCanReset] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  useEffect(() => {
+    fetch("/api/auth/registration-status", { credentials: "same-origin" })
+      .then((r) => r.json())
+      .then((s) => setCanReset(!!s.password_reset))
+      .catch(() => setCanReset(false));
+  }, []);
   // "Create an account" anywhere on the page links to #signup.
   useEffect(() => {
     const follow = () => {
@@ -455,6 +594,19 @@ export function AccountPanel({ locale, urls, days = 30 }: { locale: Locale; urls
   }
 
   if (signingUp) return <SignUp locale={locale} urls={urls} onLogin={() => setSigningUp(false)} />;
+  if (forgot)
+    return (
+      <Forgot
+        locale={locale}
+        initialLogin={username}
+        onBack={(login) => {
+          setForgot(false);
+          setError(null);
+          setPassword("");
+          if (login && !login.includes("@")) setUsername(login);
+        }}
+      />
+    );
 
   return (
     <div className="mk-account">
@@ -509,6 +661,20 @@ export function AccountPanel({ locale, urls, days = 30 }: { locale: Locale; urls
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
           <span>{a.remember.replace("{days}", String(days))}</span>
         </label>
+        {canReset && !needsCode && (
+          <p className="mk-small">
+            <button
+              type="button"
+              className="mk-link"
+              onClick={() => {
+                setError(null);
+                setForgot(true);
+              }}
+            >
+              {a.forgot}
+            </button>
+          </p>
+        )}
         {error && (
           <p className="mk-error" role="alert">
             {error}

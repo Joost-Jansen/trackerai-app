@@ -219,6 +219,7 @@ NL: dict[str, str] = {
     "Too many codes sent. Try again in a quarter of an hour.": "Te veel codes verstuurd. Probeer het over een kwartier opnieuw.",
     "Confirm your email address first: enter the code from the welcome mail.": "Bevestig eerst je e-mailadres: vul de code uit de welkomstmail in.",
     "Your email address is already confirmed.": "Je e-mailadres is al bevestigd.",
+    "That code is not correct or no longer works. Ask for a new one.": "Die code klopt niet of werkt niet meer. Vraag een nieuwe aan.",
     "Two-step login is required for this account.": "Inloggen in twee stappen is verplicht voor dit account.",
     "The server has no key to store the two-step secret safely (ACCOUNTS_ENCRYPTION_KEY).": "De server heeft geen sleutel om inloggen in twee stappen veilig op te slaan (ACCOUNTS_ENCRYPTION_KEY).",
     "Unknown app; one of {options}.": "Onbekende tracker; kies uit {options}.",
