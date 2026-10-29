@@ -1,8 +1,9 @@
 """tabreader: convert scrolling-tab guitar videos (e.g. Kenneth Acoustic) into Guitar Pro 5 files.
 
-  python -m tabreader VIDEO_URL_OR_ID [...]          one or more videos
-  python -m tabreader --playlist URL [--cookies-from-browser chrome]
+python -m tabreader VIDEO_URL_OR_ID [...]          one or more videos
+python -m tabreader --playlist URL [--cookies-from-browser chrome]
 """
+
 import argparse
 import filecmp
 import json
@@ -18,16 +19,15 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from . import effects, ocr
+from . import effects, generic, ocr
 from .ascii import gp5_to_ascii
 from .assemble import build_song
 from .export import Meta, write_gp5
+from .generic import find_slots
+from .glyphs import find_barlines, gray
 from .meter import read_tempo_mark
 from .pages import build_pages, stable_runs
-from .glyphs import find_barlines, gray
 from .parse import Classifier, parse_page, read_number
-from . import generic
-from .generic import find_slots
 from .scan import detect_staff, scan
 from .stitch import cursor_shift, stitch
 
@@ -61,14 +61,19 @@ def yt(args: list[str], cookies: str | None) -> subprocess.CompletedProcess:
 def playlist_ids(url: str, cookies: str | None) -> list[tuple[str, str]]:
     r = yt(["--flat-playlist", "--print", "%(id)s\t%(title)s", url], cookies)
     if r.returncode != 0:
-        raise SystemExit(f"could not read playlist: {r.stderr.strip().splitlines()[-1]}\n"
-                         "If the playlist is private, add --cookies-from-browser chrome "
-                         "(or make it unlisted).")
+        raise SystemExit(
+            f"could not read playlist: {r.stderr.strip().splitlines()[-1]}\n"
+            "If the playlist is private, add --cookies-from-browser chrome "
+            "(or make it unlisted)."
+        )
     return [tuple(line.split("\t", 1)) for line in r.stdout.splitlines() if "\t" in line]
 
 
-NOISE = re.compile(r"\(?free tab\)?|fingerstyle( guitar)?( cover)?|guitar (cover|tutorial|lesson)|"
-                   r"(with )?tabs?( \+ chords)?( \+ lyrics)?|chords( \+ lyrics)?|lyrics|tutorial|lesson|cover", re.I)
+NOISE = re.compile(
+    r"\(?free tab\)?|fingerstyle( guitar)?( cover)?|guitar (cover|tutorial|lesson)|"
+    r"(with )?tabs?( \+ chords)?( \+ lyrics)?|chords( \+ lyrics)?|lyrics|tutorial|lesson|cover",
+    re.I,
+)
 
 
 def split_title(title: str, channel: str = "") -> tuple[str, str]:
@@ -79,7 +84,7 @@ def split_title(title: str, channel: str = "") -> tuple[str, str]:
     if channel:
         main = re.sub(re.escape(channel), " ", main, flags=re.I)
     if " - " not in main and (m := re.search(r"\b(guitar )?cover\b", main, re.I)):
-        song, artist = main[:m.start()], main[m.end():]  # "Stop This Train Guitar Cover John Mayer"
+        song, artist = main[: m.start()], main[m.end() :]  # "Stop This Train Guitar Cover John Mayer"
     elif " - " in main:
         a, b = main.split(" - ", 1)
         song, artist = (a, b) if "kenneth" in channel.lower() or not channel else (b, a)
@@ -131,15 +136,13 @@ def review_list(song, parsed) -> list[dict]:
 def video_timing(song, sc: dict, vid: str) -> dict:
     """Video time of every measure's downbeat, for syncing the player with the video."""
     starts = [m.t_start for m in song.measures]
-    good = [i for i, m in enumerate(song.measures)
-            if not np.isnan(m.t_start) and "rhythm from note spacing" not in m.flags]
+    good = [i for i, m in enumerate(song.measures) if not np.isnan(m.t_start) and "rhythm from note spacing" not in m.flags]
     med = float(np.median(np.diff([starts[i] for i in good]))) if len(good) > 1 else 2.0
     for i in range(len(starts)):  # measures without cursor data: extend from neighbours
         if i not in good:
             prev = max((g for g in good if g < i), default=None)
             nxt = min((g for g in good if g > i), default=None)
-            starts[i] = (starts[prev] + (i - prev) * med if prev is not None
-                         else starts[nxt] - (nxt - i) * med)
+            starts[i] = starts[prev] + (i - prev) * med if prev is not None else starts[nxt] - (nxt - i) * med
     if "overlay_top" in sc:
         overlay_top = sc["overlay_top"]
     else:
@@ -156,7 +159,7 @@ def video_timing(song, sc: dict, vid: str) -> dict:
 
 
 def choose_layout(work: Path, video: Path, download, force: bool, log) -> str:
-    """"scroll": one tab line that scrolls with a cursor line over it (as Kenneth Acoustic's videos), read by
+    """ "scroll": one tab line that scrolls with a cursor line over it (as Kenneth Acoustic's videos), read by
     stitching its pages; "any": everything else (several lines, pages that flip, bars replaced one by one, a box or
     coloured notes or no cursor), read bar by bar (generic.py)."""
     if (work / "generic.pkl").exists() and not force:
@@ -229,8 +232,10 @@ def read_any_layout(work: Path, video: Path, download, force: bool, clf, log):
     if not covered:
         views = generic.as_pages(views)
         seq, samples, covered = generic.play_order(views, [], fps)
-    log(f"  {len(slots)} tab line(s), {len(views)} views, {len(seq)} bars in playing order; timing from "
-        f"{'the cursor' if covered else 'when each page appears (no cursor)'}")
+    log(
+        f"  {len(slots)} tab line(s), {len(views)} views, {len(seq)} bars in playing order; timing from "
+        f"{'the cursor' if covered else 'when each page appears (no cursor)'}"
+    )
     download()  # the bars are cut from the video itself
     tape_img, spans, where, lines = generic.build_tape(str(video), views, slots, seq)
     parsed = parse_page(tape_img, lines, clf)
@@ -240,13 +245,18 @@ def read_any_layout(work: Path, video: Path, download, force: bool, clf, log):
         m.number, m.complete = i + 1, True
     ts, xs = generic.track(seq, spans, where, samples, views, fps, covered)
     top = min(s.staff.lines[0] - 4.5 * s.sp for s in slots)  # the tab overlay starts about here (a heading above)
-    sc = {"fps": fps, "label_frames": [], "label_crops": [], "corner": np.full((8, 8, 3), 255, np.uint8),
-          "overlay_top": max(0.0, top / g["frame_h"]), "track": (ts, xs)}
+    sc = {
+        "fps": fps,
+        "label_frames": [],
+        "label_crops": [],
+        "corner": np.full((8, 8, 3), 255, np.uint8),
+        "overlay_top": max(0.0, top / g["frame_h"]),
+        "track": (ts, xs),
+    }
     return tape_img, lines, parsed, ([0], [], {}), sc, len(views), 1.0
 
 
-def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
-            force: bool = False, overwrite_edits: bool = False) -> dict:
+def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool, force: bool = False, overwrite_edits: bool = False) -> dict:
     work = DATA / "videos" / vid
     work.mkdir(parents=True, exist_ok=True)
     url = f"https://www.youtube.com/watch?v={vid}"
@@ -273,11 +283,9 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
     clf = Classifier()
     layout = choose_layout(work, video, download, force, log)
     if layout == "scroll":
-        tape_img, lines, parsed, song_in, sc, n_views, stitch_min = read_scrolling(work, video, download, force, clf,
-                                                                                   log)
+        tape_img, lines, parsed, song_in, sc, n_views, stitch_min = read_scrolling(work, video, download, force, clf, log)
     else:
-        tape_img, lines, parsed, song_in, sc, n_views, stitch_min = read_any_layout(work, video, download, force,
-                                                                                    clf, log)
+        tape_img, lines, parsed, song_in, sc, n_views, stitch_min = read_any_layout(work, video, download, force, clf, log)
     if not keep_video and video.exists():
         video.unlink()
     cv2.imwrite(str(work / "tape.png"), tape_img)
@@ -287,18 +295,20 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
         cols = [c for m in parsed.measures for c in m.columns]
         marks = effects.text_marks(words, (gray(tape_img) < 150).astype(np.uint8), lines, cols)
     notes_all = [n for m in parsed.measures for c in m.columns for n in c.notes]
-    marks.update(ghost=sum(n.ghost for n in notes_all), harmonic_brackets=sum(n.harmonic for n in notes_all),
-                 vibrato=sum(n.vibrato for n in notes_all))
-    misreads = sum(1 for m in parsed.measures if m.x0 in parsed.numbers
-                   and parsed.numbers[m.x0] != m.number)
-    tempo_mark = read_tempo_mark(tape_img, lines, parsed.bars[2] if len(parsed.bars) > 2
-                                 else tape_img.shape[1], clf)
+    marks.update(
+        ghost=sum(n.ghost for n in notes_all),
+        harmonic_brackets=sum(n.harmonic for n in notes_all),
+        vibrato=sum(n.vibrato for n in notes_all),
+    )
+    misreads = sum(1 for m in parsed.measures if m.x0 in parsed.numbers and parsed.numbers[m.x0] != m.number)
+    tempo_mark = read_tempo_mark(tape_img, lines, parsed.bars[2] if len(parsed.bars) > 2 else tape_img.shape[1], clf)
     song = build_song(parsed, *song_in, tempo_mark=tempo_mark, track=sc.get("track"))
-    log(f"  {len(song.measures)} measures, {song.numerator}/{song.denominator} at {song.tempo} bpm"
-        f" (tempo mark: {tempo_mark}, swing: {song.triplet_feel or 'none'})")
+    log(
+        f"  {len(song.measures)} measures, {song.numerator}/{song.denominator} at {song.tempo} bpm"
+        f" (tempo mark: {tempo_mark}, swing: {song.triplet_feel or 'none'})"
+    )
 
-    meta = Meta(title=song_name, artist=artist,
-                source=f"Transcribed by tabreader from {url} ({info['channel']})")
+    meta = Meta(title=song_name, artist=artist, source=f"Transcribed by tabreader from {url} ({info['channel']})")
     extras = {}
     if ocr.available():
         tuning, capo, raw = ocr.tuning_capo(sc["corner"])
@@ -364,24 +374,42 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
     review_p = out_dir / f"{name}.review.json"
     review_p.write_text(json.dumps(review, indent=1))
     report = {
-        "video": url, "title": info["title"], "measures": len(song.measures),
-        "tempo": song.tempo, "time_signature": f"{song.numerator}/{song.denominator}",
+        "video": url,
+        "title": info["title"],
+        "measures": len(song.measures),
+        "tempo": song.tempo,
+        "time_signature": f"{song.numerator}/{song.denominator}",
         "swing": song.triplet_feel,
-        "tempo_mark": tempo_mark, "capo": meta.capo, "tuning": meta.tuning,
-        "layout": layout, "measure_number_misreads": misreads, "views": n_views,
+        "tempo_mark": tempo_mark,
+        "capo": meta.capo,
+        "tuning": meta.tuning,
+        "layout": layout,
+        "measure_number_misreads": misreads,
+        "views": n_views,
         "stitch_min_score": stitch_min,
         "notes": sum(len(b.column.notes) for m in song.measures for b in m.beats if b.column),
-        "low_confidence_notes": sum(1 for m in parsed.measures for c in m.columns
-                                    for n in c.notes if n.score < 0.7),
-        "flagged_measures": flagged, "techniques_read": marks, **extras,
+        "low_confidence_notes": sum(1 for m in parsed.measures for c in m.columns for n in c.notes if n.score < 0.7),
+        "flagged_measures": flagged,
+        "techniques_read": marks,
+        **extras,
     }
     (work / "report.json").write_text(json.dumps(report, indent=2, default=str))
     index = json.loads(index_p.read_text()) if index_p.exists() else {}
-    index[vid] = {"file": gp5.name, "timing": timing.name, "text": txt.name, "review": review_p.name, "title": song_name,
-                  "artist": artist, "measures": len(song.measures), "tempo": song.tempo,
-                  "time_signature": f"{song.numerator}/{song.denominator}", "capo": meta.capo,
-                  "swing": song.triplet_feel, "flagged": len(flagged),
-                  "converted": time.strftime("%Y-%m-%d")}
+    index[vid] = {
+        "file": gp5.name,
+        "timing": timing.name,
+        "text": txt.name,
+        "review": review_p.name,
+        "title": song_name,
+        "artist": artist,
+        "measures": len(song.measures),
+        "tempo": song.tempo,
+        "time_signature": f"{song.numerator}/{song.denominator}",
+        "capo": meta.capo,
+        "swing": song.triplet_feel,
+        "flagged": len(flagged),
+        "converted": time.strftime("%Y-%m-%d"),
+    }
     index_p.write_text(json.dumps(index, indent=2))
     log(f"  wrote {gp5}")
     return report
@@ -392,12 +420,10 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("videos", nargs="*", help="YouTube URLs or video ids")
     ap.add_argument("--playlist", help="YouTube playlist URL")
     ap.add_argument("--out", default=str(LIBRARY), help="output folder")
-    ap.add_argument("--cookies-from-browser", dest="cookies",
-                    help="browser to read YouTube cookies from (needed for private playlists)")
+    ap.add_argument("--cookies-from-browser", dest="cookies", help="browser to read YouTube cookies from (needed for private playlists)")
     ap.add_argument("--keep-video", action="store_true", help="keep downloaded videos")
     ap.add_argument("--force", action="store_true", help="re-scan even if cached")
-    ap.add_argument("--overwrite-edits", action="store_true",
-                    help="replace .gp5 files you edited in the player")
+    ap.add_argument("--overwrite-edits", action="store_true", help="replace .gp5 files you edited in the player")
     a = ap.parse_args(argv)
     if not shutil.which("yt-dlp"):
         sys.exit("yt-dlp not found (brew install yt-dlp)")
@@ -412,8 +438,7 @@ def main(argv: list[str] | None = None) -> None:
     results, failed = [], []
     for vid in dict.fromkeys(ids):
         try:
-            results.append(convert(vid, Path(a.out), a.cookies, a.keep_video, a.force,
-                                   a.overwrite_edits))
+            results.append(convert(vid, Path(a.out), a.cookies, a.keep_video, a.force, a.overwrite_edits))
         except Exception as e:  # keep going with the rest of the playlist
             log(f"  FAILED {vid}: {e}")
             failed.append((vid, str(e)))

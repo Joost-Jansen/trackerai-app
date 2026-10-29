@@ -7,6 +7,7 @@
 // alphaTab turns a Guitar Pro grace note into a beat of its own before the main beat; the API counts beats the
 // Guitar Pro way, without them. gpBeatIndex() and mainBeat() translate.
 
+import type { AtBar, AtBeat, AtNote } from "./vendor.ts";
 import { gpString } from "./sync.ts";
 
 export type Strum = "" | "down" | "up" | "arpeggio";
@@ -37,12 +38,31 @@ export type Technique = (typeof TECHNIQUES)[number];
 
 /** Keyboard editing: the key that toggles each technique on the active string (b cycles the bend). */
 export const KEYS: Record<string, Technique | "bend"> = {
-  h: "hammer", "/": "slide", t: "tie", r: "letRing", m: "palmMute", g: "ghost", n: "harmonic", v: "vibrato", b: "bend",
+  h: "hammer",
+  "/": "slide",
+  t: "tie",
+  r: "letRing",
+  m: "palmMute",
+  g: "ghost",
+  n: "harmonic",
+  v: "vibrato",
+  b: "bend",
 };
 
 export const emptyNote = (): NoteState => ({
-  fret: "", tie: false, hammer: false, slide: false, letRing: false, palmMute: false, ghost: false, harmonic: false,
-  vibrato: false, bend: 0, grace: "", graceSlide: false, graceHammer: false,
+  fret: "",
+  tie: false,
+  hammer: false,
+  slide: false,
+  letRing: false,
+  palmMute: false,
+  ghost: false,
+  harmonic: false,
+  vibrato: false,
+  bend: 0,
+  grace: "",
+  graceSlide: false,
+  graceHammer: false,
 });
 
 // alphaTab enums (BrushType): 1 brush up, 2 brush down, 3 arpeggio up, 4 arpeggio down. A Guitar Pro 5 stroke has
@@ -50,7 +70,7 @@ export const emptyNote = (): NoteState => ({
 const ARPEGGIO_MS = 60;
 
 /** The beat the editor works on: a click on a grace note means the beat it belongs to. */
-export function mainBeat(beat: any): any {
+export function mainBeat(beat: AtBeat): AtBeat {
   const beats = beat.voice.beats;
   let i = beat.index;
   while (i < beats.length - 1 && beats[i].graceType !== 0) i++;
@@ -58,21 +78,20 @@ export function mainBeat(beat: any): any {
 }
 
 /** The beat's index in the Guitar Pro file: grace beats not counted. */
-export const gpBeatIndex = (beat: any): number =>
-  beat.voice.beats.filter((b: any) => b.graceType === 0 && b.index < beat.index).length;
+export const gpBeatIndex = (beat: AtBeat): number => beat.voice.beats.filter((b) => b.graceType === 0 && b.index < beat.index).length;
 
 /** The beat with this Guitar Pro index in a bar of alphaTab's model. */
-export const beatAtGpIndex = (bar: any, index: number): any =>
-  bar?.voices[0].beats.filter((b: any) => b.graceType === 0)[index];
+export const beatAtGpIndex = (bar: AtBar | undefined, index: number): AtBeat | undefined =>
+  bar?.voices[0].beats.filter((b) => b.graceType === 0)[index];
 
-const fretText = (n: any) => (n.isDead ? "x" : String(n.fret));
+const fretText = (n: AtNote) => (n.isDead ? "x" : String(n.fret));
 
-function bendOf(n: any): Bend {
-  const top = Math.max(0, ...((n.bendPoints ?? []) as any[]).map((p) => p.value));
+function bendOf(n: AtNote): Bend {
+  const top = Math.max(0, ...(n.bendPoints ?? []).map((p) => p.value));
   return top >= 4 ? 100 : top >= 2 ? 50 : 0;
 }
 
-export function fromAlphaTab(beat: any): BeatState {
+export function fromAlphaTab(beat: AtBeat): BeatState {
   const notes = Array.from({ length: 6 }, emptyNote);
   for (const n of beat.notes) {
     const s = notes[gpString(n.string) - 1];
@@ -142,10 +161,22 @@ export function toRequest(bar: number, beat: number, state: BeatState) {
 
 /** What GET /api/songs/{id}/beats/{bar}/{beat} returns: the beat exactly as it is in the .gp5. */
 export type ApiBeat = {
-  notes: Record<string, {
-    fret: number | "x"; tie: boolean; hammer: boolean; slide: boolean; let_ring: boolean; palm_mute: boolean;
-    ghost: boolean; harmonic: boolean; vibrato: boolean; bend: Bend; grace: { fret: number | "x"; slide: boolean; hammer: boolean } | null;
-  }>;
+  notes: Record<
+    string,
+    {
+      fret: number | "x";
+      tie: boolean;
+      hammer: boolean;
+      slide: boolean;
+      let_ring: boolean;
+      palm_mute: boolean;
+      ghost: boolean;
+      harmonic: boolean;
+      vibrato: boolean;
+      bend: Bend;
+      grace: { fret: number | "x"; slide: boolean; hammer: boolean } | null;
+    }
+  >;
   stroke: Exclude<Strum, ""> | null;
   chord: string | null;
   section: string | null;
@@ -155,9 +186,19 @@ export function fromApi(b: ApiBeat): BeatState {
   const notes = Array.from({ length: 6 }, emptyNote);
   for (const [s, n] of Object.entries(b.notes)) {
     notes[Number(s) - 1] = {
-      fret: String(n.fret), tie: n.tie, hammer: n.hammer, slide: n.slide, letRing: n.let_ring, palmMute: n.palm_mute,
-      ghost: n.ghost, harmonic: n.harmonic, vibrato: n.vibrato, bend: n.bend ?? 0,
-      grace: n.grace ? String(n.grace.fret) : "", graceSlide: !!n.grace?.slide, graceHammer: !!n.grace?.hammer,
+      fret: String(n.fret),
+      tie: n.tie,
+      hammer: n.hammer,
+      slide: n.slide,
+      letRing: n.let_ring,
+      palmMute: n.palm_mute,
+      ghost: n.ghost,
+      harmonic: n.harmonic,
+      vibrato: n.vibrato,
+      bend: n.bend ?? 0,
+      grace: n.grace ? String(n.grace.fret) : "",
+      graceSlide: !!n.grace?.slide,
+      graceHammer: !!n.grace?.hammer,
     };
   }
   return { notes, strum: b.stroke ?? "", chord: b.chord ?? "", section: b.section ?? "" };

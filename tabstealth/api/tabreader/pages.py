@@ -1,4 +1,5 @@
 """Pass 2: split the scan into stable pages and build a clean image of each page."""
+
 from dataclasses import dataclass, field
 
 import cv2

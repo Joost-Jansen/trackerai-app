@@ -38,11 +38,27 @@ export default function PracticePanel({
       <div className="flex flex-wrap items-center gap-2">
         <Switch checked={value.loop} onChange={(on) => set({ loop: on })} label={t.practice.loop} />
         <span className="text-xs text-ink-muted">{t.practice.bars}</span>
-        <input className={num} inputMode="numeric" value={value.from} aria-label={t.practice.from} onChange={(e) => set({ from: bar(e.target.value) })} />
+        <input
+          className={num}
+          inputMode="numeric"
+          value={value.from}
+          aria-label={t.practice.from}
+          onChange={(e) => set({ from: bar(e.target.value) })}
+        />
         <span className="text-xs text-ink-muted">–</span>
-        <input className={num} inputMode="numeric" value={value.to} aria-label={t.practice.to} onChange={(e) => set({ to: bar(e.target.value) })} />
+        <input
+          className={num}
+          inputMode="numeric"
+          value={value.to}
+          aria-label={t.practice.to}
+          onChange={(e) => set({ to: bar(e.target.value) })}
+        />
         {selectedBar && (
-          <button type="button" className="text-xs font-semibold text-brand hover:underline" onClick={() => set({ from: selectedBar, to: Math.max(selectedBar, value.to), loop: true })}>
+          <button
+            type="button"
+            className="text-xs font-semibold text-brand hover:underline"
+            onClick={() => set({ from: selectedBar, to: Math.max(selectedBar, value.to), loop: true })}
+          >
             {t.practice.fromSelected(selectedBar)}
           </button>
         )}
@@ -65,7 +81,12 @@ export default function PracticePanel({
             </option>
           ))}
         </select>
-        <select className={sel} value={value.target} aria-label={t.practice.target} onChange={(e) => set({ target: Number(e.target.value) })}>
+        <select
+          className={sel}
+          value={value.target}
+          aria-label={t.practice.target}
+          onChange={(e) => set({ target: Number(e.target.value) })}
+        >
           {PERCENTS.map((v) => (
             <option key={v} value={v}>
               {t.practice.upTo(pct(v))}

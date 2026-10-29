@@ -1,5 +1,7 @@
 """Rhythm from cursor timing: grid choice per beat, swing detection and the GP5 durations."""
-from tabreader.assemble import TICKS_PER_QUARTER as Q, detect_swing, quantise_positions, unswing
+
+from tabreader.assemble import TICKS_PER_QUARTER as Q
+from tabreader.assemble import detect_swing, quantise_positions, unswing
 from tabreader.export import DURATIONS, split_ticks
 
 

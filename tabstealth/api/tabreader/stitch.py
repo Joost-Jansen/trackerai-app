@@ -4,6 +4,7 @@ Consecutive pages show overlapping parts of the same horizontal tab line. We fin
 horizontal scroll between them by matching ink, place every page on a shared tape
 coordinate, and compose a panorama that is then parsed in one go.
 """
+
 from dataclasses import dataclass
 
 import numpy as np
@@ -24,12 +25,13 @@ def _ink(img: np.ndarray, rows: slice) -> np.ndarray:
 
 def _score(a: np.ndarray, b: np.ndarray, s: int) -> float:
     w = a.shape[1]
-    ov_a, ov_b = a[:, s:], b[:, :w - s]
+    ov_a, ov_b = a[:, s:], b[:, : w - s]
     return float((ov_a * ov_b).sum() / max(np.maximum(ov_a, ov_b).sum(), 1))
 
 
-def register(a: np.ndarray, b: np.ndarray, candidates: list[int] | None = None,
-             min_overlap: int = 200, window: int = 15) -> tuple[int, float]:
+def register(
+    a: np.ndarray, b: np.ndarray, candidates: list[int] | None = None, min_overlap: int = 200, window: int = 15
+) -> tuple[int, float]:
     """Shift s >= 0 such that a[:, x + s] ~ b[:, x] (b is a scrolled left by s).
 
     Repetitive music (the same riff bar after bar) makes the ink match at several
@@ -38,13 +40,11 @@ def register(a: np.ndarray, b: np.ndarray, candidates: list[int] | None = None,
     w = a.shape[1]
     if candidates:
         windows = [range(max(0, c - window), min(w - min_overlap, c + window + 1)) for c in candidates]
-        return max(((s, _score(a, b, s)) for win in windows for s in win),
-                   key=lambda t: t[1], default=(0, -1.0))
+        return max(((s, _score(a, b, s)) for win in windows for s in win), key=lambda t: t[1], default=(0, -1.0))
     # coarse search on 2x downsampled ink, then refine at full resolution
     a2, b2 = a[:, ::2], b[:, ::2]
     s0 = max(range(0, (w - min_overlap) // 2), key=lambda s: _score(a2, b2, s)) * 2
-    return max(((s, _score(a, b, s)) for s in range(max(0, s0 - 2), min(w - min_overlap, s0 + 3))),
-               key=lambda t: t[1])
+    return max(((s, _score(a, b, s)) for s in range(max(0, s0 - 2), min(w - min_overlap, s0 + 3))), key=lambda t: t[1])
 
 
 def cursor_shift(cursor: np.ndarray, run_a: tuple[int, int], run_b: tuple[int, int]) -> int | None:
@@ -62,9 +62,9 @@ def cursor_shift(cursor: np.ndarray, run_a: tuple[int, int], run_b: tuple[int, i
     return int(round(pred - cursor[fb[0]]))
 
 
-def stitch(images: list[np.ndarray], lines: list[float],
-           numbers: list[dict[int, int]] | None = None,
-           cursor_shifts: list[int | None] | None = None) -> Tape:
+def stitch(
+    images: list[np.ndarray], lines: list[float], numbers: list[dict[int, int]] | None = None, cursor_shifts: list[int | None] | None = None
+) -> Tape:
     """numbers: per view, {measure number: bar x}; cursor_shifts: predicted scroll per
     transition (see cursor_shift). Both are optional anchors against riff aliasing."""
     sp = (lines[-1] - lines[0]) / 5

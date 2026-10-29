@@ -1,15 +1,17 @@
 """The API on a temporary library: listing, timing, beat edits with backup and restore, the convert queue."""
+
 import json
 import time
 
 import guitarpro as gp
 import pytest
 from fastapi.testclient import TestClient
-
-from app import Jobs, create_app
-from tabreader.assemble import TICKS_PER_QUARTER as Q, Beat, Measure, Song
+from tabreader.assemble import TICKS_PER_QUARTER as Q
+from tabreader.assemble import Beat, Measure, Song
 from tabreader.export import Meta, write_gp5
 from tabreader.parse import Column, Note
+
+from app import Jobs, create_app
 
 
 @pytest.fixture
@@ -19,8 +21,9 @@ def library(tmp_path):
     write_gp5(song, str(tmp_path / "A - B.gp5"), Meta(title="B", artist="A"))
     (tmp_path / "A - B.timing.json").write_text(json.dumps({"video": "abcdefghijk", "measure_starts": [1.5]}))
     (tmp_path / "A - B.txt").write_text("tab")
-    (tmp_path / "index.json").write_text(json.dumps({"abcdefghijk": {
-        "file": "A - B.gp5", "timing": "A - B.timing.json", "text": "A - B.txt", "title": "B", "artist": "A"}}))
+    (tmp_path / "index.json").write_text(
+        json.dumps({"abcdefghijk": {"file": "A - B.gp5", "timing": "A - B.timing.json", "text": "A - B.txt", "title": "B", "artist": "A"}})
+    )
     return tmp_path
 
 
@@ -43,10 +46,11 @@ def beat0(library):
 
 def test_edit_beat_keeps_backup_and_restores(library):
     c = TestClient(create_app(library, FakeJobs()))
-    r = c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"1": {"fret": 3}, "2": {"fret": "x"}, "5": {"fret": 0}}})
+    r = c.post(
+        "/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"1": {"fret": 3}, "2": {"fret": "x"}, "5": {"fret": 0}}}
+    )
     assert r.status_code == 200
-    assert sorted((n.string, n.value, n.type.name) for n in beat0(library).notes) == [
-        (1, 3, "normal"), (2, 0, "dead"), (5, 0, "normal")]
+    assert sorted((n.string, n.value, n.type.name) for n in beat0(library).notes) == [(1, 3, "normal"), (2, 0, "dead"), (5, 0, "normal")]
     assert (library / "A - B.orig.gp5").exists()
     assert c.get("/api/songs").json()[0]["edited"] is True
     # no notes at all turns the beat into a rest
@@ -58,12 +62,18 @@ def test_edit_beat_keeps_backup_and_restores(library):
 
 def test_every_technique_round_trips(library):
     c = TestClient(create_app(library, FakeJobs()))
-    body = {"bar": 0, "beat": 0, "stroke": "arpeggio", "chord": "Dsus2", "notes": {
-        "1": {"fret": 2, "hammer": True, "let_ring": True, "grace": {"fret": 0, "hammer": True}},
-        "2": {"fret": 3, "slide": True, "vibrato": True, "grace": {"fret": "x", "slide": True}},
-        "3": {"fret": 2, "tie": True, "palm_mute": True},
-        "4": {"fret": 12, "harmonic": True, "ghost": True},
-    }}
+    body = {
+        "bar": 0,
+        "beat": 0,
+        "stroke": "arpeggio",
+        "chord": "Dsus2",
+        "notes": {
+            "1": {"fret": 2, "hammer": True, "let_ring": True, "grace": {"fret": 0, "hammer": True}},
+            "2": {"fret": 3, "slide": True, "vibrato": True, "grace": {"fret": "x", "slide": True}},
+            "3": {"fret": 2, "tie": True, "palm_mute": True},
+            "4": {"fret": 12, "harmonic": True, "ghost": True},
+        },
+    }
     assert c.post("/api/songs/abcdefghijk/beats", json=body).status_code == 200
     b = beat0(library)
     n = {x.string: x for x in b.notes}
@@ -106,8 +116,10 @@ def test_section_and_text_tab(library):
     c = TestClient(create_app(library, FakeJobs()))
     assert c.post("/api/songs/abcdefghijk/bars", json={"bar": 0, "section": "Chorus"}).status_code == 200
     assert gp.parse(str(library / "A - B.gp5")).measureHeaders[0].marker.title == "Chorus"
-    c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "chord": "Am", "stroke": "down",
-                                                 "notes": {"2": {"fret": 1, "hammer": True}, "6": {"fret": "x"}}})
+    c.post(
+        "/api/songs/abcdefghijk/beats",
+        json={"bar": 0, "beat": 0, "chord": "Am", "stroke": "down", "notes": {"2": {"fret": 1, "hammer": True}, "6": {"fret": "x"}}},
+    )
     text = c.get("/api/songs/abcdefghijk/text").text
     assert "1 Chorus" in text and "Am" in text and "^" in text
     assert "B|1" in text and "E|x" in text
@@ -165,7 +177,9 @@ def test_undo_redo_and_restore(library):
 
 def test_bend(library):
     c = TestClient(create_app(library, FakeJobs()))
-    c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"3": {"fret": 7, "bend": 100}, "2": {"fret": 8, "bend": 50}}})
+    c.post(
+        "/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"3": {"fret": 7, "bend": 100}, "2": {"fret": 8, "bend": 50}}}
+    )
     n = {x.string: x for x in beat0(library).notes}
     assert max(p.value for p in n[3].effect.bend.points) == 2 and max(p.value for p in n[2].effect.bend.points) == 1
     got = c.get("/api/songs/abcdefghijk/beats/0/0").json()["notes"]
@@ -186,14 +200,20 @@ def test_song_meta(library):
 
 def test_practice_log_and_summary(library):
     c = TestClient(create_app(library, FakeJobs()))
-    log = lambda day, sec, speed, whole=False: c.post("/api/practice", json={
-        "video": "abcdefghijk", "day": day, "seconds": sec, "speed": speed, "source": "tab", "whole_song": whole})
+    log = lambda day, sec, speed, whole=False: c.post(
+        "/api/practice", json={"video": "abcdefghijk", "day": day, "seconds": sec, "speed": speed, "source": "tab", "whole_song": whole}
+    )
     assert log("2026-10-26", 120, 0.6).status_code == 200
     log("2026-10-27", 300, 0.8, True)
     log("2026-10-28", 60, 1.0)
     log("2026-10-28", 30, 0.9, True)
-    assert c.post("/api/practice", json={"video": "nope", "day": "2026-10-28", "seconds": 5, "speed": 1, "source": "tab"}).status_code == 404
-    assert c.post("/api/practice", json={"video": "abcdefghijk", "day": "28-10-2026", "seconds": 5, "speed": 1, "source": "tab"}).status_code == 422
+    assert (
+        c.post("/api/practice", json={"video": "nope", "day": "2026-10-28", "seconds": 5, "speed": 1, "source": "tab"}).status_code == 404
+    )
+    assert (
+        c.post("/api/practice", json={"video": "abcdefghijk", "day": "28-10-2026", "seconds": 5, "speed": 1, "source": "tab"}).status_code
+        == 422
+    )
     p = c.get("/api/practice", params={"today": "2026-10-28"}).json()
     assert p["total_seconds"] == 510 and p["streak"] == 3
     assert p["days"][-1] == {"day": "2026-10-28", "seconds": 90}
@@ -222,6 +242,7 @@ def test_review_queue(library):
 
 def test_collection_videos_and_pdfs(library, monkeypatch):
     import app as app_module
+
     monkeypatch.setattr(app_module, "youtube_title", lambda vid: "Hotel California Solo - Eagles | Lick")
     c = TestClient(create_app(library, FakeJobs()))
     v = c.post("/api/library/video", json={"url": "https://youtu.be/AbCdEfGhIjK?t=3"}).json()
@@ -258,6 +279,7 @@ def test_reanalysing_a_tab_asks_before_replacing_edits(library):
 
 def test_the_converter_takes_only_youtube_ids():
     from tabreader.cli import video_id
+
     assert video_id("https://www.youtube.com/watch?v=xiStivoN7VU&list=PLqEL0mkpjnMOFPIzI-Ey64hMr5dFETAHr") == "xiStivoN7VU"
     assert video_id("AAdFeO0WmZA") == "AAdFeO0WmZA"
     with pytest.raises(ValueError):
@@ -266,9 +288,13 @@ def test_the_converter_takes_only_youtube_ids():
 
 def test_song_and_artist_come_out_of_any_title_style():
     from tabreader.cli import split_title
+
     assert split_title("Fake Plastic Trees - Radiohead | Fingerstyle Guitar | TAB + Chords", "Kenneth Acoustic") == (
-        "Fake Plastic Trees", "Radiohead")
+        "Fake Plastic Trees",
+        "Radiohead",
+    )
     assert split_title("Stevie Wonder - Isn't She Lovely Fingerstyle Guitar with TAB | Guitartime", "Guitartime") == (
-        "Isn't She Lovely", "Stevie Wonder")
-    assert split_title("Stop This Train Guitar Cover John Mayer \N{GUITAR}|Tabs + Chords|", "x") == (
-        "Stop This Train", "John Mayer")
+        "Isn't She Lovely",
+        "Stevie Wonder",
+    )
+    assert split_title("Stop This Train Guitar Cover John Mayer \N{GUITAR}|Tabs + Chords|", "x") == ("Stop This Train", "John Mayer")

@@ -1,7 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  chordFromRoman, chordsInKey, CIRCLE, PROGRESSIONS, positions, scaleOnNeck, shapeFor, shapePitches, spellScale,
+  chordFromRoman,
+  chordsInKey,
+  CIRCLE,
+  PROGRESSIONS,
+  positions,
+  scaleOnNeck,
+  shapeFor,
+  shapePitches,
+  spellScale,
+  type Chord,
+  type Quality,
 } from "./theory.ts";
 
 test("scales are spelled with one letter each", () => {
@@ -37,32 +47,56 @@ test("a scale on the neck: A minor pentatonic box 1 at the 5th fret", () => {
 });
 
 test("chords in a key, by stacking thirds", () => {
-  assert.deepEqual(chordsInKey(0, "major").map((c) => c.name), ["C", "Dm", "Em", "F", "G", "Am", "B°"]);
-  assert.deepEqual(chordsInKey(0, "major").map((c) => c.roman), ["I", "ii", "iii", "IV", "V", "vi", "vii°"]);
-  assert.deepEqual(chordsInKey(0, "major", true).map((c) => c.name), ["Cmaj7", "Dm7", "Em7", "Fmaj7", "G7", "Am7", "Bm7b5"]);
-  assert.deepEqual(chordsInKey(9, "minor").map((c) => c.name), ["Am", "B°", "C", "Dm", "Em", "F", "G"]);
+  assert.deepEqual(
+    chordsInKey(0, "major").map((c) => c.name),
+    ["C", "Dm", "Em", "F", "G", "Am", "B°"],
+  );
+  assert.deepEqual(
+    chordsInKey(0, "major").map((c) => c.roman),
+    ["I", "ii", "iii", "IV", "V", "vi", "vii°"],
+  );
+  assert.deepEqual(
+    chordsInKey(0, "major", true).map((c) => c.name),
+    ["Cmaj7", "Dm7", "Em7", "Fmaj7", "G7", "Am7", "Bm7b5"],
+  );
+  assert.deepEqual(
+    chordsInKey(9, "minor").map((c) => c.name),
+    ["Am", "B°", "C", "Dm", "Em", "F", "G"],
+  );
   assert.deepEqual(chordsInKey(9, "harmonicMinor").map((c) => c.name)[4], "E");
   assert.deepEqual(chordsInKey(9, "minorPentatonic"), []);
 });
 
 test("progressions in a key", () => {
   const pop = PROGRESSIONS.find((p) => p.id === "pop")!;
-  assert.deepEqual(pop.numerals.map((n) => chordFromRoman(7, false, n).name), ["G", "D", "Em", "C"]);
-  assert.deepEqual(["ii7", "V7", "Imaj7"].map((n) => chordFromRoman(0, false, n).name), ["Dm7", "G7", "Cmaj7"]);
-  assert.deepEqual(["i", "bVII", "bVI", "V"].map((n) => chordFromRoman(9, true, n).name), ["Am", "G", "F", "E"]);
+  assert.deepEqual(
+    pop.numerals.map((n) => chordFromRoman(7, false, n).name),
+    ["G", "D", "Em", "C"],
+  );
+  assert.deepEqual(
+    ["ii7", "V7", "Imaj7"].map((n) => chordFromRoman(0, false, n).name),
+    ["Dm7", "G7", "Cmaj7"],
+  );
+  assert.deepEqual(
+    ["i", "bVII", "bVI", "V"].map((n) => chordFromRoman(9, true, n).name),
+    ["Am", "G", "F", "E"],
+  );
 });
 
 test("chord shapes: open chords first, barre shapes for the rest", () => {
-  const c = (root: number, q: any) => ({ root, rootName: "", quality: q, name: "", roman: "", tones: [] });
+  const c = (root: number, q: Quality): Chord => ({ root, rootName: "", quality: q, name: "", roman: "", tones: [] });
   assert.deepEqual(shapeFor(chordFromRoman(0, false, "I")), [-1, 3, 2, 0, 1, 0]); // C open
   assert.deepEqual(shapeFor(chordFromRoman(9, false, "ii")), [-1, 2, 4, 4, 3, 2]); // Bm: the barre at fret 2 on the A string
-  const fsharp = shapeFor(c(6, "m7b5") as any)!;
+  const fsharp = shapeFor(c(6, "m7b5"))!;
   assert.deepEqual(fsharp, [2, -1, 2, 2, 1, -1]); // F#m7b5, the b5 one fret below the root
   assert.deepEqual(shapePitches([-1, 3, 2, 0, 1, 0]), [48, 52, 55, 60, 64]);
 });
 
 test("circle of fifths", () => {
   assert.equal(CIRCLE.length, 12);
-  assert.deepEqual(CIRCLE.slice(0, 4).map((k) => `${k.name}/${k.minor}/${k.accidentals}`), ["C/Am/0", "G/Em/1", "D/Bm/2", "A/F#m/3"]);
+  assert.deepEqual(
+    CIRCLE.slice(0, 4).map((k) => `${k.name}/${k.minor}/${k.accidentals}`),
+    ["C/Am/0", "G/Em/1", "D/Bm/2", "A/F#m/3"],
+  );
   assert.equal(CIRCLE.at(-1)!.name, "F");
 });

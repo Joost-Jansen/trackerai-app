@@ -36,7 +36,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     try {
       const v = localStorage.getItem(SIDEBAR_KEY);
       if (v === "open" || v === "closed") setPref(v);
-    } catch {}
+    } catch {
+      /* private window: then we do not remember it */
+    }
   }, []);
   const collapsed = pref ? pref === "closed" : pathname.startsWith("/song");
   const toggleSidebar = () => {
@@ -45,7 +47,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     setNavOpen(false);
     try {
       localStorage.setItem(SIDEBAR_KEY, next);
-    } catch {}
+    } catch {
+      /* private window: then we do not remember it */
+    }
   };
   const groups = nav(t);
   // A song page belongs to the library.
@@ -67,7 +71,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         onClose={() => setNavOpen(false)}
         collapsed={collapsed}
         footer={
-          <div className="flex items-center justify-between gap-3 px-2 pb-1 text-xs leading-normal" style={{ color: "var(--text-on-ink-muted)" }}>
+          <div
+            className="flex items-center justify-between gap-3 px-2 pb-1 text-xs leading-normal"
+            style={{ color: "var(--text-on-ink-muted)" }}
+          >
             <button type="button" className="underline underline-offset-4" onClick={() => setLocale(locale === "nl" ? "en" : "nl")}>
               {t.common.language}
             </button>
@@ -77,7 +84,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="sticky top-0 z-30">
           <header className="ds-topbar ds-topbar--flush !gap-3 !px-4 sm:!px-6 lg:!px-page">
-            <IconButton label={t.nav.openMenu} onClick={() => setNavOpen(true)} icon={<MenuIcon className="h-[18px] w-[18px]" />} className={`-ml-2 ${collapsed ? "" : "lg:hidden"}`} />
+            <IconButton
+              label={t.nav.openMenu}
+              onClick={() => setNavOpen(true)}
+              icon={<MenuIcon className="h-[18px] w-[18px]" />}
+              className={`-ml-2 ${collapsed ? "" : "lg:hidden"}`}
+            />
             {/* a page can put its own title and controls here (the song page: the song and its transport) */}
             <div id={TOPBAR_TITLE} className="flex min-w-0 flex-1 items-center">
               {!ownHeader && <h1 className="ds-topbar__title truncate">{item?.label ?? "tabstealth"}</h1>}

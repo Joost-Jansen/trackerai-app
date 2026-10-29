@@ -10,6 +10,7 @@ The song is the bars in the order they are played: with a cursor, the order in w
 the order in which they appear. Timing comes from the cursor, or else from when each page of bars appears.
 The bars are scaled to one staff size and put side by side into a tape for the usual parser.
 """
+
 from dataclasses import dataclass, field
 
 import cv2
@@ -29,6 +30,7 @@ SIG = (32, 10)  # bar signature size (w, h)
 @dataclass
 class Slot:
     """Where a tab line sits on screen."""
+
     staff: Staff
     static: np.ndarray  # pixels coloured in nearly every frame (never the cursor)
 
@@ -86,7 +88,7 @@ def find_slots(cap: cv2.VideoCapture, samples: int = 60) -> list[Slot]:
         slot = Slot(staff, np.zeros((1, 1), bool))
         y0, y1 = slot.band()
         y0, y1 = max(0, y0), min(g[0][1].shape[0], y1)
-        tint = np.mean([tinted_mask(fr[y0:y1, staff.x0:staff.x1 + 1]) for _, fr in g], axis=0)
+        tint = np.mean([tinted_mask(fr[y0:y1, staff.x0 : staff.x1 + 1]) for _, fr in g], axis=0)
         slot.static = tint > 0.9
         slots.append(slot)
     return slots
@@ -99,7 +101,7 @@ def _offset(frame: np.ndarray, slot: Slot) -> int | None:
     reach = int(0.7 * sp)
     y0, y1 = int(st.lines[0]) - reach - 2, int(st.lines[-1]) + reach + 3
     y0c, y1c = max(0, y0), min(frame.shape[0], y1)
-    g = cv2.cvtColor(frame[y0c:y1c, st.x0:st.x1 + 1], cv2.COLOR_BGR2GRAY)
+    g = cv2.cvtColor(frame[y0c:y1c, st.x0 : st.x1 + 1], cv2.COLOR_BGR2GRAY)
     prof = (g < 200).mean(axis=1)
     rows = [int(round(y)) - y0c for y in st.lines]
     best = None
@@ -121,7 +123,7 @@ def _bars(frame: np.ndarray, k: int, slot: Slot) -> tuple[list[Bar], int | None]
     st, sp = slot.staff, slot.sp
     y0, y1 = slot.band()
     y0c, y1c = max(0, y0 + dy), min(frame.shape[0], y1 + dy)
-    crop = cv2.cvtColor(frame[y0c:y1c, st.x0:st.x1 + 1], cv2.COLOR_BGR2GRAY)
+    crop = cv2.cvtColor(frame[y0c:y1c, st.x0 : st.x1 + 1], cv2.COLOR_BGR2GRAY)
     if (crop > 150).mean() < 0.6:
         return [], None  # not on paper: a fade or the video over it
     ink = (crop < 150).astype(np.uint8)
@@ -160,8 +162,9 @@ def _same(a: Bar, b: Bar) -> bool:
 
 def _same_layout(a: list[Bar], b: list[Bar], sp: float) -> bool:
     """Nothing changed between two frames (a cursor moving over the bars aside)."""
-    return len(a) == len(b) and all(p.slot == q.slot and abs(p.x0 - q.x0) < 0.4 * sp and abs(p.x1 - q.x1) < 0.4 * sp
-                                    and _corr(p.sig, q.sig) > 0.9 for p, q in zip(a, b))
+    return len(a) == len(b) and all(
+        p.slot == q.slot and abs(p.x0 - q.x0) < 0.4 * sp and abs(p.x1 - q.x1) < 0.4 * sp and _corr(p.sig, q.sig) > 0.9 for p, q in zip(a, b)
+    )
 
 
 def scan_video(video: str, progress=None) -> dict:
@@ -190,8 +193,13 @@ def scan_video(video: str, progress=None) -> dict:
                 y0c, y1c = max(0, y0 + dy), min(fr.shape[0], y1 + dy)
                 st = slot.staff
                 static = slot.static if dy == 0 and slot.static.shape[0] >= y1c - y0c else None
-                x = find_cursor(fr[y0c:y1c, st.x0:st.x1 + 1], st.lines[0] + dy - y0c, st.lines[-1] + dy - y0c,
-                                slot.sp, static[:y1c - y0c] if static is not None else None)
+                x = find_cursor(
+                    fr[y0c:y1c, st.x0 : st.x1 + 1],
+                    st.lines[0] + dy - y0c,
+                    st.lines[-1] + dy - y0c,
+                    slot.sp,
+                    static[: y1c - y0c] if static is not None else None,
+                )
                 if not np.isnan(x):
                     cursor.append((i, k, st.x0 + x))
         if cur is not None and not (bars and _same_layout(cur, bars, sp)):
@@ -299,7 +307,7 @@ def play_order(views: list[View], cursor: list[tuple[int, int, float]], fps: flo
         samples += [(f / fps, len(seq) - 1, x) for f, x in fx]
     for b in ids:  # bars the cursor never reached
         if b not in seq:
-            prev = [p for p in ids[:ids.index(b)] if p in seq]
+            prev = [p for p in ids[: ids.index(b)] if p in seq]
             seq.insert(seq.index(prev[-1]) + 1 if prev else 0, b)
             samples = [(t, p + (p >= (seq.index(b))), x) for t, p, x in samples]
     return seq, samples, True
@@ -320,7 +328,7 @@ def _bar_image(cap: cv2.VideoCapture, view: View, bar: Bar, slot: Slot, n: int =
         h = fr.shape[0]
         # just inside the bar's own bar lines: the tape gets one clean line per boundary instead
         m = max(2, int(round(0.12 * sp)))
-        crop = fr[max(0, y0):min(h, y1), bar.x0 + m:bar.x1 - m + 1]
+        crop = fr[max(0, y0) : min(h, y1), bar.x0 + m : bar.x1 - m + 1]
         # a line at the very top or bottom of the frame: pad with paper
         crop = cv2.copyMakeBorder(crop, max(0, -y0), max(0, y1 - h), 0, 0, cv2.BORDER_REPLICATE)
         stack.append(crop)
@@ -332,7 +340,7 @@ def _bar_image(cap: cv2.VideoCapture, view: View, bar: Bar, slot: Slot, n: int =
     out = np.full((TAPE_H, img.shape[1], 3), 255, np.uint8)
     ys, yd = max(0, -shift), max(0, shift)
     hcopy = min(img.shape[0] - ys, TAPE_H - yd)
-    out[yd:yd + hcopy] = img[ys:ys + hcopy]
+    out[yd : yd + hcopy] = img[ys : ys + hcopy]
     return out
 
 
@@ -353,20 +361,21 @@ def build_tape(video: str, views: list[View], slots: list[Slot], seq: list[int])
         if bid not in images:
             images[bid] = _bar_image(cap, v, b, slots[b.slot])
         img = images[bid].copy()
-        img[int(lines[0]):int(lines[-1]) + 1, :2] = 0  # a bar line before every bar: the parser splits on it
+        img[int(lines[0]) : int(lines[-1]) + 1, :2] = 0  # a bar line before every bar: the parser splits on it
         parts.append(img)
         spans.append((x, x + img.shape[1]))
         x += img.shape[1]
     cap.release()
     end = np.full((TAPE_H, 12, 3), 255, np.uint8)
-    end[int(lines[0]):int(lines[-1]) + 1, :2] = 0  # and one after the last
+    end[int(lines[0]) : int(lines[-1]) + 1, :2] = 0  # and one after the last
     for k in range(6):
         end[int(round(lines[k])), :2] = 0
     return np.hstack(parts + [end]), spans, where, lines
 
 
-def track(seq: list[int], spans: list, where: dict, samples: list, views: list[View], fps: float,
-          covered: bool) -> tuple[np.ndarray, np.ndarray]:
+def track(
+    seq: list[int], spans: list, where: dict, samples: list, views: list[View], fps: float, covered: bool
+) -> tuple[np.ndarray, np.ndarray]:
     """(time, tape x) of the playback: from the cursor, or else from when each page of bars appeared."""
     ts, xs = [], []
     if covered:
@@ -379,7 +388,7 @@ def track(seq: list[int], spans: list, where: dict, samples: list, views: list[V
         # no cursor: a page's bars are played while it is on screen, one after the other
         pos = 0
         for vi, v in enumerate(views):
-            new = [p for p in range(pos, len(seq)) if seq[p] in v.ids][:len(v.ids)]
+            new = [p for p in range(pos, len(seq)) if seq[p] in v.ids][: len(v.ids)]
             if not new:
                 continue
             pos = new[-1] + 1

@@ -6,6 +6,7 @@ played turning blue. So: look at the coloured pixels per hue. A narrow coloured 
 cursor (a line or a band up to 2.5 staff spaces; a whole tinted bar is far wider); without one, a cluster of
 coloured notes is.
 """
+
 import cv2
 import numpy as np
 

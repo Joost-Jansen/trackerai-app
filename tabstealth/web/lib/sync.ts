@@ -23,7 +23,7 @@ export function makeClock(timing: Timing, bars: BarTicks[]): Clock {
   function tickToTime(tick: number): number {
     if (!bars.length) return 0;
     let i = bars.length - 1;
-    for (let lo = 0, hi = bars.length - 1; lo <= hi; ) {
+    for (let lo = 0, hi = bars.length - 1; lo <= hi;) {
       const mid = (lo + hi) >> 1;
       if (bars[mid].start <= tick) {
         i = mid;

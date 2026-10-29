@@ -1,6 +1,6 @@
 """Reading digits into frets: which glyphs form one number. Geometry as in a 1080p video (27 px between strings)."""
-import numpy as np
 
+import numpy as np
 from tabreader.glyphs import Glyph
 from tabreader.parse import merge_multidigit
 

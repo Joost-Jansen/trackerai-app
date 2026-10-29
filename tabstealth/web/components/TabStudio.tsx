@@ -22,9 +22,34 @@ import { useT } from "@/lib/i18n";
 import { ALPHATAB_BASE, loadAlphaTab, loadYouTube } from "@/lib/scripts";
 import RowMenu from "@trackerai/ui/ds/RowMenu";
 import { TOPBAR_ACTIONS, TOPBAR_TITLE } from "@/lib/nav";
-import { CheckIcon, ChevronLeftIcon, HandIcon, LayoutIcon, RepeatIcon, MusicIcon, PauseIcon, PlayIcon, StopIcon, VideoIcon } from "@trackerai/ui/icons";
+import {
+  CheckIcon,
+  ChevronLeftIcon,
+  HandIcon,
+  LayoutIcon,
+  RepeatIcon,
+  MusicIcon,
+  PauseIcon,
+  PlayIcon,
+  StopIcon,
+  VideoIcon,
+} from "@trackerai/ui/icons";
 import { makeClock, nearestRate, type BarTicks, type Clock, type Timing } from "@/lib/sync";
-import { beatAtGpIndex, emptyNote, fromAlphaTab, fromApi, gpBeatIndex, invalid, KEYS, mainBeat, nextBend, toRequest, type ApiBeat, type BeatState, type NoteState } from "@/lib/beat";
+import {
+  beatAtGpIndex,
+  emptyNote,
+  fromAlphaTab,
+  fromApi,
+  gpBeatIndex,
+  invalid,
+  KEYS,
+  mainBeat,
+  nextBend,
+  toRequest,
+  type ApiBeat,
+  type BeatState,
+  type NoteState,
+} from "@/lib/beat";
 import BeatEditor from "@/components/BeatEditor";
 import SongChips from "@/components/SongChips";
 import PracticePanel, { PERCENTS } from "@/components/PracticePanel";
@@ -32,6 +57,7 @@ import ReviewPanel, { type ReviewItem } from "@/components/ReviewPanel";
 import { barAt, beatAt as beatOf, DEFAULT_PRACTICE, nextSpeed, rangeTicks, type Practice } from "@/lib/practice";
 import { click, countIn } from "@/lib/click";
 import { localDay } from "@/lib/library";
+import type { AtApi, AtBeat, YtPlayer } from "@/lib/vendor";
 
 type Source = "video" | "tab";
 // The beat being edited: its bar, its index in the Guitar Pro file (grace notes not counted), the form, and the
@@ -81,8 +107,8 @@ export default function TabStudio({ vid }: { vid: string }) {
     };
   }, []);
   const ytEl = useRef<HTMLDivElement>(null);
-  const at = useRef<any>(null);
-  const yt = useRef<any>(null);
+  const at = useRef<AtApi | null>(null);
+  const yt = useRef<YtPlayer | null>(null);
   const clock = useRef<Clock | null>(null);
   const sourceRef = useRef<Source>("video");
   // after a reload of the tab (save, undo, redo): where the cursor was and which beat to select
@@ -111,12 +137,12 @@ export default function TabStudio({ vid }: { vid: string }) {
 
   // ── selection ──────────────────────────────────────────────────────────────
   const beatAt = (bar: number, beat: number) => beatAtGpIndex(at.current?.score?.tracks[0].staves[0].bars[bar], beat);
-  const outline = useCallback((beat: any) => {
+  const outline = useCallback((beat: AtBeat | undefined) => {
     const b = beat && at.current?.renderer?.boundsLookup?.findBeat(beat);
     setBox(b ? { x: b.visualBounds.x, y: b.visualBounds.y, w: b.visualBounds.w, h: b.visualBounds.h } : null);
   }, []);
   // keep a selected beat in view inside the tab panel (keyboard navigation can move it off screen)
-  const reveal = useCallback((beat: any) => {
+  const reveal = useCallback((beat: AtBeat) => {
     const b = at.current?.renderer?.boundsLookup?.findBeat(beat);
     const panel = scroller.current;
     if (!b || !panel) return;
@@ -126,7 +152,7 @@ export default function TabStudio({ vid }: { vid: string }) {
     }
   }, []);
   const select = useCallback(
-    (clicked: any, keepMessage = false) => {
+    (clicked: AtBeat, keepMessage = false) => {
       const beat = mainBeat(clicked); // a grace note belongs to the beat after it
       const state = fromAlphaTab(beat);
       const bar = beat.voice.bar.index;
@@ -167,10 +193,14 @@ export default function TabStudio({ vid }: { vid: string }) {
       const v = readView();
       applyView(a, v);
       setViewState(v);
-      a.scoreLoaded.on((score: any) => {
-        bars.current = score.masterBars.map((mb: any) => ({ start: mb.start, duration: mb.calculateDuration() }));
+      a.scoreLoaded.on((score) => {
+        bars.current = score.masterBars.map((mb) => ({ start: mb.start, duration: mb.calculateDuration() }));
         const first = score.masterBars[0];
-        meter.current = { numerator: first?.timeSignatureNumerator ?? 4, denominator: first?.timeSignatureDenominator ?? 4, tempo: score.tempo ?? 120 };
+        meter.current = {
+          numerator: first?.timeSignatureNumerator ?? 4,
+          denominator: first?.timeSignatureDenominator ?? 4,
+          tempo: score.tempo ?? 120,
+        };
         clock.current = timing.data ? makeClock(timing.data, bars.current) : null;
         applyPractice();
       });
@@ -184,7 +214,7 @@ export default function TabStudio({ vid }: { vid: string }) {
           if (beat) select(beat, true); // after a save: keep "Saved" in view
         }
       });
-      a.playerStateChanged.on((e: any) => {
+      a.playerStateChanged.on((e) => {
         if (sourceRef.current !== "tab") return;
         const on = e.state === 1;
         setPlaying(on);
@@ -192,7 +222,7 @@ export default function TabStudio({ vid }: { vid: string }) {
       });
       // Tab plays: keep the (muted) video at the same moment. A jump back to the loop's start is one pass.
       let lastTick = 0;
-      a.playerPositionChanged.on((e: any) => {
+      a.playerPositionChanged.on((e) => {
         // a jump you make yourself (isSeek) is not a pass
         if (sourceRef.current === "tab" && practiceRef.current.loop && !e.isSeek && e.currentTick + 960 < lastTick) onPass();
         lastTick = e.currentTick;
@@ -201,7 +231,7 @@ export default function TabStudio({ vid }: { vid: string }) {
         if (yt.current.getPlayerState() !== YT_PLAYING) yt.current.playVideo();
         if (Math.abs(yt.current.getCurrentTime() - target) > 0.25) yt.current.seekTo(target, true);
       });
-      a.beatMouseDown.on((beat: any) => {
+      a.beatMouseDown.on((beat) => {
         select(beat);
         const p = yt.current;
         if (sourceRef.current === "video" && clock.current && p?.seekTo) {
@@ -283,7 +313,7 @@ export default function TabStudio({ vid }: { vid: string }) {
         videoId: vid,
         playerVars: { rel: 0, playsinline: 1, modestbranding: 1 },
         events: {
-          onStateChange: (e: any) => {
+          onStateChange: (e: { data: number }) => {
             if (sourceRef.current === "video") setPlaying(e.data === YT_PLAYING);
           },
         },
@@ -411,8 +441,13 @@ export default function TabStudio({ vid }: { vid: string }) {
       headers: { "Content-Type": "application/json" },
       keepalive: true,
       body: JSON.stringify({
-        video: vid, day: localDay(), seconds: Math.min(600, s.seconds), speed: speedRef.current,
-        source: sourceRef.current, bars: pr.loop ? [Math.min(pr.from, pr.to), Math.max(pr.from, pr.to)] : null, whole_song: s.whole,
+        video: vid,
+        day: localDay(),
+        seconds: Math.min(600, s.seconds),
+        speed: speedRef.current,
+        source: sourceRef.current,
+        bars: pr.loop ? [Math.min(pr.from, pr.to), Math.max(pr.from, pr.to)] : null,
+        whole_song: s.whole,
       }),
     }).then(() => qc.invalidateQueries({ queryKey: ["songs"] }));
     session.current = { seconds: 0, startBar: s.startBar, whole: false };
@@ -459,7 +494,9 @@ export default function TabStudio({ vid }: { vid: string }) {
       const s = activeString;
       const note = selected.state.notes[s];
       const patch = (p: Partial<NoteState>) =>
-        setSelected((cur) => cur && { ...cur, state: { ...cur.state, notes: cur.state.notes.map((n, i) => (i === s ? { ...n, ...p } : n)) } });
+        setSelected(
+          (cur) => cur && { ...cur, state: { ...cur.state, notes: cur.state.notes.map((n, i) => (i === s ? { ...n, ...p } : n)) } },
+        );
       const key = e.key;
       let handled = true;
       if (key === "ArrowLeft" || key === "ArrowRight") void move(key === "ArrowLeft" ? -1 : 1);
@@ -495,7 +532,10 @@ export default function TabStudio({ vid }: { vid: string }) {
 
   // ── editing ────────────────────────────────────────────────────────────────
   const dirty = !!selected && JSON.stringify(selected.state) !== JSON.stringify(selected.saved);
-  const history = useQuery({ queryKey: ["history", vid], queryFn: () => api.get<{ undo: number; redo: number }>(`/api/songs/${vid}/history`) });
+  const history = useQuery({
+    queryKey: ["history", vid],
+    queryFn: () => api.get<{ undo: number; redo: number }>(`/api/songs/${vid}/history`),
+  });
   const [showKeys, setShowKeys] = useState(false);
   // Narrow screens: the video and the editor can fold away, so the tab gets the room (kept on this device).
   // A phone starts with the editor folded; wide screens always show both.
@@ -514,13 +554,17 @@ export default function TabStudio({ vid }: { vid: string }) {
       setPracticeOpen(localStorage.getItem("tabstealth.practice") === "open");
       setReviewOpen(localStorage.getItem("tabstealth.review") === "open");
       setEditorOpen(e ? e === "open" : window.innerWidth >= 640);
-    } catch {}
+    } catch {
+      /* private window: then we do not remember it */
+    }
   }, []);
   const toggle = (key: "video" | "editor" | "practice" | "review", open: boolean, set: (v: boolean) => void) => {
     set(open);
     try {
       localStorage.setItem(`tabstealth.${key}`, open ? "open" : "closed");
-    } catch {}
+    } catch {
+      /* private window: then we do not remember it */
+    }
   };
 
   /** Reload the tab after the file changed, keeping the cursor and selecting `spot` (default: the current beat). */
@@ -582,7 +626,7 @@ export default function TabStudio({ vid }: { vid: string }) {
     const bars = at.current.score.tracks[0].staves[0].bars;
     let { bar, beat } = selected;
     beat += delta;
-    const count = (b: number) => bars[b].voices[0].beats.filter((x: any) => x.graceType === 0).length;
+    const count = (b: number) => bars[b].voices[0].beats.filter((x) => x.graceType === 0).length;
     while (bar >= 0 && bar < bars.length && (beat < 0 || beat >= count(bar))) {
       bar += delta;
       if (bar < 0 || bar >= bars.length) return;
@@ -642,10 +686,11 @@ export default function TabStudio({ vid }: { vid: string }) {
 
   // In development the players are reachable from the console (window.__tabstealth), for checking the sync.
   useEffect(() => {
-    if (process.env.NODE_ENV !== "production") (window as any).__tabstealth = { at, yt, clock, sourceRef, setPractice, practiceRef, speedRef };
+    if (process.env.NODE_ENV !== "production")
+      (window as unknown as Record<string, unknown>).__tabstealth = { at, yt, clock, sourceRef, setPractice, practiceRef, speedRef };
   }, []);
 
-  const crop = hands ?Math.min(Math.max(timing.data?.overlay_top ?? 0.66, 0.4), 1) : 1;
+  const crop = hands ? Math.min(Math.max(timing.data?.overlay_top ?? 0.66, 0.4), 1) : 1;
 
   // The song's files (download, text), reading it again and removing it: rare actions, in the "⋯" menu in the top bar.
   const download = (href: string, name?: string) => {
@@ -674,12 +719,21 @@ export default function TabStudio({ vid }: { vid: string }) {
         title={`${playing ? t.song.pause : t.song.play} (space)`}
         icon={playing ? <PauseIcon className="h-[15px] w-[15px]" /> : <PlayIcon className="h-[15px] w-[15px]" />}
       />
-      <Button size="sm" onClick={stop} disabled={!loaded} aria-label={t.song.stop} title={t.song.stop} icon={<StopIcon className="h-[15px] w-[15px]" />} />
+      <Button
+        size="sm"
+        onClick={stop}
+        disabled={!loaded}
+        aria-label={t.song.stop}
+        title={t.song.stop}
+        icon={<StopIcon className="h-[15px] w-[15px]" />}
+      />
       <button
         type="button"
         aria-pressed={practice.loop}
         aria-label={t.practice.loop}
-        title={practice.loop ? t.practice.loopOn(Math.min(practice.from, practice.to), Math.max(practice.from, practice.to)) : t.practice.loop}
+        title={
+          practice.loop ? t.practice.loopOn(Math.min(practice.from, practice.to), Math.max(practice.from, practice.to)) : t.practice.loop
+        }
         onClick={() => setPractice((p) => ({ ...p, loop: !p.loop }))}
         className={`ds-btn ds-btn--sm !px-2 ${practice.loop ? "ds-btn--secondary !border-brand !text-brand" : "ds-btn--secondary"}`}
       >
@@ -703,7 +757,12 @@ export default function TabStudio({ vid }: { vid: string }) {
   // gives the slots); the transport sits at its right end.
   const [slots, setSlots] = useState<{ title: HTMLElement | null; actions: HTMLElement | null }>({ title: null, actions: null });
   useEffect(() => setSlots({ title: document.getElementById(TOPBAR_TITLE), actions: document.getElementById(TOPBAR_ACTIONS) }), []);
-  const meta = [song?.artist, song?.tempo ? `♩ ${song.tempo}` : null, song?.capo ? t.library.capo(song.capo) : null, song?.swing ? t.library.swing : null]
+  const meta = [
+    song?.artist,
+    song?.tempo ? `♩ ${song.tempo}` : null,
+    song?.capo ? t.library.capo(song.capo) : null,
+    song?.swing ? t.library.swing : null,
+  ]
     .filter(Boolean)
     .join(" · ");
   const titleBar = (
@@ -727,11 +786,22 @@ export default function TabStudio({ vid }: { vid: string }) {
     // video first; that column dissolves (`contents`) so the video can stick to the top above the tab.
     <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_minmax(360px,42%)] lg:gap-4">
       {slots.title && createPortal(<div className="hidden min-w-0 sm:block">{titleBar}</div>, slots.title)}
-      {slots.actions && createPortal(<RowMenu label={t.song.more} items={files.map((f) => ({ label: f.label, onSelect: f.run, danger: f.danger }))} />, slots.actions)}
-      <div style={{ ["--bar-top" as string]: `${barHeight + 16}px` }} className="contents lg:sticky lg:top-[var(--bar-top)] lg:order-2 lg:flex lg:flex-col lg:gap-3 lg:self-start">
+      {slots.actions &&
+        createPortal(
+          <RowMenu label={t.song.more} items={files.map((f) => ({ label: f.label, onSelect: f.run, danger: f.danger }))} />,
+          slots.actions,
+        )}
+      <div
+        style={{ ["--bar-top" as string]: `${barHeight + 16}px` }}
+        className="contents lg:sticky lg:top-[var(--bar-top)] lg:order-2 lg:flex lg:flex-col lg:gap-3 lg:self-start"
+      >
         {/* The video. On a narrow screen it stays pinned under the top bar while you scroll the tab; it is at most about
             a third of the screen high, so the tab keeps room underneath. */}
-        <div ref={pinned} style={{ top: barHeight }} className="sticky z-20 -mx-1 flex flex-col gap-2 bg-bg px-1 pb-2 lg:static lg:m-0 lg:gap-3 lg:p-0">
+        <div
+          ref={pinned}
+          style={{ top: barHeight }}
+          className="sticky z-20 -mx-1 flex flex-col gap-2 bg-bg px-1 pb-2 lg:static lg:m-0 lg:gap-3 lg:p-0"
+        >
           {/* on a phone the top bar only has room for the transport: the song's name sits above the video */}
           <div className="flex items-center gap-2 lg:hidden">
             {/* on a phone the top bar only has room for the transport: the song's name sits above the video */}
@@ -762,7 +832,13 @@ export default function TabStudio({ vid }: { vid: string }) {
               sound, the speed, hands only, and the review queue and practice settings, whose panels open below. */}
           <div className="flex flex-wrap items-center gap-1.5 text-sm">
             {transport}
-            <Select value={String(speed)} onChange={(e) => setSpeed(Number(e.target.value))} aria-label={t.song.speed} title={t.song.speed} className="!h-8 !w-auto">
+            <Select
+              value={String(speed)}
+              onChange={(e) => setSpeed(Number(e.target.value))}
+              aria-label={t.song.speed}
+              title={t.song.speed}
+              className="!h-8 !w-auto"
+            >
               {PERCENTS.map((s) => (
                 <option key={s} value={s}>
                   {Math.round(s * 100)}%

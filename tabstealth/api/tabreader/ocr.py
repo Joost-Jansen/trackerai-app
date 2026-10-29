@@ -1,4 +1,5 @@
 """Text in the video via Tesseract: section labels, chord names, tuning and capo."""
+
 import re
 import shutil
 import subprocess
@@ -9,8 +10,10 @@ import numpy as np
 
 from .glyphs import gray
 
-CHORD_RE = re.compile(r"^[A-G][#b]?(m|maj|min|dim|aug|sus|add|M)?[0-9]*"
-                      r"(sus[24]?|add[0-9]+|maj[0-9]*|[b#][0-9]+|[0-9]+|\([^)]*\))*(/[A-G][#b]?)?$")
+CHORD_RE = re.compile(
+    r"^[A-G][#b]?(m|maj|min|dim|aug|sus|add|M)?[0-9]*"
+    r"(sus[24]?|add[0-9]+|maj[0-9]*|[b#][0-9]+|[0-9]+|\([^)]*\))*(/[A-G][#b]?)?$"
+)
 NOTE_PITCH = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 STANDARD = [64, 59, 55, 50, 45, 40]
 
@@ -22,8 +25,7 @@ def available() -> bool:
 def tesseract(img: np.ndarray, psm: int = 7, extra: tuple[str, ...] = ()) -> str:
     with tempfile.NamedTemporaryFile(suffix=".png") as f:
         cv2.imwrite(f.name, img)
-        r = subprocess.run(["tesseract", f.name, "stdout", "--psm", str(psm), *extra],
-                           capture_output=True, text=True)
+        r = subprocess.run(["tesseract", f.name, "stdout", "--psm", str(psm), *extra], capture_output=True, text=True)
     return r.stdout.strip()
 
 
@@ -48,13 +50,30 @@ def section_name(crop: np.ndarray) -> str | None:
     # the label is the first cluster of text from the left
     gaps = np.where(np.diff(cols) > crop.shape[0])[0]
     end = cols[gaps[0]] if len(gaps) else cols[-1]
-    txt = tesseract(_prep(crop[:, :end + 10], invert=True))
+    txt = tesseract(_prep(crop[:, : end + 10], invert=True))
     txt = re.sub(r"[^A-Za-z0-9 '\-]", "", txt).strip()
     return section_label(txt)
 
 
-SECTIONS = ["Intro", "Verse", "Pre-Chorus", "Chorus", "Post-Chorus", "Bridge", "Solo", "Break", "Interlude",
-            "Instrumental", "Riff", "Theme", "Hook", "Refrain", "Coda", "Ending", "Outro"]
+SECTIONS = [
+    "Intro",
+    "Verse",
+    "Pre-Chorus",
+    "Chorus",
+    "Post-Chorus",
+    "Bridge",
+    "Solo",
+    "Break",
+    "Interlude",
+    "Instrumental",
+    "Riff",
+    "Theme",
+    "Hook",
+    "Refrain",
+    "Coda",
+    "Ending",
+    "Outro",
+]
 
 
 def _near(a: str, b: str) -> bool:
@@ -99,7 +118,7 @@ def chord_names(tape_img: np.ndarray, lines: list[float]) -> list[tuple[float, s
         x, y, w, h, _ = st[i]
         if h < 0.5 * sp or h > 1.6 * sp or w < 0.4 * sp:
             continue
-        crop = band[max(0, y - 4):y + h + 4, max(0, x - 4):x + w + 4]
+        crop = band[max(0, y - 4) : y + h + 4, max(0, x - 4) : x + w + 4]
         txt = tesseract(_prep(crop, scale=3.0), psm=7)
         txt = txt.replace("♯", "#").replace("♭", "b").replace(" ", "")
         txt = re.sub(r"(?<=[A-G])[♯]", "#", txt)
@@ -151,12 +170,11 @@ def words_above_staff(img: np.ndarray, lines: list[float], window: int = 3000) -
     y0, y1 = max(0, int(lines[0] - 2.6 * sp)), int(lines[0] - 0.1 * sp)
     out, seen = [], set()
     for x0 in range(0, img.shape[1], window):
-        crop = gray(img[y0:y1, x0:x0 + window + 200])
+        crop = gray(img[y0:y1, x0 : x0 + window + 200])
         big = cv2.resize(crop, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
         with tempfile.NamedTemporaryFile(suffix=".png") as f:
             cv2.imwrite(f.name, big)
-            tsv = subprocess.run(["tesseract", f.name, "stdout", "--psm", "11", "tsv"],
-                                 capture_output=True, text=True).stdout
+            tsv = subprocess.run(["tesseract", f.name, "stdout", "--psm", "11", "tsv"], capture_output=True, text=True).stdout
         for row in tsv.splitlines()[1:]:
             c = row.split("\t")
             if len(c) < 12 or not c[11].strip():

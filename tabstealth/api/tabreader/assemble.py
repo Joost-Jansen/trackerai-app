@@ -4,6 +4,7 @@ The video's playback cursor sweeps smoothly and sits on a note at the moment it 
 Mapping the cursor into tape coordinates gives one monotone time track x(t); the onset
 of any note column is the time the cursor passes it.
 """
+
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -81,8 +82,7 @@ def quantise_positions(pos: list[float]) -> list[int]:
                 break
             if distinct and (best is None or err < best[0]):
                 best = (err, snapped)
-        snapped = best if isinstance(best, list) else (best[1] if best else
-                                                       [round(pos[i] * 4) / 4 for i in idx])
+        snapped = best if isinstance(best, list) else (best[1] if best else [round(pos[i] * 4) / 4 for i in idx])
         for i, sv in zip(idx, snapped):
             out[i] = int(round(sv * q))
     return out
@@ -118,8 +118,14 @@ def spacing_positions(m, quarters: float) -> list[float]:
     return list(np.concatenate([[0], np.cumsum(w[:-1])]) / max(w.sum(), 1) * quarters)
 
 
-def build_song(tape: ParsedPage, offsets: list[int], runs, scan: dict,
-               tempo_mark: int | None = None, track: tuple[np.ndarray, np.ndarray] | None = None) -> Song:
+def build_song(
+    tape: ParsedPage,
+    offsets: list[int],
+    runs,
+    scan: dict,
+    tempo_mark: int | None = None,
+    track: tuple[np.ndarray, np.ndarray] | None = None,
+) -> Song:
     """`track`: (time, tape x) of the playback when the caller has it already (generic.track); otherwise it comes
     from the scrolling strip's cursor line."""
     if track is not None:
@@ -129,8 +135,7 @@ def build_song(tape: ParsedPage, offsets: list[int], runs, scan: dict,
     if len(xs) < 2:
         # the rhythm and the sync come from the moving cursor line; videos that flip whole pages and mark the beat
         # with a box or a coloured note have none (yet)
-        raise RuntimeError("no playback cursor found: this tab layout (pages that flip, no cursor line) "
-                           "is not supported yet")
+        raise RuntimeError("no playback cursor found: this tab layout (pages that flip, no cursor line) is not supported yet")
     chosen = [m for m in tape.measures if m.number is not None and m.complete]
     first_u = [m.columns[0].x - m.x0 for m in chosen if m.columns]
     rest_u = float(np.median([u for u in first_u if u < DOWNBEAT_MAX_U] or [45]))
@@ -163,8 +168,7 @@ def build_song(tape: ParsedPage, offsets: list[int], runs, scan: dict,
             pos = [(t_at(c.x) - t0) / dur * quarters for c in m.columns]
         out.tempo = int(round(60 * quarters / dur))
         raw.append((m, out, pos))
-    feel, ratio = detect_swing([p for _, out, pos in raw for p in pos
-                                if "rhythm from note spacing" not in out.flags])
+    feel, ratio = detect_swing([p for _, out, pos in raw for p in pos if "rhythm from note spacing" not in out.flags])
     measures = []
     for m, out, pos in raw:
         if feel:
@@ -188,8 +192,9 @@ def build_song(tape: ParsedPage, offsets: list[int], runs, scan: dict,
     # Keep the video's bar numbers: a bar never seen whole (often bar 1 under a fade-in) becomes a rest bar in its
     # place, so bar N of the file is bar N of the video (sync, review and loops count on that).
     by_number = {m.number: m for m in measures}
-    measures = [by_number.get(n) or Measure(n, [Beat(0, measure_ticks)], flags=["missing"])
-                for n in range(1, max(by_number, default=0) + 1)]
+    measures = [
+        by_number.get(n) or Measure(n, [Beat(0, measure_ticks)], flags=["missing"]) for n in range(1, max(by_number, default=0) + 1)
+    ]
     if backwards:
         measures[0].flags.append(f"cursor moved backwards {backwards}x (repeats?)")
     return Song(measures, tempo, numerator, denominator, feel)

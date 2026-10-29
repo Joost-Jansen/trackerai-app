@@ -59,15 +59,26 @@ export default function Fretboard({
         {INLAYS.filter((f) => f <= frets).map((f) => (
           <circle key={f} cx={left + (f - 0.5) * w} cy={top + gap * 2.5} r={5} fill="var(--border-strong)" />
         ))}
-        {[12, 24].filter((f) => f <= frets).map((f) => (
-          <g key={f} fill="var(--border-strong)">
-            <circle cx={left + (f - 0.5) * w} cy={top + gap * 1.5} r={5} />
-            <circle cx={left + (f - 0.5) * w} cy={top + gap * 3.5} r={5} />
-          </g>
-        ))}
+        {[12, 24]
+          .filter((f) => f <= frets)
+          .map((f) => (
+            <g key={f} fill="var(--border-strong)">
+              <circle cx={left + (f - 0.5) * w} cy={top + gap * 1.5} r={5} />
+              <circle cx={left + (f - 0.5) * w} cy={top + gap * 3.5} r={5} />
+            </g>
+          ))}
         {/* frets and the nut */}
         {Array.from({ length: frets + 1 }, (_, f) => (
-          <line key={f} x1={left + f * w} x2={left + f * w} y1={top} y2={top + gap * 5} stroke="var(--ink-muted)" strokeWidth={f === 0 ? 4 : 1.2} opacity={f === 0 ? 0.9 : 0.5} />
+          <line
+            key={f}
+            x1={left + f * w}
+            x2={left + f * w}
+            y1={top}
+            y2={top + gap * 5}
+            stroke="var(--ink-muted)"
+            strokeWidth={f === 0 ? 4 : 1.2}
+            opacity={f === 0 ? 0.9 : 0.5}
+          />
         ))}
         {/* strings: thicker towards the low E */}
         {[1, 2, 3, 4, 5, 6].map((s) => (
@@ -89,8 +100,22 @@ export default function Fretboard({
               onClick={() => onNote?.(d)}
               style={{ cursor: onNote ? "pointer" : undefined }}
             >
-              <circle cx={x(d.fret)} cy={y(d.string)} r={11.5} fill={FILL[d.role]} stroke={light ? "var(--ink-muted)" : "none"} strokeWidth={1} />
-              <text x={x(d.fret)} y={y(d.string) + 4} textAnchor="middle" fontSize={d.label.length > 2 ? 9 : 11} fontWeight={600} fill={light ? "var(--text-primary, currentColor)" : "#fff"}>
+              <circle
+                cx={x(d.fret)}
+                cy={y(d.string)}
+                r={11.5}
+                fill={FILL[d.role]}
+                stroke={light ? "var(--ink-muted)" : "none"}
+                strokeWidth={1}
+              />
+              <text
+                x={x(d.fret)}
+                y={y(d.string) + 4}
+                textAnchor="middle"
+                fontSize={d.label.length > 2 ? 9 : 11}
+                fontWeight={600}
+                fill={light ? "var(--text-primary, currentColor)" : "#fff"}
+              >
                 {d.label}
               </text>
             </g>

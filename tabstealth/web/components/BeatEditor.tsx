@@ -23,7 +23,19 @@ const SIGN: Record<Technique, string> = {
   vibrato: "~",
 };
 
-function Toggle({ on, disabled, label, sign, onClick }: { on: boolean; disabled?: boolean; label: string; sign: string; onClick: () => void }) {
+function Toggle({
+  on,
+  disabled,
+  label,
+  sign,
+  onClick,
+}: {
+  on: boolean;
+  disabled?: boolean;
+  label: string;
+  sign: string;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
@@ -100,7 +112,11 @@ export default function BeatEditor({
         <div className="flex items-center gap-2">
           <h2 className="mr-auto text-[13.5px] font-semibold tracking-[0.01em]">
             {title}
-            {dirty && <span className="ml-1.5 text-brand" title={t.song.unsaved} aria-label={t.song.unsaved}>●</span>}
+            {dirty && (
+              <span className="ml-1.5 text-brand" title={t.song.unsaved} aria-label={t.song.unsaved}>
+                ●
+              </span>
+            )}
           </h2>
           {/* narrow screens: fold the editor to its title, so the tab keeps the room */}
           <button
@@ -115,141 +131,176 @@ export default function BeatEditor({
           </button>
         </div>
         <div className={collapsed ? "hidden lg:block" : ""}>
-        <div className="mb-3 mt-2 flex flex-wrap items-end gap-2">
-          <label className="flex flex-col gap-1 text-[11px] text-ink-muted">
-            {t.song.section}
-            <input className="ds-input !h-8 w-28 text-xs" value={value.section} maxLength={60} onChange={(e) => {
-              const section = e.target.value;
-              onChange((v) => ({ ...v, section }));
-            }} />
-          </label>
-          <label className="flex flex-col gap-1 text-[11px] text-ink-muted">
-            {t.song.chord}
-            <input className="ds-input !h-8 w-24 text-xs" value={value.chord} maxLength={40} onChange={(e) => {
-              const chord = e.target.value;
-              onChange((v) => ({ ...v, chord }));
-            }} />
-          </label>
-          <label className="flex flex-col gap-1 text-[11px] text-ink-muted">
-            {t.song.strum}
-            <Select value={value.strum} onChange={(e) => {
-                const strum = e.target.value as Strum;
-                onChange((v) => ({ ...v, strum }));
-              }} aria-label={t.song.strum}>
-              <option value="">{t.song.strumNone}</option>
-              <option value="down">{t.song.strumDown}</option>
-              <option value="up">{t.song.strumUp}</option>
-              <option value="arpeggio">{t.song.strumArpeggio}</option>
-            </Select>
-          </label>
-        </div>
+          <div className="mb-3 mt-2 flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-1 text-[11px] text-ink-muted">
+              {t.song.section}
+              <input
+                className="ds-input !h-8 w-28 text-xs"
+                value={value.section}
+                maxLength={60}
+                onChange={(e) => {
+                  const section = e.target.value;
+                  onChange((v) => ({ ...v, section }));
+                }}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-[11px] text-ink-muted">
+              {t.song.chord}
+              <input
+                className="ds-input !h-8 w-24 text-xs"
+                value={value.chord}
+                maxLength={40}
+                onChange={(e) => {
+                  const chord = e.target.value;
+                  onChange((v) => ({ ...v, chord }));
+                }}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-[11px] text-ink-muted">
+              {t.song.strum}
+              <Select
+                value={value.strum}
+                onChange={(e) => {
+                  const strum = e.target.value as Strum;
+                  onChange((v) => ({ ...v, strum }));
+                }}
+                aria-label={t.song.strum}
+              >
+                <option value="">{t.song.strumNone}</option>
+                <option value="down">{t.song.strumDown}</option>
+                <option value="up">{t.song.strumUp}</option>
+                <option value="arpeggio">{t.song.strumArpeggio}</option>
+              </Select>
+            </label>
+          </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full border-separate border-spacing-y-1 text-xs">
-            <thead className="text-[11px] text-ink-muted">
-              <tr>
-                <th className="w-5" />
-                <th className="w-11 text-left font-normal">{t.song.fret}</th>
-                <th className="w-[92px] text-left font-normal">{t.song.grace}</th>
-                <th className="text-left font-normal">{t.song.techniques}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {value.notes.map((n, i) => {
-                const empty = n.fret === "";
-                return (
-                  <tr key={i} className={i === activeString ? "[&>td]:bg-brand-tint" : ""}>
-                    <td className="rounded-l-sm pr-1 font-mono text-ink-muted">
-                      <button type="button" className="w-full text-left" onClick={() => onActiveString(i)} title={t.song.activeString}>
-                        {STRINGS[i]}
-                      </button>
-                    </td>
-                    <td className="pr-1.5">
-                      <input
-                        className={`${input} w-10`}
-                        value={n.fret}
-                        maxLength={2}
-                        aria-label={`${STRINGS[i]} ${t.song.fret}`}
-                        onFocus={() => onActiveString(i)}
-                        onChange={(e) => {
-                          const fret = e.target.value.trim();
-                          // a new note rings on, like the converter's notes
-                          setNote(i, empty && fret !== "" ? { fret, letRing: true } : { fret });
-                        }}
-                      />
-                    </td>
-                    <td className="pr-1.5">
-                      <div className="flex items-center gap-1">
+          <div className="overflow-x-auto">
+            <table className="w-full border-separate border-spacing-y-1 text-xs">
+              <thead className="text-[11px] text-ink-muted">
+                <tr>
+                  <th className="w-5" />
+                  <th className="w-11 text-left font-normal">{t.song.fret}</th>
+                  <th className="w-[92px] text-left font-normal">{t.song.grace}</th>
+                  <th className="text-left font-normal">{t.song.techniques}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {value.notes.map((n, i) => {
+                  const empty = n.fret === "";
+                  return (
+                    <tr key={i} className={i === activeString ? "[&>td]:bg-brand-tint" : ""}>
+                      <td className="rounded-l-sm pr-1 font-mono text-ink-muted">
+                        <button type="button" className="w-full text-left" onClick={() => onActiveString(i)} title={t.song.activeString}>
+                          {STRINGS[i]}
+                        </button>
+                      </td>
+                      <td className="pr-1.5">
                         <input
-                          className={`${input} w-8`}
-                          value={n.grace}
+                          className={`${input} w-10`}
+                          value={n.fret}
                           maxLength={2}
-                          disabled={empty}
-                          aria-label={`${STRINGS[i]} ${t.song.grace}`}
-                          onChange={(e) => setNote(i, { grace: e.target.value.trim() })}
+                          aria-label={`${STRINGS[i]} ${t.song.fret}`}
+                          onFocus={() => onActiveString(i)}
+                          onChange={(e) => {
+                            const fret = e.target.value.trim();
+                            // a new note rings on, like the converter's notes
+                            setNote(i, empty && fret !== "" ? { fret, letRing: true } : { fret });
+                          }}
                         />
-                        <Toggle sign="/" label={t.song.tech.graceSlide} on={n.graceSlide} disabled={empty || n.grace === ""} onClick={() => setNote(i, { graceSlide: !n.graceSlide, graceHammer: false })} />
-                        <Toggle sign="h" label={t.song.tech.graceHammer} on={n.graceHammer} disabled={empty || n.grace === ""} onClick={() => setNote(i, { graceHammer: !n.graceHammer, graceSlide: false })} />
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flex flex-wrap gap-1">
-                        {TECHNIQUES.map((k) => (
-                          <Toggle
-                            key={k}
-                            sign={SIGN[k]}
-                            label={t.song.tech[k]}
-                            on={n[k]}
+                      </td>
+                      <td className="pr-1.5">
+                        <div className="flex items-center gap-1">
+                          <input
+                            className={`${input} w-8`}
+                            value={n.grace}
+                            maxLength={2}
                             disabled={empty}
-                            // hammer-on and slide both lead to the next note: one at a time
-                            onClick={() => setNote(i, k === "hammer" ? { hammer: !n.hammer, slide: false } : k === "slide" ? { slide: !n.slide, hammer: false } : { [k]: !n[k] })}
+                            aria-label={`${STRINGS[i]} ${t.song.grace}`}
+                            onChange={(e) => setNote(i, { grace: e.target.value.trim() })}
                           />
-                        ))}
-                        <Toggle
-                          sign={n.bend === 100 ? "b1" : n.bend === 50 ? "b½" : "b"}
-                          label={`${t.song.tech.bend}: ${n.bend === 100 ? t.song.bendFull : n.bend === 50 ? t.song.bendHalf : t.song.bendNone}`}
-                          on={n.bend > 0}
-                          disabled={empty}
-                          onClick={() => setNote(i, { bend: nextBend(n.bend) })}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                          <Toggle
+                            sign="/"
+                            label={t.song.tech.graceSlide}
+                            on={n.graceSlide}
+                            disabled={empty || n.grace === ""}
+                            onClick={() => setNote(i, { graceSlide: !n.graceSlide, graceHammer: false })}
+                          />
+                          <Toggle
+                            sign="h"
+                            label={t.song.tech.graceHammer}
+                            on={n.graceHammer}
+                            disabled={empty || n.grace === ""}
+                            onClick={() => setNote(i, { graceHammer: !n.graceHammer, graceSlide: false })}
+                          />
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex flex-wrap gap-1">
+                          {TECHNIQUES.map((k) => (
+                            <Toggle
+                              key={k}
+                              sign={SIGN[k]}
+                              label={t.song.tech[k]}
+                              on={n[k]}
+                              disabled={empty}
+                              // hammer-on and slide both lead to the next note: one at a time
+                              onClick={() =>
+                                setNote(
+                                  i,
+                                  k === "hammer"
+                                    ? { hammer: !n.hammer, slide: false }
+                                    : k === "slide"
+                                      ? { slide: !n.slide, hammer: false }
+                                      : { [k]: !n[k] },
+                                )
+                              }
+                            />
+                          ))}
+                          <Toggle
+                            sign={n.bend === 100 ? "b1" : n.bend === 50 ? "b½" : "b"}
+                            label={`${t.song.tech.bend}: ${n.bend === 100 ? t.song.bendFull : n.bend === 50 ? t.song.bendHalf : t.song.bendNone}`}
+                            on={n.bend > 0}
+                            disabled={empty}
+                            onClick={() => setNote(i, { bend: nextBend(n.bend) })}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button type="submit" variant="primary" size="sm" disabled={saving}>
-            {t.song.apply}
-          </Button>
-          <Button size="sm" disabled={saving} onClick={onClear}>
-            {t.song.clear}
-          </Button>
-          <span className="mx-1 h-5 w-px bg-border" aria-hidden />
-          <Button size="sm" variant="ghost" disabled={!canUndo || saving} onClick={onUndo} title={`${t.song.undo} (⌘Z)`}>
-            {t.song.undo}
-          </Button>
-          <Button size="sm" variant="ghost" disabled={!canRedo || saving} onClick={onRedo} title={`${t.song.redo} (⇧⌘Z)`}>
-            {t.song.redo}
-          </Button>
-          <Button size="sm" variant="ghost" aria-pressed={showKeys} onClick={onShowKeys} title="?">
-            {t.song.keys}
-          </Button>
-          {message && <span className="text-xs text-ink-muted">{message}</span>}
-        </div>
-        {showKeys && (
-          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-border pt-3 text-xs">
-            {t.song.keyList.map(([k, what]) => (
-              <div key={k} className="contents">
-                <dt className="font-mono text-ink">{k}</dt>
-                <dd className="text-ink-muted">{what}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button type="submit" variant="primary" size="sm" disabled={saving}>
+              {t.song.apply}
+            </Button>
+            <Button size="sm" disabled={saving} onClick={onClear}>
+              {t.song.clear}
+            </Button>
+            <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+            <Button size="sm" variant="ghost" disabled={!canUndo || saving} onClick={onUndo} title={`${t.song.undo} (⌘Z)`}>
+              {t.song.undo}
+            </Button>
+            <Button size="sm" variant="ghost" disabled={!canRedo || saving} onClick={onRedo} title={`${t.song.redo} (⇧⌘Z)`}>
+              {t.song.redo}
+            </Button>
+            <Button size="sm" variant="ghost" aria-pressed={showKeys} onClick={onShowKeys} title="?">
+              {t.song.keys}
+            </Button>
+            {message && <span className="text-xs text-ink-muted">{message}</span>}
+          </div>
+          {showKeys && (
+            <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-border pt-3 text-xs">
+              {t.song.keyList.map(([k, what]) => (
+                <div key={k} className="contents">
+                  <dt className="font-mono text-ink">{k}</dt>
+                  <dd className="text-ink-muted">{what}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </div>
       </form>
     </section>

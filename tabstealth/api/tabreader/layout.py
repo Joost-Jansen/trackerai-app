@@ -1,4 +1,5 @@
 """Locate the tab strip (6 staff lines) in a video frame."""
+
 from dataclasses import dataclass
 
 import cv2
@@ -54,7 +55,7 @@ def find_staff(frame: np.ndarray, search_from: float = 0.5) -> Staff | None:
     # pick the 6 consecutive lines with the most uniform spacing
     best = None
     for i in range(len(ys) - 5):
-        cand = ys[i:i + 6]
+        cand = ys[i : i + 6]
         d = np.diff(cand)
         if d.min() < 12 or d.max() > 60:
             continue
@@ -66,7 +67,7 @@ def find_staff(frame: np.ndarray, search_from: float = 0.5) -> Staff | None:
     lines = [y + y_off for y in best[1]]
     # horizontal extent: where the middle line row has long ink
     mid = int(round(lines[2])) - y_off
-    cols = np.where(long_runs[mid - 1:mid + 2].max(axis=0) > 0)[0]
+    cols = np.where(long_runs[mid - 1 : mid + 2].max(axis=0) > 0)[0]
     return Staff(lines=lines, x0=int(cols.min()), x1=int(cols.max()))
 
 
@@ -96,11 +97,11 @@ def find_staffs(frame: np.ndarray, min_width: float = 0.2) -> list[Staff]:
     ys = [float(np.average(g, weights=prof[g])) for g in groups]
     staffs, i = [], 0
     while i + 6 <= len(ys):
-        cand = ys[i:i + 6]
+        cand = ys[i : i + 6]
         d = np.diff(cand)
         if d.min() >= 8 and d.max() <= 60 and d.std() / d.mean() < 0.08:
             # the staff runs where (nearly) all six lines do; one line alone may be a fret of a fretboard picture
-            on = np.sum([long_runs[int(round(y)) - 1:int(round(y)) + 2].max(axis=0) > 0 for y in cand], axis=0) >= 5
+            on = np.sum([long_runs[int(round(y)) - 1 : int(round(y)) + 2].max(axis=0) > 0 for y in cand], axis=0) >= 5
             on = cv2.morphologyEx(on.astype(np.uint8)[None], cv2.MORPH_CLOSE, np.ones((1, 15), np.uint8))[0] > 0
             cols = np.flatnonzero(on)
             if len(cols) < w * min_width:
@@ -108,8 +109,8 @@ def find_staffs(frame: np.ndarray, min_width: float = 0.2) -> list[Staff]:
                 continue
             x0, x1 = int(cols.min()), int(cols.max())
             # paper between the lines: mostly light where the lines run
-            band = gray[int(cand[0]) + 2:int(cand[-1]) - 1, x0:x1 + 1]
-            gaps = [gray[int((a + b) / 2), x0:x1 + 1] for a, b in zip(cand, cand[1:])]
+            band = gray[int(cand[0]) + 2 : int(cand[-1]) - 1, x0 : x1 + 1]
+            gaps = [gray[int((a + b) / 2), x0 : x1 + 1] for a, b in zip(cand, cand[1:])]
             if np.mean([np.mean(g > 150) for g in gaps]) > 0.75 and band.size:
                 staffs.append(Staff(lines=cand, x0=x0, x1=x1))
                 i += 6

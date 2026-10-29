@@ -1,6 +1,6 @@
 """Following bars through a video of any layout (generic.py), on made-up bars: each bar has its own content."""
-import numpy as np
 
+import numpy as np
 from tabreader.generic import SIG, Bar, View, as_pages, link_views, play_order, track
 
 
@@ -21,8 +21,10 @@ def test_a_strip_that_scrolls_keeps_its_bars_and_adds_new_ones():
 
 def test_lines_that_move_up_one_at_a_time_are_not_doubled():
     # two lines on screen; the second moves up when it is played (17-20 + 21-24, then 21-24 + 25-28)
-    views = [View(0, 99, line([17, 18, 19, 20], 0) + line([21, 22, 23, 24], 1)),
-             View(100, 199, line([21, 22, 23, 24], 0) + line([25, 26, 27, 28], 1))]
+    views = [
+        View(0, 99, line([17, 18, 19, 20], 0) + line([21, 22, 23, 24], 1)),
+        View(100, 199, line([21, 22, 23, 24], 0) + line([25, 26, 27, 28], 1)),
+    ]
     assert link_views(views) == 12
 
 

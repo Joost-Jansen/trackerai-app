@@ -33,7 +33,14 @@ function Pdf({ id }: { id: string }) {
         back="/library/"
         backLabel={t.song.back}
         actions={
-          <a className="ds-btn ds-btn--ghost ds-btn--sm !px-1.5" href={src} target="_blank" rel="noreferrer" title={t.watch.openPdf} aria-label={t.watch.openPdf}>
+          <a
+            className="ds-btn ds-btn--ghost ds-btn--sm !px-1.5"
+            href={src}
+            target="_blank"
+            rel="noreferrer"
+            title={t.watch.openPdf}
+            aria-label={t.watch.openPdf}
+          >
             <DownloadIcon className="h-[15px] w-[15px]" />
           </a>
         }
@@ -44,7 +51,11 @@ function Pdf({ id }: { id: string }) {
           {t.watch.remove}
         </button>
       </div>
-      <iframe src={src} title={item?.title ?? "PDF"} className="h-[calc(100dvh-170px)] min-h-[420px] w-full rounded border border-border bg-surface" />
+      <iframe
+        src={src}
+        title={item?.title ?? "PDF"}
+        className="h-[calc(100dvh-170px)] min-h-[420px] w-full rounded border border-border bg-surface"
+      />
     </div>
   );
 }

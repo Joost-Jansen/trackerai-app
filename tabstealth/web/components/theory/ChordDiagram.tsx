@@ -4,7 +4,19 @@
 
 import type { Shape } from "@/lib/theory";
 
-export default function ChordDiagram({ name, shape, caption, active, onClick }: { name: string; shape: Shape | null; caption?: string; active?: boolean; onClick?: () => void }) {
+export default function ChordDiagram({
+  name,
+  shape,
+  caption,
+  active,
+  onClick,
+}: {
+  name: string;
+  shape: Shape | null;
+  caption?: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
   const played = shape?.filter((f) => f > 0) ?? [];
   const lowest = played.length ? Math.min(...played) : 1;
   const base = played.length && Math.max(...played) > 5 ? lowest : 1; // the first fret drawn

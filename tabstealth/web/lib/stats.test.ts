@@ -11,8 +11,14 @@ const days = [
 
 test("last days are filled with zeros, oldest first", () => {
   const d = lastDays(days, 4, today);
-  assert.deepEqual(d.map((x) => x.day), ["2026-10-25", "2026-10-26", "2026-10-27", "2026-10-28"]);
-  assert.deepEqual(d.map((x) => x.minutes), [20, 0, 0, 10]);
+  assert.deepEqual(
+    d.map((x) => x.day),
+    ["2026-10-25", "2026-10-26", "2026-10-27", "2026-10-28"],
+  );
+  assert.deepEqual(
+    d.map((x) => x.minutes),
+    [20, 0, 0, 10],
+  );
 });
 
 test("this week against last week", () => {

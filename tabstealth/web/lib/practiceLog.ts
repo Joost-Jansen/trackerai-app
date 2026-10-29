@@ -13,7 +13,15 @@ export function usePracticeLog(video: string, playing: boolean, speed: () => num
         method: "POST",
         headers: { "Content-Type": "application/json" },
         keepalive: true,
-        body: JSON.stringify({ video, day: localDay(), seconds: Math.min(600, seconds.current), speed: speed(), source: "video", bars: null, whole_song: false }),
+        body: JSON.stringify({
+          video,
+          day: localDay(),
+          seconds: Math.min(600, seconds.current),
+          speed: speed(),
+          source: "video",
+          bars: null,
+          whole_song: false,
+        }),
       });
       seconds.current = 0;
     };

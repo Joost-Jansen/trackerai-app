@@ -8,7 +8,17 @@ import { CIRCLE } from "@/lib/theory";
 // server and browser can differ in the last digit of sin/cos: round, or React sees a different page
 const round = (v: number) => Math.round(v * 100) / 100;
 
-export default function CircleOfFifths({ root, minor, onSelect, ariaLabel }: { root: number; minor: boolean; onSelect: (root: number, minor: boolean) => void; ariaLabel: string }) {
+export default function CircleOfFifths({
+  root,
+  minor,
+  onSelect,
+  ariaLabel,
+}: {
+  root: number;
+  minor: boolean;
+  onSelect: (root: number, minor: boolean) => void;
+  ariaLabel: string;
+}) {
   const c = 150;
   const seg = (i: number, r0: number, r1: number) => {
     const a0 = ((i - 0.5) * 30 - 90) * (Math.PI / 180);
@@ -31,9 +41,29 @@ export default function CircleOfFifths({ root, minor, onSelect, ariaLabel }: { r
         const acc = at(i, 143);
         return (
           <g key={k.name} className="cursor-pointer">
-            <path d={seg(i, 98, 136)} fill={selMajor ? "var(--brand-500)" : "var(--surface-2)"} stroke="var(--surface)" strokeWidth={2} onClick={() => onSelect(k.root, false)} />
-            <path d={seg(i, 58, 98)} fill={selMinor ? "var(--brand-500)" : "var(--brand-tint)"} stroke="var(--surface)" strokeWidth={2} onClick={() => onSelect(minorRoot, true)} />
-            <text x={o.x} y={o.y + 5} textAnchor="middle" fontSize={15} fontWeight={600} fill={selMajor ? "#fff" : "currentColor"} pointerEvents="none">
+            <path
+              d={seg(i, 98, 136)}
+              fill={selMajor ? "var(--brand-500)" : "var(--surface-2)"}
+              stroke="var(--surface)"
+              strokeWidth={2}
+              onClick={() => onSelect(k.root, false)}
+            />
+            <path
+              d={seg(i, 58, 98)}
+              fill={selMinor ? "var(--brand-500)" : "var(--brand-tint)"}
+              stroke="var(--surface)"
+              strokeWidth={2}
+              onClick={() => onSelect(minorRoot, true)}
+            />
+            <text
+              x={o.x}
+              y={o.y + 5}
+              textAnchor="middle"
+              fontSize={15}
+              fontWeight={600}
+              fill={selMajor ? "#fff" : "currentColor"}
+              pointerEvents="none"
+            >
               {k.name}
             </text>
             <text x={n.x} y={n.y + 4} textAnchor="middle" fontSize={11} fill={selMinor ? "#fff" : "currentColor"} pointerEvents="none">

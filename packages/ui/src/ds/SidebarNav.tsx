@@ -108,7 +108,9 @@ function NavList({
                 {Glyph && <Glyph className="ds-navitem__icon" />}
                 <span>{item.label}</span>
                 {badges?.[item.id] ? (
-                  <span className="ds-navitem__trail"><span className="ds-badge ds-badge--quiet">{badges[item.id]}</span></span>
+                  <span className="ds-navitem__trail">
+                    <span className="ds-badge ds-badge--quiet">{badges[item.id]}</span>
+                  </span>
                 ) : null}
               </Link>
             );
@@ -183,7 +185,7 @@ export default function SidebarNav({
         return;
       }
       if (e.key !== "Tab" || !panel.current) return;
-      const focusables = panel.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])');
+      const focusables = panel.current.querySelectorAll<HTMLElement>("a[href], button:not([disabled])");
       if (focusables.length === 0) return;
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
@@ -203,7 +205,9 @@ export default function SidebarNav({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
       // The panel becomes invisible; the focus must not stay behind in it — after a
-      // tap on a menu item it is on that link. Back to the button that opened it.
+      // tap on a menu item it is on that link. Back to the button that opened it. The panel as it is at closing
+      // time is the one to check, so the ref is read here on purpose.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       if (panel.current?.contains(document.activeElement)) opener.current?.focus();
     };
   }, [open, onClose]);
@@ -309,9 +313,7 @@ export default function SidebarNav({
           can pick it up. */}
       <div
         ref={drawer}
-        className={`ds-navdrawer${collapsed ? "" : " lg:hidden"}${open ? " ds-navdrawer--open" : ""}${
-          drag === null ? "" : " ds-navdrawer--dragging"
-        }`}
+        className={`ds-navdrawer${collapsed ? "" : " lg:hidden"}${open ? " ds-navdrawer--open" : ""}${drag === null ? "" : " ds-navdrawer--dragging"}`}
       >
         <div className="ds-navdrawer__scrim" onClick={onClose} aria-hidden style={styleAt(drag, "scrim")} />
         <nav
@@ -359,5 +361,11 @@ function Wordmark({ logo, name, href }: { logo: React.ReactNode; name: string; h
     </>
   );
   // A plain <a>: the homepage is usually another site (trackerai.nl).
-  return href ? <a href={href} className="ds-sidebar__brand">{inner}</a> : <div className="ds-sidebar__brand">{inner}</div>;
+  return href ? (
+    <a href={href} className="ds-sidebar__brand">
+      {inner}
+    </a>
+  ) : (
+    <div className="ds-sidebar__brand">{inner}</div>
+  );
 }

@@ -4,6 +4,7 @@
 
 Local-first: no accounts yet, so it binds to 127.0.0.1 and is not meant to be exposed (see README).
 """
+
 import filecmp
 import itertools
 import json
@@ -16,14 +17,12 @@ import threading
 import time
 import uuid
 from pathlib import Path
+from typing import Literal
 
 import guitarpro as gp
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, PlainTextResponse
-from typing import Literal
-
 from pydantic import BaseModel, Field
-
 from tabreader.ascii import gp5_to_ascii
 from tabreader.cli import LIBRARY, split_title
 
@@ -105,8 +104,12 @@ def youtube_title(vid: str) -> str | None:
     """The video's title, by yt-dlp (which the converter needs anyway, and which brings its own certificates);
     None when it is not installed or offline."""
     try:
-        r = subprocess.run(["yt-dlp", "--skip-download", "--print", "%(title)s", f"https://www.youtube.com/watch?v={vid}"],
-                           capture_output=True, text=True, timeout=40)
+        r = subprocess.run(
+            ["yt-dlp", "--skip-download", "--print", "%(title)s", f"https://www.youtube.com/watch?v={vid}"],
+            capture_output=True,
+            text=True,
+            timeout=40,
+        )
     except (OSError, subprocess.TimeoutExpired):
         return None
     return r.stdout.strip() or None if r.returncode == 0 else None
@@ -127,7 +130,7 @@ class Jobs:
 
     def __init__(self, runner=None):
         self.items: dict[int, dict] = {}
-        self.queue: "queue.Queue[int]" = queue.Queue()
+        self.queue: queue.Queue[int] = queue.Queue()
         self.ids = itertools.count(1)
         self.runner = runner or self._run
         threading.Thread(target=self._work, daemon=True).start()
@@ -150,8 +153,9 @@ class Jobs:
         url = job["url"]
         args = ["--playlist", url] if "list=" in url and "watch?v=" not in url else [url]
         args += job.get("args", [])
-        p = subprocess.Popen([sys.executable, "-m", "tabreader", *args], cwd=HERE,
-                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        p = subprocess.Popen(
+            [sys.executable, "-m", "tabreader", *args], cwd=HERE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+        )
         for line in p.stdout:
             job["log"] = (job["log"] + [line.rstrip()])[-200:]
         return p.wait() == 0 and not any("FAILED" in line for line in job["log"])
@@ -246,6 +250,7 @@ def apply_edit(path: Path, edit: BeatEdit, lock: threading.Lock) -> None:
 
     Built on the existing notes, so what this form does not show (staccato, a trill) stays as it was.
     """
+
     def change(song):
         measures = song.tracks[0].measures
         if edit.bar >= len(measures) or edit.beat >= len(measures[edit.bar].voices[0].beats):
@@ -276,16 +281,23 @@ def apply_edit(path: Path, edit: BeatEdit, lock: threading.Lock) -> None:
                 e.bend = None
             elif have != spec.bend:  # an unchanged bend keeps its own shape
                 st = spec.bend // 50
-                e.bend = gp.BendEffect(type=gp.BendType.bend, value=spec.bend,
-                                       points=[gp.BendPoint(0, 0), gp.BendPoint(6, st), gp.BendPoint(12, st)])
+                e.bend = gp.BendEffect(
+                    type=gp.BendType.bend, value=spec.bend, points=[gp.BendPoint(0, 0), gp.BendPoint(6, st), gp.BendPoint(12, st)]
+                )
             if spec.grace is None:
                 e.grace = None
             else:
                 fret, gdead = _fret(spec.grace.fret)
                 e.grace = gp.GraceEffect(
-                    fret=fret, duration=32, isDead=gdead,
-                    transition=gp.GraceEffectTransition.slide if spec.grace.slide
-                    else gp.GraceEffectTransition.hammer if spec.grace.hammer else gp.GraceEffectTransition.none)
+                    fret=fret,
+                    duration=32,
+                    isDead=gdead,
+                    transition=gp.GraceEffectTransition.slide
+                    if spec.grace.slide
+                    else gp.GraceEffectTransition.hammer
+                    if spec.grace.hammer
+                    else gp.GraceEffectTransition.none,
+                )
             notes.append(n)
         beat.notes = notes
         beat.status = gp.BeatStatus.normal if notes else gp.BeatStatus.rest
@@ -294,7 +306,8 @@ def apply_edit(path: Path, edit: BeatEdit, lock: threading.Lock) -> None:
         else:
             beat.effect.stroke = gp.BeatStroke(
                 direction=gp.BeatStrokeDirection.up if edit.stroke == "up" else gp.BeatStrokeDirection.down,
-                value=16 if edit.stroke == "arpeggio" else 64)
+                value=16 if edit.stroke == "arpeggio" else 64,
+            )
         beat.text = (edit.chord or "").strip() or None
 
     _edit_gp5(path, lock, change)
@@ -314,24 +327,47 @@ def read_beat(path: Path, bar: int, beat_idx: int) -> dict:
         g = e.grace
         notes[str(n.string)] = NoteIn(
             fret="x" if n.type == gp.NoteType.dead else n.value,
-            tie=n.type == gp.NoteType.tie, hammer=e.hammer, slide=bool(e.slides), let_ring=e.letRing,
-            palm_mute=e.palmMute, ghost=e.ghostNote, harmonic=e.harmonic is not None, vibrato=e.vibrato,
+            tie=n.type == gp.NoteType.tie,
+            hammer=e.hammer,
+            slide=bool(e.slides),
+            let_ring=e.letRing,
+            palm_mute=e.palmMute,
+            ghost=e.ghostNote,
+            harmonic=e.harmonic is not None,
+            vibrato=e.vibrato,
             bend=_bend_of(e.bend),
-            grace=None if g is None else GraceIn(
-                fret="x" if g.isDead else g.fret, slide=g.transition == gp.GraceEffectTransition.slide,
-                hammer=g.transition == gp.GraceEffectTransition.hammer),
+            grace=None
+            if g is None
+            else GraceIn(
+                fret="x" if g.isDead else g.fret,
+                slide=g.transition == gp.GraceEffectTransition.slide,
+                hammer=g.transition == gp.GraceEffectTransition.hammer,
+            ),
         ).model_dump()
     st = beat.effect.stroke
-    stroke = (None if st is None or st.direction == gp.BeatStrokeDirection.none
-              else "arpeggio" if st.value and st.value <= 16
-              else "up" if st.direction == gp.BeatStrokeDirection.up else "down")
+    stroke = (
+        None
+        if st is None or st.direction == gp.BeatStrokeDirection.none
+        else "arpeggio"
+        if st.value and st.value <= 16
+        else "up"
+        if st.direction == gp.BeatStrokeDirection.up
+        else "down"
+    )
     marker = measures[bar].header.marker
-    return {"bar": bar, "beat": beat_idx, "notes": notes, "stroke": stroke, "chord": beat.text or None,
-            "section": marker.title if marker else None}
+    return {
+        "bar": bar,
+        "beat": beat_idx,
+        "notes": notes,
+        "stroke": stroke,
+        "chord": beat.text or None,
+        "section": marker.title if marker else None,
+    }
 
 
 def apply_bar(path: Path, edit: BarEdit, lock: threading.Lock) -> None:
     """Set or clear the section name (a Guitar Pro marker) that starts at a bar."""
+
     def change(song):
         if edit.bar >= len(song.measureHeaders):
             raise HTTPException(404, "no such bar")
@@ -417,10 +453,20 @@ def create_app(library: Path = LIBRARY, jobs: Jobs | None = None) -> FastAPI:
             m = meta.get(vid, {})
             p = played.get(vid, {})
             tab = e.get("kind", "tab") == "tab"
-            out.append({"video": vid, "kind": "tab", **e, "edited": tab and is_edited(library / e["file"]),
-                        "status": m.get("status", "new"), "tags": m.get("tags", []), "favourite": m.get("favourite", False),
-                        "practised_seconds": p.get("seconds", 0), "last_practised": p.get("last"),
-                        "to_review": to_review(vid, e)})
+            out.append(
+                {
+                    "video": vid,
+                    "kind": "tab",
+                    **e,
+                    "edited": tab and is_edited(library / e["file"]),
+                    "status": m.get("status", "new"),
+                    "tags": m.get("tags", []),
+                    "favourite": m.get("favourite", False),
+                    "practised_seconds": p.get("seconds", 0),
+                    "last_practised": p.get("last"),
+                    "to_review": to_review(vid, e),
+                }
+            )
         return out
 
     # ── the collection: videos to keep (no tab to read) and PDFs ────────────────────
@@ -458,16 +504,16 @@ def create_app(library: Path = LIBRARY, jobs: Jobs | None = None) -> FastAPI:
         files = library / "files"
         files.mkdir(parents=True, exist_ok=True)
         (files / f"{key}.pdf").write_bytes(data)
-        return add_entry(key, {"kind": "pdf", "file": f"files/{key}.pdf", "title": title.strip()[:200] or "PDF",
-                               "artist": artist.strip()[:200]})
+        return add_entry(
+            key, {"kind": "pdf", "file": f"files/{key}.pdf", "title": title.strip()[:200] or "PDF", "artist": artist.strip()[:200]}
+        )
 
     @app.get("/api/songs/{vid}/pdf")
     def pdf(vid: str):
         e = song(vid)
         if e.get("kind") != "pdf":
             raise HTTPException(404, "not a PDF")
-        return FileResponse(library / e["file"], media_type="application/pdf",
-                            headers={"Content-Disposition": "inline"})
+        return FileResponse(library / e["file"], media_type="application/pdf", headers={"Content-Disposition": "inline"})
 
     @app.post("/api/songs/{vid}/convert")
     def convert_saved(vid: str, body: ReanalyseIn | None = None):
@@ -550,8 +596,7 @@ def create_app(library: Path = LIBRARY, jobs: Jobs | None = None) -> FastAPI:
 
     @app.get("/api/songs/{vid}/tab")
     def tab(vid: str):
-        return FileResponse(library / song(vid)["file"], media_type="application/octet-stream",
-                            headers=NO_STORE)
+        return FileResponse(library / song(vid)["file"], media_type="application/octet-stream", headers=NO_STORE)
 
     @app.get("/api/songs/{vid}/timing")
     def timing(vid: str):

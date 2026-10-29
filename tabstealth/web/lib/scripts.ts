@@ -1,10 +1,12 @@
 // The two players come from their own hosts as plain scripts: alphaTab (tab rendering and the synth, from jsDelivr,
 // a fixed version) and the YouTube iframe API. Each is loaded once and shared by every page.
 
+import type { AlphaTab, YouTube } from "./vendor.ts";
+
 const ALPHATAB = "https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.1/dist/";
 
-let alphaTabPromise: Promise<any> | null = null;
-let youTubePromise: Promise<any> | null = null;
+let alphaTabPromise: Promise<AlphaTab> | null = null;
+let youTubePromise: Promise<YouTube> | null = null;
 
 function addScript(src: string, cors = false): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -20,16 +22,18 @@ function addScript(src: string, cors = false): Promise<void> {
 
 export const ALPHATAB_BASE = ALPHATAB;
 
-export function loadAlphaTab(): Promise<any> {
-  alphaTabPromise ??= addScript(`${ALPHATAB}alphaTab.js`, true).then(() => (window as any).alphaTab);
+type PlayerWindow = Window & { alphaTab?: AlphaTab; YT?: YouTube; onYouTubeIframeAPIReady?: () => void };
+
+export function loadAlphaTab(): Promise<AlphaTab> {
+  alphaTabPromise ??= addScript(`${ALPHATAB}alphaTab.js`, true).then(() => (window as PlayerWindow).alphaTab!);
   return alphaTabPromise;
 }
 
-export function loadYouTube(): Promise<any> {
+export function loadYouTube(): Promise<YouTube> {
   youTubePromise ??= new Promise((resolve) => {
-    const w = window as any;
+    const w = window as PlayerWindow;
     if (w.YT?.Player) return resolve(w.YT);
-    w.onYouTubeIframeAPIReady = () => resolve(w.YT);
+    w.onYouTubeIframeAPIReady = () => resolve(w.YT!);
     void addScript("https://www.youtube.com/iframe_api");
   });
   return youTubePromise;

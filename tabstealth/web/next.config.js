@@ -24,14 +24,16 @@ module.exports = {
       "connect-src 'self' https://cdn.jsdelivr.net",
       "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com", // 'self': the PDF viewer
     ].join("; ");
-    return [{
-      source: "/:path*",
-      headers: [
-        { key: "Content-Security-Policy", value: csp },
-        { key: "X-Content-Type-Options", value: "nosniff" },
-        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-      ],
-    }];
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: csp },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
+    ];
   },
   async rewrites() {
     const apiUrl = process.env.API_INTERNAL_URL || "http://127.0.0.1:8770";

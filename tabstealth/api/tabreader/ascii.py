@@ -8,6 +8,7 @@ measure number, the chord names, and the strum of each beat. In the strings:
   ^   downstroke    v   upstroke         ~       arpeggio (rolled chord)            before its beat
   <12> harmonic     (3) ghost note       7b      bend                7~  vibrato
 """
+
 import guitarpro as gp
 
 STRINGS = "eBGDAE"
@@ -17,7 +18,7 @@ NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 
 def _next_on_string(beats: list, i: int, string: int):
-    for b in beats[i + 1:]:
+    for b in beats[i + 1 :]:
         for n in b.notes:
             if n.string == string:
                 return n
@@ -36,15 +37,17 @@ def gp5_to_ascii(path: str, per_line: int = 4) -> str:
     track = song.tracks[0]
     flat = [b for m in track.measures for b in m.voices[0].beats]
     index = {id(b): i for i, b in enumerate(flat)}  # by identity: the models compare by value, which is slow
-    head = [f"{song.title} - {song.artist}".strip(" -"),
-            f"Tempo {song.tempo}   Tuning {_tuning_name(track)}   Capo {track.offset or 'none'}"]
+    head = [
+        f"{song.title} - {song.artist}".strip(" -"),
+        f"Tempo {song.tempo}   Tuning {_tuning_name(track)}   Capo {track.offset or 'none'}",
+    ]
     if song.tab:
         head.append(song.tab)
     out = head + ["", __doc__.split("\n\n", 1)[1].rstrip(), ""]
     for start in range(0, len(track.measures), per_line):
         rows = [f"{s}|" for s in STRINGS]
         nums, chords, strums = "  ", "  ", "  "
-        for m in track.measures[start:start + per_line]:
+        for m in track.measures[start : start + per_line]:
             header = m.header
             ticks = header.timeSignature.numerator * gp.Duration.quarterTime * 4 // header.timeSignature.denominator.value
             width = max(1, round(ticks / SIXTEENTH)) * CELL
@@ -60,8 +63,9 @@ def gp5_to_ascii(path: str, per_line: int = 4) -> str:
                         top[x + k] = ch
                 stroke = b.effect.stroke
                 if stroke and stroke.direction != gp.BeatStrokeDirection.none:
-                    strum[x] = "~" if stroke.value and stroke.value <= 16 else (
-                        "^" if stroke.direction == gp.BeatStrokeDirection.down else "v")
+                    strum[x] = (
+                        "~" if stroke.value and stroke.value <= 16 else ("^" if stroke.direction == gp.BeatStrokeDirection.down else "v")
+                    )
                 i = index[id(b)]
                 for n in b.notes:
                     row = cols[n.string - 1]

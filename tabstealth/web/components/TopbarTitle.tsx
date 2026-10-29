@@ -9,7 +9,21 @@ import Link from "next/link";
 import { ChevronLeftIcon } from "@trackerai/ui/icons";
 import { TOPBAR_ACTIONS, TOPBAR_TITLE } from "@/lib/nav";
 
-export default function TopbarTitle({ title, meta, chips, back, backLabel, actions }: { title: string; meta?: string; chips?: React.ReactNode; back: string; backLabel: string; actions?: React.ReactNode }) {
+export default function TopbarTitle({
+  title,
+  meta,
+  chips,
+  back,
+  backLabel,
+  actions,
+}: {
+  title: string;
+  meta?: string;
+  chips?: React.ReactNode;
+  back: string;
+  backLabel: string;
+  actions?: React.ReactNode;
+}) {
   const [slots, setSlots] = useState<{ title: HTMLElement | null; actions: HTMLElement | null }>({ title: null, actions: null });
   useEffect(() => setSlots({ title: document.getElementById(TOPBAR_TITLE), actions: document.getElementById(TOPBAR_ACTIONS) }), []);
   return (

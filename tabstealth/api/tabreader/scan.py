@@ -4,6 +4,7 @@ Per frame we record whether the staff is visible, the playback cursor x, the yel
 highlight span (current measure) and a coarse ink signature used to split the video
 into "pages" (distinct tab images).
 """
+
 from dataclasses import dataclass
 
 import cv2
@@ -91,37 +92,41 @@ def scan(video: str, staff: Staff | None = None, progress: bool = True) -> dict:
         ok, fr = cap.read()
         if not ok:
             break
-        crop = fr[reg.y0:reg.y1, reg.x0:reg.x1]
+        crop = fr[reg.y0 : reg.y1, reg.x0 : reg.x1]
         ink = ink_mask(crop, 185)
         # staff present if most of the 6 line rows are mostly inked
-        cov = [ink[max(0, y - 1):y + 2].max(axis=0).mean() for y in line_rows]
-        gaps = [ink[(a + b) // 2] .mean() for a, b in zip(line_rows, line_rows[1:])]
+        cov = [ink[max(0, y - 1) : y + 2].max(axis=0).mean() for y in line_rows]
+        gaps = [ink[(a + b) // 2].mean() for a, b in zip(line_rows, line_rows[1:])]
         present.append(min(cov) > 0.5 and max(gaps) < 0.35)
         cur.append(cursor_x(crop))
         a, b = highlight_span(crop)
         hl0.append(a)
         hl1.append(b)
-        sig = cv2.resize(ink_mask(crop, 140), None, fx=1 / SIG_DOWN, fy=1 / SIG_DOWN,
-                         interpolation=cv2.INTER_AREA)
+        sig = cv2.resize(ink_mask(crop, 140), None, fx=1 / SIG_DOWN, fy=1 / SIG_DOWN, interpolation=cv2.INTER_AREA)
         sigs.append(np.packbits(sig > 0))
         if present[-1]:
             lab = fr[lab_y0:lab_y1, :lab_x1]
-            lab_sig = cv2.resize(cv2.cvtColor(lab, cv2.COLOR_BGR2GRAY), None, fx=0.25,
-                                 fy=0.25) > 160  # light text on the dark bar
+            lab_sig = cv2.resize(cv2.cvtColor(lab, cv2.COLOR_BGR2GRAY), None, fx=0.25, fy=0.25) > 160  # light text on the dark bar
             if last_lab is None or (lab_sig != last_lab).mean() > 0.01:
                 labels.append((i, lab.copy()))
                 last_lab = lab_sig
             if corner is None and i > n_frames // 3:
-                corner = fr[:int(staff.lines[0] - 7.2 * sp), int(fr.shape[1] * 0.7):].copy()
+                corner = fr[: int(staff.lines[0] - 7.2 * sp), int(fr.shape[1] * 0.7) :].copy()
         i += 1
         if progress and i % 1000 == 0:
             print(f"  scanned {i} frames", flush=True)
     cap.release()
     return dict(
-        fps=fps, frame_h=h, staff_lines=np.array(staff.lines), staff_x1=staff.x1,
+        fps=fps,
+        frame_h=h,
+        staff_lines=np.array(staff.lines),
+        staff_x1=staff.x1,
         region=np.array([reg.y0, reg.y1, reg.x0, reg.x1]),
-        present=np.array(present), cursor=np.array(cur),
-        hl0=np.array(hl0), hl1=np.array(hl1), sigs=np.array(sigs),
+        present=np.array(present),
+        cursor=np.array(cur),
+        hl0=np.array(hl0),
+        hl1=np.array(hl1),
+        sigs=np.array(sigs),
         label_frames=np.array([f for f, _ in labels]),
         label_crops=[c for _, c in labels],
         corner=corner if corner is not None else np.zeros((1, 1, 3), np.uint8),

@@ -51,7 +51,10 @@ export default function StatsPage() {
   const most = Math.max(...top.map((s) => s.seconds), 1);
   const speedSongs = top.filter((s) => (p.speed[s.video]?.length ?? 0) > 1).slice(0, 5);
   const statusCount = STATUSES.map((st) => ({ st, n: (songs.data ?? []).filter((s) => s.status === st).length }));
-  const total = Math.max(1, statusCount.reduce((a, b) => a + b.n, 0));
+  const total = Math.max(
+    1,
+    statusCount.reduce((a, b) => a + b.n, 0),
+  );
 
   return (
     <div className="mx-auto flex max-w-content flex-col gap-4">

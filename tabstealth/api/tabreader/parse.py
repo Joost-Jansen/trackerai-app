@@ -1,4 +1,5 @@
 """Pass 3: parse a clean page image into measures, beats and notes."""
+
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -97,9 +98,13 @@ def merge_multidigit(notes: list[tuple[Glyph, str, float]], sp: float):
     out: list[list] = []
     for g, lab, sc in notes:
         gap = g.x0 - out[-1][3] if out else -1
-        if (out and lab in DIGITS and out[-1][1][-1] in DIGITS
-                and abs(out[-1][0].cy - g.cy) < 0.2 * sp
-                and (0 <= gap < 0.25 * sp or (0.25 * sp <= gap < 0.42 * sp and int(out[-1][1] + lab) <= 24))):
+        if (
+            out
+            and lab in DIGITS
+            and out[-1][1][-1] in DIGITS
+            and abs(out[-1][0].cy - g.cy) < 0.2 * sp
+            and (0 <= gap < 0.25 * sp or (0.25 * sp <= gap < 0.42 * sp and int(out[-1][1] + lab) <= 24))
+        ):
             out[-1][1] += lab
             out[-1][3] = g.x1
             out[-1][2] = min(out[-1][2], sc)
@@ -118,13 +123,12 @@ def bracketed(clean: np.ndarray, x0: int, x1: int, y0: int, y1: int, sp: float) 
     w = int(0.4 * sp)
 
     def side(a: int, b: int, sign: int) -> bool:
-        win = clean[y0:y1, max(0, a):max(0, b)]
+        win = clean[y0:y1, max(0, a) : max(0, b)]
         if win.shape[1] < 3 or win.any(axis=1).mean() < 0.8:
             return False
-        near = np.array([(np.nonzero(r)[0].max() if sign < 0 else np.nonzero(r)[0].min()) if r.any() else np.nan
-                         for r in win], float)
+        near = np.array([(np.nonzero(r)[0].max() if sign < 0 else np.nonzero(r)[0].min()) if r.any() else np.nan for r in win], float)
         h = len(near)
-        band = lambda p, q: np.nanmedian(near[int(p * h):max(int(q * h), int(p * h) + 1)])
+        band = lambda p, q: np.nanmedian(near[int(p * h) : max(int(q * h), int(p * h) + 1)])
         bulge = (band(0, 0.2) + band(0.8, 1)) / 2 - band(0.4, 0.6)  # > 0: the middle lies left of the ends
         return -sign * bulge > 0.15 * win.shape[1]
 
@@ -139,8 +143,7 @@ def find_rests(clean: np.ndarray, lines: list[float]) -> list[float]:
     xs = []
     for i in range(1, n):
         x, y, w, h, _ = st[i]
-        if (abs(y + h / 2 - mid) < 0.6 * sp and 1.2 * sp <= h <= 3.0 * sp
-                and 0.45 * sp <= w <= 1.0 * sp):
+        if abs(y + h / 2 - mid) < 0.6 * sp and 1.2 * sp <= h <= 3.0 * sp and 0.45 * sp <= w <= 1.0 * sp:
             xs.append(x + w / 2)
     return xs
 
@@ -208,8 +211,7 @@ def parse_page(img: np.ndarray, lines: list[float], clf: Classifier) -> ParsedPa
                 pending_grace.append(n)
                 continue
             # same column when it lines up, unless that string already has a note there (then it is the next beat)
-            if (cols and abs(cols[-1].x - n.x) < 0.45 * sp and not pending_grace
-                    and n.string not in {m.string for m in cols[-1].notes}):
+            if cols and abs(cols[-1].x - n.x) < 0.45 * sp and not pending_grace and n.string not in {m.string for m in cols[-1].notes}:
                 cols[-1].notes.append(n)
                 cols[-1].x = float(np.mean([m.x for m in cols[-1].notes]))
             else:
@@ -229,6 +231,7 @@ def parse_page(img: np.ndarray, lines: list[float], clf: Classifier) -> ParsedPa
         for i, m in enumerate(measures):
             m.number = i + k if i + k >= 1 else None
     from .effects import annotate  # effects builds on the dataclasses defined here
+
     annotate(img, clean, lines, bars, measures, slide_marks)
     return ParsedPage(bars, measures, numbers)
 
@@ -238,6 +241,5 @@ def signature(m: PageMeasure) -> str:
     parts = []
     for c in m.columns:
         g = ",".join(f"g{n.string}:{'x' if n.dead else n.fret}" for n in c.grace)
-        parts.append(g + "|" + ",".join(f"{n.string}:{'x' if n.dead else n.fret}"
-                                         for n in sorted(c.notes, key=lambda n: n.string)))
+        parts.append(g + "|" + ",".join(f"{n.string}:{'x' if n.dead else n.fret}" for n in sorted(c.notes, key=lambda n: n.string)))
     return " ".join(parts)

@@ -11,8 +11,18 @@ const LETTER_PC: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, 
 export const STANDARD = [40, 45, 50, 55, 59, 64];
 
 export type ScaleId =
-  | "major" | "minor" | "harmonicMinor" | "melodicMinor" | "majorPentatonic" | "minorPentatonic" | "blues"
-  | "dorian" | "phrygian" | "lydian" | "mixolydian" | "locrian";
+  | "major"
+  | "minor"
+  | "harmonicMinor"
+  | "melodicMinor"
+  | "majorPentatonic"
+  | "minorPentatonic"
+  | "blues"
+  | "dorian"
+  | "phrygian"
+  | "lydian"
+  | "mixolydian"
+  | "locrian";
 
 /** Semitones above the root. */
 export const SCALES: Record<ScaleId, number[]> = {
@@ -42,14 +52,17 @@ export const isMinorScale = (s: ScaleId) => SCALES[s][2] === 3 || SCALES[s][1] =
 export const pc = (n: number) => ((n % 12) + 12) % 12;
 export const pitchOf = (name: string): number => {
   const base = LETTER_PC[name[0]];
-  const acc = name.slice(1).split("").reduce((a, c) => a + (c === "#" ? 1 : c === "b" ? -1 : 0), 0);
+  const acc = name
+    .slice(1)
+    .split("")
+    .reduce((a, c) => a + (c === "#" ? 1 : c === "b" ? -1 : 0), 0);
   return pc(base + acc);
 };
 
 /** Keys written with flats: F and everything flatwards, and their relative minors. */
 const FLAT_ROOTS = new Set([5, 10, 3, 8, 1, 6]); // F Bb Eb Ab Db Gb (major)
 export function usesFlats(root: number, minor: boolean): boolean {
-  return FLAT_ROOTS.has(minor ? pc(root + 3) : root) || (minor && root === 2) /* D minor = F major */;
+  return FLAT_ROOTS.has(minor ? pc(root + 3) : root) || (minor && root === 2); /* D minor = F major */
 }
 
 /** The name of a pitch class in a key that uses sharps or flats. */
@@ -74,7 +87,8 @@ export function spellScale(root: number, scale: ScaleId, rootName: string = PITC
 
 const INTERVALS = ["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7"];
 /** The interval name of a step in a scale (#4 in lydian, b5 in the blues scale). */
-export const intervalName = (semitones: number, scale?: ScaleId) => (semitones === 6 && scale === "lydian" ? "#4" : INTERVALS[pc(semitones)]);
+export const intervalName = (semitones: number, scale?: ScaleId) =>
+  semitones === 6 && scale === "lydian" ? "#4" : INTERVALS[pc(semitones)];
 
 export type Dot = { string: number; fret: number; pitch: number; degree: number; interval: string; name: string; root: boolean };
 
@@ -88,7 +102,16 @@ export function scaleOnNeck(root: number, scale: ScaleId, frets = 15, tuning = S
     for (let fret = 0; fret <= frets; fret++) {
       const p = open + fret;
       const degree = steps.indexOf(pc(p - root));
-      if (degree >= 0) dots.push({ string, fret, pitch: p, degree, interval: intervalName(steps[degree], scale), name: names[degree], root: degree === 0 });
+      if (degree >= 0)
+        dots.push({
+          string,
+          fret,
+          pitch: p,
+          degree,
+          interval: intervalName(steps[degree], scale),
+          name: names[degree],
+          root: degree === 0,
+        });
     }
   });
   return dots;
@@ -135,12 +158,30 @@ export function positions(root: number, scale: ScaleId, tuning = STANDARD): { fr
 
 export type Quality = "maj" | "m" | "dim" | "aug" | "maj7" | "7" | "m7" | "m7b5" | "dim7" | "mMaj7" | "maj7#5";
 export const CHORD_STEPS: Record<Quality, number[]> = {
-  maj: [0, 4, 7], m: [0, 3, 7], dim: [0, 3, 6], aug: [0, 4, 8],
-  maj7: [0, 4, 7, 11], "7": [0, 4, 7, 10], m7: [0, 3, 7, 10], m7b5: [0, 3, 6, 10], dim7: [0, 3, 6, 9],
-  mMaj7: [0, 3, 7, 11], "maj7#5": [0, 4, 8, 11],
+  maj: [0, 4, 7],
+  m: [0, 3, 7],
+  dim: [0, 3, 6],
+  aug: [0, 4, 8],
+  maj7: [0, 4, 7, 11],
+  "7": [0, 4, 7, 10],
+  m7: [0, 3, 7, 10],
+  m7b5: [0, 3, 6, 10],
+  dim7: [0, 3, 6, 9],
+  mMaj7: [0, 3, 7, 11],
+  "maj7#5": [0, 4, 8, 11],
 };
 const SUFFIX: Record<Quality, string> = {
-  maj: "", m: "m", dim: "°", aug: "+", maj7: "maj7", "7": "7", m7: "m7", m7b5: "m7b5", dim7: "°7", mMaj7: "m(maj7)", "maj7#5": "maj7#5",
+  maj: "",
+  m: "m",
+  dim: "°",
+  aug: "+",
+  maj7: "maj7",
+  "7": "7",
+  m7: "m7",
+  m7b5: "m7b5",
+  dim7: "°7",
+  mMaj7: "m(maj7)",
+  "maj7#5": "maj7#5",
 };
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII"];
 
@@ -152,7 +193,14 @@ export function qualityOf(steps: number[]): Quality {
 }
 
 export function chord(root: number, quality: Quality, rootName: string = PITCHES[pc(root)], roman = ""): Chord {
-  return { root: pc(root), rootName, quality, name: rootName + SUFFIX[quality], roman, tones: CHORD_STEPS[quality].map((s) => pc(root + s)) };
+  return {
+    root: pc(root),
+    rootName,
+    quality,
+    name: rootName + SUFFIX[quality],
+    roman,
+    tones: CHORD_STEPS[quality].map((s) => pc(root + s)),
+  };
 }
 
 /** The chords of a seven-note scale, built on every degree by stacking thirds (triads, or with the seventh). */
@@ -181,7 +229,8 @@ export function chordFromRoman(key: number, minor: boolean, numeral: string): Ch
   // a flat numeral (bVII) is counted from the major scale, as is the custom; the others from the key's own scale
   const root = flat ? pc(key + SCALES.major[degree] - 1) : pc(key + SCALES[minor ? "minor" : "major"][degree]);
   const lower = rn === rn.toLowerCase();
-  const q: Quality = ext === "°" ? "dim" : ext === "7" ? (lower ? "m7" : "7") : ext === "maj7" ? "maj7" : ext === "m7" ? "m7" : lower ? "m" : "maj";
+  const q: Quality =
+    ext === "°" ? "dim" : ext === "7" ? (lower ? "m7" : "7") : ext === "maj7" ? "maj7" : ext === "m7" ? "m7" : lower ? "m" : "maj";
   const name = flat ? noteName(root, true) : spellScale(key, minor ? "minor" : "major")[degree];
   return chord(root, q, name, numeral);
 }
@@ -204,20 +253,58 @@ export const PROGRESSIONS: { id: string; minor: boolean; numerals: string[] }[] 
 export type Shape = number[];
 
 const OPEN: Record<string, string> = {
-  C: "x32010", D: "xx0232", E: "022100", F: "133211", G: "320003", A: "x02220", B: "x24442",
-  Cm: "x35543", Dm: "xx0231", Em: "022000", Fm: "133111", Gm: "355333", Am: "x02210", Bm: "x24432",
-  C7: "x32310", D7: "xx0212", E7: "020100", G7: "320001", A7: "x02020", B7: "x21202",
-  Dm7: "xx0211", Em7: "020000", Am7: "x02010", Cmaj7: "x32000", Dmaj7: "xx0222", Fmaj7: "xx3210", Gmaj7: "320002", Amaj7: "x02120",
+  C: "x32010",
+  D: "xx0232",
+  E: "022100",
+  F: "133211",
+  G: "320003",
+  A: "x02220",
+  B: "x24442",
+  Cm: "x35543",
+  Dm: "xx0231",
+  Em: "022000",
+  Fm: "133111",
+  Gm: "355333",
+  Am: "x02210",
+  Bm: "x24432",
+  C7: "x32310",
+  D7: "xx0212",
+  E7: "020100",
+  G7: "320001",
+  A7: "x02020",
+  B7: "x21202",
+  Dm7: "xx0211",
+  Em7: "020000",
+  Am7: "x02010",
+  Cmaj7: "x32000",
+  Dmaj7: "xx0222",
+  Fmaj7: "xx3210",
+  Gmaj7: "320002",
+  Amaj7: "x02120",
 };
 // Movable shapes as offsets from the root fret, null = string not played: on the low E string (E-shape) and on the A
 // string (A-shape). Some reach a fret below the root (the b5 of an E-shape m7b5).
 const E_SHAPE: Partial<Record<Quality, (number | null)[]>> = {
-  maj: [0, 2, 2, 1, 0, 0], m: [0, 2, 2, 0, 0, 0], "7": [0, 2, 0, 1, 0, 0], m7: [0, 2, 0, 0, 0, 0], maj7: [0, null, 1, 1, 0, null],
-  m7b5: [0, null, 0, 0, -1, null], dim7: [0, null, -1, 0, -1, null], dim: [0, 1, 2, 0, null, null], aug: [0, 3, 2, 1, 1, 0],
+  maj: [0, 2, 2, 1, 0, 0],
+  m: [0, 2, 2, 0, 0, 0],
+  "7": [0, 2, 0, 1, 0, 0],
+  m7: [0, 2, 0, 0, 0, 0],
+  maj7: [0, null, 1, 1, 0, null],
+  m7b5: [0, null, 0, 0, -1, null],
+  dim7: [0, null, -1, 0, -1, null],
+  dim: [0, 1, 2, 0, null, null],
+  aug: [0, 3, 2, 1, 1, 0],
 };
 const A_SHAPE: Partial<Record<Quality, (number | null)[]>> = {
-  maj: [null, 0, 2, 2, 2, 0], m: [null, 0, 2, 2, 1, 0], "7": [null, 0, 2, 0, 2, 0], m7: [null, 0, 2, 0, 1, 0], maj7: [null, 0, 2, 1, 2, 0],
-  m7b5: [null, 0, 1, 0, 1, null], dim: [null, 0, 1, 2, 1, null], dim7: [null, 0, 1, 2, 1, 2], aug: [null, 0, 3, 2, 2, null],
+  maj: [null, 0, 2, 2, 2, 0],
+  m: [null, 0, 2, 2, 1, 0],
+  "7": [null, 0, 2, 0, 2, 0],
+  m7: [null, 0, 2, 0, 1, 0],
+  maj7: [null, 0, 2, 1, 2, 0],
+  m7b5: [null, 0, 1, 0, 1, null],
+  dim: [null, 0, 1, 2, 1, null],
+  dim7: [null, 0, 1, 2, 1, 2],
+  aug: [null, 0, 3, 2, 2, null],
   mMaj7: [null, 0, 2, 1, 1, 0],
 };
 
@@ -230,7 +317,10 @@ export function shapeFor(c: Chord): Shape | null {
   const open = OPEN[key] ?? OPEN[flatKey];
   if (open) return parse(open);
   const options: Shape[] = [];
-  for (const [shape, string] of [[E_SHAPE, 0], [A_SHAPE, 1]] as const) {
+  for (const [shape, string] of [
+    [E_SHAPE, 0],
+    [A_SHAPE, 1],
+  ] as const) {
     const offs = shape[c.quality];
     if (!offs) continue;
     let base = pc(c.root - STANDARD[string]);

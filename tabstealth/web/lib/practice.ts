@@ -17,7 +17,15 @@ export type Practice = {
 };
 
 export const DEFAULT_PRACTICE: Practice = {
-  loop: false, from: 1, to: 4, trainer: false, start: 0.6, step: 0.05, target: 1, countIn: false, metronome: false,
+  loop: false,
+  from: 1,
+  to: 4,
+  trainer: false,
+  start: 0.6,
+  step: 0.05,
+  target: 1,
+  countIn: false,
+  metronome: false,
 };
 
 /** The loop range in ticks, or null when the bars do not exist. */

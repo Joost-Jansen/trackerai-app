@@ -15,6 +15,7 @@ import { api, type Song } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { usePracticeLog } from "@/lib/practiceLog";
 import { loadYouTube } from "@/lib/scripts";
+import type { YtPlayer } from "@/lib/vendor";
 
 const RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5];
 const PLAYING = 1;
@@ -27,7 +28,7 @@ function Watch({ vid }: { vid: string }) {
   const songs = useQuery({ queryKey: ["songs"], queryFn: () => api.get<Song[]>("/api/songs") });
   const song = songs.data?.find((s) => s.video === vid);
   const el = useRef<HTMLDivElement>(null);
-  const yt = useRef<any>(null);
+  const yt = useRef<YtPlayer | null>(null);
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
   const [a, setA] = useState<number | null>(null);
@@ -38,7 +39,11 @@ function Watch({ vid }: { vid: string }) {
   loopRef.current = { a, b, loop };
   const rateRef = useRef(rate);
   rateRef.current = rate;
-  usePracticeLog(vid, playing, useCallback(() => rateRef.current, []));
+  usePracticeLog(
+    vid,
+    playing,
+    useCallback(() => rateRef.current, []),
+  );
 
   useEffect(() => {
     let alive = true;
@@ -55,7 +60,7 @@ function Watch({ vid }: { vid: string }) {
       yt.current = new YT.Player(el.current, {
         videoId: vid,
         playerVars: { rel: 0, playsinline: 1, modestbranding: 1 },
-        events: { onStateChange: (e: any) => setPlaying(e.data === PLAYING) },
+        events: { onStateChange: (e: { data: number }) => setPlaying(e.data === PLAYING) },
       });
       raf = requestAnimationFrame(tick);
     });
@@ -109,7 +114,13 @@ function Watch({ vid }: { vid: string }) {
         back="/library/"
         backLabel={t.song.back}
         actions={
-          <Button variant="primary" size="sm" onClick={playPause} aria-label={playing ? t.song.pause : t.song.play} icon={playing ? <PauseIcon className="h-[15px] w-[15px]" /> : <PlayIcon className="h-[15px] w-[15px]" />} />
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={playPause}
+            aria-label={playing ? t.song.pause : t.song.play}
+            icon={playing ? <PauseIcon className="h-[15px] w-[15px]" /> : <PlayIcon className="h-[15px] w-[15px]" />}
+          />
         }
       />
       <div className="ts-video w-full" style={{ aspectRatio: "16 / 9" }}>
@@ -148,7 +159,15 @@ function Watch({ vid }: { vid: string }) {
           <span className="ml-1">{t.watch.loopAB}</span>
         </button>
         {(a !== null || b !== null) && (
-          <button type="button" className="text-xs text-ink-muted hover:underline" onClick={() => { setA(null); setB(null); setLoop(false); }}>
+          <button
+            type="button"
+            className="text-xs text-ink-muted hover:underline"
+            onClick={() => {
+              setA(null);
+              setB(null);
+              setLoop(false);
+            }}
+          >
             {t.watch.clear}
           </button>
         )}

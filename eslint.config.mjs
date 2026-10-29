@@ -1,4 +1,4 @@
-// ESLint for every TypeScript and JavaScript file in the workspace: the three Next apps and packages/. Formatting
+// ESLint for every TypeScript and JavaScript file in the workspace: the Next apps and packages/. Formatting
 // is Prettier's job (eslint-config-prettier, last, turns off the rules that would fight it).
 import js from "@eslint/js";
 import nextPlugin from "@next/eslint-plugin-next";
@@ -7,7 +7,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
-const NEXT_APPS = ["health-tracker/web", "wealth-tracker/frontend", "trackerai/web"];
+const NEXT_APPS = ["health-tracker/web", "wealth-tracker/frontend", "trackerai/web", "tabstealth/web"];
 
 export default tseslint.config(
   {

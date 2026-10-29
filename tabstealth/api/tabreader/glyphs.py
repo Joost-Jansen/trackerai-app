@@ -1,4 +1,5 @@
 """Glyph extraction from a clean page image: bar lines, measure numbers, note glyphs."""
+
 from dataclasses import dataclass
 
 import cv2
@@ -56,10 +57,10 @@ def find_barlines(ink: np.ndarray, lines: list[float]) -> list[int]:
     """x of bar lines: thin vertical strokes spanning exactly line 1 .. line 6."""
     top, bot = int(round(lines[0])), int(round(lines[-1]))
     sp = (lines[-1] - lines[0]) / 5
-    span = ink[top:bot + 1]
+    span = ink[top : bot + 1]
     cover = span.mean(axis=0)
-    above = ink[int(top - 0.45 * sp):top - 2].mean(axis=0)
-    below = ink[bot + 3:int(bot + 0.45 * sp)].mean(axis=0) if bot + 3 < ink.shape[0] else 0 * cover
+    above = ink[int(top - 0.45 * sp) : top - 2].mean(axis=0)
+    below = ink[bot + 3 : int(bot + 0.45 * sp)].mean(axis=0) if bot + 3 < ink.shape[0] else 0 * cover
     # a stroke that runs on past the staff is not a bar line; a tie arc that crosses just above the top string or
     # below the bottom one (a note tied over the bar line) only touches a few of those rows
     cand = np.where((cover > 0.95) & (above < 0.6) & (below < 0.6))[0]
@@ -101,8 +102,7 @@ def remove_lines(ink: np.ndarray, lines: list[float], bars: list[int]) -> np.nda
     return out
 
 
-def components(ink: np.ndarray, y_lo: int, y_hi: int, min_h: int, max_h: int,
-               max_w: int) -> list[Glyph]:
+def components(ink: np.ndarray, y_lo: int, y_hi: int, min_h: int, max_h: int, max_w: int) -> list[Glyph]:
     n, lab, stats, _ = cv2.connectedComponentsWithStats(ink, connectivity=8)
     gl = []
     for i in range(1, n):
@@ -111,29 +111,27 @@ def components(ink: np.ndarray, y_lo: int, y_hi: int, min_h: int, max_h: int,
             continue
         if y + h / 2 < y_lo or y + h / 2 > y_hi:
             continue
-        patch = (lab[y:y + h, x:x + w] == i).astype(np.float32)
+        patch = (lab[y : y + h, x : x + w] == i).astype(np.float32)
         gl.append(Glyph(x, y, x + w, y + h, normalise(patch)))
     return gl
 
 
-def note_glyphs(img: np.ndarray, lines: list[float], bars: list[int],
-                thresh: int = 150) -> list[Glyph]:
+def note_glyphs(img: np.ndarray, lines: list[float], bars: list[int], thresh: int = 150) -> list[Glyph]:
     sp = (lines[-1] - lines[0]) / 5
     ink = (gray(img) < thresh).astype(np.uint8)
     clean = remove_lines(ink, lines, bars)
-    return components(clean, int(lines[0] - 0.5 * sp), int(lines[-1] + 0.5 * sp),
-                      min_h=int(0.3 * sp), max_h=int(1.0 * sp), max_w=int(0.9 * sp))
+    return components(
+        clean, int(lines[0] - 0.5 * sp), int(lines[-1] + 0.5 * sp), min_h=int(0.3 * sp), max_h=int(1.0 * sp), max_w=int(0.9 * sp)
+    )
 
 
-def number_glyphs(img: np.ndarray, lines: list[float], bar_x: int,
-                  thresh: int = 200) -> list[Glyph]:
+def number_glyphs(img: np.ndarray, lines: list[float], bar_x: int, thresh: int = 200) -> list[Glyph]:
     """Small gray measure-number digits above a bar line."""
     sp = (lines[-1] - lines[0]) / 5
     y0, y1 = int(lines[0] - 1.1 * sp), int(lines[0] - 0.15 * sp)
     x0, x1 = max(0, int(bar_x - 1.0 * sp)), int(bar_x + 1.0 * sp)
     roi = (gray(img)[y0:y1, x0:x1] < thresh).astype(np.uint8)
-    gl = components(roi, 0, roi.shape[0], min_h=int(0.3 * sp), max_h=int(0.75 * sp),
-                    max_w=int(0.6 * sp))
+    gl = components(roi, 0, roi.shape[0], min_h=int(0.3 * sp), max_h=int(0.75 * sp), max_w=int(0.6 * sp))
     for g in gl:
         g.x0 += x0
         g.x1 += x0

@@ -95,7 +95,10 @@ export default function LibraryPage() {
   const [filter, setFilter] = useState<Filter>({ query: "", status: "all", tag: null });
   const [sort, setSort] = useState<Sort>("artist");
   const all = songs.data ?? [];
-  const list = sortSongs(all.filter((s) => matches(s, filter)), sort);
+  const list = sortSongs(
+    all.filter((s) => matches(s, filter)),
+    sort,
+  );
   const tags = allTags(all);
   const star = useMutation({
     mutationFn: (s: Song) => api.patch(`/api/songs/${s.video}`, { favourite: !s.favourite }),
@@ -139,7 +142,12 @@ export default function LibraryPage() {
                   onChange={(e) => setPdf({ ...pdf, file: e.target.files?.[0] ?? null })}
                 />
               </label>
-              <Input label={t.library.itemTitle} value={pdf.title} onChange={(e) => setPdf({ ...pdf, title: e.target.value })} placeholder={pdf.file?.name.replace(/\.pdf$/i, "") ?? ""} />
+              <Input
+                label={t.library.itemTitle}
+                value={pdf.title}
+                onChange={(e) => setPdf({ ...pdf, title: e.target.value })}
+                placeholder={pdf.file?.name.replace(/\.pdf$/i, "") ?? ""}
+              />
               <Input label={t.library.itemArtist} value={pdf.artist} onChange={(e) => setPdf({ ...pdf, artist: e.target.value })} />
               {error && <span className="text-xs text-neg sm:col-span-3">{error}</span>}
             </div>
@@ -157,7 +165,12 @@ export default function LibraryPage() {
               />
             </div>
           )}
-          <Button type="submit" variant="primary" className="sm:mt-[22px]" disabled={add.isPending || saveVideo.isPending || uploadPdf.isPending}>
+          <Button
+            type="submit"
+            variant="primary"
+            className="sm:mt-[22px]"
+            disabled={add.isPending || saveVideo.isPending || uploadPdf.isPending}
+          >
             {mode === "tab" ? t.library.addButton : mode === "video" ? t.library.saveButton : t.library.uploadButton}
           </Button>
         </form>
@@ -194,7 +207,11 @@ export default function LibraryPage() {
                 aria-label={t.library.search}
               />
             </div>
-            <Select value={filter.kind ?? "all"} onChange={(e) => setFilter({ ...filter, kind: e.target.value as Filter["kind"] })} aria-label={t.library.kindLabel}>
+            <Select
+              value={filter.kind ?? "all"}
+              onChange={(e) => setFilter({ ...filter, kind: e.target.value as Filter["kind"] })}
+              aria-label={t.library.kindLabel}
+            >
               {(["all", "tab", "video", "pdf"] as const).map((k) => (
                 <option key={k} value={k}>
                   {k === "all" ? t.library.allKinds : t.library.kinds[k]}
@@ -214,7 +231,14 @@ export default function LibraryPage() {
               variant="quiet"
               items={(["all", ...STATUSES, "favourite", "review"] as const).map((k) => ({
                 id: k,
-                label: k === "all" ? t.library.all : k === "favourite" ? t.library.favourites : k === "review" ? t.library.toReviewFilter : t.library.statuses[k],
+                label:
+                  k === "all"
+                    ? t.library.all
+                    : k === "favourite"
+                      ? t.library.favourites
+                      : k === "review"
+                        ? t.library.toReviewFilter
+                        : t.library.statuses[k],
               }))}
               value={filter.status}
               onChange={(id) => setFilter({ ...filter, status: id as Filter["status"] })}
@@ -248,13 +272,23 @@ export default function LibraryPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((s) => (
-            <div key={s.video} className="group relative flex gap-3 rounded border border-border bg-surface p-3 transition-colors hover:border-border-strong">
+            <div
+              key={s.video}
+              className="group relative flex gap-3 rounded border border-border bg-surface p-3 transition-colors hover:border-border-strong"
+            >
               <Link href={itemHref(s)} className="absolute inset-0 rounded" aria-label={`${s.title} – ${s.artist}`} />
               {s.kind === "pdf" ? (
-                <span className="grid h-[54px] w-24 flex-none place-items-center rounded-sm bg-surface-2 font-mono text-xs font-semibold text-ink-muted">PDF</span>
+                <span className="grid h-[54px] w-24 flex-none place-items-center rounded-sm bg-surface-2 font-mono text-xs font-semibold text-ink-muted">
+                  PDF
+                </span>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={`https://i.ytimg.com/vi/${s.video}/mqdefault.jpg`} alt="" className="h-[54px] w-24 flex-none rounded-sm object-cover" loading="lazy" />
+                <img
+                  src={`https://i.ytimg.com/vi/${s.video}/mqdefault.jpg`}
+                  alt=""
+                  className="h-[54px] w-24 flex-none rounded-sm object-cover"
+                  loading="lazy"
+                />
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-start gap-1">
@@ -274,13 +308,19 @@ export default function LibraryPage() {
                   </button>
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-ink-muted">
-                  <Tag tone={s.status === "mastered" ? "gain" : s.status === "learning" ? "brand" : "neutral"}>{t.library.statuses[s.status]}</Tag>
+                  <Tag tone={s.status === "mastered" ? "gain" : s.status === "learning" ? "brand" : "neutral"}>
+                    {t.library.statuses[s.status]}
+                  </Tag>
                   {s.kind !== "tab" && <Tag outline>{t.library.kindTag[s.kind]}</Tag>}
                   {s.to_review ? <Tag tone="loss">{t.library.toReview(s.to_review)}</Tag> : null}
                   {s.tempo != null && <span>♩ {s.tempo}</span>}
                   {!!s.capo && <span>{t.library.capo(s.capo)}</span>}
                   {s.edited && <span>{t.library.edited}</span>}
-                  <span>{s.last_practised ? t.library.practised(daysAgo(s.last_practised), Math.round(s.practised_seconds / 60)) : t.library.never}</span>
+                  <span>
+                    {s.last_practised
+                      ? t.library.practised(daysAgo(s.last_practised), Math.round(s.practised_seconds / 60))
+                      : t.library.never}
+                  </span>
                 </div>
               </div>
             </div>

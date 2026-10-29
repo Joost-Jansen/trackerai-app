@@ -99,11 +99,21 @@ export default function SongChips({ song }: { song: Song }) {
     <span className="inline-flex max-w-full flex-wrap items-center gap-1 align-middle">
       {heart}
       <span ref={box} className="relative">
-        <button type="button" className={`${chip} ${TONE[song.status]}`} aria-haspopup="menu" aria-expanded={menu} title={t.library.statusLabel} onClick={() => setMenu((v) => !v)}>
+        <button
+          type="button"
+          className={`${chip} ${TONE[song.status]}`}
+          aria-haspopup="menu"
+          aria-expanded={menu}
+          title={t.library.statusLabel}
+          onClick={() => setMenu((v) => !v)}
+        >
           {t.library.statuses[song.status]}
         </button>
         {menu && (
-          <span role="menu" className="absolute left-0 top-6 z-50 flex min-w-[140px] flex-col rounded-md border border-border bg-surface p-1 shadow-lg">
+          <span
+            role="menu"
+            className="absolute left-0 top-6 z-50 flex min-w-[140px] flex-col rounded-md border border-border bg-surface p-1 shadow-lg"
+          >
             {STATUSES.map((s) => (
               <button
                 key={s}
@@ -126,7 +136,13 @@ export default function SongChips({ song }: { song: Song }) {
         editing === i ? (
           <TagInput key={tag} initial={tag} onDone={(v) => setTag(i, v)} />
         ) : (
-          <button key={tag} type="button" className={`${chip} border-border text-ink-muted hover:border-border-strong`} title={t.library.editTag} onClick={() => setEditing(i)}>
+          <button
+            key={tag}
+            type="button"
+            className={`${chip} border-border text-ink-muted hover:border-border-strong`}
+            title={t.library.editTag}
+            onClick={() => setEditing(i)}
+          >
             #{tag}
           </button>
         ),
@@ -134,7 +150,11 @@ export default function SongChips({ song }: { song: Song }) {
       {editing === "new" ? (
         <TagInput initial="" onDone={(v) => setTag("new", v)} />
       ) : (
-        <button type="button" className={`${chip} border-dashed border-border text-ink-muted hover:border-border-strong`} onClick={() => setEditing("new")}>
+        <button
+          type="button"
+          className={`${chip} border-dashed border-border text-ink-muted hover:border-border-strong`}
+          onClick={() => setEditing("new")}
+        >
           + {t.library.tag}
         </button>
       )}

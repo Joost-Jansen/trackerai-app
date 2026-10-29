@@ -50,4 +50,8 @@ export function localDay(d: Date = new Date()): string {
 
 /** Where an item opens: a tab in the player, a video on its own, a PDF in the viewer. */
 export const itemHref = (s: Pick<Song, "video" | "kind">) =>
-  s.kind === "pdf" ? `/pdf/?id=${encodeURIComponent(s.video)}` : s.kind === "video" ? `/watch/?v=${encodeURIComponent(s.video)}` : `/song/?v=${encodeURIComponent(s.video)}`;
+  s.kind === "pdf"
+    ? `/pdf/?id=${encodeURIComponent(s.video)}`
+    : s.kind === "video"
+      ? `/watch/?v=${encodeURIComponent(s.video)}`
+      : `/song/?v=${encodeURIComponent(s.video)}`;

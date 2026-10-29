@@ -16,8 +16,25 @@ import Fretboard, { type NeckDot, type Role } from "@/components/theory/Fretboar
 import { useT } from "@/lib/i18n";
 import { run, strum, pluck } from "@/lib/pluck";
 import {
-  chordFromRoman, chordsInKey, intervalName, isMinorScale, noteName, pc, PITCHES, positions, PROGRESSIONS, SCALE_GROUPS,
-  scaleOnNeck, SCALES, shapeFor, shapePitches, spellScale, STANDARD, usesFlats, type Chord, type ScaleId,
+  chordFromRoman,
+  chordsInKey,
+  intervalName,
+  isMinorScale,
+  noteName,
+  pc,
+  PITCHES,
+  positions,
+  PROGRESSIONS,
+  SCALE_GROUPS,
+  scaleOnNeck,
+  SCALES,
+  shapeFor,
+  shapePitches,
+  spellScale,
+  STANDARD,
+  usesFlats,
+  type Chord,
+  type ScaleId,
 } from "@/lib/theory";
 
 const FRETS = 15;
@@ -65,7 +82,13 @@ export default function TheoryPage() {
         Array.from({ length: FRETS + 1 }, (_, fret) => {
           const p = open + fret;
           const inScale = steps.includes(pc(p - root));
-          return { string: 6 - i, fret, pitch: p, label: noteName(p, flats), role: (inScale ? (pc(p - root) === 0 ? "root" : "third") : "other") as Role };
+          return {
+            string: 6 - i,
+            fret,
+            pitch: p,
+            label: noteName(p, flats),
+            role: (inScale ? (pc(p - root) === 0 ? "root" : "third") : "other") as Role,
+          };
         }),
       );
     }
@@ -80,14 +103,21 @@ export default function TheoryPage() {
       );
     }
     return scaleOnNeck(root, scale, FRETS).map((d) => ({
-      string: d.string, fret: d.fret, pitch: d.pitch, label: labels === "names" ? d.name : d.interval, role: role(steps[d.degree]),
+      string: d.string,
+      fret: d.fret,
+      pitch: d.pitch,
+      label: labels === "names" ? d.name : d.interval,
+      role: role(steps[d.degree]),
     }));
   }, [allNotes, chord, root, scale, labels, steps, flats]);
 
   /** One octave of the scale up from the root, in the chosen position (or the lowest root on the low strings). */
   const playScale = () => {
     const shown = dots.filter((d) => !box || box.notes.has(`${d.string}-${d.fret}`));
-    const roots = shown.filter((d) => d.role === "root").map((d) => d.pitch).sort((a, b) => a - b);
+    const roots = shown
+      .filter((d) => d.role === "root")
+      .map((d) => d.pitch)
+      .sort((a, b) => a - b);
     const from = roots[0] ?? STANDARD[0] + pc(root - STANDARD[0]);
     const pitches = [...new Set(shown.map((d) => d.pitch))].filter((p) => p >= from && p <= from + 12).sort((a, b) => a - b);
     run(pitches.length > 2 ? pitches : steps.concat(12).map((s) => from + s));
@@ -129,7 +159,12 @@ export default function TheoryPage() {
         </label>
         <label className="flex flex-col gap-1 text-xs text-ink-muted">
           {t.theory.position}
-          <Select value={String(position)} onChange={(e) => setPosition(Number(e.target.value))} aria-label={t.theory.position} disabled={!!chord || allNotes}>
+          <Select
+            value={String(position)}
+            onChange={(e) => setPosition(Number(e.target.value))}
+            aria-label={t.theory.position}
+            disabled={!!chord || allNotes}
+          >
             <option value={-1}>{t.theory.wholeNeck}</option>
             {boxes.map((b, i) => (
               <option key={i} value={i}>
@@ -155,7 +190,13 @@ export default function TheoryPage() {
       </div>
 
       <Card
-        title={chord ? t.theory.chordOnNeck(chord.name) : allNotes ? t.theory.allNotesTitle : `${names[0]} ${t.theory.scales[scale].toLowerCase()}`}
+        title={
+          chord
+            ? t.theory.chordOnNeck(chord.name)
+            : allNotes
+              ? t.theory.allNotesTitle
+              : `${names[0]} ${t.theory.scales[scale].toLowerCase()}`
+        }
         action={
           chord ? (
             <button type="button" className="text-xs font-semibold text-brand hover:underline" onClick={() => setChord(null)}>
@@ -179,11 +220,32 @@ export default function TheoryPage() {
         <Fretboard dots={dots} frets={FRETS} window={box} highlight={box?.notes} onNote={(d) => pluck(d.pitch)} ariaLabel={t.theory.neck} />
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
           {(allNotes
-            ? [["root", t.theory.legend.root], ["third", t.theory.legend.inKey], ["other", t.theory.legend.outside]]
-            : [["root", t.theory.legend.root], ["third", t.theory.legend.third], ["fifth", t.theory.legend.fifth], ["seventh", t.theory.legend.seventh], ["other", t.theory.legend.other]]
+            ? [
+                ["root", t.theory.legend.root],
+                ["third", t.theory.legend.inKey],
+                ["other", t.theory.legend.outside],
+              ]
+            : [
+                ["root", t.theory.legend.root],
+                ["third", t.theory.legend.third],
+                ["fifth", t.theory.legend.fifth],
+                ["seventh", t.theory.legend.seventh],
+                ["other", t.theory.legend.other],
+              ]
           ).map(([k, label]) => (
             <span key={k} className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-full border border-border" style={{ background: { root: "var(--brand-500)", third: "var(--chart-3)", fifth: "var(--chart-4)", seventh: "var(--chart-5)", other: "var(--surface)" }[k] }} />
+              <span
+                className="h-3 w-3 rounded-full border border-border"
+                style={{
+                  background: {
+                    root: "var(--brand-500)",
+                    third: "var(--chart-3)",
+                    fifth: "var(--chart-4)",
+                    seventh: "var(--chart-5)",
+                    other: "var(--surface)",
+                  }[k],
+                }}
+              />
               {label}
             </span>
           ))}
@@ -206,10 +268,19 @@ export default function TheoryPage() {
             />
           }
         >
-          {steps.length !== 7 && <p className="mb-2 text-xs text-ink-muted">{t.theory.parentChords(t.theory.scales[parent].toLowerCase())}</p>}
+          {steps.length !== 7 && (
+            <p className="mb-2 text-xs text-ink-muted">{t.theory.parentChords(t.theory.scales[parent].toLowerCase())}</p>
+          )}
           <div className="flex flex-wrap gap-1">
             {chords.map((c) => (
-              <ChordDiagram key={c.roman} name={c.name} shape={shapeFor(c)} caption={c.roman} active={chord?.name === c.name} onClick={() => pickChord(c)} />
+              <ChordDiagram
+                key={c.roman}
+                name={c.name}
+                shape={shapeFor(c)}
+                caption={c.roman}
+                active={chord?.name === c.name}
+                onClick={() => pickChord(c)}
+              />
             ))}
           </div>
         </Card>
@@ -221,7 +292,16 @@ export default function TheoryPage() {
             onSelect={(r, m) => {
               setRoot(r);
               // keep the kind of scale where it fits: a minor key gets the minor version of what was chosen
-              if (m !== isMinorScale(scale)) setScale(m ? (scale === "majorPentatonic" ? "minorPentatonic" : "minor") : scale === "minorPentatonic" || scale === "blues" ? "majorPentatonic" : "major");
+              if (m !== isMinorScale(scale))
+                setScale(
+                  m
+                    ? scale === "majorPentatonic"
+                      ? "minorPentatonic"
+                      : "minor"
+                    : scale === "minorPentatonic" || scale === "blues"
+                      ? "majorPentatonic"
+                      : "major",
+                );
             }}
           />
           <p className="mt-2 text-center text-xs text-ink-muted">{t.theory.circleHint}</p>
@@ -234,7 +314,9 @@ export default function TheoryPage() {
             const cs = p.numerals.map((n) => chordFromRoman(root, minor, n));
             return (
               <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <span className="w-40 flex-none text-sm text-ink-muted">{t.theory.progressionNames[p.id as keyof typeof t.theory.progressionNames]}</span>
+                <span className="w-40 flex-none text-sm text-ink-muted">
+                  {t.theory.progressionNames[p.id as keyof typeof t.theory.progressionNames]}
+                </span>
                 <span className="flex flex-wrap gap-1">
                   {cs.map((c, i) => (
                     <button

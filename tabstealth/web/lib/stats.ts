@@ -3,7 +3,11 @@
 import { localDay } from "./library.ts";
 
 /** The last `n` days up to `today`, oldest first, with the minutes played on each (0 when none). */
-export function lastDays(days: { day: string; seconds: number }[], n: number, today: Date = new Date()): { day: string; minutes: number }[] {
+export function lastDays(
+  days: { day: string; seconds: number }[],
+  n: number,
+  today: Date = new Date(),
+): { day: string; minutes: number }[] {
   const byDay = new Map(days.map((d) => [d.day, d.seconds]));
   return Array.from({ length: n }, (_, i) => {
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (n - 1 - i));

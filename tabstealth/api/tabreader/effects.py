@@ -1,4 +1,5 @@
 """Detect playing techniques around the parsed notes: strums, arpeggios, slurs, slides."""
+
 import re
 
 import cv2
@@ -36,11 +37,11 @@ def strums(ink: np.ndarray, lines: list[float], bars: list[int], cols: list[Colu
             continue
         # arrowhead: the end of the shaft where the ink is widest
         x0, x1 = int(cx - 0.35 * sp), int(cx + 0.35 * sp) + 1
-        top = ink[max(0, y - 3):y + int(0.4 * sp), x0:x1].sum(axis=1).max()
-        bot = ink[y + h - int(0.4 * sp):y + h + 3, x0:x1].sum(axis=1).max()
+        top = ink[max(0, y - 3) : y + int(0.4 * sp), x0:x1].sum(axis=1).max()
+        bot = ink[y + h - int(0.4 * sp) : y + h + 3, x0:x1].sum(axis=1).max()
         if max(top, bot) < 5:
             continue  # plain line without a head
-        mid = ink[y + int(0.4 * sp):y + h - int(0.4 * sp), x0:x1].sum(axis=1)
+        mid = ink[y + int(0.4 * sp) : y + h - int(0.4 * sp), x0:x1].sum(axis=1)
         if len(mid) and np.median(mid) > 4.5:
             col.stroke = ("down", ARPEGGIO)  # thick wavy line, not an arrow shaft
             continue
@@ -112,7 +113,7 @@ def grace_slurs(ink_clean: np.ndarray, lines: list[float], cols: list[Column]) -
             if any(n.string == g.string - 1 and g.x - 0.3 * sp < n.x < m.x + 0.3 * sp for n in c.notes + c.grace):
                 continue  # a note on the string above would look like a leg
             y = lines[g.string - 1]
-            band = ink_clean[int(y - 1.1 * sp):int(y - 0.55 * sp), int(g.x):int(m.x)]
+            band = ink_clean[int(y - 1.1 * sp) : int(y - 0.55 * sp), int(g.x) : int(m.x)]
             if band.size == 0 or band.sum() > 0.6 * sp * sp:
                 continue
             ys, xs = np.nonzero(band)
@@ -134,8 +135,9 @@ def slides(slide_glyphs: list[Glyph], lines: list[float], notes: list[Note]) -> 
             max(left, key=lambda n: n.x).slide = True
 
 
-def annotate(img: np.ndarray, ink_clean: np.ndarray, lines: list[float], bars: list[int],
-             measures: list[PageMeasure], slide_glyphs: list[Glyph]) -> None:
+def annotate(
+    img: np.ndarray, ink_clean: np.ndarray, lines: list[float], bars: list[int], measures: list[PageMeasure], slide_glyphs: list[Glyph]
+) -> None:
     ink = (gray(img) < 150).astype(np.uint8)
     cols = _columns(measures)
     notes = [n for c in cols for n in c.notes + c.grace]
@@ -168,7 +170,7 @@ BENDS = {"full": 100, "1/2": 50, "½": 50, "1/4": 50, "¼": 50}
 
 def _dashes_end(ink: np.ndarray, y: int, x: int, sp: float) -> int:
     """Where the dashed line after a label (P.M. - - - -|) ends: follow ink on that row across small gaps."""
-    row = ink[max(0, y - 2):y + 3].max(axis=0)
+    row = ink[max(0, y - 2) : y + 3].max(axis=0)
     end, gap = x, 0
     for xx in range(x, min(len(row), x + int(40 * sp))):
         if row[xx]:
@@ -180,8 +182,7 @@ def _dashes_end(ink: np.ndarray, y: int, x: int, sp: float) -> int:
     return end
 
 
-def text_marks(words: list[tuple[int, int, int, int, str]], ink: np.ndarray, lines: list[float],
-               cols: list[Column]) -> dict[str, int]:
+def text_marks(words: list[tuple[int, int, int, int, str]], ink: np.ndarray, lines: list[float], cols: list[Column]) -> dict[str, int]:
     """Palm mute, harmonics and bends from the words Guitar Pro writes above the staff. Returns counts."""
     sp = (lines[-1] - lines[0]) / 5
     found = {"palm_mute": 0, "harmonic": 0, "bend": 0}
@@ -217,7 +218,7 @@ def vibrato(ink_clean: np.ndarray, lines: list[float], cols: list[Column]) -> in
         x, y, w, h, _ = st[i]
         if w < 0.9 * sp or h > 0.45 * sp or h < 3:
             continue
-        mask = lab[y:y + h, x:x + w] == i
+        mask = lab[y : y + h, x : x + w] == i
         top = np.array([np.argmax(col) if col.any() else -1 for col in mask.T], dtype=float)
         top = top[top >= 0]
         if len(top) < 6:

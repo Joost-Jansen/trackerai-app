@@ -1,4 +1,5 @@
 """Tempo mark ("♩ = 73") reading and meter inference."""
+
 import cv2
 import numpy as np
 
@@ -16,7 +17,7 @@ def read_tempo_mark(img: np.ndarray, lines: list[float], x_end: int, clf: Classi
     for i in range(1, n):
         x, y, w, h, _ = st[i]
         if 0.75 * sp < h < 1.3 * sp and 0.3 * sp < w < 0.9 * sp:
-            g = Glyph(x, y, x + w, y + h, normalise((lab[y:y + h, x:x + w] == i).astype(np.float32)))
+            g = Glyph(x, y, x + w, y + h, normalise((lab[y : y + h, x : x + w] == i).astype(np.float32)))
             lab_, sc = clf(g)
             if lab_ in DIGITS and sc > 0.7:
                 digits.append((x, y + h / 2, lab_))
