@@ -91,13 +91,15 @@ def merge_multidigit(notes: list[tuple[Glyph, str, float]], sp: float):
     """Join digit glyphs that sit side by side on the same string into one number.
 
     Over seven videos the digits of one number sit 0.15-0.30 staff spaces apart and separate notes 0.55 or more, so
-    0.42 splits the two cleanly (0.25 split "12" into the notes 1 and 2 in some videos)."""
+    0.42 splits the two cleanly (0.25 split "12" into the notes 1 and 2 in some videos). Tabs spaced tighter put
+    notes closer ("12·11"), so from 0.25 on digits only join when they still make a fret."""
     notes.sort(key=lambda t: (round(t[0].cy / sp), t[0].x0))
     out: list[list] = []
     for g, lab, sc in notes:
+        gap = g.x0 - out[-1][3] if out else -1
         if (out and lab in DIGITS and out[-1][1][-1] in DIGITS
                 and abs(out[-1][0].cy - g.cy) < 0.2 * sp
-                and 0 <= g.x0 - out[-1][3] < 0.42 * sp):
+                and (0 <= gap < 0.25 * sp or (0.25 * sp <= gap < 0.42 * sp and int(out[-1][1] + lab) <= 24))):
             out[-1][1] += lab
             out[-1][3] = g.x1
             out[-1][2] = min(out[-1][2], sc)
@@ -162,6 +164,10 @@ def parse_page(img: np.ndarray, lines: list[float], clf: Classifier) -> ParsedPa
         elif (lab in DIGITS or lab == "X") and g.h >= 0.55 * sp and d_line <= 0.15 * sp:
             found.append((g, lab, sc))
     raw = []
+    # grace notes are drawn smaller than the others; how much smaller differs per video, so compare with the usual
+    # digit height here (Kenneth Acoustic's digits are 0.94 staff spaces tall, others' 0.84)
+    usual = float(np.median([g.y1 - g.y0 for g, lab, _ in found if lab in DIGITS] or [sp]))
+    small = min(0.8 * sp, 0.85 * usual)
     for g, lab, sc, x1, cx in merge_multidigit(found, sp):
         h = g.y1 - g.y0
         string = int(np.argmin([abs(g.cy - ly) for ly in lines])) + 1
@@ -174,7 +180,7 @@ def parse_page(img: np.ndarray, lines: list[float], clf: Classifier) -> ParsedPa
         if not ghost and bracketed(clean, g.x0, x1, g.y0, g.y1, sp):
             ghost = True  # "(3)": a tie or a ghost note, effects.parentheses decides which
         fret = None if lab == "X" else int(lab)
-        note = Note(string, fret, grace=h < 0.8 * sp, x=cx, score=sc, ghost=ghost)
+        note = Note(string, fret, grace=h < small, x=cx, score=sc, ghost=ghost)
         # "<12>": angle brackets on both sides of the fret, on its string, make a natural harmonic
         near = [(b, k) for b, k in brackets if abs(b.cy - g.cy) < 0.3 * sp and abs(b.cx - cx) < 1.4 * sp]
         left = [b for b, k in near if k == "<" and b.cx < cx]

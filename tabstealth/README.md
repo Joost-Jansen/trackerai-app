@@ -2,14 +2,17 @@
 
 **Tabs from guitar videos, playable and in sync with the video.**
 
-Many guitar channels (Kenneth Acoustic, for one) show the tab of the song in a strip under the video: a Guitar Pro
-rendering that scrolls along, with a playback cursor. tabstealth reads that strip and turns it into a real Guitar Pro 5
-file, then plays it next to the original video.
+Many guitar channels show the tab of the song under the video: a Guitar Pro rendering that scrolls along (Kenneth
+Acoustic), turns pages of one or two lines (GuitarZero2Hero, Guitartime) or replaces bars as they are played, marking
+the playback with a cursor line, a band, coloured notes or nothing at all. tabstealth reads that tab and turns it into
+a real Guitar Pro 5 file, then plays it next to the original video.
 
-- **Converter** (`api/tabreader`): stitches the scrolling views into one tab line (anchored on the measure numbers and
-  the cursor, so a repeating riff cannot fool it), reads the frets per string with a glyph classifier trained on the
-  Guitar Pro font, and takes the rhythm from the video's own playback cursor: every note's onset is the moment the
-  cursor passes it. On top: rests, 16th and triplet grids, swing (Guitar Pro's triplet feel), grace notes, dead notes,
+- **Converter** (`api/tabreader`): a scrolling strip with a cursor line is stitched into one tab line (anchored on the
+  measure numbers and the cursor, so a repeating riff cannot fool it); any other layout is read bar by bar
+  (`generic.py`): every tab line on screen, bars followed through time by their content, put in the order they are
+  played (repeats written out) and scaled to one size. It reads the frets per string with a glyph classifier trained
+  on the Guitar Pro font, and takes the rhythm from the video's own playback marker: every note's onset is the moment
+  the marker reaches it (without a marker, from when each page appears and the note spacing). On top: rests, 16th and triplet grids, swing (Guitar Pro's triplet feel), grace notes, dead notes,
   hammer-ons and pull-offs, slides, ties, strums and arpeggios, harmonics (`<12>`), ghost notes, palm mute, bends,
   vibrato, chord names, sections, tempo, tuning and capo. It also lists the bars it was unsure about (review queue).
 - **Player** (`web`): the video and the tab side by side. Choose what you hear: the video (the tab cursor follows) or

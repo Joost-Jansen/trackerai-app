@@ -119,8 +119,13 @@ def spacing_positions(m, quarters: float) -> list[float]:
 
 
 def build_song(tape: ParsedPage, offsets: list[int], runs, scan: dict,
-               tempo_mark: int | None = None) -> Song:
-    ts, xs, backwards = cursor_track(offsets, runs, scan)
+               tempo_mark: int | None = None, track: tuple[np.ndarray, np.ndarray] | None = None) -> Song:
+    """`track`: (time, tape x) of the playback when the caller has it already (generic.track); otherwise it comes
+    from the scrolling strip's cursor line."""
+    if track is not None:
+        (ts, xs), backwards = track, 0
+    else:
+        ts, xs, backwards = cursor_track(offsets, runs, scan)
     if len(xs) < 2:
         # the rhythm and the sync come from the moving cursor line; videos that flip whole pages and mark the beat
         # with a box or a coloured note have none (yet)

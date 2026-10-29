@@ -26,6 +26,8 @@ from .meter import read_tempo_mark
 from .pages import build_pages, stable_runs
 from .glyphs import find_barlines, gray
 from .parse import Classifier, parse_page, read_number
+from . import generic
+from .generic import find_slots
 from .scan import detect_staff, scan
 from .stitch import cursor_shift, stitch
 
@@ -65,13 +67,26 @@ def playlist_ids(url: str, cookies: str | None) -> list[tuple[str, str]]:
     return [tuple(line.split("\t", 1)) for line in r.stdout.splitlines() if "\t" in line]
 
 
-def split_title(title: str) -> tuple[str, str]:
-    """'Song - Artist | Fingerstyle Guitar | TAB ...' -> (song, artist)."""
-    main = title.split("|")[0].strip()
-    if " - " in main:
+NOISE = re.compile(r"\(?free tab\)?|fingerstyle( guitar)?( cover)?|guitar (cover|tutorial|lesson)|"
+                   r"(with )?tabs?( \+ chords)?( \+ lyrics)?|chords( \+ lyrics)?|lyrics|tutorial|lesson|cover", re.I)
+
+
+def split_title(title: str, channel: str = "") -> tuple[str, str]:
+    """(song, artist) from a video title. Kenneth Acoustic writes 'Song - Artist | Fingerstyle Guitar | TAB ...';
+    most others 'Artist - Song ...' or 'Song Guitar Cover Artist', with tab words and emoji around it."""
+    main = title.split("|")[0]
+    main = re.sub(r"[^\w\s'&.,()!?\-]", " ", main)  # emoji and symbols
+    if channel:
+        main = re.sub(re.escape(channel), " ", main, flags=re.I)
+    if " - " not in main and (m := re.search(r"\b(guitar )?cover\b", main, re.I)):
+        song, artist = main[:m.start()], main[m.end():]  # "Stop This Train Guitar Cover John Mayer"
+    elif " - " in main:
         a, b = main.split(" - ", 1)
-        return a.strip(), b.strip()
-    return main, ""
+        song, artist = (a, b) if "kenneth" in channel.lower() or not channel else (b, a)
+    else:
+        song, artist = main, ""
+    tidy = lambda t: re.sub(r"\s{2,}", " ", NOISE.sub(" ", t)).strip(" -,")
+    return tidy(song) or main.strip(), tidy(artist)
 
 
 def safe(name: str) -> str:
@@ -125,17 +140,109 @@ def video_timing(song, sc: dict, vid: str) -> dict:
             nxt = min((g for g in good if g > i), default=None)
             starts[i] = (starts[prev] + (i - prev) * med if prev is not None
                          else starts[nxt] - (nxt - i) * med)
-    lines = sc["staff_lines"]
-    sp = (lines[-1] - lines[0]) / 5
-    frame_h = sc.get("frame_h", 1080)
+    if "overlay_top" in sc:
+        overlay_top = sc["overlay_top"]
+    else:
+        lines = sc["staff_lines"]
+        overlay_top = float(lines[0] - 7.2 * (lines[-1] - lines[0]) / 5) / sc.get("frame_h", 1080)
     return {
         "video": vid,
         "measure_starts": [round(float(t), 3) for t in starts],
         "measure_seconds": round(med, 4),
         # top of the overlay (section bar) as a fraction of frame height: lets the
         # player crop the video to the hands while the tab is shown next to it
-        "overlay_top": round(float(lines[0] - 7.2 * sp) / frame_h, 4),
+        "overlay_top": round(overlay_top, 4),
     }
+
+
+def choose_layout(work: Path, video: Path, download, force: bool, log) -> str:
+    """"scroll": one tab line that scrolls with a cursor line over it (as Kenneth Acoustic's videos), read by
+    stitching its pages; "any": everything else (several lines, pages that flip, bars replaced one by one, a box or
+    coloured notes or no cursor), read bar by bar (generic.py)."""
+    if (work / "generic.pkl").exists() and not force:
+        return "any"
+    scan_p = work / "scan.pkl"
+    if scan_p.exists() and not force:
+        sc = pickle.load(open(scan_p, "rb"))
+        return "scroll" if _cursor_cover(sc) >= 0.3 else "any"
+    download()
+    cap = cv2.VideoCapture(str(video))
+    lines_on_screen = len(find_slots(cap, samples=24))
+    cap.release()
+    if lines_on_screen != 1:
+        log(f"  {lines_on_screen} tab lines on screen")
+        return "any"
+    log("  scanning frames")
+    staff = detect_staff(str(video))
+    sc = scan(str(video), staff, progress=False)
+    if _cursor_cover(sc) < 0.3:
+        log("  no cursor line over the tab")
+        return "any"
+    runs = stable_runs(sc)
+    log(f"  {len(runs)} stable views, building page images")
+    pages = build_pages(str(video), sc)
+    sc["page_images"] = [cv2.imencode(".png", p.image)[1] for p in pages]  # compact
+    pickle.dump(sc, open(scan_p, "wb"))
+    return "scroll"
+
+
+def _cursor_cover(sc: dict) -> float:
+    """Share of the frames with the tab on screen in which the cursor line was found."""
+    present = np.asarray(sc["present"], bool)
+    return float(np.mean(~np.isnan(sc["cursor"][present]))) if present.any() else 0.0
+
+
+def read_scrolling(work: Path, video: Path, download, force: bool, clf, log):
+    """A scrolling strip: stitch its pages into one tape (stitch.py) and take the timing from the cursor line."""
+    scan_p = work / "scan.pkl"
+    if force or not scan_p.exists():
+        download()
+        log("  scanning frames")
+        staff = detect_staff(str(video))
+        sc = scan(str(video), staff, progress=False)
+        pages = build_pages(str(video), sc)
+        sc["page_images"] = [cv2.imencode(".png", p.image)[1] for p in pages]
+        pickle.dump(sc, open(scan_p, "wb"))
+    sc = pickle.load(open(scan_p, "rb"))
+    lines = list(sc["staff_lines"] - sc["region"][0])
+    runs = stable_runs(sc)
+    log("  stitching views into one tab line")
+    views = [cv2.imdecode(b, cv2.IMREAD_COLOR) for b in sc["page_images"]]
+    numbers = [view_numbers(v, lines, clf) for v in views]
+    shifts = [cursor_shift(sc["cursor"], ra, rb) for ra, rb in zip(runs, runs[1:])]
+    tape = stitch(views, lines, numbers, shifts)
+    parsed = parse_page(tape.image, lines, clf)
+    return tape.image, lines, parsed, (tape.offsets, runs, sc), sc, len(runs), round(float(min(tape.scores)), 3)
+
+
+def read_any_layout(work: Path, video: Path, download, force: bool, clf, log):
+    """Any other layout, bar by bar (generic.py). The bars go on the tape in playing order and are numbered so."""
+    gen_p = work / "generic.pkl"
+    if force or not gen_p.exists():
+        download()
+        log("  scanning frames (any layout)")
+        pickle.dump(generic.scan_video(str(video)), open(gen_p, "wb"))
+    g = pickle.load(open(gen_p, "rb"))
+    views, slots, fps = g["views"], g["slots"], g["fps"]
+    generic.link_views(views)
+    seq, samples, covered = generic.play_order(views, g["cursor"], fps)
+    if not covered:
+        views = generic.as_pages(views)
+        seq, samples, covered = generic.play_order(views, [], fps)
+    log(f"  {len(slots)} tab line(s), {len(views)} views, {len(seq)} bars in playing order; timing from "
+        f"{'the cursor' if covered else 'when each page appears (no cursor)'}")
+    download()  # the bars are cut from the video itself
+    tape_img, spans, where, lines = generic.build_tape(str(video), views, slots, seq)
+    parsed = parse_page(tape_img, lines, clf)
+    # bar N of the file is the Nth bar played (repeats come out written out), so numbers above the bars don't apply
+    parsed.numbers = {}
+    for i, m in enumerate(parsed.measures):
+        m.number, m.complete = i + 1, True
+    ts, xs = generic.track(seq, spans, where, samples, views, fps, covered)
+    top = min(s.staff.lines[0] - 4.5 * s.sp for s in slots)  # the tab overlay starts about here (a heading above)
+    sc = {"fps": fps, "label_frames": [], "label_crops": [], "corner": np.full((8, 8, 3), 255, np.uint8),
+          "overlay_top": max(0.0, top / g["frame_h"]), "track": (ts, xs)}
+    return tape_img, lines, parsed, ([0], [], {}), sc, len(views), 1.0
 
 
 def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
@@ -151,52 +258,42 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
         t, ch, dur = r.stdout.strip().split("\t")
         info_p.write_text(json.dumps({"title": t, "channel": ch, "duration": dur}))
     info = json.loads(info_p.read_text())
-    song_name, artist = split_title(info["title"])
+    song_name, artist = split_title(info["title"], info.get("channel", ""))
     log(f"{vid}: {info['title']}")
 
     video = work / "video.mp4"
-    scan_p = work / "scan.pkl"
-    if force or not scan_p.exists():
+
+    def download() -> None:
         if not video.exists():
             log("  downloading video")
             r = yt(["-q", "-f", VIDEO_FORMAT, "-o", str(video), url], cookies)
             if r.returncode != 0:
                 raise RuntimeError(r.stderr.strip().splitlines()[-1])
-        log("  scanning frames")
-        staff = detect_staff(str(video))
-        sc = scan(str(video), staff, progress=False)
-        runs = stable_runs(sc)
-        log(f"  {len(runs)} stable views, building page images")
-        pages = build_pages(str(video), sc)
-        sc["page_images"] = [cv2.imencode(".png", p.image)[1] for p in pages]  # compact
-        pickle.dump(sc, open(scan_p, "wb"))
-    sc = pickle.load(open(scan_p, "rb"))
+
+    clf = Classifier()
+    layout = choose_layout(work, video, download, force, log)
+    if layout == "scroll":
+        tape_img, lines, parsed, song_in, sc, n_views, stitch_min = read_scrolling(work, video, download, force, clf,
+                                                                                   log)
+    else:
+        tape_img, lines, parsed, song_in, sc, n_views, stitch_min = read_any_layout(work, video, download, force,
+                                                                                    clf, log)
     if not keep_video and video.exists():
         video.unlink()
-
-    lines = list(sc["staff_lines"] - sc["region"][0])
-    runs = stable_runs(sc)
-    clf = Classifier()
-    log("  stitching views into one tab line")
-    views = [cv2.imdecode(b, cv2.IMREAD_COLOR) for b in sc["page_images"]]
-    numbers = [view_numbers(v, lines, clf) for v in views]
-    shifts = [cursor_shift(sc["cursor"], ra, rb) for ra, rb in zip(runs, runs[1:])]
-    tape = stitch(views, lines, numbers, shifts)
-    cv2.imwrite(str(work / "tape.png"), tape.image)
-    parsed = parse_page(tape.image, lines, clf)
+    cv2.imwrite(str(work / "tape.png"), tape_img)
     marks = {}
     if ocr.available():  # P.M., bend amounts and harmonic marks are words above the staff
-        words = ocr.words_above_staff(tape.image, lines)
+        words = ocr.words_above_staff(tape_img, lines)
         cols = [c for m in parsed.measures for c in m.columns]
-        marks = effects.text_marks(words, (gray(tape.image) < 150).astype(np.uint8), lines, cols)
+        marks = effects.text_marks(words, (gray(tape_img) < 150).astype(np.uint8), lines, cols)
     notes_all = [n for m in parsed.measures for c in m.columns for n in c.notes]
     marks.update(ghost=sum(n.ghost for n in notes_all), harmonic_brackets=sum(n.harmonic for n in notes_all),
                  vibrato=sum(n.vibrato for n in notes_all))
     misreads = sum(1 for m in parsed.measures if m.x0 in parsed.numbers
                    and parsed.numbers[m.x0] != m.number)
-    tempo_mark = read_tempo_mark(tape.image, lines, parsed.bars[2] if len(parsed.bars) > 2
-                                 else tape.image.shape[1], clf)
-    song = build_song(parsed, tape.offsets, runs, sc, tempo_mark)
+    tempo_mark = read_tempo_mark(tape_img, lines, parsed.bars[2] if len(parsed.bars) > 2
+                                 else tape_img.shape[1], clf)
+    song = build_song(parsed, *song_in, tempo_mark=tempo_mark, track=sc.get("track"))
     log(f"  {len(song.measures)} measures, {song.numerator}/{song.denominator} at {song.tempo} bpm"
         f" (tempo mark: {tempo_mark}, swing: {song.triplet_feel or 'none'})")
 
@@ -210,7 +307,7 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
         # chord names above the staff -> attach to the nearest note column
         cols = [c for m in parsed.measures for c in m.columns]
         sp = (lines[-1] - lines[0]) / 5
-        for x, name in ocr.chord_names(tape.image, lines):
+        for x, name in ocr.chord_names(tape_img, lines):
             near = min(cols, key=lambda c: abs(c.x - x), default=None)
             if near is not None and abs(near.x - x) < 1.2 * sp:
                 near.chord = name
@@ -245,6 +342,11 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
 
     out_dir.mkdir(parents=True, exist_ok=True)
     name = safe(f"{artist} - {song_name}" if artist else song_name)
+    index_p = out_dir / "index.json"
+    known = (json.loads(index_p.read_text()) if index_p.exists() else {}).get(vid, {})
+    if known.get("file"):
+        name = Path(known["file"]).stem  # a song already in the library keeps its files (and with them its edits)
+        song_name, artist = known.get("title", song_name), known.get("artist", artist)
     gp5, txt = out_dir / f"{name}.gp5", out_dir / f"{name}.txt"
     timing = out_dir / f"{name}.timing.json"
     timing.write_text(json.dumps(video_timing(song, sc, vid)))
@@ -266,15 +368,14 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool,
         "tempo": song.tempo, "time_signature": f"{song.numerator}/{song.denominator}",
         "swing": song.triplet_feel,
         "tempo_mark": tempo_mark, "capo": meta.capo, "tuning": meta.tuning,
-        "measure_number_misreads": misreads, "views": len(runs),
-        "stitch_min_score": round(float(min(tape.scores)), 3),
+        "layout": layout, "measure_number_misreads": misreads, "views": n_views,
+        "stitch_min_score": stitch_min,
         "notes": sum(len(b.column.notes) for m in song.measures for b in m.beats if b.column),
         "low_confidence_notes": sum(1 for m in parsed.measures for c in m.columns
                                     for n in c.notes if n.score < 0.7),
         "flagged_measures": flagged, "techniques_read": marks, **extras,
     }
     (work / "report.json").write_text(json.dumps(report, indent=2, default=str))
-    index_p = out_dir / "index.json"
     index = json.loads(index_p.read_text()) if index_p.exists() else {}
     index[vid] = {"file": gp5.name, "timing": timing.name, "text": txt.name, "review": review_p.name, "title": song_name,
                   "artist": artist, "measures": len(song.measures), "tempo": song.tempo,

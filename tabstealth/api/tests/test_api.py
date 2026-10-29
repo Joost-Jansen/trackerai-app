@@ -262,3 +262,13 @@ def test_the_converter_takes_only_youtube_ids():
     assert video_id("AAdFeO0WmZA") == "AAdFeO0WmZA"
     with pytest.raises(ValueError):
         video_id("gHRmuLWp-z4 4ybm89TTwvE")
+
+
+def test_song_and_artist_come_out_of_any_title_style():
+    from tabreader.cli import split_title
+    assert split_title("Fake Plastic Trees - Radiohead | Fingerstyle Guitar | TAB + Chords", "Kenneth Acoustic") == (
+        "Fake Plastic Trees", "Radiohead")
+    assert split_title("Stevie Wonder - Isn't She Lovely Fingerstyle Guitar with TAB | Guitartime", "Guitartime") == (
+        "Isn't She Lovely", "Stevie Wonder")
+    assert split_title("Stop This Train Guitar Cover John Mayer \N{GUITAR}|Tabs + Chords|", "x") == (
+        "Stop This Train", "John Mayer")

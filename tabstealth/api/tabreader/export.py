@@ -42,9 +42,11 @@ def gp_duration(value: int, dotted: bool, triplet: bool) -> gp.Duration:
 
 
 def write_gp5(song: Song, path: str, meta: Meta) -> None:
-    g = gp.Song(title=meta.title, artist=meta.artist, tempo=song.tempo)
-    g.tab = meta.source
-    g.comments = [meta.source] if meta.source else []
+    # GP5 keeps text in an 8-bit code page: leave out what it can't hold (emoji in a video title)
+    fit = lambda t: t.encode("cp1252", "ignore").decode("cp1252")
+    g = gp.Song(title=fit(meta.title), artist=fit(meta.artist), tempo=song.tempo)
+    g.tab = fit(meta.source)
+    g.comments = [g.tab] if meta.source else []
     track = g.tracks[0]
     track.name = "Acoustic Guitar"
     track.channel.instrument = 25  # Acoustic Guitar (steel)
