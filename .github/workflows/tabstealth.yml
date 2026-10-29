@@ -49,12 +49,24 @@ jobs:
     if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Every test makes databases of its own on this server (packages/testing).
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: pip install -r tabstealth/api/requirements-dev.txt
+      - run: pip install -r tabstealth/api/requirements-dev.txt -e packages/accounts -e packages/websec -e packages/testing
       - run: python -m pytest -q
         working-directory: tabstealth/api
 

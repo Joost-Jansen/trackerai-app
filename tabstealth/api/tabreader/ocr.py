@@ -10,9 +10,11 @@ import numpy as np
 
 from .glyphs import gray
 
+# A chord name: root, quality and number, then extensions that each start with a letter, # or b, or "(" (so a run of
+# digits belongs to one of them only: no ambiguous repetition that can backtrack), then a bass note.
 CHORD_RE = re.compile(
-    r"^[A-G][#b]?(m|maj|min|dim|aug|sus|add|M)?[0-9]*"
-    r"(sus[24]?|add[0-9]+|maj[0-9]*|[b#][0-9]+|[0-9]+|\([^)]*\))*(/[A-G][#b]?)?$"
+    r"^[A-G][#b]?(?:maj|min|dim|aug|sus|add|m|M)?[0-9]*"
+    r"(?:sus[24]?|add[0-9]+|maj[0-9]*|[b#][0-9]+|\([^)]*\))*(?:/[A-G][#b]?)?$"
 )
 NOTE_PITCH = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 STANDARD = [64, 59, 55, 50, 45, 40]

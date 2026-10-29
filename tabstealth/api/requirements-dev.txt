@@ -1,6 +1,4 @@
 -r requirements.txt
 pytest==9.1.1
 httpx==0.28.1
--e ../../packages/accounts
--e ../../packages/websec
--e ../../packages/testing
+# and the shared packages, from the repo root: pip install -e packages/accounts -e packages/websec -e packages/testing

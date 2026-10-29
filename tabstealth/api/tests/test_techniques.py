@@ -94,3 +94,18 @@ def test_section_labels_become_known_names_and_noise_is_dropped():
         "": None,
     }
     assert {k: section_label(k) for k in read} == read
+
+
+def test_chord_names_are_recognised_and_long_junk_is_quick():
+    import time
+
+    from tabreader.ocr import CHORD_RE
+
+    for name in ["A", "Am7", "Gmaj7", "G6add9", "Dsus2", "F#m7b5", "Dmaj13", "E7(#9)", "D/F#", "Bbadd9", "Csus4"]:
+        assert CHORD_RE.match(name), name
+    for word in ["Capo", "Verse", "Am7x", "H"]:
+        assert not CHORD_RE.match(word), word
+    t = time.perf_counter()
+    for junk in ("A" + "0" * 40 + "!", "Aadd" + "00add" * 20 + "!", "A#" + "00#" * 20 + "!"):
+        assert not CHORD_RE.match(junk)
+    assert time.perf_counter() - t < 0.5  # what CodeQL warned about: no exponential backtracking
