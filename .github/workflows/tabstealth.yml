@@ -4,7 +4,7 @@ name: tabstealth
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
     paths:
       - "tabstealth/**"
       - "packages/ui/**"
@@ -23,14 +23,14 @@ permissions:
 
 jobs:
   # Pull requests run every workflow, so its required check (`tabstealth ok` below) always reports; the jobs only run
-  # when the pull request touches what this workflow tests (the same paths a push to main or dev filters on).
+  # when the pull request touches what this workflow tests (the same paths a push to main filters on).
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       run: ${{ steps.diff.outputs.run }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: diff
@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -64,11 +64,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
+          cache-dependency-path: package-lock.json
+      # One lockfile for the whole workspace, at the repo root.
       - run: npm ci
       - name: types
         working-directory: tabstealth/web
