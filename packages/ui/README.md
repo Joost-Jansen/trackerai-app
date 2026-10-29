@@ -7,7 +7,7 @@ it for Tailwind classes (`content` in `tailwind.config.ts`) and imports the styl
 | Import | What |
 |---|---|
 | `@trackerai/ui/styles/ds.css`, `styles/base.css` | The Meridian component layer, the tokens and element rules |
-| `@trackerai/ui/styles/brand-sage.css`, `styles/brand-terracotta.css` | One palette per app: neutral and brand ladders, ink panel, focus ring, chart colours, light and dark |
+| `@trackerai/ui/styles/brand-sage.css`, `styles/brand-terracotta.css`, `styles/brand-dusk.css` | One palette per app (health, wealth, tabstealth): neutral and brand ladders, ink panel, focus ring, chart colours, light and dark |
 | `@trackerai/ui/tailwind-preset` | The Tailwind theme (`presets: [preset]`) |
 | `@trackerai/ui/ds/*` | Button, Field, Feedback (Dialog, EmptyState, Tag, Badge), Tabs, SubNav, RowMenu, Section, SidebarNav |
 | `@trackerai/ui/components/*` | Card, CollapsibleCard (icon and status with expandable content), InfoPopover, ThemeToggle, FeedbackDialog |

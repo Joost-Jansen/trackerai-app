@@ -439,3 +439,72 @@ export function SyncIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/** Media transport (tabstealth's player): play, pause, stop. */
+export function PlayIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M8 5.5v13l10.5-6.5z" />
+    </Icon>
+  );
+}
+
+export function PauseIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M8.5 5.5v13M15.5 5.5v13" />
+    </Icon>
+  );
+}
+
+export function StopIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="6.5" y="6.5" width="11" height="11" rx="1.5" />
+    </Icon>
+  );
+}
+
+/** A video: a screen with a play triangle. */
+export function VideoIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="5.5" width="18" height="13" rx="2" />
+      <path d="M10.5 9.5v5l4-2.5z" />
+    </Icon>
+  );
+}
+
+/** Music: two beamed eighth notes. */
+export function MusicIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M9 17.5V6l10-2v11.5" />
+      <circle cx="6.5" cy="17.5" r="2.5" />
+      <circle cx="16.5" cy="15.5" r="2.5" />
+    </Icon>
+  );
+}
+
+/** Repeat / loop: two arrows chasing each other round a rectangle. */
+export function RepeatIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M17 3.5l3 3-3 3" />
+      <path d="M4 11.5v-2a3 3 0 0 1 3-3h13" />
+      <path d="M7 20.5l-3-3 3-3" />
+      <path d="M20 12.5v2a3 3 0 0 1-3 3H4" />
+    </Icon>
+  );
+}
+
+export function HandIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M18 11V6a2 2 0 0 0-4 0" />
+      <path d="M14 10V4a2 2 0 0 0-4 0v2" />
+      <path d="M10 10.5V6a2 2 0 0 0-4 0v8" />
+      <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-6-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+    </Icon>
+  );
+}

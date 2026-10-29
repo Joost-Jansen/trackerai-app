@@ -9,6 +9,7 @@ COPY package.json package-lock.json ./
 COPY health-tracker/web/package.json health-tracker/web/
 COPY wealth-tracker/frontend/package.json wealth-tracker/frontend/
 COPY trackerai/web/package.json trackerai/web/
+COPY tabstealth/web/package.json tabstealth/web/
 COPY packages/ packages/
 RUN npm ci
 

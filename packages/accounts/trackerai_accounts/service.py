@@ -17,7 +17,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 
 from trackerai_accounts import crypto, mail, passwords, totp
-from trackerai_accounts.config import APPS, CONSENT_APPS, LOCALES, Config
+from trackerai_accounts.config import APPS, CONSENT_APPS, GRANTED_APPS, LOCALES, Config
 from trackerai_accounts.errors import AccountError
 from trackerai_accounts.store import account_apps, accounts, audit, daily_use, email_codes, invites, settings
 
@@ -194,6 +194,8 @@ class Accounts:
         email = _check_email(email)
         mode = self.registration_mode()
         first = self.count() == 0
+        if not first and any(a in GRANTED_APPS for a in chosen):
+            raise AccountError(403, "app_not_available")
         if mode == "closed":
             raise AccountError(403, "registration_closed")
         code = (invite or "").strip()
@@ -699,7 +701,7 @@ class Accounts:
                     raise AccountError(422, "consent_required")
                 self.give_consent(account_id, app)  # given the app by an admin: consents on the first visit
             return self.apps(account_id)[app]
-        if self.registration_mode() != "open" and not account["is_admin"]:
+        if (self.registration_mode() != "open" or app in GRANTED_APPS) and not account["is_admin"]:
             raise AccountError(403, "app_not_available")
         if app in CONSENT_APPS and not consent:
             raise AccountError(422, "consent_required")

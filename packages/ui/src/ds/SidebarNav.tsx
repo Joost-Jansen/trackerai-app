@@ -142,6 +142,7 @@ export default function SidebarNav({
   open,
   onOpen,
   onClose,
+  collapsed = false,
 }: {
   groups: NavGroup[];
   activeId: string | null;
@@ -153,7 +154,12 @@ export default function SidebarNav({
   /** Where the logo and name lead: the homepage (trackerai.nl) or the app's own first page. */
   homeHref?: string;
   footer?: React.ReactNode;
-  /** Only relevant below lg: is the slide-out panel open? */
+  /**
+   * Hide the rail on wide screens too, for a page that needs the room (tabstealth's video next to its tab); the
+   * slide-out panel then works at every width. Below lg it changes nothing.
+   */
+  collapsed?: boolean;
+  /** Below lg, or when collapsed: is the slide-out panel open? */
   open: boolean;
   onOpen: () => void;
   onClose: () => void;
@@ -294,7 +300,10 @@ export default function SidebarNav({
   return (
     <>
       {/* Wide screen: the panel is simply there, over the full height. */}
-      <nav aria-label={tr("Main navigation")} className="ds-sidebar ds-sidebar--ink sticky top-0 hidden h-screen lg:flex">
+      <nav
+        aria-label={tr("Main navigation")}
+        className={`ds-sidebar ds-sidebar--ink sticky top-0 hidden h-screen${collapsed ? "" : " lg:flex"}`}
+      >
         <Wordmark logo={logo} name={name} href={homeHref} />
         <NavList groups={groups} activeId={activeId} badges={badges} />
         {footer && <div className="mt-auto">{footer}</div>}
@@ -304,7 +313,7 @@ export default function SidebarNav({
           can pick it up. */}
       <div
         ref={drawer}
-        className={`ds-navdrawer lg:hidden${open ? " ds-navdrawer--open" : ""}${drag === null ? "" : " ds-navdrawer--dragging"}`}
+        className={`ds-navdrawer${collapsed ? "" : " lg:hidden"}${open ? " ds-navdrawer--open" : ""}${drag === null ? "" : " ds-navdrawer--dragging"}`}
       >
         <div className="ds-navdrawer__scrim" onClick={onClose} aria-hidden style={styleAt(drag, "scrim")} />
         <nav

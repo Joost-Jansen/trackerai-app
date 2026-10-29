@@ -38,6 +38,7 @@ One workflow per part of the repository, in `.github/workflows/`:
 | `wealth-tracker` | backend on SQLite and Postgres, frontend, the image | `wealth-tracker ok` |
 | `trackerai` | the front door's API and image | `trackerai ok` |
 | `trackerai-web` | the front door's site and image | `trackerai-web ok` |
+| `tabstealth` | converter and API (pytest), player (tsc, i18n, unit tests) | `tabstealth ok` |
 | `accounts`, `websec`, `ai` | the shared Python packages in `packages/` | `accounts ok`, `websec ok`, `ai ok` |
 | `lint` | ruff (check and format), ESLint and Prettier over the whole repository | `lint ok` |
 | `dependency review` | no new dependency with a known high or critical vulnerability | `dependency review` |

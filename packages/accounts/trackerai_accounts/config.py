@@ -38,7 +38,10 @@ from dataclasses import dataclass, field
 
 from trackerai_accounts import crypto
 
-APPS = ("health", "wealth")
+APPS = ("health", "wealth", "tabstealth")
+# Apps only an admin gives (Admin page, set_app): no joining or signing up for them, also on an open installation.
+# tabstealth shows tabs that are the video makers' work, so who uses it is a personal choice of the admin.
+GRANTED_APPS = ("tabstealth",)
 # Apps whose data is special under the GDPR (art. 9): joining asks for explicit consent.
 CONSENT_APPS = ("health",)
 TOTP_POLICIES = ("shared", "all", "admins", "off")
