@@ -47,7 +47,8 @@ export const nl = {
     pdfLabel: "PDF-bestand (tab, akkoorden, bladmuziek)",
     choosePdf: "Kies eerst een PDF",
     exportLabel: "Export van de converter (.zip)",
-    exportHint: "Gemaakt met python -m tabreader export op je computer: een song die daar is omgezet, of een hele bibliotheek. Je aanpassingen in tabstealth blijven staan.",
+    exportHint:
+      "Gemaakt met python -m tabreader export op je computer: een song die daar is omgezet, of een hele bibliotheek. Je aanpassingen in tabstealth blijven staan.",
     chooseExport: "Kies eerst een export",
     imported: (n: number, kept: number) => `${n} toegevoegd of bijgewerkt${kept ? `, ${kept} met je aanpassingen bewaard` : ""}.`,
     itemTitle: "Titel",

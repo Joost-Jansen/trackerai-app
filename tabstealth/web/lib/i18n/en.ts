@@ -47,7 +47,8 @@ export const en: Messages = {
     pdfLabel: "PDF file (tab, chords, sheet music)",
     choosePdf: "Choose a PDF first",
     exportLabel: "Converter export (.zip)",
-    exportHint: "Made with python -m tabreader export on your computer: a song converted there, or a whole library. Your edits in tabstealth stay.",
+    exportHint:
+      "Made with python -m tabreader export on your computer: a song converted there, or a whole library. Your edits in tabstealth stay.",
     chooseExport: "Choose an export first",
     imported: (n: number, kept: number) => `${n} added or updated${kept ? `, ${kept} kept with your edits` : ""}.`,
     itemTitle: "Title",

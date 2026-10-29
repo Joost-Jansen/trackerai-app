@@ -24,7 +24,11 @@ function Login() {
       logo={<Logomark height={30} />}
       onDone={() => router.replace(target)}
       footer={
-        <button type="button" className="self-start text-[12.5px] text-ink-muted underline underline-offset-2" onClick={() => setLocale(locale === "nl" ? "en" : "nl")}>
+        <button
+          type="button"
+          className="self-start text-[12.5px] text-ink-muted underline underline-offset-2"
+          onClick={() => setLocale(locale === "nl" ? "en" : "nl")}
+        >
           {t.common.language}
         </button>
       }
