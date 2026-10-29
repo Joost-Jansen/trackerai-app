@@ -117,7 +117,7 @@ def grace_slurs(ink_clean: np.ndarray, lines: list[float], cols: list[Column]) -
                 continue
             ys, xs = np.nonzero(band)
             wd = band.shape[1]
-            if len(xs) < 8 or not (xs < 0.35 * wd).any() or not (xs > 0.65 * wd).any():
+            if len(xs) < 8 or not (xs < 0.35 * wd).any() or not (xs > 0.65 * wd).any() or ys.min() == ys.max():
                 continue
             if np.corrcoef(np.abs(xs - (wd - 1) / 2), ys)[0, 1] > 0.5:
                 g.hammer = True

@@ -121,6 +121,11 @@ def spacing_positions(m, quarters: float) -> list[float]:
 def build_song(tape: ParsedPage, offsets: list[int], runs, scan: dict,
                tempo_mark: int | None = None) -> Song:
     ts, xs, backwards = cursor_track(offsets, runs, scan)
+    if len(xs) < 2:
+        # the rhythm and the sync come from the moving cursor line; videos that flip whole pages and mark the beat
+        # with a box or a coloured note have none (yet)
+        raise RuntimeError("no playback cursor found: this tab layout (pages that flip, no cursor line) "
+                           "is not supported yet")
     chosen = [m for m in tape.measures if m.number is not None and m.complete]
     first_u = [m.columns[0].x - m.x0 for m in chosen if m.columns]
     rest_u = float(np.median([u for u in first_u if u < DOWNBEAT_MAX_U] or [45]))

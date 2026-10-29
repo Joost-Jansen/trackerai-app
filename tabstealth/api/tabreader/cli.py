@@ -42,8 +42,13 @@ def log(msg: str) -> None:
 
 
 def video_id(s: str) -> str:
+    """The 11-character id from a YouTube link, or the id itself. Anything else is refused: an id becomes a folder
+    and a library key ("a b c" from an unsplit shell variable once made a second entry for an existing song)."""
     m = re.search(r"(?:v=|youtu\.be/|shorts/)([\w-]{11})", s)
-    return m.group(1) if m else s
+    vid = m.group(1) if m else s.strip()
+    if not re.fullmatch(r"[\w-]{11}", vid):
+        raise ValueError(f"not a YouTube link or video id: {s!r}")
+    return vid
 
 
 def yt(args: list[str], cookies: str | None) -> subprocess.CompletedProcess:
@@ -295,7 +300,10 @@ def main(argv: list[str] | None = None) -> None:
     a = ap.parse_args(argv)
     if not shutil.which("yt-dlp"):
         sys.exit("yt-dlp not found (brew install yt-dlp)")
-    ids = [video_id(v) for v in a.videos]
+    try:
+        ids = [video_id(v) for v in a.videos]
+    except ValueError as e:
+        ap.error(str(e))
     if a.playlist:
         ids += [i for i, _ in playlist_ids(a.playlist, a.cookies)]
     if not ids:

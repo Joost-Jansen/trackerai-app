@@ -254,3 +254,11 @@ def test_reanalysing_a_tab_asks_before_replacing_edits(library):
     assert c.post("/api/songs/abcdefghijk/convert").status_code == 409
     job = c.post("/api/songs/abcdefghijk/convert", json={"overwrite_edits": True}).json()
     assert job["args"] == ["--overwrite-edits"]
+
+
+def test_the_converter_takes_only_youtube_ids():
+    from tabreader.cli import video_id
+    assert video_id("https://www.youtube.com/watch?v=xiStivoN7VU&list=PLqEL0mkpjnMOFPIzI-Ey64hMr5dFETAHr") == "xiStivoN7VU"
+    assert video_id("AAdFeO0WmZA") == "AAdFeO0WmZA"
+    with pytest.raises(ValueError):
+        video_id("gHRmuLWp-z4 4ybm89TTwvE")
