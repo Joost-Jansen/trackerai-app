@@ -54,7 +54,7 @@ def export_folder(folder):
 @pytest.fixture
 def library(pg_url, tmp_path):
     engine = db.connect(pg_url)
-    c = TestClient(create_app(engine, jobs=FakeJobs()), base_url="https://tabstealth.example")
+    c = TestClient(create_app(engine, jobs=FakeJobs()), base_url="https://tabstealth.example", headers=ORIGIN)
     # the first account of an installation is its admin, who gets tabstealth on the first visit
     r = c.post("/api/auth/register", json={"username": "anna", "password": PASSWORD, "email": "anna@example.org"})
     assert r.status_code == 200, r.text
@@ -65,6 +65,7 @@ def library(pg_url, tmp_path):
 
 
 PASSWORD = "a-long-test-password-1"
+ORIGIN = {"Origin": "https://tabstealth.example"}  # as a browser sends it: the CSRF origin check wants it
 
 
 class FakeJobs(Jobs):
@@ -342,8 +343,8 @@ def login(lib, name):
     accounts = lib.c.app.state.accounts
     anna = accounts.by_username("anna")
     accounts.set_registration_mode(anna, "open")
-    accounts.register(name, PASSWORD, "health", email=f"{name}@example.org")
-    c = TestClient(lib.c.app, base_url="https://tabstealth.example")
+    accounts.register(name, PASSWORD, "wealth", email=f"{name}@example.org")
+    c = TestClient(lib.c.app, base_url="https://tabstealth.example", headers=ORIGIN)
     assert c.post("/api/auth/login", json={"username": name, "password": PASSWORD}).status_code == 200
     return c, accounts, anna
 

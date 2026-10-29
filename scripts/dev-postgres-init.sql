@@ -2,3 +2,4 @@
 CREATE DATABASE accounts;
 CREATE DATABASE health;
 CREATE DATABASE wealth;
+CREATE DATABASE tabstealth;
