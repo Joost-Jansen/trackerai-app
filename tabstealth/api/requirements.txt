@@ -1,7 +1,10 @@
 # tabstealth-api. System tools needed next to these: ffmpeg and yt-dlp (download), tesseract (chord names,
-# sections, tuning and capo; optional).
-fastapi==0.142.2
-uvicorn[standard]==0.50.2
+# sections, tuning and capo; optional). The shared packages come from the repo: ../../packages/accounts and
+# ../../packages/websec (pip install them next to this file, as the Dockerfile does).
+fastapi==0.144.0
+uvicorn[standard]==0.54.0
 numpy==2.5.4
 opencv-python-headless==5.0.0.93
 pyguitarpro==0.11
+SQLAlchemy==2.1.5
+psycopg[binary]==3.3.6

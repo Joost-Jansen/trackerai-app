@@ -5,6 +5,7 @@ const path = require("path");
 const root = path.join(__dirname, "../..");
 
 module.exports = {
+  output: "standalone",
   outputFileTracingRoot: root,
   turbopack: { root },
   transpilePackages: ["@trackerai/ui"],
@@ -31,6 +32,10 @@ module.exports = {
           { key: "Content-Security-Policy", value: csp },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          ...(process.env.NODE_ENV === "production"
+            ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }]
+            : []),
         ],
       },
     ];

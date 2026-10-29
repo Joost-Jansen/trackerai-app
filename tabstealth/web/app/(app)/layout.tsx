@@ -1,14 +1,17 @@
 "use client";
 
 // The shell of every page: sidebar, top bar, content. The same layout as health-tracker and wealth-tracker.
+// Behind the trackerai login: logged out goes to /login/ (and back after), an account without tabstealth sees why.
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import SidebarNav from "@trackerai/ui/ds/SidebarNav";
 import ThemeToggle from "@trackerai/ui/components/ThemeToggle";
 import { IconButton } from "@trackerai/ui/ds/Button";
 import { MenuIcon } from "@trackerai/ui/icons";
 import Logomark from "@/components/Logomark";
+import { api, ApiError } from "@/lib/api";
 
 const SIDEBAR_KEY = "tabstealth.sidebar";
 
@@ -24,9 +27,53 @@ function SidebarIcon({ collapsed }: { collapsed: boolean }) {
 import { useLocale, useT } from "@/lib/i18n";
 import { nav, TOPBAR_ACTIONS, TOPBAR_TITLE } from "@/lib/nav";
 
+type Me = { username: string; is_admin: boolean; front_door_url: string | null };
+
+/** No tabstealth for this account (yet): why, and the way out. */
+function Gate({ code, onLogout }: { code: string; onLogout: () => void }) {
+  const t = useT();
+  const status = useQuery({
+    queryKey: ["registration-status"],
+    queryFn: () => api.get<{ front_door_url?: string | null }>("/api/auth/registration-status"),
+  });
+  const setup = code === "totp_setup_required" || code === "email_verify_required";
+  const account = status.data?.front_door_url;
+  return (
+    <main className="flex min-h-screen items-center justify-center p-6">
+      <div className="flex w-full max-w-[360px] flex-col gap-4">
+        <Logomark height={30} />
+        <h1 className="font-display text-[28px] font-light leading-tight">{setup ? t.auth.setupTitle : t.auth.notEnabledTitle}</h1>
+        <p className="text-sm text-ink-muted">{setup ? t.auth.setupNeeded : t.auth.notEnabled}</p>
+        <div className="flex flex-wrap gap-4 text-[12.5px] text-ink-muted">
+          {setup && account && (
+            <a href={account} className="underline underline-offset-2">
+              {t.auth.openAccount}
+            </a>
+          )}
+          <button type="button" className="underline underline-offset-2" onClick={onLogout}>
+            {t.auth.otherAccount}
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const qc = useQueryClient();
   const t = useT();
+  const me = useQuery({ queryKey: ["me"], queryFn: () => api.get<Me>("/api/me"), retry: false });
+  const denied = me.error instanceof ApiError ? me.error : null;
+  useEffect(() => {
+    if (denied?.status === 401) router.replace(`/login/?next=${encodeURIComponent(pathname)}`);
+  }, [denied, pathname, router]);
+  const logout = async () => {
+    await api.post("/api/auth/logout").catch(() => {});
+    qc.clear();
+    router.replace("/login/");
+  };
   const { locale, setLocale } = useLocale();
   const [navOpen, setNavOpen] = useState(false);
   // The sidebar folds away so the video and the tab get the room. Your last choice is kept on this device;
@@ -58,6 +105,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // a song, video or PDF belongs to the library
   const item = groups[0].items.find((i) => pathname.startsWith(i.href)) ?? (ownHeader ? groups[0].items[0] : null);
 
+  if (denied && denied.status !== 401) return <Gate code={denied.code ?? ""} onLogout={logout} />;
+  if (!me.data) return <div className="min-h-screen" />; // checking the login, or on the way to it
+
   return (
     <div className="flex min-h-screen">
       <SidebarNav
@@ -77,6 +127,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           >
             <button type="button" className="underline underline-offset-4" onClick={() => setLocale(locale === "nl" ? "en" : "nl")}>
               {t.common.language}
+            </button>
+            <button type="button" className="underline underline-offset-4" onClick={() => void logout()} title={me.data.username}>
+              {t.auth.logout}
             </button>
           </div>
         }

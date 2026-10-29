@@ -51,8 +51,9 @@ export default function LibraryPage() {
     },
     onError: (e) => setError(e instanceof ApiError ? e.message : t.common.error),
   });
-  // what the link or file becomes: a tab to convert, a video to keep as it is, or a PDF
-  const [mode, setMode] = useState<"tab" | "video" | "pdf">("tab");
+  // what the link or file becomes: a tab to convert, a video to keep as it is, a PDF, or songs converted elsewhere
+  const [mode, setMode] = useState<"tab" | "video" | "pdf" | "import">("tab");
+  const [bundle, setBundle] = useState<File | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [pdf, setPdf] = useState<{ file: File | null; title: string; artist: string }>({ file: null, title: "", artist: "" });
   const saveVideo = useMutation({
@@ -76,9 +77,24 @@ export default function LibraryPage() {
     },
     onError: (e) => setError(e instanceof ApiError ? e.message : t.common.error),
   });
+  // an export of the converter (python -m tabreader export): a song converted on a computer, or a whole library
+  const importBundle = useMutation({
+    mutationFn: () => api.upload<{ songs: string[]; kept_edits: string[]; practice: number }>("/api/library/import", bundle!),
+    onSuccess: (r) => {
+      setBundle(null);
+      setDone(t.library.imported(r.songs.length, r.kept_edits.length));
+      void qc.invalidateQueries({ queryKey: ["songs"] });
+    },
+    onError: (e) => setError(e instanceof ApiError ? e.message : t.common.error),
+  });
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setDone(null);
+    if (mode === "import") {
+      if (!bundle) return setError(t.library.chooseExport);
+      setError(null);
+      return importBundle.mutate();
+    }
     if (mode === "pdf") {
       if (!pdf.file) return setError(t.library.choosePdf);
       setError(null);
@@ -119,6 +135,7 @@ export default function LibraryPage() {
               { id: "tab", label: t.library.modes.tab },
               { id: "video", label: t.library.modes.video },
               { id: "pdf", label: t.library.modes.pdf },
+              { id: "import", label: t.library.modes.import },
             ]}
             value={mode}
             onChange={(m) => {
@@ -131,7 +148,19 @@ export default function LibraryPage() {
         }
       >
         <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row sm:items-start">
-          {mode === "pdf" ? (
+          {mode === "import" ? (
+            <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-ink-muted">
+              {t.library.exportLabel}
+              <input
+                type="file"
+                accept=".zip,application/zip"
+                className="text-sm text-ink file:mr-3 file:rounded-md file:border file:border-border file:bg-surface file:px-3 file:py-1.5 file:text-sm"
+                onChange={(e) => setBundle(e.target.files?.[0] ?? null)}
+              />
+              <span>{t.library.exportHint}</span>
+              {error && <span className="text-neg">{error}</span>}
+            </label>
+          ) : mode === "pdf" ? (
             <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-3">
               <label className="flex flex-col gap-1 text-xs text-ink-muted sm:col-span-3">
                 {t.library.pdfLabel}
@@ -169,7 +198,7 @@ export default function LibraryPage() {
             type="submit"
             variant="primary"
             className="sm:mt-[22px]"
-            disabled={add.isPending || saveVideo.isPending || uploadPdf.isPending}
+            disabled={add.isPending || saveVideo.isPending || uploadPdf.isPending || importBundle.isPending}
           >
             {mode === "tab" ? t.library.addButton : mode === "video" ? t.library.saveButton : t.library.uploadButton}
           </Button>

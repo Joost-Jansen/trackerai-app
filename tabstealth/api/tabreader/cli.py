@@ -2,6 +2,8 @@
 
 python -m tabreader VIDEO_URL_OR_ID [...]          one or more videos
 python -m tabreader --playlist URL [--cookies-from-browser chrome]
+python -m tabreader export [ID ...] [-o FILE.zip]   songs of the library (default: all) as one file, for
+                                                    tabstealth's Import (a song converted here, or a whole library)
 """
 
 import argparse
@@ -14,6 +16,7 @@ import shutil
 import subprocess
 import sys
 import time
+import zipfile
 from pathlib import Path
 
 import cv2
@@ -415,7 +418,41 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool, forc
     return report
 
 
+def export(argv: list[str]) -> None:
+    """Songs of the local library, with their files, state (meta.json) and practice log, as one zip: what
+    tabstealth's /api/library/import reads. With ids, only those songs (and their practice)."""
+    ap = argparse.ArgumentParser(prog="python -m tabreader export")
+    ap.add_argument("ids", nargs="*", help="video ids (default: the whole library)")
+    ap.add_argument("--library", default=str(LIBRARY), help="the library folder")
+    ap.add_argument("-o", "--output", default="tabstealth-export.zip", help="the zip to write")
+    a = ap.parse_args(argv)
+    lib = Path(a.library)
+    index = json.loads((lib / "index.json").read_text()) if (lib / "index.json").exists() else {}
+    wanted = {k: v for k, v in index.items() if not a.ids or k in a.ids}
+    if not wanted:
+        sys.exit("nothing to export")
+    with zipfile.ZipFile(a.output, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("index.json", json.dumps(wanted, indent=2))
+        for e in wanted.values():
+            names = [e.get(k) for k in ("file", "timing", "review") if e.get(k)]
+            if str(e.get("file", "")).endswith(".gp5"):
+                names.append(Path(e["file"]).stem + ".orig.gp5")  # your edits come along
+            for n in names:
+                if (lib / n).is_file():
+                    z.write(lib / n, n)
+        if (lib / "meta.json").exists():
+            meta = json.loads((lib / "meta.json").read_text())
+            z.writestr("meta.json", json.dumps({k: v for k, v in meta.items() if k in wanted}, indent=2))
+        if (lib / "practice.jsonl").exists():
+            lines = [ln for ln in (lib / "practice.jsonl").read_text().splitlines() if ln.strip()]
+            z.writestr("practice.jsonl", "\n".join(ln for ln in lines if json.loads(ln).get("video") in wanted) + "\n")
+    print(f"{len(wanted)} item(s) -> {a.output}")
+
+
 def main(argv: list[str] | None = None) -> None:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["export"]:
+        return export(argv[1:])
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("videos", nargs="*", help="YouTube URLs or video ids")
     ap.add_argument("--playlist", help="YouTube playlist URL")

@@ -209,6 +209,21 @@ def test_joining_needs_an_open_installation_or_the_admin(accounts, health):
     assert accounts.apps(accounts.by_username("bob")["id"]).keys() == {"health", "wealth"}
 
 
+def test_an_app_only_the_admin_gives(accounts, health):
+    register(health)
+    anna = accounts.by_username("anna")
+    accounts.set_registration_mode(anna, "open")
+    bob = TestClient(health.app)
+    register(bob, "bob")
+    # open for health and wealth, but tabstealth is the admin's to give: no joining, no signing up for it
+    r = bob.post("/api/account/apps/tabstealth", json={})
+    assert r.status_code == 403 and r.json()["code"] == "app_not_available"
+    assert register(TestClient(make_app(accounts, "tabstealth")), "carl").json()["code"] == "app_not_available"
+    accounts.set_app(anna, accounts.by_username("bob")["id"], "tabstealth", enabled=True)
+    assert "tabstealth" in accounts.apps(accounts.by_username("bob")["id"])
+    assert health.post("/api/account/apps/tabstealth", json={}).status_code == 200  # the admin may join herself
+
+
 def test_invite_opens_its_apps(accounts, health):
     register(health)
     anna = accounts.by_username("anna")

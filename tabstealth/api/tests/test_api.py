@@ -1,8 +1,11 @@
 """The API on a temporary library: listing, timing, beat edits with backup and restore, the convert queue."""
 
+import io
 import json
 import time
+import zipfile
 
+import db
 import guitarpro as gp
 import pytest
 from fastapi.testclient import TestClient
@@ -11,47 +14,84 @@ from tabreader.assemble import Beat, Measure, Song
 from tabreader.export import Meta, write_gp5
 from tabreader.parse import Column, Note
 
-from app import Jobs, create_app
+from app import Export, Jobs, create_app, import_export, purge
+
+
+class Lib:
+    """A logged-in client on a database of its own, with one song: "B" by "A", one bar (a chord, then a rest)."""
+
+    def __init__(self, engine, client, folder):
+        self.engine, self.c, self.folder = engine, client, folder
+        self.uid = db.user_for_account(engine, 1)
+
+    def get(self, *cols):
+        return db.get_song(self.engine, self.uid, "abcdefghijk", *cols)
+
+    def song(self):
+        return gp.parse(io.BytesIO(self.get("gp5")["gp5"]))
+
+    def set_song(self, song):
+        out = io.BytesIO()
+        gp.write(song, out, version=(5, 1, 0))
+        db.update_song(self.engine, self.uid, "abcdefghijk", {"gp5": out.getvalue()})
+
+    def orig(self):
+        return self.get("orig_gp5")["orig_gp5"]
+
+
+def export_folder(folder):
+    """What the converter writes (index.json and the files it names): the way a song comes into the library."""
+    chord = Column(x=0, notes=[Note(2, 2), Note(3, 2), Note(5, 0)])
+    song = Song([Measure(1, [Beat(0, 2 * Q, chord), Beat(2 * Q, 2 * Q)])], 80, 4, 4)
+    write_gp5(song, str(folder / "A - B.gp5"), Meta(title="B", artist="A"))
+    (folder / "A - B.timing.json").write_text(json.dumps({"video": "abcdefghijk", "measure_starts": [1.5]}))
+    (folder / "index.json").write_text(
+        json.dumps({"abcdefghijk": {"file": "A - B.gp5", "timing": "A - B.timing.json", "title": "B", "artist": "A"}})
+    )
+    return folder
 
 
 @pytest.fixture
-def library(tmp_path):
-    chord = Column(x=0, notes=[Note(2, 2), Note(3, 2), Note(5, 0)])
-    song = Song([Measure(1, [Beat(0, 2 * Q, chord), Beat(2 * Q, 2 * Q)])], 80, 4, 4)
-    write_gp5(song, str(tmp_path / "A - B.gp5"), Meta(title="B", artist="A"))
-    (tmp_path / "A - B.timing.json").write_text(json.dumps({"video": "abcdefghijk", "measure_starts": [1.5]}))
-    (tmp_path / "A - B.txt").write_text("tab")
-    (tmp_path / "index.json").write_text(
-        json.dumps({"abcdefghijk": {"file": "A - B.gp5", "timing": "A - B.timing.json", "text": "A - B.txt", "title": "B", "artist": "A"}})
-    )
-    return tmp_path
+def library(pg_url, tmp_path):
+    engine = db.connect(pg_url)
+    c = TestClient(create_app(engine, jobs=FakeJobs()), base_url="https://tabstealth.example")
+    # the first account of an installation is its admin, who gets tabstealth on the first visit
+    r = c.post("/api/auth/register", json={"username": "anna", "password": PASSWORD, "email": "anna@example.org"})
+    assert r.status_code == 200, r.text
+    assert c.get("/api/songs").json() == []
+    lib = Lib(engine, c, tmp_path)
+    import_export(engine, lib.uid, Export.folder(export_folder(tmp_path)))
+    return lib
+
+
+PASSWORD = "a-long-test-password-1"
 
 
 class FakeJobs(Jobs):
     def __init__(self):
-        super().__init__(runner=lambda job: True)
+        super().__init__(runner=lambda job, out: True)
+
+
+def beat0(library):
+    return library.song().tracks[0].measures[0].voices[0].beats[0]
 
 
 def test_songs_and_timing(library):
-    c = TestClient(create_app(library, FakeJobs()))
+    c = library.c
     songs = c.get("/api/songs").json()
     assert songs[0]["video"] == "abcdefghijk" and songs[0]["edited"] is False
     assert c.get("/api/songs/abcdefghijk/timing").json()["measure_starts"] == [1.5]
     assert c.get("/api/songs/nope/timing").status_code == 404
 
 
-def beat0(library):
-    return gp.parse(str(library / "A - B.gp5")).tracks[0].measures[0].voices[0].beats[0]
-
-
 def test_edit_beat_keeps_backup_and_restores(library):
-    c = TestClient(create_app(library, FakeJobs()))
+    c = library.c
     r = c.post(
         "/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"1": {"fret": 3}, "2": {"fret": "x"}, "5": {"fret": 0}}}
     )
     assert r.status_code == 200
     assert sorted((n.string, n.value, n.type.name) for n in beat0(library).notes) == [(1, 3, "normal"), (2, 0, "dead"), (5, 0, "normal")]
-    assert (library / "A - B.orig.gp5").exists()
+    assert library.orig() is not None
     assert c.get("/api/songs").json()[0]["edited"] is True
     # no notes at all turns the beat into a rest
     c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {}})
@@ -61,7 +101,7 @@ def test_edit_beat_keeps_backup_and_restores(library):
 
 
 def test_every_technique_round_trips(library):
-    c = TestClient(create_app(library, FakeJobs()))
+    c = library.c
     body = {
         "bar": 0,
         "beat": 0,
@@ -100,12 +140,12 @@ def test_every_technique_round_trips(library):
 
 
 def test_effects_the_form_does_not_show_are_kept(library):
-    song = gp.parse(str(library / "A - B.gp5"))
+    song = library.song()
     note = song.tracks[0].measures[0].voices[0].beats[0].notes[0]
     note.effect.staccato = True
     note.effect.trill = gp.TrillEffect(fret=5, duration=gp.Duration(value=16))
-    gp.write(song, str(library / "A - B.gp5"), version=(5, 1, 0))
-    c = TestClient(create_app(library, FakeJobs()))
+    library.set_song(song)
+    c = library.c
     s = note.string
     c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {str(s): {"fret": 4}}})
     kept = [n for n in beat0(library).notes if n.string == s][0]
@@ -113,9 +153,9 @@ def test_effects_the_form_does_not_show_are_kept(library):
 
 
 def test_section_and_text_tab(library):
-    c = TestClient(create_app(library, FakeJobs()))
+    c = library.c
     assert c.post("/api/songs/abcdefghijk/bars", json={"bar": 0, "section": "Chorus"}).status_code == 200
-    assert gp.parse(str(library / "A - B.gp5")).measureHeaders[0].marker.title == "Chorus"
+    assert library.song().measureHeaders[0].marker.title == "Chorus"
     c.post(
         "/api/songs/abcdefghijk/beats",
         json={"bar": 0, "beat": 0, "chord": "Am", "stroke": "down", "notes": {"2": {"fret": 1, "hammer": True}, "6": {"fret": "x"}}},
@@ -124,20 +164,20 @@ def test_section_and_text_tab(library):
     assert "1 Chorus" in text and "Am" in text and "^" in text
     assert "B|1" in text and "E|x" in text
     c.post("/api/songs/abcdefghijk/bars", json={"bar": 0, "section": ""})
-    assert gp.parse(str(library / "A - B.gp5")).measureHeaders[0].marker is None
+    assert library.song().measureHeaders[0].marker is None
 
 
 def test_edit_rejects_bad_input(library):
-    c = TestClient(create_app(library, FakeJobs()))
+    c = library.c
     assert c.post("/api/songs/abcdefghijk/beats", json={"bar": 5, "beat": 0, "notes": {}}).status_code == 404
     assert c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"1": {"fret": 30}}}).status_code == 400
     assert c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"7": {"fret": 1}}}).status_code == 422
     assert c.post("/api/songs/abcdefghijk/bars", json={"bar": 9, "section": "x"}).status_code == 404
-    assert not (library / "A - B.orig.gp5").exists()  # nothing changed, so nothing counts as edited
+    assert library.orig() is None  # nothing changed, so nothing counts as edited
 
 
 def test_convert_queues_only_youtube_links(library):
-    c = TestClient(create_app(library, FakeJobs()))
+    c = library.c
     assert c.post("/api/convert", json={"url": "https://evil.example/x"}).status_code == 400
     job = c.post("/api/convert", json={"url": "https://www.youtube.com/watch?v=gHRmuLWp-z4"}).json()
     for _ in range(50):
@@ -148,7 +188,7 @@ def test_convert_queues_only_youtube_links(library):
 
 
 def test_undo_redo_and_restore(library):
-    c = TestClient(create_app(library, FakeJobs()))
+    c = library.c
     frets = lambda: sorted((n.string, n.value) for n in beat0(library).notes)
     original = frets()
     c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"1": {"fret": 5}}})
@@ -176,7 +216,7 @@ def test_undo_redo_and_restore(library):
 
 
 def test_bend(library):
-    c = TestClient(create_app(library, FakeJobs()))
+    c = library.c
     c.post(
         "/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"3": {"fret": 7, "bend": 100}, "2": {"fret": 8, "bend": 50}}}
     )
@@ -189,7 +229,7 @@ def test_bend(library):
 
 
 def test_song_meta(library):
-    c = TestClient(create_app(library, FakeJobs()))
+    c = library.c
     assert c.get("/api/songs").json()[0]["status"] == "new"
     c.patch("/api/songs/abcdefghijk", json={"status": "learning", "tags": [" Fingerstyle", "capo", "capo", ""], "favourite": True})
     s = c.get("/api/songs").json()[0]
@@ -199,7 +239,7 @@ def test_song_meta(library):
 
 
 def test_practice_log_and_summary(library):
-    c = TestClient(create_app(library, FakeJobs()))
+    c = library.c
     log = lambda day, sec, speed, whole=False: c.post(
         "/api/practice", json={"video": "abcdefghijk", "day": day, "seconds": sec, "speed": speed, "source": "tab", "whole_song": whole}
     )
@@ -227,11 +267,8 @@ def test_practice_log_and_summary(library):
 
 
 def test_review_queue(library):
-    (library / "A - B.review.json").write_text(json.dumps([{"bar": 0, "reasons": ["timing", "low_confidence"]}]))
-    idx = json.loads((library / "index.json").read_text())
-    idx["abcdefghijk"]["review"] = "A - B.review.json"
-    (library / "index.json").write_text(json.dumps(idx))
-    c = TestClient(create_app(library, FakeJobs()))
+    db.update_song(library.engine, library.uid, "abcdefghijk", {"review": [{"bar": 0, "reasons": ["timing", "low_confidence"]}]})
+    c = library.c
     assert c.get("/api/songs").json()[0]["to_review"] == 1
     assert c.get("/api/songs/abcdefghijk/review").json() == [{"bar": 0, "reasons": ["timing", "low_confidence"], "checked": False}]
     assert c.post("/api/songs/abcdefghijk/review", json={"bar": 0, "checked": True}).json()[0]["checked"] is True
@@ -244,32 +281,32 @@ def test_collection_videos_and_pdfs(library, monkeypatch):
     import app as app_module
 
     monkeypatch.setattr(app_module, "youtube_title", lambda vid: "Hotel California Solo - Eagles | Lick")
-    c = TestClient(create_app(library, FakeJobs()))
+    c = library.c
     v = c.post("/api/library/video", json={"url": "https://youtu.be/AbCdEfGhIjK?t=3"}).json()
     assert (v["video"], v["kind"], v["title"], v["artist"]) == ("AbCdEfGhIjK", "video", "Hotel California Solo", "Eagles")
     assert c.post("/api/library/video", json={"url": "https://youtu.be/AbCdEfGhIjK"}).status_code == 409
     assert c.post("/api/library/video", json={"url": "https://example.com/x"}).status_code == 400
-    # a PDF: only real PDFs, kept in library/files and served inline
+    # a PDF: only real PDFs, kept in the database and served inline, framable by tabstealth's own page
     assert c.post("/api/library/pdf", content=b"hello", params={"title": "x"}).status_code == 400
     p = c.post("/api/library/pdf", content=b"%PDF-1.4 test", params={"title": "Blues licks", "artist": "Me"}).json()
     assert p["kind"] == "pdf" and p["title"] == "Blues licks"
     r = c.get(f"/api/songs/{p['video']}/pdf")
     assert r.status_code == 200 and r.headers["content-type"] == "application/pdf" and r.content.startswith(b"%PDF")
+    assert r.headers["x-frame-options"] == "SAMEORIGIN"
     kinds = {s["video"]: s["kind"] for s in c.get("/api/songs").json()}
     assert kinds == {"abcdefghijk": "tab", "AbCdEfGhIjK": "video", p["video"]: "pdf"}
     # a saved video can be converted later; a PDF cannot be converted
     assert c.post("/api/songs/AbCdEfGhIjK/convert").json()["url"].endswith("v=AbCdEfGhIjK")
     assert c.post(f"/api/songs/{p['video']}/convert").status_code == 400
-    # removing moves the files to the trash
+    # removing takes it out of the library, with its tab and edit history
     assert c.delete(f"/api/songs/{p['video']}").json() == {"ok": True}
     assert p["video"] not in {s["video"] for s in c.get("/api/songs").json()}
-    assert list((library / ".trash").glob("pdf-*/*.pdf"))
     c.delete("/api/songs/abcdefghijk")
-    assert not (library / "A - B.gp5").exists() and list((library / ".trash").glob("abcdefghijk-*/A - B.gp5"))
+    assert c.get("/api/songs/abcdefghijk/tab").status_code == 404
 
 
 def test_reanalysing_a_tab_asks_before_replacing_edits(library):
-    c = TestClient(create_app(library, FakeJobs()))
+    c = library.c
     assert c.post("/api/songs/abcdefghijk/convert").json()["args"] == []
     c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"1": {"fret": 5}}})
     assert c.post("/api/songs/abcdefghijk/convert").status_code == 409
@@ -298,3 +335,74 @@ def test_song_and_artist_come_out_of_any_title_style():
         "Stevie Wonder",
     )
     assert split_title("Stop This Train Guitar Cover John Mayer \N{GUITAR}|Tabs + Chords|", "x") == ("Stop This Train", "John Mayer")
+
+
+def login(lib, name):
+    """Another account, logged in on a client of its own."""
+    accounts = lib.c.app.state.accounts
+    anna = accounts.by_username("anna")
+    accounts.set_registration_mode(anna, "open")
+    accounts.register(name, PASSWORD, "health", email=f"{name}@example.org")
+    c = TestClient(lib.c.app, base_url="https://tabstealth.example")
+    assert c.post("/api/auth/login", json={"username": name, "password": PASSWORD}).status_code == 200
+    return c, accounts, anna
+
+
+def test_only_accounts_given_tabstealth_and_only_their_own_songs(library):
+    bob, accounts, anna = login(library, "bob")
+    r = bob.get("/api/songs")
+    assert r.status_code == 403 and r.json()["code"] == "app_not_available"
+    accounts.set_app(anna, accounts.by_username("bob")["id"], "tabstealth", enabled=True)
+    assert bob.get("/api/songs").json() == []  # anna's song is hers
+    assert bob.get("/api/songs/abcdefghijk/tab").status_code == 404
+    assert bob.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {}}).status_code == 404
+    assert TestClient(library.c.app).get("/api/songs").status_code == 401  # and nothing without a login
+
+
+def test_taking_tabstealth_away_deletes_the_library(library):
+    bob, accounts, anna = login(library, "bob")
+    bob_id = accounts.by_username("bob")["id"]
+    accounts.set_app(anna, bob_id, "tabstealth", enabled=True)
+    bob.post("/api/library/video", json={"url": "AbCdEfGhIjK", "title": "Lick"})
+    uid = int(accounts.local_key(bob_id, "tabstealth"))
+    assert db.list_songs(library.engine, uid)
+    accounts.set_app(anna, bob_id, "tabstealth", enabled=False)
+    assert purge(library.engine, accounts) == 1
+    assert db.list_songs(library.engine, uid) == [] and len(library.c.get("/api/songs").json()) == 1
+
+
+def test_importing_a_library_export(library, tmp_path):
+    (tmp_path / "mac").mkdir()
+    folder = export_folder(tmp_path / "mac")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        index = json.loads((folder / "index.json").read_text())
+        index["pdf-0123456789"] = {"kind": "pdf", "file": "files/pdf-0123456789.pdf", "title": "Scales", "artist": ""}
+        index["ZyXwVuTsRqP"] = {"kind": "video", "title": "Lick", "artist": "Me"}
+        z.writestr("index.json", json.dumps(index))
+        for n in ("A - B.gp5", "A - B.timing.json"):
+            z.write(folder / n, n)
+        z.writestr("files/pdf-0123456789.pdf", b"%PDF-1.4 scales")
+        z.writestr("../../etc/evil", b"x")  # only what the index names is read
+        z.writestr(
+            "meta.json", json.dumps({"abcdefghijk": {"status": "learning", "tags": ["fingerstyle"], "favourite": True, "checked": [0]}})
+        )
+        practice = {"video": "abcdefghijk", "day": "2026-10-20", "seconds": 120, "speed": 0.75, "source": "tab", "bars": [1, 4]}
+        z.writestr("practice.jsonl", json.dumps(practice) + "\n")
+    c = library.c
+    c.post("/api/songs/abcdefghijk/beats", json={"bar": 0, "beat": 0, "notes": {"1": {"fret": 7}}})  # an edit here
+    r = c.post("/api/library/import", content=buf.getvalue()).json()
+    assert sorted(r["songs"]) == ["ZyXwVuTsRqP", "pdf-0123456789"] and r["kept_edits"] == ["abcdefghijk"] and r["practice"] == 1
+    assert c.post("/api/library/import", content=buf.getvalue()).json()["practice"] == 0  # twice counts once
+    assert [n.value for n in beat0(library).notes if n.string == 1] == [7]  # the edit stayed
+    c.post("/api/library/import?overwrite_edits=true", content=buf.getvalue())
+    songs = {s["video"]: s for s in c.get("/api/songs").json()}
+    assert (songs["abcdefghijk"]["status"], songs["abcdefghijk"]["tags"], songs["abcdefghijk"]["favourite"]) == (
+        "learning",
+        ["fingerstyle"],
+        True,
+    )
+    assert songs["abcdefghijk"]["edited"] is False and songs["ZyXwVuTsRqP"]["kind"] == "video"
+    assert c.get("/api/songs/pdf-0123456789/pdf").content.startswith(b"%PDF")
+    assert c.get("/api/practice").json()["total_seconds"] == 120
+    assert c.post("/api/library/import", content=b"not a zip").status_code == 400
