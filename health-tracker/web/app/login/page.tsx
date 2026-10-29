@@ -2,12 +2,14 @@
 
 import { loginReturn } from "@trackerai/ui/lib/oauthReturn";
 
-// Log in. Paper ground, the wordmark in the display face, and otherwise only what needs to be there.
+// Log in. Paper ground, the wordmark in the display face, and otherwise only what needs to be there. "Forgot
+// password?" opens the shared reset (packages/ui ForgotPassword) when the server can mail its code.
 
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import ForgotPassword, { ForgotPasswordLink } from "@trackerai/ui/account/ForgotPassword";
 import { api, ApiError } from "@/lib/api";
 import { Button, Checkbox, Input, Logomark } from "@/components/ds";
 import LanguageSwitch from "@/components/LanguageSwitch";
@@ -25,9 +27,11 @@ export default function LoginPage() {
   // Codes by email: where the code went (masked), and whether the account can get one instead of the app's.
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [canEmail, setCanEmail] = useState(false);
+  const [forgot, setForgot] = useState(false);
   const config = useQuery({
     queryKey: ["auth-config"],
-    queryFn: () => api.get<{ registration: string; first_user: boolean; session_days?: number }>("/api/auth/config"),
+    queryFn: () =>
+      api.get<{ registration: string; first_user: boolean; session_days?: number; password_reset?: boolean }>("/api/auth/config"),
   });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -68,14 +72,42 @@ export default function LoginPage() {
     }
   }
 
+  const header = (
+    <div className="flex flex-col gap-1.5">
+      <Logomark height={34} className="mb-3" />
+      <h1 className="font-display text-[34px] font-light leading-tight tracking-[-0.03em]">{t.common.appName}</h1>
+      <p className="text-[13px] text-ink-muted">{t.auth.tagline}</p>
+    </div>
+  );
+  const footer = (
+    <div className="flex flex-wrap items-center gap-4">
+      <LanguageSwitch />
+      <Link href="/privacy/" className="text-[12.5px] text-ink-muted underline underline-offset-2">
+        {t.auth.privacy}
+      </Link>
+    </div>
+  );
+
+  if (forgot)
+    return (
+      <ForgotPassword
+        api={api}
+        header={header}
+        footer={footer}
+        initialLogin={username}
+        onBack={(login) => {
+          setForgot(false);
+          setError(null);
+          setPassword("");
+          if (login && !login.includes("@")) setUsername(login);
+        }}
+      />
+    );
+
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
       <form onSubmit={handleSubmit} className="flex w-full max-w-[320px] flex-col gap-6">
-        <div className="flex flex-col gap-1.5">
-          <Logomark height={34} className="mb-3" />
-          <h1 className="font-display text-[34px] font-light leading-tight tracking-[-0.03em]">{t.common.appName}</h1>
-          <p className="text-[13px] text-ink-muted">{t.auth.tagline}</p>
-        </div>
+        {header}
         {totp === null ? (
           <div className="flex flex-col gap-4">
             <Input
@@ -110,6 +142,14 @@ export default function LoginPage() {
                 </span>
               }
             />
+            {config.data?.password_reset && (
+              <ForgotPasswordLink
+                onClick={() => {
+                  setError(null);
+                  setForgot(true);
+                }}
+              />
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -161,12 +201,7 @@ export default function LoginPage() {
             </Link>
           </p>
         )}
-        <div className="flex flex-wrap items-center gap-4">
-          <LanguageSwitch />
-          <Link href="/privacy/" className="text-[12.5px] text-ink-muted underline underline-offset-2">
-            {t.auth.privacy}
-          </Link>
-        </div>
+        {footer}
       </form>
     </main>
   );

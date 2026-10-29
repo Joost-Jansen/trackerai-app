@@ -63,6 +63,7 @@ MESSAGES: dict[str, str] = {
     "too_many_codes": "te veel codes verstuurd. Probeer het over een kwartier opnieuw",
     "email_verify_required": "bevestig eerst je e-mailadres: vul de code uit de welkomstmail in",
     "email_already_verified": "je e-mailadres is al bevestigd",
+    "reset_code_invalid": "die code klopt niet of werkt niet meer. Vraag een nieuwe aan",
     "accounts_key_missing": "de server heeft geen sleutel om inloggen in twee stappen veilig op te slaan (ACCOUNTS_ENCRYPTION_KEY)",
     # agent tokens (api/agent_tokens.py)
     "tokens_site_only": "alleen ingelogd op de site beheer je agent-tokens",

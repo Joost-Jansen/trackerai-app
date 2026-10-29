@@ -56,6 +56,7 @@ MESSAGES: dict[str, str] = {
     "too_many_codes": "Too many codes sent. Try again in a quarter of an hour.",
     "email_verify_required": "Confirm your email address first: enter the code from the welcome mail.",
     "email_already_verified": "Your email address is already confirmed.",
+    "reset_code_invalid": "That code is not correct or no longer works. Ask for a new one.",
 }
 
 

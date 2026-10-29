@@ -322,6 +322,7 @@ def make_router(engine, stores: Stores, accounts: Accounts, sessions: Sessions, 
             "first_user": accounts.count() == 0,
             "privacy": privacy_info(),
             "session_days": accounts.config.session_days,
+            "password_reset": accounts.password_reset_available(),  # the login page's "Forgot password?"
             "front_door_url": accounts.config.front_door_url,
         }
 

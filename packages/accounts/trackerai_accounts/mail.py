@@ -129,3 +129,22 @@ def login_code_mail(code: str, locale: str | None, minutes: int, verify: bool) -
         f"Je inlogcode is {code}.\n\nHij werkt één keer, {minutes} minuten lang.\n\n"
         f"Probeer je niet in te loggen? Dan kent iemand je wachtwoord: wijzig het bij Instellingen › Account.\n",
     )
+
+
+def reset_mail(code: str, username: str, locale: str | None, minutes: int) -> tuple[str, str]:
+    """The mail for a forgotten password: the code that lets you choose a new one. Two-step login stays as it was."""
+    if locale == "en":
+        return (
+            f"Your trackerai password reset code: {code}",
+            f"Someone asked to reset the password of the trackerai account {username}.\n\n"
+            f"Enter {code} on the login page to choose a new password. It works once, for {minutes} minutes. "
+            f"Every device that is logged in is then logged out; your two-step login stays as it is.\n\n"
+            f"Didn't ask for it? Then ignore this mail: your password stays the same.\n",
+        )
+    return (
+        f"Je code om je trackerai-wachtwoord te herstellen: {code}",
+        f"Iemand vroeg om het wachtwoord van het trackerai-account {username} te herstellen.\n\n"
+        f"Vul {code} in op de inlogpagina om een nieuw wachtwoord te kiezen. Hij werkt één keer, {minutes} minuten lang. "
+        f"Elk apparaat dat is ingelogd wordt dan uitgelogd; je inloggen in twee stappen blijft zoals het is.\n\n"
+        f"Niet aangevraagd? Negeer deze mail dan: je wachtwoord blijft hetzelfde.\n",
+    )

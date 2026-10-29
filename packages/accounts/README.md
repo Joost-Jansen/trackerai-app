@@ -48,6 +48,35 @@ with `email: true`, and `send_email` in the login asks for a mail instead.
 - A step that asks for a code (deleting, leaving an app, turning it off) can get one from `POST /api/account/email/code`.
 - Without a configured mail provider it is not offered (`email_codes: false` in `/api/auth/registration-status`).
 
+## A forgotten password
+
+Every login page offers "Forgot password?" (`ForgotPassword` in packages/ui; the front door has its own copy in
+packages/marketing). It works with a mail provider only: `GET /api/auth/registration-status` says `password_reset:
+true` then, and the pages show the link only then.
+
+| Route | Body | What |
+|---|---|---|
+| `POST /api/auth/password/forgot` | `{login}` | A username or an email address. When that account has a confirmed address, a six-digit code goes there. |
+| `POST /api/auth/password/reset` | `{login, code, new_password}` | The code from that mail and a new password. |
+
+**Behaviour:**
+- **Nothing to probe.** `forgot` always answers `{ok: true}`, whether or not the account exists, has a confirmed
+  address, is suspended or has asked too often. The code is sent after the answer went out, so the timing is the same
+  too. A wrong, expired or spent code and an unknown login all answer 422 `reset_code_invalid`.
+- **The codes** are the codes by email above: an HMAC, ten minutes, once, five wrong tries spend one. A newer code
+  replaces the older. At most three reset codes per account per quarter hour, counted apart from the login codes, so
+  asking for resets cannot use up the codes someone needs to log in.
+- **Per-IP limits** (in memory): 10 `forgot` requests per quarter hour, and 30 wrong codes per quarter hour (10 per
+  login). Over them: 429 `too_many_attempts`.
+- **The new password** follows the usual rules (`check_new_password`). A password the rules refuse keeps the code, so
+  the person can try another.
+- **After the reset** every session in every app ends, and so does every remembered device; failed logins are
+  forgotten. The page is not logged in: the login page asks for the new password, and two-step login (the app or
+  codes by email) still asks for its code. A reset only changes the password. The audit log records
+  `reset_password_by_email`.
+- An account without a confirmed address (it never confirmed the welcome mail, or turned codes by email off) cannot
+  reset this way; an admin resets it (`POST /api/admin/accounts/{id}/reset-password`).
+
 ## Staying logged in
 
 The login form sends `remember` ("stay logged in", on by default):
@@ -116,7 +145,7 @@ These can differ per app:
   Optional: empty means `https://www.<SESSION_COOKIE_DOMAIN>`, and none at all without a shared domain (a tracker on
   its own). `GET /api/auth/registration-status` returns it as `front_door_url` (or `null`).
 
-For codes by email, give every app the same mail provider. Resend over HTTPS works on Railway Hobby, where
+For codes by email and a forgotten password (no settings of its own), give every app the same mail provider. Resend over HTTPS works on Railway Hobby, where
 outbound SMTP is blocked. Set `RESEND_API_KEY` and `MAIL_FROM`; use a sending-only key restricted to the verified
 sender domain. HTTPS is preferred when both transports are configured. A failed request is not retried or sent
 through SMTP. SMTP remains available on hosts that allow it.

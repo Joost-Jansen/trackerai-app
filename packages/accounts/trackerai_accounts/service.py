@@ -31,6 +31,9 @@ EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
 CODE_MINUTES = 10  # how long a code by email works
 CODE_ATTEMPTS = 5  # wrong tries before a code is spent
 CODES_PER_WINDOW = 5  # codes sent per account within LOGIN_WINDOW
+# Codes for a forgotten password per account within LOGIN_WINDOW, counted apart from the others: anyone may ask for
+# one, so asking must not use up the codes the account needs to log in.
+RESET_CODES_PER_WINDOW = 3
 # Checked when the username does not exist, so a wrong name costs as much time as a wrong password.
 DUMMY_HASH = bcrypt.hashpw(b"not-a-real-password", bcrypt.gensalt(rounds=12)).decode()
 
@@ -112,6 +115,19 @@ class Accounts:
         with self.engine.connect() as c:
             row = c.execute(select(accounts).where(accounts.c.username == (username or "").strip().lower())).mappings().first()
         return dict(row) if row else None
+
+    def by_login(self, login: str) -> dict | None:
+        """The account for a username, or for a confirmed email address (a forgotten password); never a deleted one."""
+        value = (login or "").strip().lower()
+        if not value or len(value) > 254:
+            return None
+        if "@" in value:
+            where = and_(accounts.c.email == value, accounts.c.email_verified_at.is_not(None))
+        else:
+            where = accounts.c.username == value
+        with self.engine.connect() as c:
+            row = c.execute(select(accounts).where(where)).mappings().first()
+        return dict(row) if row and not row["deleted_at"] else None
 
     def apps(self, account_id: int, with_leaving: bool = False) -> dict[str, dict]:
         """The apps this account uses: {app: row}. Without `with_leaving`, apps still deleting its data are left out."""
@@ -497,13 +513,15 @@ class Accounts:
         if not self.mailer:
             raise AccountError(503, "email_unavailable")
         since = now() - LOGIN_WINDOW
+        reset = purpose == "reset"
+        kind = email_codes.c.purpose == "reset" if reset else email_codes.c.purpose != "reset"
         with self.engine.begin() as c:
             sent = c.execute(
                 select(func.count())
                 .select_from(email_codes)
-                .where(and_(email_codes.c.account_id == account["id"], email_codes.c.created_at >= since))
+                .where(and_(email_codes.c.account_id == account["id"], email_codes.c.created_at >= since, kind))
             ).scalar_one()
-            if sent >= CODES_PER_WINDOW:
+            if sent >= (RESET_CODES_PER_WINDOW if reset else CODES_PER_WINDOW):
                 raise AccountError(429, "too_many_codes", headers={"Retry-After": str(int(LOGIN_WINDOW.total_seconds()))})
             c.execute(delete(email_codes).where(email_codes.c.created_at < now() - timedelta(days=1)))
             c.execute(
@@ -525,6 +543,8 @@ class Accounts:
             )
         if welcome:
             subject, body = mail.welcome_mail(code, account["username"], account.get("locale"), CODE_MINUTES)
+        elif reset:
+            subject, body = mail.reset_mail(code, account["username"], account.get("locale"), CODE_MINUTES)
         else:
             subject, body = mail.login_code_mail(code, account.get("locale"), CODE_MINUTES, verify=purpose == "verify")
         try:
@@ -532,8 +552,9 @@ class Accounts:
         except Exception as e:  # the mail server said no, or is unreachable
             raise AccountError(503, "email_unavailable") from e
 
-    def _use_code(self, account_id: int, purpose: str, code: str) -> dict | None:
-        """The code's row when `code` is the latest one for this purpose, still valid; it is spent now."""
+    def _use_code(self, account_id: int, purpose: str, code: str, spend: bool = True) -> dict | None:
+        """The code's row when `code` is the latest one for this purpose, still valid; it is spent now (with `spend`
+        off it stays valid, for a step that may still fail on something else). A wrong code counts as a try."""
         with self.engine.begin() as c:
             row = (
                 c.execute(
@@ -551,7 +572,8 @@ class Accounts:
             if not hmac.compare_digest(row["code_hash"], self._code_hash(account_id, purpose, code)):
                 c.execute(update(email_codes).where(email_codes.c.id == row["id"]).values(attempts=email_codes.c.attempts + 1))
                 return None
-            c.execute(update(email_codes).where(email_codes.c.id == row["id"]).values(used_at=now()))
+            if spend:
+                c.execute(update(email_codes).where(email_codes.c.id == row["id"]).values(used_at=now()))
             return dict(row)
 
     def send_login_code(self, account: dict) -> str | None:
@@ -561,6 +583,58 @@ class Accounts:
             raise AccountError(409, "email_codes_off")
         self._send_code(account, "login", account["email"])
         return mask_email(account["email"])
+
+    # --- a forgotten password ---------------------------------------------------------------------------------------
+
+    def password_reset_available(self) -> bool:
+        """Whether a forgotten password can be reset by email here: only with a mail provider."""
+        return bool(self.mailer)
+
+    def forgot_password(self, login: str) -> None:
+        """Forgot password, step one: a code to the account's confirmed address, for a username or that address. Says
+        nothing back, also when there is no such account, no confirmed address, or too many codes were asked for: the
+        answer must not tell anyone which accounts exist."""
+        account = self.by_login(login)
+        if not (self.mailer and account and account.get("email") and account.get("email_verified_at")) or account["suspended"]:
+            return
+        try:
+            self._send_code(account, "reset", account["email"])
+        except AccountError:
+            pass  # too many codes, or the mail provider said no: the answer stays the same
+
+    def reset_forgotten_password(self, login: str, code: str, new_password: str) -> dict:
+        """Forgot password, step two: the code from that mail and a new password. Every session ends, failed logins
+        are forgotten, and two-step login stays as it was: the next login still asks for its code. A wrong, expired or
+        spent code, and an unknown login, all answer `reset_code_invalid`."""
+        invalid = AccountError(422, "reset_code_invalid")
+        account = self.by_login(login)
+        if not account or account["suspended"]:
+            raise invalid
+        # Checked first, spent only once the new password passes: a password the rules refuse keeps the code.
+        row = self._use_code(account["id"], "reset", code or "", spend=False)
+        if not row:
+            raise invalid
+        check_new_password(new_password, account["username"])
+        with self.engine.begin() as c:
+            spent = c.execute(
+                update(email_codes).where(and_(email_codes.c.id == row["id"], email_codes.c.used_at.is_(None))).values(used_at=now())
+            ).rowcount
+            if not spent:  # another request used it meanwhile
+                raise invalid
+            c.execute(
+                update(accounts)
+                .where(accounts.c.id == account["id"])
+                .values(
+                    password_hash=hash_password(new_password),
+                    legacy_password_hashes=None,
+                    password_changed_at=now(),
+                    failed_logins=0,
+                    failed_since=None,
+                )
+            )
+            self._bump(c, account["id"])
+        self._audit(account, "reset_password_by_email", account["username"])
+        return self.get(account["id"])
 
     def email_start(self, account_id: int, password: str, email: str, code: str | None = None) -> str:
         """Codes by email, step one: the password (and the code, when two-step login is on already) and an address; a

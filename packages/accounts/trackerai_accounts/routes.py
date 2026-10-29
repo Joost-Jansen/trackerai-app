@@ -1,10 +1,14 @@
 """The account routes every app mounts, the same paths everywhere:
 
-    GET    /api/auth/registration-status     {mode, first_user, session_days, email_codes, front_door_url, tracker_urls}
+    GET    /api/auth/registration-status     {mode, first_user, session_days, email_codes, password_reset, front_door_url,
+                                              tracker_urls}
     POST   /api/auth/login                   {username, password, totp?, remember?, send_email?}
     POST   /api/auth/logout
     POST   /api/auth/register                {username, password, email, display_name?, invite?, locale?, consent?, app?,
                                               apps?}: apps, the trackers to start with (default: this app)
+    POST   /api/auth/password/forgot         {login}: a username or email address; a code goes to the account's confirmed
+                                              address. Always {ok: true}, whether or not that account exists
+    POST   /api/auth/password/reset          {login, code, new_password}: the new password; every session ends
     GET    /api/auth/account                 the account (`Accounts.view`)
     PATCH  /api/auth/account                 {display_name?, locale?}
     POST   /api/account/password             {current, new}
@@ -35,16 +39,19 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from fastapi import APIRouter, Body, Depends, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Request, Response
 from pydantic import BaseModel
 
 from trackerai_accounts import session
 from trackerai_accounts.errors import AccountError
 from trackerai_accounts.limits import Limiter
 from trackerai_accounts.service import Accounts
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -82,6 +89,16 @@ class Registration(BaseModel):
     app: str | None = None
     email: str | None = None  # required; the welcome mail confirms it
     apps: list[str] | None = None  # the trackers to start with (the front door's choice); default: this app
+
+
+class ForgotPassword(BaseModel):
+    login: str  # a username or an email address
+
+
+class PasswordReset(BaseModel):
+    login: str
+    code: str
+    new_password: str
 
 
 class Profile(BaseModel):
@@ -148,6 +165,9 @@ class Guards:
     login_ip: Limiter = field(default_factory=lambda: Limiter(30, 15 * 60))
     login_name: Limiter = field(default_factory=lambda: Limiter(10, 15 * 60))  # also for names that do not exist
     register_ip: Limiter = field(default_factory=lambda: Limiter(5, 60 * 60))
+    forgot_ip: Limiter = field(default_factory=lambda: Limiter(10, 15 * 60))  # every request counts
+    reset_ip: Limiter = field(default_factory=lambda: Limiter(30, 15 * 60))  # wrong codes
+    reset_name: Limiter = field(default_factory=lambda: Limiter(10, 15 * 60))  # wrong codes per login, also unknown ones
 
 
 def too_many(limiter: Limiter, key: str) -> AccountError:
@@ -232,6 +252,7 @@ def make_router(
             "first_user": accounts.count() == 0,
             "session_days": accounts.config.session_days,
             "email_codes": bool(accounts.mailer),
+            "password_reset": accounts.password_reset_available(),
             "front_door_url": accounts.config.front_door_url,
             "tracker_urls": accounts.config.tracker_urls,
         }
@@ -295,6 +316,43 @@ def make_router(
             "totp_setup_required": v["totp_setup_required"],
             "email_verify_required": v["email_verify_required"],
         }
+
+    # --- a forgotten password --------------------------------------------------------------------------------------
+
+    def send_reset_code(login: str) -> None:
+        try:
+            accounts.forgot_password(login)
+        except Exception as e:  # after the answer went out: only the log knows (never the login, it may be an address)
+            log.error("Sending a password reset code failed: %s", type(e).__name__)
+
+    @r.post("/api/auth/password/forgot")
+    def password_forgot(body: ForgotPassword, request: Request, background: BackgroundTasks):
+        """The same answer for every login, given before the account is even looked up: neither the answer nor its
+        timing tells whether that account exists or has an address."""
+        ip = client_ip(request)
+        if not guards.forgot_ip.hit(ip):
+            raise too_many(guards.forgot_ip, ip)
+        background.add_task(send_reset_code, body.login.strip().lower()[:254])
+        return {"ok": True}
+
+    @r.post("/api/auth/password/reset")
+    def password_reset(body: PasswordReset, request: Request):
+        """A new password with the code from the mail. Not logged in after: the login page asks for the password, and
+        for the two-step code where the account has one."""
+        name, ip = body.login.strip().lower()[:254], client_ip(request)
+        for limiter, who in ((guards.reset_name, name), (guards.reset_ip, ip)):
+            if limiter.blocked(who):
+                raise too_many(limiter, who)
+        try:
+            account = accounts.reset_forgotten_password(name, body.code, body.new_password)
+        except AccountError as e:
+            if e.code == "reset_code_invalid":
+                guards.reset_name.hit(name)
+                guards.reset_ip.hit(ip)
+            raise
+        guards.reset_name.reset(name)
+        guards.login_name.reset(account["username"])  # earlier wrong passwords no longer stand in the way
+        return {"ok": True}
 
     # --- the account -----------------------------------------------------------------------------------------------
 

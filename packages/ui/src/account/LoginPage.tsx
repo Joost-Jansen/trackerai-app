@@ -1,7 +1,8 @@
 "use client";
 
 // Log in with the shared trackerai account (packages/accounts): the password, then two-step login when the account
-// has it (the authenticator app's code, or a code by email), and "stay logged in". Paper ground, the app's name in the
+// has it (the authenticator app's code, or a code by email), and "stay logged in". "Forgot password?" opens the shared
+// reset (./ForgotPassword.tsx) when the server can mail its code. Paper ground, the app's name in the
 // display face, and otherwise only what needs to be there. An app shows it at /login/ and says where to go after.
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -9,6 +10,7 @@ import { Button } from "../ds/Button";
 import { Checkbox, Input } from "../ds/Field";
 import { useTr } from "../i18n";
 import { ApiError } from "../lib/api";
+import ForgotPassword, { ForgotPasswordLink } from "./ForgotPassword";
 
 type Api = {
   get: <T>(path: string) => Promise<T>;
@@ -47,11 +49,17 @@ export default function LoginPage({
   // codes by email: where the code went (masked), and whether the account can get one instead of the app's
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [canEmail, setCanEmail] = useState(false);
+  // a forgotten password: offered only when the server can mail the code
+  const [canReset, setCanReset] = useState(false);
+  const [forgot, setForgot] = useState(false);
 
   useEffect(() => {
     api
-      .get<{ session_days?: number }>("/api/auth/registration-status")
-      .then((s) => s.session_days && setDays(s.session_days))
+      .get<{ session_days?: number; password_reset?: boolean }>("/api/auth/registration-status")
+      .then((s) => {
+        if (s.session_days) setDays(s.session_days);
+        setCanReset(!!s.password_reset);
+      })
       .catch(() => {});
   }, [api]);
 
@@ -95,14 +103,32 @@ export default function LoginPage({
   }
 
   const link = "text-[12.5px] text-ink-muted underline underline-offset-2";
+  const header = (
+    <div className="flex flex-col gap-1.5">
+      {logo && <div className="mb-3">{logo}</div>}
+      <h1 className="font-display text-[34px] font-light leading-tight tracking-[-0.03em]">{name}</h1>
+      <p className="text-[13px] text-ink-muted">{tagline}</p>
+    </div>
+  );
+  if (forgot)
+    return (
+      <ForgotPassword
+        api={api}
+        header={header}
+        footer={footer}
+        initialLogin={username}
+        onBack={(login) => {
+          setForgot(false);
+          setError(null);
+          setPassword("");
+          if (login && !login.includes("@")) setUsername(login);
+        }}
+      />
+    );
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
       <form onSubmit={submit} className="flex w-full max-w-[320px] flex-col gap-6">
-        <div className="flex flex-col gap-1.5">
-          {logo && <div className="mb-3">{logo}</div>}
-          <h1 className="font-display text-[34px] font-light leading-tight tracking-[-0.03em]">{name}</h1>
-          <p className="text-[13px] text-ink-muted">{tagline}</p>
-        </div>
+        {header}
         {code === null ? (
           <div className="flex flex-col gap-4">
             <Input
@@ -137,6 +163,14 @@ export default function LoginPage({
                 </span>
               }
             />
+            {canReset && (
+              <ForgotPasswordLink
+                onClick={() => {
+                  setError(null);
+                  setForgot(true);
+                }}
+              />
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-3">
