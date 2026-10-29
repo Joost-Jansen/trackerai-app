@@ -9,9 +9,9 @@
     "test": "node --experimental-strip-types --test lib/*.test.ts"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.62.0",
+    "@tanstack/react-query": "^5.105.0",
     "@trackerai/ui": "*",
-    "next": "^16.2.10",
+    "next": "^16.4.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
