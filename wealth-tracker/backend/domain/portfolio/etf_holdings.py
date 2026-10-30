@@ -618,6 +618,108 @@ def get_stock_exposure(
     return result, coverage_pct, etf_sources
 
 
+def position_mix(conn: sqlite3.Connection, isin: str, name: str, ticker: str | None) -> dict:
+    """One position's own look-through: where a euro in it ends up.
+
+        {"sector": {name: fraction}, "country": {name: fraction},
+         "dominant_region": str, "region_data": ..., "sector_data": ...}
+
+    Each of the two dicts sums to 1 — the position's whole value — so a caller
+    multiplies by whatever weight that position has *on its date*. Lived inline
+    in get_portfolio_breakdown, which could only weigh it by today's value; the
+    allocation-over-time series needs the same mix weighed by a value on any
+    past month-end, and one copy keeps the two from labelling a fund
+    differently.
+
+    The order of sources is unchanged: a hand-made override, the issuer's own
+    holdings file, the share's own yfinance profile, and for the rest justetf's
+    countries and yfinance's sector weights (or "Unknown" when there are none,
+    so a fund without sector data does not silently inflate the others).
+    """
+    # --- Manual override (e.g. individual stocks we know) ---
+    if isin in _ISIN_MANUAL:
+        manual = _ISIN_MANUAL[isin]
+        return {
+            "sector": {manual["sector"]: 1.0},
+            "country": {manual["country"]: 1.0},
+            "dominant_region": manual["country"],
+            "region_data": "manual",
+            "sector_data": "manual",
+        }
+
+    # --- Exact: aggregate per-holding sector/country from issuer data ---
+    holdings = issuer_holdings.fetch_issuer_holdings(conn, isin, name)
+    if holdings:
+        _, src_quality = issuer_holdings.source_info(conn, isin, name)  # 'exact' | 'proxy'
+        weight_sum = sum(h["weight"] for h in holdings) or 1.0
+        sec_by: dict[str, float] = {}
+        cty_by: dict[str, float] = {}
+        for h in holdings:
+            frac = h["weight"] / weight_sum  # renormalise: fund contributes exactly its position weight
+            sec = _norm_sector(h.get("sector")) or "Other"
+            cty = _norm_country(h.get("country")) or "Other"
+            sec_by[sec] = sec_by.get(sec, 0.0) + frac
+            cty_by[cty] = cty_by.get(cty, 0.0) + frac
+        return {
+            "sector": sec_by,
+            "country": cty_by,
+            "dominant_region": max(cty_by, key=lambda k: cty_by[k]),
+            "region_data": src_quality,
+            "sector_data": src_quality,
+        }
+
+    # --- Individual stock: its own sector + country (yfinance) ---
+    effective_ticker = _ISIN_TICKER_OVERRIDE.get(isin, ticker)
+    info = _fetch_stock_info(conn, effective_ticker) if effective_ticker else None
+    if info and info["quote_type"] == "EQUITY":
+        country = _norm_country(info["country"]) or "Other"
+        sector = _norm_sector(info["sector"]) or "Other"
+        return {
+            "sector": {sector: 1.0},
+            "country": {country: 1.0},
+            "dominant_region": country,
+            "region_data": "stock",
+            "sector_data": "stock",
+        }
+
+    # --- Fallback: country/region breakdown (justetf scrape) ---
+    country_weights = _fetch_countries_justetf(isin)
+    if country_weights:
+        countries = dict(country_weights)
+        region_data_available = True
+        # Use the dominant country as the summary region label for the coverage table
+        dominant = max(country_weights, key=lambda k: country_weights[k])
+    else:
+        # Fallback: infer from name
+        dominant = _infer_region_fallback(name)
+        countries = {dominant: 1.0}
+        region_data_available = False
+
+    # --- Sector breakdown (yfinance) ---
+    sector_weights = _fetch_sector_weights(effective_ticker) if effective_ticker else None
+    if sector_weights:
+        sectors = dict(sector_weights)
+        sector_available = True
+    else:
+        # The country side always lands this fund's weight somewhere (justetf,
+        # else a guess from the name), so nothing goes missing there. Sectors
+        # had no such floor: the fund contributed nothing and the renormalise
+        # in get_portfolio_breakdown then scaled every other fund up to close
+        # the gap, so a portfolio half of which had no sector data showed the
+        # other half's sectors at double their real share. Naming the gap keeps
+        # the pie honest — "Unknown" renders as "Onbekend".
+        sectors = {"Unknown": 1.0}
+        sector_available = False
+
+    return {
+        "sector": sectors,
+        "country": countries,
+        "dominant_region": dominant,
+        "region_data": region_data_available,
+        "sector_data": sector_available,
+    }
+
+
 def get_portfolio_breakdown(
     conn: sqlite3.Connection,
     positions: list[dict],
@@ -693,126 +795,21 @@ def get_portfolio_breakdown(
         # percentages are built from, so it must stay on that base.
         weight = p["current_value"] / total_value if total_value > 0 else 0
         portfolio_weight = p["current_value"] / grand_total if grand_total > 0 else 0
-        ticker = p.get("ticker")
-        isin = p["isin"]
-        name = p["name"]
-
-        # --- Manual override (e.g. individual stocks we know) ---
-        if isin in _ISIN_MANUAL:
-            manual = _ISIN_MANUAL[isin]
-            country = manual["country"]
-            region_totals[country] = region_totals.get(country, 0.0) + weight
-            sector = manual["sector"]
-            sector_totals[sector] = sector_totals.get(sector, 0.0) + weight
-            coverage.append(
-                {
-                    "name": name,
-                    "isin": isin,
-                    "ticker": ticker or "–",
-                    "current_value": p["current_value"],
-                    "weight_pct": round(portfolio_weight * 100, 2),
-                    "dominant_region": country,
-                    "region_data": "manual",
-                    "sector_data": "manual",
-                }
-            )
-            continue
-
-        # --- Exact: aggregate per-holding sector/country from issuer data ---
-        holdings = issuer_holdings.fetch_issuer_holdings(conn, isin, name)
-        if holdings:
-            _, src_quality = issuer_holdings.source_info(conn, isin, name)  # 'exact' | 'proxy'
-            weight_sum = sum(h["weight"] for h in holdings) or 1.0
-            sec_by: dict[str, float] = {}
-            cty_by: dict[str, float] = {}
-            for h in holdings:
-                frac = h["weight"] / weight_sum  # renormalise: fund contributes exactly its position weight
-                sec = _norm_sector(h.get("sector")) or "Other"
-                cty = _norm_country(h.get("country")) or "Other"
-                sec_by[sec] = sec_by.get(sec, 0.0) + frac
-                cty_by[cty] = cty_by.get(cty, 0.0) + frac
-            for sec, frac in sec_by.items():
-                sector_totals[sec] = sector_totals.get(sec, 0.0) + frac * weight
-            for cty, frac in cty_by.items():
-                region_totals[cty] = region_totals.get(cty, 0.0) + frac * weight
-            coverage.append(
-                {
-                    "name": name,
-                    "isin": isin,
-                    "ticker": ticker or "–",
-                    "current_value": p["current_value"],
-                    "weight_pct": round(portfolio_weight * 100, 2),
-                    "dominant_region": max(cty_by, key=lambda k: cty_by[k]),
-                    "region_data": src_quality,
-                    "sector_data": src_quality,
-                }
-            )
-            continue
-
-        # --- Individual stock: its own sector + country (yfinance) ---
-        effective_ticker = _ISIN_TICKER_OVERRIDE.get(isin, ticker)
-        info = _fetch_stock_info(conn, effective_ticker) if effective_ticker else None
-        if info and info["quote_type"] == "EQUITY":
-            country = _norm_country(info["country"]) or "Other"
-            sector = _norm_sector(info["sector"]) or "Other"
-            region_totals[country] = region_totals.get(country, 0.0) + weight
-            sector_totals[sector] = sector_totals.get(sector, 0.0) + weight
-            coverage.append(
-                {
-                    "name": name,
-                    "isin": isin,
-                    "ticker": ticker or "–",
-                    "current_value": p["current_value"],
-                    "weight_pct": round(portfolio_weight * 100, 2),
-                    "dominant_region": country,
-                    "region_data": "stock",
-                    "sector_data": "stock",
-                }
-            )
-            continue
-
-        # --- Fallback: country/region breakdown (justetf scrape) ---
-        country_weights = _fetch_countries_justetf(isin)
-        if country_weights:
-            for country, frac in country_weights.items():
-                region_totals[country] = region_totals.get(country, 0.0) + frac * weight
-            region_data_available = True
-            # Use the dominant country as the summary region label for the coverage table
-            dominant = max(country_weights, key=lambda k: country_weights[k])
-        else:
-            # Fallback: infer from name
-            dominant = _infer_region_fallback(name)
-            region_totals[dominant] = region_totals.get(dominant, 0.0) + weight
-            region_data_available = False
-
-        # --- Sector breakdown (yfinance) ---
-        sector_weights = _fetch_sector_weights(effective_ticker) if effective_ticker else None
-
-        if sector_weights:
-            for sector, sw in sector_weights.items():
-                sector_totals[sector] = sector_totals.get(sector, 0.0) + sw * weight
-            sector_available = True
-        else:
-            # The country side always lands this fund's weight somewhere (justetf,
-            # else a guess from the name), so nothing goes missing there. Sectors
-            # had no such floor: the fund contributed nothing and the renormalise
-            # below then scaled every other fund up to close the gap, so a
-            # portfolio half of which had no sector data showed the other half's
-            # sectors at double their real share. Naming the gap keeps the pie
-            # honest — "Unknown" renders as "Onbekend".
-            sector_totals["Unknown"] = sector_totals.get("Unknown", 0.0) + weight
-            sector_available = False
-
+        mix = position_mix(conn, p["isin"], p["name"], p.get("ticker"))
+        for sec, frac in mix["sector"].items():
+            sector_totals[sec] = sector_totals.get(sec, 0.0) + frac * weight
+        for cty, frac in mix["country"].items():
+            region_totals[cty] = region_totals.get(cty, 0.0) + frac * weight
         coverage.append(
             {
-                "name": name,
-                "isin": isin,
-                "ticker": ticker or "–",
+                "name": p["name"],
+                "isin": p["isin"],
+                "ticker": p.get("ticker") or "–",
                 "current_value": p["current_value"],
                 "weight_pct": round(portfolio_weight * 100, 2),
-                "dominant_region": dominant,
-                "region_data": region_data_available,
-                "sector_data": sector_available,
+                "dominant_region": mix["dominant_region"],
+                "region_data": mix["region_data"],
+                "sector_data": mix["sector_data"],
             }
         )
 

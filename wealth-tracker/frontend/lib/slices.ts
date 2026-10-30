@@ -114,7 +114,13 @@ const NL: Record<string, string> = {
 export const localName = (name: string) =>
   name === "Other" ? tr("Other") : name === "Unknown" ? tr("Unknown") : locale === "nl" ? (NL[name] ?? name) : name;
 
-export type Slice = { name: string; pct: number; colour: string };
+export type Slice = {
+  name: string;
+  pct: number;
+  colour: string;
+  /** The backend's untranslated name; "Other" for the folded remainder. */
+  id: string;
+};
 
 /**
  * The categorical palette for a distribution: five colours plus grey for
@@ -141,6 +147,9 @@ export const SEGMENT_COLOURS = [
 ];
 const PALETTE = SEGMENT_COLOURS.length;
 
+/** The backend's name for the remainder (and for holdings it could not classify). */
+export const OTHER = "Other";
+
 /**
  * The biggest `n` slices, with everything below them folded into "Other".
  *
@@ -153,19 +162,33 @@ const PALETTE = SEGMENT_COLOURS.length;
  * name, and it hid one of them behind a click for no reason at all.
  */
 export function topSlices(list: AllocationSlice[], n = 5): Slice[] {
-  const sorted = [...list].sort((a, b) => b.pct - a.pct);
-  const cap = sorted.length <= PALETTE ? sorted.length : n;
+  // A slice the backend already calls "Other" (the issuers' holdings without a
+  // sector or country, or the countries under 0.5%) is not a category of its
+  // own: it joins the folded remainder. Ranked as a category it got a row of
+  // its own, and then the tail got a second row with the same name — the card
+  // showed "Other 9.7%" and "Other 19.5%" one below the other.
+  const given = list.filter((s) => s.name === OTHER).reduce((s, x) => s + x.pct, 0);
+  const sorted = list.filter((s) => s.name !== OTHER).sort((a, b) => b.pct - a.pct);
+  // Everything fits in the palette when there is no remainder to make room for.
+  const cap = sorted.length + (given > 0.05 ? 1 : 0) <= PALETTE ? sorted.length : n;
   const top = sorted.slice(0, cap);
-  const rest = sorted.slice(cap).reduce((s, x) => s + x.pct, 0);
+  const rest = given + sorted.slice(cap).reduce((s, x) => s + x.pct, 0);
   const slices: Slice[] = top.map((s, i) => ({
     name: localName(s.name),
     pct: s.pct,
     colour: SEGMENT_COLOURS[i % SEGMENT_COLOURS.length],
+    id: s.name,
   }));
   // 0.05: below that the remainder rounds to 0,0% and a slice labelled "Other
   // 0,0%" reads as a bug rather than a rounding artefact.
   if (rest > 0.05) {
-    slices.push({ name: localName("Other"), pct: Math.round(rest * 10) / 10, colour: "var(--n-400)" });
+    slices.push({ name: localName(OTHER), pct: Math.round(rest * 10) / 10, colour: "var(--n-400)", id: OTHER });
   }
   return slices;
+}
+
+/** What `topSlices` put in its "Other" row: every slice that did not get a row of its own. */
+export function foldedSlices(list: AllocationSlice[], shown: Slice[]): AllocationSlice[] {
+  const own = new Set(shown.filter((s) => s.id !== OTHER).map((s) => s.id));
+  return list.filter((s) => !own.has(s.name));
 }

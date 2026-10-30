@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "check:i18n": "node scripts/check-i18n.mjs",
-    "test": "node scripts/test-money.cjs && node scripts/test-spending-query.mjs && node scripts/test-variable-spending.mjs && node --import ./scripts/ts-resolve.mjs --test scripts/test-net-worth-series.mjs"
+    "test": "node scripts/test-money.cjs && node scripts/test-spending-query.mjs && node scripts/test-variable-spending.mjs && node --import ./scripts/ts-resolve.mjs --test scripts/test-net-worth-series.mjs scripts/test-allocation.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.4",

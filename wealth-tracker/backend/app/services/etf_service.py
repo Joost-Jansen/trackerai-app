@@ -13,10 +13,15 @@ TypeScript is how the two tabs would come to disagree about how trustworthy the
 same number is.
 """
 
+import datetime
 import sqlite3
 
+import pandas as pd
+
 from domain import database
-from domain.portfolio import etf_holdings, issuer_holdings
+from domain.i18n import tr
+from domain.portfolio import allocation_history, etf_holdings, issuer_holdings
+from domain.portfolio import series as charts
 
 # The label normalisers get_portfolio_breakdown runs its own holdings through,
 # borrowed rather than re-implemented: fund_breakdown below aggregates the same
@@ -114,6 +119,135 @@ def get_breakdown(conn: sqlite3.Connection, positions: list[dict]) -> dict:
         }
 
     return database.get_or_fetch(conn, key, _TTL_SECONDS, fetch)
+
+
+_HISTORY_TTL_SECONDS = 3600  # the value history's TTL: it downloads the same closes
+
+
+def _history_fingerprint(transactions: list[dict], prices: dict[str, dict]) -> str:
+    import hashlib
+    import json
+
+    trades = sorted((t.get("date"), t.get("isin"), t.get("transaction_type"), t.get("quantity"), t.get("total_eur")) for t in transactions)
+    quotes = sorted((isin, p.get("ticker"), p.get("price"), p.get("currency"), p.get("quote_currency")) for isin, p in prices.items())
+    blob = json.dumps([trades, quotes], default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
+
+
+def _build_allocation_history(
+    conn: sqlite3.Connection,
+    transactions: list[dict],
+    prices: dict[str, dict],
+    today: datetime.date,
+) -> dict:
+    first = min(datetime.date.fromisoformat(t["date"][:10]) for t in transactions)
+    dates = allocation_history.month_end_dates(first, today)
+    held_per_date = allocation_history.holdings_on(transactions, dates)
+
+    ever_held = sorted({isin for held in held_per_date for isin in held})
+    names = {t["isin"]: t.get("name") or t["isin"] for t in transactions}
+    # The same rule calculate_positions applies: only a EUR price row can be
+    # added into a euro total, and only such a row lends its ticker.
+    eur = {isin: p for isin, p in prices.items() if p.get("currency") == "EUR"}
+    ticker_of = {isin: eur.get(isin, {}).get("ticker") for isin in ever_held}
+
+    # Bond funds sit out of every percentage, as on the current card.
+    bonds = etf_holdings.bond_isins(conn, [{"isin": i, "ticker": ticker_of[i]} for i in ever_held])
+    equity = [i for i in ever_held if i not in bonds]
+
+    sector_mix: dict[str, dict[str, float]] = {}
+    region_mix: dict[str, dict[str, float]] = {}
+    for isin in equity:
+        mix = etf_holdings.position_mix(conn, isin, names.get(isin, isin), ticker_of[isin])
+        sector_mix[isin] = mix["sector"]
+        continents: dict[str, float] = {}
+        for country, frac in mix["country"].items():
+            cont = etf_holdings._continent_of(country)
+            continents[cont] = continents.get(cont, 0.0) + frac
+        region_mix[isin] = continents
+
+    # No try/except: a failed download raises DataUnavailable and
+    # get_allocation_history answers `unavailable` without caching it.
+    closes = charts._eur_daily_closes(
+        {i: eur[i] for i in equity if i in eur},
+        start=first.isoformat(),
+        end=(today + datetime.timedelta(days=1)).isoformat(),
+        auto_adjust=True,
+    )
+
+    substituted: dict[str, str] = {}
+    sectors_per_date: list[dict[str, float]] = []
+    regions_per_date: list[dict[str, float]] = []
+    for n, (day, held) in enumerate(zip(dates, held_per_date)):
+        is_today = n == len(dates) - 1
+        values: dict[str, float] = {}
+        for isin, (qty, avg_cost) in held.items():
+            if isin not in sector_mix:
+                continue
+            price = None
+            # Today's point at today's cached price: the same number the
+            # current card is built from, so the series ends where that card is.
+            if is_today and isin in eur and eur[isin].get("price") is not None:
+                price = eur[isin]["price"]
+            if price is None and isin in closes:
+                series = closes[isin]
+                available = series[series.index <= pd.Timestamp(day)]
+                if not available.empty:
+                    price = float(available.iloc[-1])
+            if price is None and isin in eur and eur[isin].get("price") is not None:
+                price = eur[isin]["price"]
+                substituted[isin] = tr("current price")
+            if price is None and avg_cost > 0:
+                price = avg_cost
+                substituted[isin] = tr("purchase price")
+            if price is None:
+                continue
+            values[isin] = qty * price
+        sectors_per_date.append(allocation_history.mix_totals(values, sector_mix))
+        regions_per_date.append(allocation_history.mix_totals(values, region_mix))
+
+    # Dates before the first equity position (only bonds held yet) carry nothing.
+    keep = [i for i, s in enumerate(sectors_per_date) if s]
+    dates = [dates[i] for i in keep]
+    sectors_per_date = [sectors_per_date[i] for i in keep]
+    regions_per_date = [regions_per_date[i] for i in keep]
+
+    sector_keys, sector_rows = allocation_history.fold(sectors_per_date)
+    region_keys, region_rows = allocation_history.fold(regions_per_date)
+    return {
+        "dates": [d.isoformat() for d in dates],
+        "total": [round(sum(s.values()), 2) for s in sectors_per_date],
+        "sector": allocation_history.as_payload(sector_keys, sector_rows),
+        "region": allocation_history.as_payload(region_keys, region_rows),
+        "estimated": [{"isin": i, "name": names.get(i, i), "base": b} for i, b in sorted(substituted.items())],
+        # Said outright so the page cannot forget to: the issuers publish today's
+        # holdings only, and every past date is looked through with those.
+        "breakdown_as_of": "current",
+    }
+
+
+def get_allocation_history(
+    conn: sqlite3.Connection,
+    transactions: list[dict],
+    prices: dict[str, dict],
+    today: datetime.date | None = None,
+) -> dict:
+    """Sector and region allocation at each month-end since the first trade, plus today.
+
+    See domain/portfolio/allocation_history.py for what is measured and what is
+    approximated. Cached like the value history (an hour, keyed on the trades,
+    the prices and the user's bond classifications); a failed price download is
+    answered with `unavailable` and is not cached, so a retry can work.
+    """
+    empty = {"dates": [], "total": [], "sector": {"keys": [], "pct": [], "value": []}, "region": {"keys": [], "pct": [], "value": []}}
+    if not transactions:
+        return {**empty, "estimated": [], "breakdown_as_of": "current"}
+    today = today or datetime.date.today()
+    key = f"etf:allocation-history:v1:{today.isoformat()}:{_history_fingerprint(transactions, prices)}:{_bond_fingerprint(conn)}"
+    try:
+        return database.get_or_fetch(conn, key, _HISTORY_TTL_SECONDS, lambda: _build_allocation_history(conn, transactions, prices, today))
+    except charts.DataUnavailable:
+        return {**empty, "estimated": [], "breakdown_as_of": "current", "unavailable": True}
 
 
 def get_exposure(conn: sqlite3.Connection, positions: list[dict]) -> dict:
