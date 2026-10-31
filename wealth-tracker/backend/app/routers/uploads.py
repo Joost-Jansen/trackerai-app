@@ -7,7 +7,7 @@ from app.deps import CurrentUser, get_current_user, get_db
 from app.services import upload_store
 from domain import database
 from domain.i18n import tr
-from domain.imports import degiro_cash
+from domain.imports import degiro_cash, trade_republic
 from domain.imports import degiro_dividends as dividend_parser
 from domain.imports import degiro_transactions as transaction_parser
 from domain.imports.degiro_export import read_export
@@ -132,6 +132,51 @@ def upload_dividends(
                 "skipped": skipped,
                 "unconverted": unconverted,
                 "cash_days": cash["days"],
+            }
+        )
+    return {"results": results}
+
+
+@router.post("/uploads/trade-republic")
+def upload_trade_republic(
+    files: list[UploadFile],
+    user: CurrentUser = Depends(get_current_user),
+    conn: sqlite3.Connection = Depends(get_db),
+):
+    """Trade Republic's transaction export (CSV): trades, dividends and the cash.
+
+    One file holds everything DeGiro splits over two, so one dropzone. The
+    Trade Republic cash account is created on the first import. See
+    domain/imports/trade_republic.py for the format.
+    """
+    results = []
+    for upload in files:
+        path = _save_upload(user.username, upload)
+        name = os.path.basename(path)
+        try:
+            upload_store.check_spreadsheet(path)
+            try:
+                header = read_export(path, nrows=0)
+            except Exception:
+                raise HTTPException(422, tr("I can't open '{0}' as a CSV file.", name)) from None
+            if not trade_republic.looks_like(header.columns):
+                raise HTTPException(422, tr("'{0}' doesn't look like a Trade Republic transaction export.", name))
+        except HTTPException:
+            os.remove(path)
+            raise
+        result = trade_republic.import_file(conn, path)
+        # Deposits now have their other half at the bank: investing, not spending.
+        categorization.seed(conn)
+        categorization.relabel(conn)
+        upload_store.done(conn, user.username, path)
+        results.append(
+            {
+                "filename": name,
+                "saved": result["saved"],
+                "skipped": result["skipped"],
+                "dividends": result["dividends"],
+                "cash_entries": result["cash_entries"],
+                "unread": result["unread"],
             }
         )
     return {"results": results}

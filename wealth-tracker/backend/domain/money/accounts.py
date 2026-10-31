@@ -45,8 +45,10 @@ from domain.money import debt_schedule
 # `debt` belongs here too: a debt is an account with a negative balance, and
 # net worth is the sum of everything.
 KINDS = ("bank", "cash", "manual", "broker", "debt")
-# `degiro` is the cash balance at DeGiro, from the account statement (degiro_cash.py).
-PROVIDERS = ("ing", "bunq", "revolut", "enablebanking", "degiro", "manual")
+# A broker's code (domain/portfolio/brokers.py) is the provider of its cash
+# account: `degiro` from the account statement (degiro_cash.py), `trade_republic`
+# from its transaction export or entered by hand (broker_ledger.py).
+PROVIDERS = ("ing", "bunq", "revolut", "enablebanking", "degiro", "trade_republic", "manual")
 SOURCES = ("sync", "manual")
 
 # Which fields of an existing account may be updated. `id` and `created_at`
@@ -247,6 +249,11 @@ def delete_account(conn: sqlite3.Connection, account_id: int) -> None:
     cursor.execute("DELETE FROM bank_transactions WHERE account_id = ?", (account_id,))
     cursor.execute("DELETE FROM account_balances WHERE account_id = ?", (account_id,))
     cursor.execute("DELETE FROM debt_schedules WHERE account_id = ?", (account_id,))
+    cursor.execute("DELETE FROM account_entries WHERE account_id = ?", (account_id,))
+    # A broker account takes its trades and dividends with it; rows from before
+    # brokers had accounts here (account_id NULL) are not touched.
+    cursor.execute("DELETE FROM transactions WHERE account_id = ?", (account_id,))
+    cursor.execute("DELETE FROM dividends WHERE account_id = ?", (account_id,))
     cursor.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
     conn.commit()
 
@@ -331,8 +338,10 @@ def set_balances(
 def save_entries(conn: sqlite3.Connection, account_id: int, entries: list[dict]) -> int:
     """Stores money movements of an account without bank transactions of its own.
 
-    `entries`: [{date, amount (positive = in), description, key}]. The key makes
-    a second upload of the same overview harmless. Returns the number of new ones.
+    `entries`: [{date, amount (positive = in), description, key, kind?}]. The key
+    makes a second upload of the same overview harmless. `kind` is what the
+    movement was when the source says so (a code: "buy", "deposit", …), else
+    NULL. Returns the number of new ones.
     """
     if not _exists(conn, account_id):
         raise AccountUnknown(tr("Account {0} does not exist.", account_id))
@@ -340,10 +349,13 @@ def save_entries(conn: sqlite3.Connection, account_id: int, entries: list[dict])
     before = conn.total_changes
     cursor.executemany(
         """
-        INSERT OR IGNORE INTO account_entries (account_id, date, amount, description, key)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT OR IGNORE INTO account_entries (account_id, date, amount, description, key, kind)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
-        [(account_id, _verify_date(m["date"]), float(m["amount"]), m.get("description"), f"{account_id}|{m['key']}") for m in entries],
+        [
+            (account_id, _verify_date(m["date"]), float(m["amount"]), m.get("description"), f"{account_id}|{m['key']}", m.get("kind"))
+            for m in entries
+        ],
     )
     conn.commit()
     return conn.total_changes - before

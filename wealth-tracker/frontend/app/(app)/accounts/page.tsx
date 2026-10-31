@@ -28,7 +28,18 @@ import { trueMinus } from "@trackerai/ui/lib/typography";
 import { Button, Input, Section, Select, Tag } from "@/components/ds";
 import DeviationRule, { type Deviation } from "@/components/money/DeviationRule";
 import { EmptyState } from "@/components/ds";
-import { KINDS, readAmount, showIban, today, type Account, type Balance, type Kind, type Stack } from "@/lib/money";
+import {
+  BROKER_PROVIDERS,
+  KINDS,
+  readAmount,
+  showIban,
+  today,
+  type Account,
+  type Balance,
+  type Kind,
+  type Provider,
+  type Stack,
+} from "@/lib/money";
 import { intlLocale, tr, trx } from "@/lib/i18n";
 
 type List = { accounts: Account[] };
@@ -258,6 +269,10 @@ function NewAccount({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState("");
   const [kind, setKind] = useState<Kind>("cash");
   const [iban, setIban] = useState("");
+  // Only for a broker: which one. A broker the app knows (DeGiro, Trade Republic)
+  // gets its trades in the portfolio and its cash from them; "manual" is a
+  // broker the app doesn't track per holding (Coinbase), with balances only.
+  const [provider, setProvider] = useState<Provider>("manual");
 
   const create = useMutation({
     mutationFn: () =>
@@ -265,7 +280,7 @@ function NewAccount({ onDone }: { onDone: () => void }) {
         kind,
         // A manual account has no provider; a bank account you add yourself only gets
         // one once an export belongs to it.
-        provider: "manual",
+        provider: kind === "broker" ? provider : "manual",
         name,
         iban: iban.trim() || null,
       }),
@@ -307,6 +322,15 @@ function NewAccount({ onDone }: { onDone: () => void }) {
           </option>
         ))}
       </Select>
+      {kind === "broker" && (
+        <Select label={tr("Broker")} value={provider} onChange={(e) => setProvider(e.target.value as Provider)}>
+          {BROKER_PROVIDERS.map((b) => (
+            <option key={b.value} value={b.value}>
+              {b.label}
+            </option>
+          ))}
+        </Select>
+      )}
       <Input
         label="IBAN"
         hint={tr("Leave empty for cash")}

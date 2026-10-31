@@ -13,7 +13,7 @@
 import { tr } from "@/lib/i18n";
 
 export type Kind = "bank" | "cash" | "manual" | "broker" | "debt";
-export type Provider = "ing" | "bunq" | "revolut" | "enablebanking" | "degiro" | "manual";
+export type Provider = "ing" | "bunq" | "revolut" | "enablebanking" | "degiro" | "trade_republic" | "manual";
 /** Which stack of your net worth an account falls on. Comes from the backend. */
 export type Stack = "bank" | "investments" | "debt";
 export type CategoryType = "EXPENSE" | "INCOME" | "INTERNAL";
@@ -166,6 +166,13 @@ export const KINDS: { value: Kind; label: string }[] = [
   { value: "broker", label: tr("Broker (outside this app)") },
   // A debt is always stored negative, however you enter it.
   { value: "debt", label: tr("Debt (loan, student debt)") },
+];
+
+/** What a broker account can be: one whose trades the app tracks (its code), or another with balances only. */
+export const BROKER_PROVIDERS: { value: Provider; label: string }[] = [
+  { value: "trade_republic", label: "Trade Republic" },
+  { value: "degiro", label: "DeGiro" },
+  { value: "manual", label: tr("Another broker (balances only)") },
 ];
 
 export const FIELDS: { value: Field; label: string }[] = [

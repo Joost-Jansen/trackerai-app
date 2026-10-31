@@ -17,6 +17,11 @@ export type Holding = {
   asset_type: AssetType;
   /** DeGiro's venue code ("EAM", "XET", "TDG"), or null when unknown. */
   exchange: string | null;
+  /** The broker that holds this line ("degiro", "trade_republic"). The same fund
+   *  at two brokers is two rows, each with that broker's own average price. */
+  broker: string;
+  /** The broker's name, for display. */
+  broker_label: string;
   shares_held: number;
   current_price: number | null;
   previous_close: number | null;
@@ -55,7 +60,19 @@ export type HoldingsTotals = {
   realized_eur: number;
   dividends_eur: number;
   costs_eur: number;
+  /** Per broker: value of its open lines and every cost it ever charged. */
+  by_broker: BrokerTotal[];
   day: DaySummary | null;
+};
+
+export type BrokerTotal = {
+  broker: string;
+  label: string;
+  value: number;
+  num_positions: number;
+  /** All transaction costs at this broker, closed positions included. */
+  costs_eur: number;
+  prices_available: boolean;
 };
 
 export type HoldingsOverview = {
@@ -106,7 +123,13 @@ export type PositionDetail = {
   market_closed: boolean;
   /** The same ISIN held on another exchange: a separate position, with its own
    *  average price. Empty in the normal case. */
-  other_venues: { exchange: string | null; shares_held: number; current_value: number | null }[];
+  other_venues: {
+    exchange: string | null;
+    broker: string;
+    broker_label: string;
+    shares_held: number;
+    current_value: number | null;
+  }[];
 };
 
 export type PriceSource = {
@@ -211,7 +234,8 @@ export type PriceIntraday = { points: PricePoint[]; prev_close: number | null };
  *  stretch between two fingers. Rendered by the card's header rather than by a
  *  tooltip — see PriceChart for why. */
 export type PriceProbe =
-  { kind: "point"; point: PricePoint } | ({ kind: "span"; a: PricePoint; b: PricePoint } & ReturnType<typeof priceChange>);
+  | { kind: "point"; point: PricePoint }
+  | ({ kind: "span"; a: PricePoint; b: PricePoint } & ReturnType<typeof priceChange>);
 
 /** The move between two closes, in currency and percent.
  *

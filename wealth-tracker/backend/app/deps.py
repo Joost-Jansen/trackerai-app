@@ -42,7 +42,8 @@ class CurrentUser:
 # What an agent token with scope "write" may change: bookkeeping, nothing
 # else. That is labelling, budgets, rules (adding and deleting one), a
 # category's name, group and type, the month layout and the other settings of
-# Spending and Net worth, a balance on an account and a manual transaction; and
+# Spending and Net worth, a balance on an account and a manual transaction (at
+# the bank or at an existing broker account); and
 # refreshing what comes in by itself (prices, and the bank connection the user set
 # up in the browser), so an agent works with today's figures.
 # Everything not listed here (uploads, deleting transactions, categories or
@@ -63,6 +64,7 @@ AGENT_WRITES = [
     ("PUT", re.compile(r"^/api/accounts/\d+/balance$")),
     ("DELETE", re.compile(r"^/api/accounts/\d+/balance/\d{4}-\d{2}-\d{2}$")),  # a wrong balance
     ("POST", re.compile(r"^/api/bank-transactions$")),  # a manual transaction
+    ("POST", re.compile(r"^/api/brokers/transactions$")),  # a manual trade or cash movement at a broker
     ("POST", re.compile(r"^/api/prices/refresh$")),
     ("POST", re.compile(r"^/api/connections/enablebanking/fetch$")),
 ]
