@@ -5,7 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { AllocationSlice } from "@/lib/dashboard";
 import { fmtEu, fmtEuro } from "@/lib/format";
-import { localName, topSlices } from "@/lib/slices";
+import { foldedSlices, localName, OTHER, topSlices } from "@/lib/slices";
+import AllocationHistory from "@/components/etf/AllocationHistory";
 import HBars, { type HBar } from "@/components/charts/HBars";
 import WorldMap from "@/components/charts/WorldMap";
 import { Button, Section } from "@/components/ds";
@@ -152,13 +153,11 @@ function SliceSection({
 }) {
   const data = topSlices(slices);
   if (data.length === 0) return null;
-  // topSlices adds an "Other" segment if anything is left; the number that got its
-  // own segment is therefore the length minus that segment.
-  const misc = data[data.length - 1].name === localName("Other") ? data[data.length - 1] : null;
-  const ownSlices = misc ? data.length - 1 : data.length;
-  // What is in that segment: the list sorted the same way as topSlices cut it off,
-  // minus the heads that got their own bar.
-  const folded = [...slices].sort((a, b) => b.pct - a.pct).slice(ownSlices);
+  // topSlices adds one "Other" segment if anything is left — the tail *and* what
+  // the backend itself calls "Other" (holdings without a sector), in one row.
+  const misc = data.find((s) => s.id === OTHER) ?? null;
+  // What is in that segment: everything that did not get a bar of its own.
+  const folded = foldedSlices(slices, data);
   return (
     <Section
       label={title}
@@ -323,6 +322,8 @@ export default function EtfAnalysisPage() {
         stem="allocation-continents"
         analysedValue={analysedValue}
       />
+      {/* The same two breakdowns through time, right under the two bars that show today's. */}
+      <AllocationHistory />
 
       <Section
         label={tr("By country")}

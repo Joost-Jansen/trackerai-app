@@ -106,6 +106,7 @@ NL: dict[str, str] = {
     "Password changed since you signed in. Log in again": "Je wachtwoord is gewijzigd sinds je inlogde. Log opnieuw in",
     "Password is required.": "Vul een wachtwoord in.",
     "Portfolio (TWR)": "Portefeuille (TWR)",
+    "purchase price": "aankoopprijs",
     "Rebalancing is not turned on for this account.": "Herbalanceren staat niet aan voor dit account.",
     "Rebalancing tab": "Herbalanceren-tab",
     "Returns is not turned on for this account.": "Rendement staat niet aan voor dit account.",

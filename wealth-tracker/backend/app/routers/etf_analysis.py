@@ -68,6 +68,21 @@ def exposure(conn: sqlite3.Connection = Depends(get_db)):
     }
 
 
+@router.get("/history")
+def history(conn: sqlite3.Connection = Depends(get_db)):
+    """Sector and region (continent) allocation at each month-end, plus today.
+
+    `dates` are the x-axis; `sector` and `region` each carry `keys` (top five
+    plus one "Other", fixed for the whole series) and per date `pct` (of that
+    date's analysed value) and `value` (EUR). Holdings and prices are per date;
+    the look-through per fund is today's (`breakdown_as_of: "current"`), since
+    the issuers publish no history of their holdings files. `estimated` names
+    the positions valued with a stand-in price, as on the value card.
+    """
+    bundle = load_portfolio(conn)
+    return etf_service.get_allocation_history(conn, bundle.transactions, bundle.prices)
+
+
 @router.post("/refresh")
 def refresh_holdings(conn: sqlite3.Connection = Depends(get_db)):
     """Drop the cached holdings and this tab's derived answers, so both refetch.
