@@ -16,6 +16,7 @@ from app.routers import (
     auth,
     bank_transactions,
     benchmarks,
+    brokers,
     budget,
     calendar,
     categories,
@@ -177,6 +178,7 @@ app.include_router(auth.router)  # wealth-tracker's register, me and change-pass
 app.include_router(shared_accounts.router)
 app.include_router(bank_transactions.router)
 app.include_router(benchmarks.router)
+app.include_router(brokers.router)
 app.include_router(budget.router)
 app.include_router(calendar.router)
 app.include_router(categories.router)

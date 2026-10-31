@@ -71,6 +71,15 @@ export default function PositionPage() {
   );
 }
 
+/** The page of the same fund's other line: another exchange, or another broker. */
+function otherHref(isin: string, v: { exchange: string | null; broker: string }): string {
+  const query = new URLSearchParams();
+  if (v.exchange) query.set("exchange", v.exchange);
+  if (v.broker && v.broker !== "degiro") query.set("broker", v.broker);
+  const q = query.toString();
+  return `/portfolio/${isin}${q ? `?${q}` : ""}`;
+}
+
 function Position() {
   const { isin } = useParams<{ isin: string }>();
   const params = useSearchParams();
@@ -83,10 +92,14 @@ function Position() {
   // would cover the line you are reading.
   const [probe, setProbe] = useState<PriceProbe | null>(null);
 
-  const suffix = exchange ? `?exchange=${encodeURIComponent(exchange)}` : "";
+  const broker = params.get("broker");
+  const query = new URLSearchParams();
+  if (exchange) query.set("exchange", exchange);
+  if (broker) query.set("broker", broker);
+  const suffix = query.toString() ? `?${query}` : "";
 
   const detailQ = useQuery({
-    queryKey: ["position", isin, exchange],
+    queryKey: ["position", isin, exchange, broker],
     queryFn: () => api.get<PositionDetail>(`/api/holdings/${isin}${suffix}`),
     retry: false,
   });
@@ -226,6 +239,7 @@ function Position() {
               in welke valuta. */}
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-muted">
             <Tag>{p.asset_type === "tracker" ? "Tracker" : tr("Share")}</Tag>
+            {p.broker_label && <span>{p.broker_label}</span>}
             {p.exchange && <span>{trx("Exchange {0}", p.exchange)}</span>}
             {d.ticker && (
               <>
@@ -304,12 +318,14 @@ function Position() {
           {trx(
             "You also hold this product on {0}.",
             d.other_venues.map((v, i) => (
-              <span key={v.exchange ?? i}>
+              <span key={`${v.broker}-${v.exchange ?? i}`}>
                 {trx(
                   "{0}{1} ({2} units)",
                   i > 0 && ", ",
-                  <Link href={`/portfolio/${p.isin}${v.exchange ? `?exchange=${encodeURIComponent(v.exchange)}` : ""}`} className="ds-link">
-                    {v.exchange ?? tr("another exchange")}
+                  <Link href={otherHref(p.isin, v)} className="ds-link">
+                    {v.broker !== p.broker
+                      ? [v.broker_label, v.exchange].filter(Boolean).join(" ")
+                      : (v.exchange ?? tr("another exchange"))}
                   </Link>,
                   <span className="num">{fmtShares(v.shares_held)}</span>,
                 )}

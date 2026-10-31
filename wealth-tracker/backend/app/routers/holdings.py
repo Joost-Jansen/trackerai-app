@@ -56,9 +56,10 @@ def _price_row(conn: sqlite3.Connection, isin: str) -> dict:
 def position(
     isin: str,
     exchange: str | None = Query(None, description="DeGiro's venue code, for an ISIN held on two"),
+    broker: str | None = Query(None, description="The broker code, for an ISIN held at two brokers"),
     conn: sqlite3.Connection = Depends(get_db),
 ):
-    detail = holdings_service.position_detail(load_portfolio(conn), isin, exchange)
+    detail = holdings_service.position_detail(load_portfolio(conn), isin, exchange, broker)
     if detail is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, tr("No open position in {0}.", isin))
     return detail
@@ -68,6 +69,7 @@ def position(
 def breakdown(
     isin: str,
     exchange: str | None = Query(None, description="DeGiro's venue code, for an ISIN held on two"),
+    broker: str | None = Query(None, description="The broker code, for an ISIN held at two brokers"),
     conn: sqlite3.Connection = Depends(get_db),
 ):
     """What this fund holds — its biggest positions, sectors and countries.
@@ -85,7 +87,7 @@ def breakdown(
     of a listed company can otherwise still resolve to a same-index proxy by
     name, which would fill this section with a fund the user does not own.
     """
-    detail = holdings_service.position_detail(load_portfolio(conn), isin, exchange)
+    detail = holdings_service.position_detail(load_portfolio(conn), isin, exchange, broker)
     if detail is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, tr("No open position in {0}.", isin))
 
@@ -100,6 +102,7 @@ def breakdown(
 def tradegate_quote(
     isin: str,
     exchange: str | None = Query(None, description="DeGiro's venue code, for an ISIN held on two"),
+    broker: str | None = Query(None, description="The broker code, for an ISIN held at two brokers"),
     conn: sqlite3.Connection = Depends(get_db),
 ):
     """The position's price on Tradegate itself: last, bid and ask, apart.
@@ -112,7 +115,7 @@ def tradegate_quote(
     Never an error status for Tradegate's own trouble — an outage, a refusal
     or an unknown ISIN are ordinary answers the page words for itself.
     """
-    detail = holdings_service.position_detail(load_portfolio(conn), isin, exchange)
+    detail = holdings_service.position_detail(load_portfolio(conn), isin, exchange, broker)
     if detail is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, tr("No open position in {0}.", isin))
     if not detail["tradegate_quote"]:

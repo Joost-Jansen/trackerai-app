@@ -1,8 +1,8 @@
 "use client";
 
 // The "Bijwerken" slide-over (mockup: "Gegevens bijwerken"). Everything that
-// refreshes data lives here — price refresh, the two DeGiro imports and the
-// bank exports —
+// refreshes data lives here — price refresh, the two DeGiro imports, Trade
+// Republic's transaction export and the bank exports —
 // reachable from the header on every page, replacing the three loose buttons
 // the old dashboard header carried. Uploading is monthly maintenance, not a
 // dashboard widget, hence chrome rather than cockpit.
@@ -183,6 +183,95 @@ function Dropzone({
         </p>
       )}
     </div>
+  );
+}
+
+/** One file from POST /api/uploads/trade-republic. */
+type TradeRepublicResult = {
+  filename: string;
+  saved: number;
+  skipped: number;
+  dividends: number;
+  cash_entries: number;
+  /** Rows not read, with why: another currency than EUR, or a trade without shares or ISIN. */
+  unread: { line: number; type: string; reason: string }[];
+};
+
+/**
+ * Trade Republic's transaction export: one CSV with trades (savings plans
+ *  included), dividends and every cash movement. The Trade Republic account is
+ *  made on the first import; uploading again only adds what is new.
+ */
+function TradeRepublicImport() {
+  const queryClient = useQueryClient();
+  const upload = useMutation({
+    mutationFn: async (files: FileList | File[]) => {
+      const form = new FormData();
+      Array.from(files).forEach((f) => form.append("files", f));
+      const res = await fetch("/api/uploads/trade-republic", {
+        method: "POST",
+        credentials: "include",
+        body: form,
+        headers: { "X-Locale": locale },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.detail || tr("Upload failed. Try again."));
+      return body as { results: TradeRepublicResult[] };
+    },
+    onSuccess: () => queryClient.invalidateQueries(),
+  });
+
+  return (
+    <>
+      <div className="ds-section__head mb-4 mt-7">
+        <span className="ds-section__label">{tr("Import from Trade Republic")}</span>
+      </div>
+      <DropButton
+        title={tr("Transaction export")}
+        subtitle={tr(".csv from Trade Republic's transaction export: positions, dividends and cash")}
+        onFiles={(f) => upload.mutate(f)}
+      />
+      {upload.isPending && <p className="mb-2 text-xs text-ink-muted">{tr("Processing…")}</p>}
+      {upload.isError && (
+        <p className="mb-2 text-xs" style={{ color: "var(--text-loss)" }}>
+          {upload.error.message}
+        </p>
+      )}
+      {upload.data && (
+        <p className="mb-2 text-xs text-ink-muted">
+          {upload.data.results.map((r) => (
+            <span key={r.filename} className="block">
+              {r.filename}:{" "}
+              <b className="num" style={{ color: "var(--text-gain)" }}>
+                {trx("{0} new", r.saved)}
+              </b>
+              {" · "}
+              <span className="num">{trx("{0} skipped", r.skipped)}</span>
+              {" · "}
+              {trx(
+                "{0} dividends, {1} cash movements",
+                <span className="num">{r.dividends}</span>,
+                <span className="num">{r.cash_entries}</span>,
+              )}
+              {r.unread.length > 0 && (
+                <span className="mt-0.5 block" style={{ color: "var(--text-loss)" }}>
+                  {trx(
+                    "{0} {1} not read (first: line {2}, {3})",
+                    <span className="num">{r.unread.length}</span>,
+                    r.unread.length === 1 ? tr("line") : tr("lines"),
+                    r.unread[0].line,
+                    `${r.unread[0].type}: ${r.unread[0].reason}`,
+                  )}
+                </span>
+              )}
+            </span>
+          ))}
+        </p>
+      )}
+      <p className="mb-2 text-xs text-ink-muted">
+        {tr("No export? Enter the savings plan and deposits by hand under Details → Broker accounts.")}
+      </p>
+    </>
   );
 }
 
@@ -550,6 +639,8 @@ export default function UpdateSheet({
           onFiles={(f) => uploadDividends.mutate(f)}
           state={uploadDividends}
         />
+
+        <TradeRepublicImport />
 
         {money && (
           <>

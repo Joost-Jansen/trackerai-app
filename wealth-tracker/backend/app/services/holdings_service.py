@@ -23,6 +23,8 @@ Naming: `_ex` is excluding transaction costs, `_gross` is including them.
 from app.core import price_refresh
 from app.services import dashboard_service, tradegate_service, venue_price_service
 from app.services.portfolio_service import PortfolioBundle
+from domain import database
+from domain.portfolio import brokers
 from domain.portfolio import positions as portfolio
 from domain.portfolio import series as charts
 
@@ -118,6 +120,23 @@ def cost_breakdown_by_venue(transactions: list[dict]) -> dict[tuple[str, str | N
     and rebalancing all reason per ISIN, and should keep doing so.
     """
     return _grouped(transactions, lambda t: (t["isin"], t.get("exchange") or None))
+
+
+def broker_of(t: dict) -> str:
+    """The broker of a trade; rows from before brokers were stored are DeGiro's."""
+    return t.get("broker") or database.LEGACY_BROKER
+
+
+def cost_breakdown_by_position(transactions: list[dict]) -> dict[tuple[str, str, str | None], dict]:
+    """The walk per {(isin, broker, exchange)}: one entry per line in a broker's app.
+
+    cost_breakdown_by_venue with the broker added to the key. Two brokers each
+    keep their own average price for the same fund, exactly as two exchanges at
+    one broker do, so the Portfolio tab lists them apart; everything that
+    reasons about the fund itself (dashboard, allocation, returns) still adds
+    them up per ISIN.
+    """
+    return _grouped(transactions, lambda t: (t["isin"], broker_of(t), t.get("exchange") or None))
 
 
 # Product names come from DeGiro's export, which carries no product type — so
@@ -218,7 +237,7 @@ def holdings_rows(bundle: PortfolioBundle) -> list[dict]:
     TDG shows the two prices DeGiro shows, and `price_provider` says which
     source each row's figures rest on.
     """
-    breakdown = cost_breakdown_by_venue(bundle.transactions)
+    breakdown = cost_breakdown_by_position(bundle.transactions)
     # Read once for the whole table rather than per row: every line has to
     # answer "did the market move today?" the same way, and midnight or an
     # opening bell falling between two rows would split the column in half.
@@ -231,11 +250,11 @@ def holdings_rows(bundle: PortfolioBundle) -> list[dict]:
     # the amount actually received and puts most of it where most of the
     # shares are.
     shares_by_isin: dict[str, float] = {}
-    for (isin, _venue), b in breakdown.items():
+    for (isin, _broker, _venue), b in breakdown.items():
         shares_by_isin[isin] = shares_by_isin.get(isin, 0.0) + b["shares"]
 
     rows = []
-    for (isin, venue), b in breakdown.items():
+    for (isin, broker, venue), b in breakdown.items():
         shares = b["shares"]
         if shares <= 0.0001:
             continue
@@ -299,6 +318,10 @@ def holdings_rows(bundle: PortfolioBundle) -> list[dict]:
                 # DeGiro's own venue code ("EAM", "XET", "TDG"), and now the thing
                 # that makes this row a distinct position rather than a detail.
                 "exchange": venue,
+                # Which broker holds this line ("degiro", "trade_republic"). With
+                # the exchange, what tells two rows of one ISIN apart.
+                "broker": broker,
+                "broker_label": brokers.label(broker),
                 "shares_held": round(shares, 6),
                 "current_price": price,
                 "previous_close": prev,
@@ -394,7 +417,7 @@ def price_source(ticker: str | None, exchange: str | None, provider: str | None 
     }
 
 
-def position_detail(bundle: PortfolioBundle, isin: str, venue: str | None = None) -> dict | None:
+def position_detail(bundle: PortfolioBundle, isin: str, venue: str | None = None, broker: str | None = None) -> dict | None:
     """One position, with the identity a page needs above it. None when the
     ISIN (or that venue of it) is not an open position.
 
@@ -412,16 +435,19 @@ def position_detail(bundle: PortfolioBundle, isin: str, venue: str | None = None
     if not same_isin:
         return None
 
-    if venue:
-        row = next((r for r in same_isin if r["exchange"] == venue), None)
-        if row is None:
-            return None
-    else:
-        row = same_isin[0]
+    # *broker* narrows it the same way, for a fund held at two brokers.
+    candidates = [r for r in same_isin if (not venue or r["exchange"] == venue) and (not broker or r["broker"] == broker)]
+    if not candidates:
+        return None
+    row = candidates[0]
 
-    # The same key cost_breakdown_by_venue groups on, so "this position's
+    # The same key cost_breakdown_by_position groups on, so "this position's
     # trades" here means exactly the trades its numbers were walked from.
-    trades = [t for t in bundle.transactions if t["isin"] == isin and (t.get("exchange") or None) == row["exchange"]]
+    trades = [
+        t
+        for t in bundle.transactions
+        if t["isin"] == isin and (t.get("exchange") or None) == row["exchange"] and broker_of(t) == row["broker"]
+    ]
     buys = [t for t in trades if t["transaction_type"] == "BUY"]
 
     info = _yahoo(bundle).get(isin) or {}
@@ -453,6 +479,8 @@ def position_detail(bundle: PortfolioBundle, isin: str, venue: str | None = None
         "other_venues": [
             {
                 "exchange": r["exchange"],
+                "broker": r["broker"],
+                "broker_label": r["broker_label"],
                 "shares_held": r["shares_held"],
                 "current_value": r["current_value"],
             }
@@ -529,10 +557,48 @@ def holdings_totals(rows: list[dict], bundle: PortfolioBundle) -> dict:
         "realized_eur": round(sum(r["realized_eur"] for r in rows), 2),
         "dividends_eur": round(sum(r["dividends_eur"] for r in rows), 2),
         "costs_eur": round(sum(r["costs_eur"] for r in rows), 2),
+        "by_broker": by_broker(rows, bundle.transactions),
         # None until a price refresh has stored previous closes, exactly as on
         # the dashboard — and the same function, so the two chips agree.
         "day": dashboard_service.portfolio_day_change(bundle.positions, bundle.prices),
     }
+
+
+def by_broker(rows: list[dict], transactions: list[dict]) -> list[dict]:
+    """Per broker: what its open positions are worth and every cost it ever charged.
+
+    The costs are over all of the broker's trades, closed positions included,
+    so this is what each broker has cost you in fees; the Portfolio rows only
+    carry the costs of what is still open. Largest value first.
+    """
+    out: dict[str, dict] = {}
+
+    def entry(code: str) -> dict:
+        return out.setdefault(code, {"value": 0.0, "num_positions": 0, "costs_eur": 0.0, "priced": True})
+
+    for t in transactions:
+        entry(broker_of(t))["costs_eur"] += portfolio.transaction_cost(t)
+    for r in rows:
+        b = entry(r["broker"])
+        b["num_positions"] += 1
+        if r["current_value"] is None:
+            b["priced"] = False
+        else:
+            b["value"] += r["current_value"]
+    return sorted(
+        (
+            {
+                "broker": code,
+                "label": brokers.label(code),
+                "value": round(b["value"], 2),
+                "num_positions": b["num_positions"],
+                "costs_eur": round(b["costs_eur"], 2),
+                "prices_available": b["priced"],
+            }
+            for code, b in out.items()
+        ),
+        key=lambda b: -b["value"],
+    )
 
 
 def latest_price_fetch(prices: dict[str, dict]) -> str | None:

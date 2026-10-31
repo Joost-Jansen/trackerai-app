@@ -39,6 +39,19 @@ private key), `legacy_names.py` (migrates databases from before the English
 rename) and `imports/degiro_cash.py` (the money at DeGiro, which counts in net
 worth).
 
+**Brokers.** The portfolio can be spread over several brokers
+(`domain/portfolio/brokers.py`: `degiro`, `trade_republic`). Every row in
+`transactions` and `dividends` carries its `broker`, its broker cash account
+(`account_id`) and its `source` (`import`/`manual`); rows from before this were
+all DeGiro's and are marked so by `init_db`. A broker's cash is an account of
+kind `broker` whose provider is the broker code. For Trade Republic its balance
+is the running sum of its movements in `account_entries` (with a `kind`: buy,
+sell, deposit, …), kept by `portfolio/broker_ledger.py`, which also records
+movements entered by hand (`/api/brokers`, the MCP tool `add_broker_transaction`).
+`imports/trade_republic.py` reads Trade Republic's transaction export (CSV).
+Positions add up per ISIN across brokers; only the Portfolio tab lists each
+broker's line apart, with its own average cost.
+
 ### Routers (`backend/app/routers/`)
 
 `accounts`, `bank_transactions`, `categories`, `labelling`, `spending`,

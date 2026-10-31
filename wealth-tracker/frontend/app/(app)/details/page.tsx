@@ -7,6 +7,7 @@ import { fmtEu, fmtEuro, fmtShares } from "@/lib/format";
 import EditableCell from "@/components/EditableCell";
 import Disclosure from "@/components/etf/Disclosure";
 import { Section, SignedValue } from "@/components/ds";
+import BrokerAccounts from "@/components/BrokerAccounts";
 import { tr, trx } from "@/lib/i18n";
 
 // Details — the tab you use to reconcile with DeGiro.
@@ -44,6 +45,10 @@ type Transaction = {
   price: number | null;
   transaction_fee: number | null;
   total_eur: number | null;
+  /** The broker's code ("degiro", "trade_republic"). */
+  broker?: string | null;
+  /** "manual" when entered in the app. */
+  source?: string | null;
 };
 
 type DividendPayment = {
@@ -98,6 +103,10 @@ export default function DetailsPage() {
     queryKey: ["dividends"],
     queryFn: () => api.get<{ by_stock: DividendByStock[]; payments: DividendPayment[] }>("/api/dividends"),
   });
+  const brokers = useQuery({
+    queryKey: ["brokers"],
+    queryFn: () => api.get<{ brokers: { code: string; label: string }[] }>("/api/brokers"),
+  });
   const closed = useQuery({
     queryKey: ["closed-positions"],
     queryFn: () => api.get<{ positions: ClosedPosition[] }>("/api/positions/closed"),
@@ -135,6 +144,9 @@ export default function DetailsPage() {
   }
 
   const overrideMap = overrides.data?.overrides ?? {};
+  // A broker column only once there is more than one: with DeGiro alone it would say the same thing on every row.
+  const brokerNames = new Map((brokers.data?.brokers ?? []).map((b) => [b.code, b.label]));
+  const manyBrokers = new Set((transactions.data?.transactions ?? []).map((t) => t.broker ?? "degiro")).size > 1;
   const txRows = [...(transactions.data?.transactions ?? [])].sort((a, b) => b.date.localeCompare(a.date));
   const payments = [...(dividends.data?.payments ?? [])].sort((a, b) => b.date.localeCompare(a.date));
 
@@ -243,6 +255,8 @@ export default function DetailsPage() {
         </div>
       </Section>
 
+      <BrokerAccounts />
+
       {/* --- Alle transacties (app.py:722-753) --- */}
       <Section label={tr("All transactions")} meta={tr("{0} rows, newest first", txRows.length)}>
         <div className="table-scroll">
@@ -253,6 +267,7 @@ export default function DetailsPage() {
                 <th>Product</th>
                 <th>ISIN</th>
                 <th>{tr("Kind")}</th>
+                {manyBrokers && <th>{tr("Broker")}</th>}
                 <th className="num">{tr("Quantity")}</th>
                 <th className="num">{tr("Price (local)")}</th>
                 <th className="num">{tr("Costs (€)")}</th>
@@ -268,7 +283,11 @@ export default function DetailsPage() {
                   <td>{t.date}</td>
                   <td>{t.name}</td>
                   <td className="ds-table__ticker">{t.isin}</td>
-                  <td>{t.transaction_type === "BUY" ? tr("Buy") : tr("Sell")}</td>
+                  <td>
+                    {t.transaction_type === "BUY" ? tr("Buy") : tr("Sell")}
+                    {t.source === "manual" && <span className="ml-1 text-xs text-ink-muted">{tr("by hand")}</span>}
+                  </td>
+                  {manyBrokers && <td>{brokerNames.get(t.broker ?? "degiro") ?? t.broker}</td>}
                   <td className="num">{fmtShares(t.quantity)}</td>
                   <td className="num">{fmtEu(t.price, { decimals: 4 })}</td>
                   <td className="num">{fmtEuro(t.transaction_fee)}</td>

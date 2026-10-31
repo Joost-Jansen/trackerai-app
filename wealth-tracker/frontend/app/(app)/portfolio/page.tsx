@@ -43,9 +43,16 @@ type SortKey = "name" | "shares" | "price" | "value" | "avg_cost" | "result";
  *  always known, and a path with an empty segment is not a path.
  */
 function positionHref(h: Holding): string {
-  const base = `/portfolio/${encodeURIComponent(h.isin)}`;
-  return h.exchange ? `${base}?exchange=${encodeURIComponent(h.exchange)}` : base;
+  const params = new URLSearchParams();
+  if (h.exchange) params.set("exchange", h.exchange);
+  // The broker too, for a fund held at two brokers: each is its own line with its own average cost.
+  if (h.broker && h.broker !== "degiro") params.set("broker", h.broker);
+  const query = params.toString();
+  return `/portfolio/${encodeURIComponent(h.isin)}${query ? `?${query}` : ""}`;
 }
+
+/** The key of a row: the same fund can be held on two exchanges and at two brokers. */
+const rowKey = (h: Holding) => `${h.isin}-${h.broker ?? ""}-${h.exchange ?? ""}`;
 
 // Empty values sort last in both directions: a position without a price is
 // missing data, not the worst performer, and should not lead the table when you
@@ -193,6 +200,9 @@ export default function PortfolioPage() {
   }
 
   const day = totals.day;
+  // With more than one broker every row says where it is held, and the masthead splits the value per broker.
+  const byBroker = totals.by_broker ?? [];
+  const manyBrokers = byBroker.length > 1;
   const incomplete = mode === "day" ? day !== null && !day.complete : !totals.total.complete;
 
   return (
@@ -241,6 +251,22 @@ export default function PortfolioPage() {
         )}
       </div>
 
+      {manyBrokers && (
+        <p className="mt-2 text-xs text-ink-muted">
+          {byBroker.map((b, i) => (
+            <span key={b.broker}>
+              {i > 0 && " · "}
+              {trx(
+                "{0} {1} ({2} costs)",
+                b.label,
+                <span className="num">{b.prices_available ? fmtEuro(b.value) : "–"}</span>,
+                <span className="num">{fmtEuro(b.costs_eur)}</span>,
+              )}
+            </span>
+          ))}
+        </p>
+      )}
+
       {/* ═══ POSITIONS ══════════════════════════════════════════════════════
           The quiet switch sits right above the list it changes, and not as chrome at the top of the
           page — it only decides what the result column measures. */}
@@ -286,7 +312,7 @@ export default function PortfolioPage() {
               {group.rows.map((h, i) => {
                 const [eur, pct] = resultFor(h, mode);
                 return (
-                  <li key={`${h.isin}-${h.exchange ?? ""}`} className={`row-rule ${i === 0 ? "row-rule--none" : ""}`}>
+                  <li key={rowKey(h)} className={`row-rule ${i === 0 ? "row-rule--none" : ""}`}>
                     {/* The whole row is the link, not just the name: on a phone the name is a touch
                         target of two lines of text in a row that otherwise looks fully tappable. */}
                     <Link href={positionHref(h)} className="block py-3 active:opacity-60">
@@ -296,6 +322,7 @@ export default function PortfolioPage() {
                       </div>
                       <div className="mt-1 flex items-baseline justify-between gap-3 text-[11.5px] text-ink-muted">
                         <span className="leading-snug">
+                          {manyBrokers && <span className="mr-1.5">{h.broker_label}</span>}
                           {h.exchange && <span className="mr-1.5">{h.exchange}</span>}
                           <span className="num">{fmtEuro(h.current_price, { decimals: 2 })}</span> ×{" "}
                           <span className="num">{fmtShares(h.shares_held)}</span>
@@ -352,7 +379,7 @@ export default function PortfolioPage() {
                     const [eur, pct] = resultFor(h, mode);
                     return (
                       <tr
-                        key={`${h.isin}-${h.exchange ?? ""}`}
+                        key={rowKey(h)}
                         // The whole row opens the position, as in DeGiro. The name is a real link as
                         // well: that is what the keyboard and the middle mouse button need, and what a
                         // row with only an onClick never gives.
@@ -371,6 +398,7 @@ export default function PortfolioPage() {
                               rows, so it can't live in the ISIN column — that disappears below xl,
                               and the pair would read as a duplicate row. */}
                           {h.exchange && <span className="ds-table__ticker ml-1.5 whitespace-nowrap">{h.exchange}</span>}
+                          {manyBrokers && <span className="ds-table__ticker ml-1.5 whitespace-nowrap">{h.broker_label}</span>}
                         </td>
                         <td className="ds-table__ticker hidden xl:table-cell">{h.isin}</td>
                         <td className="num">{fmtShares(h.shares_held)}</td>

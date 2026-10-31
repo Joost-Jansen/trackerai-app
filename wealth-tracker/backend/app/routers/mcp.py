@@ -57,7 +57,7 @@ READ_TOOLS = [
     },
     {
         "name": "get_portfolio",
-        "description": "The portfolio: totals and per position name, ticker, quantity, value, weight, unrealised and total result, and the day's price.",
+        "description": "The portfolio: totals and per position name, ticker, broker, quantity, value, weight, unrealised and total result, and the day's price.",
         "inputSchema": _obj(),
     },
     {
@@ -324,6 +324,32 @@ WRITE_TOOLS = [
             ["account", "amount", "name"],
         ),
     },
+    {
+        "name": "add_broker_transaction",
+        "description": "Add a movement at a broker by hand (e.g. Trade Republic): a buy or sell (fractional quantities are fine, as in a savings plan), a deposit, withdrawal, interest, dividend, fee or tax. Amounts are positive euros; the kind gives the direction. The broker account must already exist (see get_portfolio / list_accounts); it updates positions, the broker's cash and net worth.",
+        "inputSchema": _obj(
+            {
+                "broker": {
+                    "type": ["string", "integer"],
+                    "description": "Broker code (trade_republic, degiro), its display name, or the account id",
+                },
+                "kind": {"type": "string", "enum": ["buy", "sell", "deposit", "withdrawal", "interest", "dividend", "fee", "tax"]},
+                "date": {"type": "string", "description": "ISO date (default: today)"},
+                "isin": {"type": "string", "description": "For buy, sell and dividend"},
+                "name": {"type": "string", "description": "Product name (optional; known ISINs keep their name)"},
+                "quantity": {"type": "number", "description": "Units, for buy and sell"},
+                "price": {"type": "number", "description": "Euro per unit, for buy and sell (or give amount)"},
+                "amount": {
+                    "type": "number",
+                    "description": "Euro: the value of a buy/sell without the price, the gross dividend, or the cash amount",
+                },
+                "fee": {"type": "number", "description": "Euro, positive"},
+                "tax": {"type": "number", "description": "Euro withheld, positive"},
+                "description": {"type": "string"},
+            },
+            ["broker", "kind"],
+        ),
+    },
 ]
 
 WRITE_NAMES = {t["name"] for t in WRITE_TOOLS}
@@ -389,7 +415,7 @@ def feedback_md(items: list[dict]) -> str:
 
 def instructions(scope: str) -> str:
     rights = (
-        "You may read and write: refresh prices and bank data (refresh_data), label transactions, set budgets, add and delete labelling rules, change categories (name, group, type), the month layout, the shared-costs category and fixed costs, enter and delete balances and add transactions. Only do that when the user asks for it, and say what you changed."
+        "You may read and write: refresh prices and bank data (refresh_data), label transactions, set budgets, add and delete labelling rules, change categories (name, group, type), the month layout, the shared-costs category and fixed costs, enter and delete balances, add bank transactions and add trades or cash movements at a broker (add_broker_transaction). Only do that when the user asks for it, and say what you changed."
         if scope == "write"
         else "You may only read; this token cannot change anything."
     )
@@ -658,6 +684,7 @@ class Server:
                 "name",
                 "ticker",
                 "isin",
+                "broker",
                 "asset_type",
                 "shares_held",
                 "current_price",
@@ -999,6 +1026,40 @@ class Server:
             t = (await self._api("POST", "/api/bank-transactions", body=body))["transaction"]
             keys = ("id", "date", "amount", "name", "description", "category", "group_name", "type", "category_source", "account_id")
             return _dump({"transaction": {k: t.get(k) for k in keys}})
+
+        if name == "add_broker_transaction":
+            listing = await self._api("GET", "/api/brokers")
+            ref = str(args.get("broker") or "").strip()
+            wanted = ref.lower().replace(" ", "_")
+            account = next(
+                (
+                    a
+                    for a in listing["accounts"]
+                    if (ref.isdigit() and a["id"] == int(ref)) or a["broker"] == wanted or a["broker_label"].lower() == ref.lower()
+                ),
+                None,
+            )
+            if account is None:
+                raise ToolError(f"No broker account '{ref}'. The user adds it first (Details or Accounts in the app).")
+            body = {
+                k: args.get(k)
+                for k in ("kind", "isin", "name", "quantity", "price", "amount", "fee", "tax", "description")
+                if args.get(k) is not None
+            }
+            body.update({"account_id": account["id"], "date": args.get("date") or today.isoformat()})
+            r = await self._api("POST", "/api/brokers/transactions", body=body)
+            a = r["account"]
+            return _dump(
+                {
+                    "stored": r["stored"],
+                    "account": {
+                        "name": a.get("name"),
+                        "broker": a.get("broker"),
+                        "cash": a.get("balance"),
+                        "cash_date": a.get("balance_date"),
+                    },
+                }
+            )
 
         raise ToolError(f"Unknown tool {name}")
 

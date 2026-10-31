@@ -336,6 +336,44 @@ def _migrate_dividends_if_needed(conn: sqlite3.Connection, cursor: sqlite3.Curso
         raise
 
 
+#: The broker every row from before multi-broker support came from: until then
+#: the only import was DeGiro's, so that is a fact about those rows, not a guess.
+#: New rows always name their broker themselves (domain/portfolio/brokers.py).
+LEGACY_BROKER = "degiro"
+
+# Which broker a trade or a dividend belongs to, and where it came from.
+#   broker      a code from domain/portfolio/brokers.py ("degiro", "trade_republic")
+#   account_id  the broker's cash account (accounts.id), when it has one here
+#   source      "import" (an export) or "manual" (entered in the app or via MCP)
+_BROKER_COLUMNS = (
+    ("broker", "TEXT"),
+    ("account_id", "INTEGER"),
+    ("source", "TEXT NOT NULL DEFAULT 'import'"),
+)
+
+
+def _add_broker_columns(conn: sqlite3.Connection, cursor: sqlite3.Cursor, table: str) -> None:
+    """Adds broker/account_id/source to `table` and fills in the broker of old rows.
+
+    Additive, so no legacy_names step: nothing is renamed. Every row that has no
+    broker yet came from a DeGiro export (the only import there was), and is
+    marked as such once; after that the UPDATE finds nothing. A second
+    connection may add a column between the check and the ALTER, hence the
+    duplicate-column guard, as for bank_transactions.
+    """
+    cursor.execute(f"PRAGMA table_info({table})")
+    present = {row[1] for row in cursor.fetchall()}
+    for column, definition in _BROKER_COLUMNS:
+        if column in present:
+            continue
+        try:
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+        except db.OperationalError as e:
+            if "duplicate column" not in str(e) and "already exists" not in str(e):
+                raise
+    cursor.execute(f"UPDATE {table} SET broker = ? WHERE broker IS NULL", (LEGACY_BROKER,))
+
+
 def init_db(conn: sqlite3.Connection) -> None:
     legacy_names.migrate(conn)
     cursor = conn.cursor()
@@ -363,6 +401,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     """)
 
     _migrate_if_needed(conn, cursor)
+    _add_broker_columns(conn, cursor, "transactions")
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS prices (
@@ -411,6 +450,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     """)
 
     _migrate_dividends_if_needed(conn, cursor)
+    _add_broker_columns(conn, cursor, "dividends")
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS asset_categories (
@@ -709,6 +749,16 @@ def init_db(conn: sqlite3.Connection) -> None:
             key      TEXT    NOT NULL UNIQUE
         )
     """)
+    # What a movement was, when its source says so: a code such as "buy",
+    # "deposit" or "interest" (broker_ledger.KINDS). Added later; NULL on DeGiro's
+    # rows, whose statement only says it in DeGiro's own words.
+    cursor.execute("PRAGMA table_info(account_entries)")
+    if "kind" not in {column[1] for column in cursor.fetchall()}:
+        try:
+            cursor.execute("ALTER TABLE account_entries ADD COLUMN kind TEXT")
+        except db.OperationalError as e:
+            if "duplicate column" not in str(e) and "already exists" not in str(e):
+                raise
 
     # A direct bank connection (bank_link.py). The user's own Enable Banking
     # app: its id and private key, the key encrypted (secret_box.py) and never
@@ -1141,6 +1191,9 @@ def save_transactions(conn: sqlite3.Connection, transactions: list[dict]) -> tup
             skipped += 1
             continue
 
+        broker = t.get("broker") or LEGACY_BROKER
+        # The broker is part of the key: a DeGiro fill and a Trade Republic
+        # savings-plan execution of the same ETF on the same day are two trades.
         key = (
             t.get("order_ref"),
             str(t.get("date")),
@@ -1149,6 +1202,7 @@ def save_transactions(conn: sqlite3.Connection, transactions: list[dict]) -> tup
             t.get("transaction_type"),
             t.get("quantity"),
             t.get("price"),
+            broker,
         )
         if key not in db_counts:
             # "IS" instead of "=" so NULL fields (order_ref, time, price)
@@ -1158,7 +1212,7 @@ def save_transactions(conn: sqlite3.Connection, transactions: list[dict]) -> tup
                 SELECT COUNT(*) FROM transactions
                 WHERE order_ref IS ? AND date IS ? AND time IS ?
                   AND isin IS ? AND transaction_type IS ?
-                  AND quantity IS ? AND price IS ?
+                  AND quantity IS ? AND price IS ? AND broker IS ?
             """,
                 key,
             )
@@ -1174,11 +1228,13 @@ def save_transactions(conn: sqlite3.Connection, transactions: list[dict]) -> tup
             INSERT INTO transactions (
                 order_ref, date, time, name, isin, exchange, execution_venue,
                 transaction_type, quantity, price, local_value, value_eur,
-                exchange_rate, autofx_cost, transaction_fee, total_eur
+                exchange_rate, autofx_cost, transaction_fee, total_eur,
+                broker, account_id, source
             ) VALUES (
                 :order_ref, :date, :time, :name, :isin, :exchange, :execution_venue,
                 :transaction_type, :quantity, :price, :local_value, :value_eur,
-                :exchange_rate, :autofx_cost, :transaction_fee, :total_eur
+                :exchange_rate, :autofx_cost, :transaction_fee, :total_eur,
+                :broker, :account_id, :source
             )
         """,
             {
@@ -1198,6 +1254,9 @@ def save_transactions(conn: sqlite3.Connection, transactions: list[dict]) -> tup
                 "autofx_cost": t.get("autofx_cost"),
                 "transaction_fee": t.get("transaction_fee"),
                 "total_eur": t.get("total_eur"),
+                "broker": broker,
+                "account_id": t.get("account_id"),
+                "source": t.get("source") or "import",
             },
         )
         saved += 1
@@ -1351,11 +1410,13 @@ def save_dividends(conn: sqlite3.Connection, dividends: list[dict]) -> tuple[int
     batch_counts: dict[tuple, int] = {}  # key → copies seen in this batch
 
     for d in dividends:
+        broker = d.get("broker") or LEGACY_BROKER
         key = (
             d.get("date"),
             d.get("isin"),
             d.get("amount_original"),
             d.get("currency_original"),
+            broker,
         )
         if key not in db_counts:
             # "IS" instead of "=" so NULL fields still match their stored
@@ -1365,6 +1426,7 @@ def save_dividends(conn: sqlite3.Connection, dividends: list[dict]) -> tuple[int
                 SELECT COUNT(*) FROM dividends
                 WHERE date IS ? AND isin IS ?
                   AND amount_original IS ? AND currency_original IS ?
+                  AND broker IS ?
             """,
                 key,
             )
@@ -1379,8 +1441,8 @@ def save_dividends(conn: sqlite3.Connection, dividends: list[dict]) -> tuple[int
             """
             INSERT INTO dividends
                 (date, isin, name, currency_original, amount_original,
-                 gross_eur, tax_eur, net_eur)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 gross_eur, tax_eur, net_eur, broker, account_id, source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 d.get("date"),
@@ -1391,6 +1453,9 @@ def save_dividends(conn: sqlite3.Connection, dividends: list[dict]) -> tuple[int
                 d.get("gross_eur"),
                 d.get("tax_eur"),
                 d.get("net_eur"),
+                broker,
+                d.get("account_id"),
+                d.get("source") or "import",
             ),
         )
         saved += 1
