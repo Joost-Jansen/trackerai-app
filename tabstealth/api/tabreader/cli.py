@@ -77,6 +77,8 @@ NOISE = re.compile(
     r"(with )?tabs?( \+ chords)?( \+ lyrics)?|chords( \+ lyrics)?|lyrics|tutorial|lesson|cover",
     re.I,
 )
+# words that, with NOISE, make up a part of a title that says nothing about the song ("Full Tutorial with TAB")
+FILLER = re.compile(r"\b(full|easy|beginners?|intermediate|advanced|classical|acoustic|electric|guitar|solo|part \d+|how to play)\b", re.I)
 
 
 def split_title(title: str, channel: str = "") -> tuple[str, str]:
@@ -86,6 +88,9 @@ def split_title(title: str, channel: str = "") -> tuple[str, str]:
     main = re.sub(r"[^\w\s'&.,()!?\-]", " ", main)  # emoji and symbols
     if channel:
         main = re.sub(re.escape(channel), " ", main, flags=re.I)
+    # "Song - Full Tutorial with TAB - Classical Guitar": leave out the parts that are only about the video
+    parts = [p for p in main.split(" - ") if FILLER.sub(" ", NOISE.sub(" ", p)).strip(" -,()")]
+    main = " - ".join(parts) or main
     if " - " not in main and (m := re.search(r"\b(guitar )?cover\b", main, re.I)):
         song, artist = main[: m.start()], main[m.end() :]  # "Stop This Train Guitar Cover John Mayer"
     elif " - " in main:
@@ -139,7 +144,9 @@ def review_list(song, parsed) -> list[dict]:
 def video_timing(song, sc: dict, vid: str) -> dict:
     """Video time of every measure's downbeat, for syncing the player with the video."""
     starts = [m.t_start for m in song.measures]
-    good = [i for i, m in enumerate(song.measures) if not np.isnan(m.t_start) and "rhythm from note spacing" not in m.flags]
+    # in a lesson every bar's rhythm is from the spacing, but its start is where it is taught: that is the sync
+    timed = lambda m: sc.get("lesson") or "rhythm from note spacing" not in m.flags  # noqa: E731
+    good = [i for i, m in enumerate(song.measures) if not np.isnan(m.t_start) and timed(m)]
     med = float(np.median(np.diff([starts[i] for i in good]))) if len(good) > 1 else 2.0
     for i in range(len(starts)):  # measures without cursor data: extend from neighbours
         if i not in good:
@@ -230,13 +237,19 @@ def read_any_layout(work: Path, video: Path, download, force: bool, clf, log):
         pickle.dump(generic.scan_video(str(video)), open(gen_p, "wb"))
     g = pickle.load(open(gen_p, "rb"))
     views, slots, fps = g["views"], g["slots"], g["fps"]
+    lesson = generic.is_lesson(views, fps)
+    if lesson:
+        views = generic.steady_pages(views, float(np.median([s.sp for s in slots])))
     generic.link_views(views)
-    seq, samples, covered = generic.play_order(views, g["cursor"], fps)
-    if not covered:
+    if lesson:
+        generic.link_pages(views)
+    seq, samples, covered = generic.play_order(views, g["cursor"], fps, once=lesson)
+    if not covered and not lesson:
         views = generic.as_pages(views)
         seq, samples, covered = generic.play_order(views, [], fps)
     log(
-        f"  {len(slots)} tab line(s), {len(views)} views, {len(seq)} bars in playing order; timing from "
+        f"  {len(slots)} tab line(s), {len(views)} views, {len(seq)} bars in "
+        f"{'score order (a lesson: the tab goes away in between)' if lesson else 'playing order'}; timing from "
         f"{'the cursor' if covered else 'when each page appears (no cursor)'}"
     )
     download()  # the bars are cut from the video itself
@@ -255,6 +268,7 @@ def read_any_layout(work: Path, video: Path, download, force: bool, clf, log):
         "corner": np.full((8, 8, 3), 255, np.uint8),
         "overlay_top": max(0.0, top / g["frame_h"]),
         "track": (ts, xs),
+        "lesson": lesson,
     }
     return tape_img, lines, parsed, ([0], [], {}), sc, len(views), 1.0
 
@@ -305,7 +319,7 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool, forc
     )
     misreads = sum(1 for m in parsed.measures if m.x0 in parsed.numbers and parsed.numbers[m.x0] != m.number)
     tempo_mark = read_tempo_mark(tape_img, lines, parsed.bars[2] if len(parsed.bars) > 2 else tape_img.shape[1], clf)
-    song = build_song(parsed, *song_in, tempo_mark=tempo_mark, track=sc.get("track"))
+    song = build_song(parsed, *song_in, tempo_mark=tempo_mark, track=sc.get("track"), lesson=sc.get("lesson", False))
     log(
         f"  {len(song.measures)} measures, {song.numerator}/{song.denominator} at {song.tempo} bpm"
         f" (tempo mark: {tempo_mark}, swing: {song.triplet_feel or 'none'})"
