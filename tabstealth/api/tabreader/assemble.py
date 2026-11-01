@@ -15,6 +15,7 @@ from .parse import Column, ParsedPage
 
 TICKS_PER_QUARTER = 24  # divisible by 4, 3, 6 and 8: 16ths, triplets and 32nds
 DOWNBEAT_MAX_U = 85  # first column closer than this to the bar line is on the downbeat
+LESSON_TEMPO = 80  # bpm of a lesson without a tempo mark (its playing is not timed by the video)
 
 
 @dataclass
@@ -118,6 +119,17 @@ def spacing_positions(m, quarters: float) -> list[float]:
     return list(np.concatenate([[0], np.cumsum(w[:-1])]) / max(w.sum(), 1) * quarters)
 
 
+def lesson_beats(measures) -> int:
+    """Beats per bar (3 or 4) for a lesson, whose time signature is on the notation staff, not on the tab: the one
+    under which the note spacing puts the notes on eighths best (six even notes are eighths in 3/4, not in 4/4)."""
+
+    def off_grid(quarters: float) -> float:
+        pos = [p for m in measures if len(m.columns) > 1 for p in spacing_positions(m, quarters)]
+        return float(np.mean([abs(2 * p - round(2 * p)) for p in pos])) if pos else 0.0
+
+    return 3 if off_grid(3) < 0.7 * off_grid(4) else 4
+
+
 def build_song(
     tape: ParsedPage,
     offsets: list[int],
@@ -125,9 +137,12 @@ def build_song(
     scan: dict,
     tempo_mark: int | None = None,
     track: tuple[np.ndarray, np.ndarray] | None = None,
+    lesson: bool = False,
 ) -> Song:
     """`track`: (time, tape x) of the playback when the caller has it already (generic.track); otherwise it comes
-    from the scrolling strip's cursor line."""
+    from the scrolling strip's cursor line. `lesson`: the video teaches the bars rather than plays them, so the
+    timing only says where each bar is taught; the rhythm comes from the note spacing, at the tempo mark or
+    LESSON_TEMPO."""
     if track is not None:
         (ts, xs), backwards = track, 0
     else:
@@ -154,16 +169,18 @@ def build_song(
     med = float(np.median(durs))
     durs = list(durs) + [med]
     numerator, denominator, tempo = infer_meter(med, tempo_mark)
+    if lesson:
+        numerator, denominator, tempo = lesson_beats(chosen), 4, tempo_mark or LESSON_TEMPO
     quarters = numerator * 4 / denominator
     measure_ticks = int(quarters * TICKS_PER_QUARTER)
     raw = []  # (parsed measure, Measure, onsets in quarters, from cursor?)
     for m, t0, dur in zip(chosen, starts, durs):
         out = Measure(m.number, [], t_start=t0, duration_s=dur)
         covered = seen[0] <= downbeat_x(m) and m.x1 <= seen[1] + 60
-        if not covered or not 0.6 * med < dur < 1.6 * med:
+        if lesson or not covered or not 0.6 * med < dur < 1.6 * med:
             out.flags.append("rhythm from note spacing")
             pos = spacing_positions(m, quarters) if m.columns else []
-            dur = med
+            dur = 60 * quarters / tempo if lesson else med
         else:
             pos = [(t_at(c.x) - t0) / dur * quarters for c in m.columns]
         out.tempo = int(round(60 * quarters / dur))

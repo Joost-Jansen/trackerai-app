@@ -336,6 +336,8 @@ def test_song_and_artist_come_out_of_any_title_style():
         "Stevie Wonder",
     )
     assert split_title("Stop This Train Guitar Cover John Mayer \N{GUITAR}|Tabs + Chords|", "x") == ("Stop This Train", "John Mayer")
+    lesson = "Mia and Sebastian's Theme (La La Land) - Full Tutorial with TAB - Classical Guitar"
+    assert split_title(lesson, "Robert Lunn") == ("Mia and Sebastian's Theme (La La Land)", "")
 
 
 def login(lib, name):

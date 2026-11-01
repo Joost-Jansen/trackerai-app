@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 import cv2
 import numpy as np
 
-from .cursor import find_cursor, tinted_mask
+from .cursor import find_box, find_cursor, tinted_mask
 from .glyphs import find_barlines
 from .layout import Staff, find_staffs
 
@@ -42,6 +42,11 @@ class Slot:
         """Rows of the staff with a little margin (for bar lines, signatures and the cursor)."""
         return int(self.staff.lines[0] - 1.2 * self.sp), int(self.staff.lines[-1] + 1.2 * self.sp)
 
+    def lines_at(self, dy: int, scale: float) -> list[float]:
+        """The staff lines in a frame where the line sits `dy` lower and is `scale` times as tall."""
+        top = self.staff.lines[0] + dy
+        return [top + (y - self.staff.lines[0]) * scale for y in self.staff.lines]
+
 
 @dataclass
 class Bar:
@@ -50,6 +55,7 @@ class Bar:
     x1: int
     sig: np.ndarray
     dy: int = 0  # the line sat this much lower than its slot in that frame (a strip can move a little per page)
+    scale: float = 1.0  # and was this much taller (a lesson's pages are not all drawn at the same size)
 
 
 @dataclass
@@ -94,46 +100,73 @@ def find_slots(cap: cv2.VideoCapture, samples: int = 60) -> list[Slot]:
     return slots
 
 
-def _offset(frame: np.ndarray, slot: Slot) -> int | None:
-    """How far the tab line sits below its usual place in this frame (None: not on screen). Some videos place each
-    page a few pixels higher or lower."""
+# other sizes a tab line may have relative to its slot, nearest first
+SCALES = sorted((s for s in np.round(np.arange(0.9, 1.101, 0.01), 2) if s != 1), key=lambda s: abs(s - 1))
+
+
+def _fit(frame: np.ndarray, slot: Slot) -> tuple[int, float] | None:
+    """How far the tab line sits below its usual place in this frame, and how much taller it is (None: not on
+    screen). Some videos place each page a few pixels higher or lower, or (lessons) draw some pages a little larger
+    or smaller: other sizes are tried when the slot's own does not fit."""
     st, sp = slot.staff, slot.sp
     reach = int(0.7 * sp)
-    y0, y1 = int(st.lines[0]) - reach - 2, int(st.lines[-1]) + reach + 3
+    height = st.lines[-1] - st.lines[0]
+    y0, y1 = int(st.lines[0]) - reach - 2, int(st.lines[0] + height * max(SCALES)) + reach + 3
     y0c, y1c = max(0, y0), min(frame.shape[0], y1)
     g = cv2.cvtColor(frame[y0c:y1c, st.x0 : st.x1 + 1], cv2.COLOR_BGR2GRAY)
     prof = (g < 200).mean(axis=1)
-    rows = [int(round(y)) - y0c for y in st.lines]
-    best = None
-    for dy in range(-reach, reach + 1):
-        idx = [r + dy for r in rows]
-        if min(idx) < 1 or max(idx) >= len(prof) - 1:
-            continue
-        score = min(max(prof[i - 1], prof[i], prof[i + 1]) for i in idx)  # every line must be there
-        if best is None or score > best[0]:
-            best = (score, dy)
-    return best[1] if best and best[0] > 0.5 else None
+    for scales in ([1.0], SCALES):
+        best = None
+        for scale in scales:
+            rows = [int(round(y)) - y0c for y in slot.lines_at(0, scale)]
+            for dy in range(-reach, reach + 1):
+                idx = [r + dy for r in rows]
+                if min(idx) < 1 or max(idx) >= len(prof) - 1:
+                    continue
+                score = min(max(prof[i - 1], prof[i], prof[i + 1]) for i in idx)  # every line must be there
+                if best is None or score > best[0]:
+                    best = (score, dy, float(scale))
+        if best and best[0] > 0.5:
+            return best[1], best[2]
+    return None
 
 
-def _bars(frame: np.ndarray, k: int, slot: Slot) -> tuple[list[Bar], int | None]:
-    """The whole bars of one tab line in a frame, and its vertical offset (None: the line is not on screen)."""
-    dy = _offset(frame, slot)
-    if dy is None:
+def _bars(frame: np.ndarray, k: int, slot: Slot, faint: list[int] | None = None) -> tuple[list[Bar], tuple[int, float] | None]:
+    """The whole bars of one tab line in a frame, and its fit (None: the line is not on screen). `faint`: the faint
+    bar lines of this line in the frame before; this frame's go in it."""
+    fit = _fit(frame, slot)
+    if fit is None:
+        if faint is not None:
+            faint.clear()
         return [], None
-    st, sp = slot.staff, slot.sp
-    y0, y1 = slot.band()
-    y0c, y1c = max(0, y0 + dy), min(frame.shape[0], y1 + dy)
-    crop = cv2.cvtColor(frame[y0c:y1c, st.x0 : st.x1 + 1], cv2.COLOR_BGR2GRAY)
+    dy, scale = fit
+    st, sp = slot.staff, slot.sp * scale
+    on = slot.lines_at(dy, scale)
+    y0c, y1c = max(0, int(on[0] - 1.2 * sp)), min(frame.shape[0], int(on[-1] + 1.2 * sp))
+    band = frame[y0c:y1c, st.x0 : st.x1 + 1]
+    crop = cv2.cvtColor(band, cv2.COLOR_BGR2GRAY)
     if (crop > 150).mean() < 0.6:
+        if faint is not None:
+            faint.clear()
         return [], None  # not on paper: a fade or the video over it
     ink = (crop < 150).astype(np.uint8)
-    lines = [y + dy - y0c for y in st.lines]
+    lines = [y - y0c for y in on]
     xs = find_barlines(ink, lines)
     w = ink.shape[1]
+    # a thin grey bar line (half on one pixel column, half on the next, as in some lessons) is lighter than ink:
+    # add the bar lines found on lighter ink that is not coloured (a cursor line is no bar line), away from the ends.
+    # Only in a frame with dark bar lines too, and where the frame before had it: a page fading in or out is all
+    # grey for a moment, the one fading out shows through the next
+    if faint is not None:
+        light = find_barlines(((crop < 200) & ~tinted_mask(band)).astype(np.uint8), lines)
+        new = [x for x in light if 2 * sp < x < w - 2 * sp and all(abs(x - d) > 0.5 * sp for d in xs)] if xs else []
+        kept = [x for x in new if any(abs(x - y) < 0.5 * sp for y in faint)]
+        faint[:] = new
+        xs = sorted(xs + kept)
     edges = [0, *xs, w - 1]
     spans = [(a, b) for a, b in zip(edges, edges[1:]) if b - a > 2 * sp]
     if not spans:
-        return [], dy
+        return [], fit
     inner = [b - a for a, b in spans if a in xs and b in xs]
     typical = np.median(inner) if inner else w / max(len(spans), 1)
     out = []
@@ -144,8 +177,8 @@ def _bars(frame: np.ndarray, k: int, slot: Slot) -> tuple[list[Bar], int | None]
         if not whole and b - a < 0.6 * typical:
             continue
         sig = cv2.resize(ink[top:bot, a:b].astype(np.float32), SIG, interpolation=cv2.INTER_AREA)
-        out.append(Bar(k, st.x0 + a, st.x0 + b, sig, dy))
-    return out, dy
+        out.append(Bar(k, st.x0 + a, st.x0 + b, sig, dy, scale))
+    return out, fit
 
 
 def _corr(a: np.ndarray, b: np.ndarray) -> float:
@@ -174,6 +207,9 @@ def scan_video(video: str, progress=None) -> dict:
     frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     slots = find_slots(cap)
     sp = float(np.median([s.sp for s in slots]))
+    # what is above each tab line: from below the line above it (a box there would be that line's), or the top
+    above = [0.0] + [s.staff.lines[-1] + 1.5 * s.sp for s in slots[:-1]]
+    faint: list[list[int]] = [[] for _ in slots]  # per tab line, its faint bar lines in the frame before
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
     views: list[View] = []
     cursor: list[tuple[int, int, float]] = []  # (frame, slot, x in frame px)
@@ -186,20 +222,29 @@ def scan_video(video: str, progress=None) -> dict:
             break
         bars = []
         for k, slot in enumerate(slots):
-            b, dy = _bars(fr, k, slot)
+            b, fit = _bars(fr, k, slot, faint[k])
             bars += b
-            if dy is not None:
-                y0, y1 = slot.band()
-                y0c, y1c = max(0, y0 + dy), min(fr.shape[0], y1 + dy)
+            if fit is not None:
+                dy, scale = fit
+                on, sp_k = slot.lines_at(dy, scale), slot.sp * scale
+                y0c, y1c = max(0, int(on[0] - 1.2 * sp_k)), min(fr.shape[0], int(on[-1] + 1.2 * sp_k))
                 st = slot.staff
-                static = slot.static if dy == 0 and slot.static.shape[0] >= y1c - y0c else None
+                same = dy == 0 and scale == 1 and slot.static.shape[0] >= y1c - y0c
+                static = slot.static if same else None
                 x = find_cursor(
                     fr[y0c:y1c, st.x0 : st.x1 + 1],
-                    st.lines[0] + dy - y0c,
-                    st.lines[-1] + dy - y0c,
-                    slot.sp,
+                    on[0] - y0c,
+                    on[-1] - y0c,
+                    sp_k,
                     static[: y1c - y0c] if static is not None else None,
                 )
+                if np.isnan(x):
+                    # a box over the notation above (a lesson); up to the tab line above, if there is one, and
+                    # only with room for a staff in between
+                    a0 = int(max(on[0] - 10 * sp_k, above[k], 0))
+                    a1 = int(on[0] - 0.3 * sp_k)
+                    if a1 - a0 > 5 * sp_k:
+                        x = find_box(fr[a0:a1, st.x0 : st.x1 + 1], sp_k)
                 if not np.isnan(x):
                     cursor.append((i, k, st.x0 + x))
         if cur is not None and not (bars and _same_layout(cur, bars, sp)):
@@ -261,14 +306,66 @@ def as_pages(views: list[View]) -> list[View]:
     return pages
 
 
-def play_order(views: list[View], cursor: list[tuple[int, int, float]], fps: float, min_frames: int = 3):
+def is_lesson(views: list[View], fps: float, gap: float = 10.0) -> bool:
+    """The tab goes away for a while (`gap` seconds or more) and comes back: a lesson, in which the tutor talks or
+    plays to the camera between the parts of the score. A play-along video keeps its tab on screen."""
+    return any(b.f0 - a.f1 >= gap * fps for a, b in zip(views, views[1:]))
+
+
+def steady_pages(views: list[View], sp: float) -> list[View]:
+    """In a lesson, a thin grey bar line may be found in some frames and missed in others, so one page on screen
+    becomes many short views, with two bars or one wide one. Back-to-back views of the same page, where one only
+    lacks some of the other's bar lines and the bars both have match, are one view with all the bar lines."""
+
+    def edges(v: View) -> set[tuple[int, int]]:
+        return {(b.slot, x) for b in v.bars for x in (b.x0, b.x1)}
+
+    def within(a: set, b: set) -> bool:
+        return all(any(k == m and abs(x - y) < 0.4 * sp for m, y in b) for k, x in a)
+
+    def same_page(a: View, b: View) -> bool:
+        if b.f0 - a.f1 > 2 or {x.slot for x in a.bars} != {x.slot for x in b.bars}:
+            return False
+        ea, eb = edges(a), edges(b)
+        if not (within(ea, eb) or within(eb, ea)):
+            return False
+        both = [(p, q) for p in a.bars for q in b.bars if p.slot == q.slot and abs(p.x0 - q.x0) < 0.4 * sp and abs(p.x1 - q.x1) < 0.4 * sp]
+        return bool(both) and all(_corr(p.sig, q.sig) > 0.9 for p, q in both)
+
+    out: list[View] = []
+    for v in views:
+        if out and same_page(out[-1], v):
+            prev = out[-1]
+            finer = v.bars if len(v.bars) > len(prev.bars) else prev.bars
+            out[-1] = View(prev.f0, v.f1, finer)
+        else:
+            out.append(v)
+    return out
+
+
+def link_pages(views: list[View]) -> None:
+    """In a lesson, a page shown again later (after the tutor talked) is the same page: its bars keep their ids, so
+    going over a passage twice does not write it out twice. Only a whole page counts; single bars are often alike."""
+    for i, v in enumerate(views):
+        if i and set(v.ids) & set(views[i - 1].ids):
+            continue  # it follows on from the view before
+        for e in views[:i]:
+            if len(e.bars) == len(v.bars) and all(_same(a, b) for a, b in zip(e.bars, v.bars)):
+                v.ids = list(e.ids)
+                break
+
+
+def play_order(views: list[View], cursor: list[tuple[int, int, float]], fps: float, min_frames: int = 3, once: bool = False):
     """The bars in playing order, `seq` (instance ids; a bar played twice is in it twice), the cursor samples as
     (time, position in seq, x in frame px), and whether the cursor carried the order.
 
     With a cursor: follow it from bar to bar. Returning to a bar it already left is playing it again (a repeat), so
     that bar gets a new place in the order. Stays shorter than `min_frames` are detection jitter at a bar edge and
     are ignored. A bar the cursor never reached goes after the bar before it on screen. Without a cursor: the order
-    in which bars appear."""
+    in which bars appear.
+
+    `once` (a lesson): every bar once, in the order of the score, where the tutor goes back and forth over it; its
+    timing is when the cursor first reached it."""
     by_frame: dict[int, list[tuple[int, float]]] = {}
     for f, k, x in cursor:
         by_frame.setdefault(f, []).append((k, x))
@@ -301,6 +398,11 @@ def play_order(views: list[View], cursor: list[tuple[int, int, float]], fps: flo
             merged.append(r)
     if len({r[0] for r in merged}) < 0.5 * len(ids):
         return ids, [], False
+    if once:
+        first: dict[int, list] = {}
+        for bid, fx in merged:
+            first.setdefault(bid, fx)
+        return ids, [(f / fps, ids.index(bid), x) for bid, fx in first.items() for f, x in fx], True
     seq, samples = [], []
     for bid, fx in merged:
         seq.append(bid)
@@ -316,9 +418,10 @@ def play_order(views: list[View], cursor: list[tuple[int, int, float]], fps: flo
 def _bar_image(cap: cv2.VideoCapture, view: View, bar: Bar, slot: Slot, n: int = 7) -> np.ndarray:
     """A clean image of one bar on the tape's scale: the median over frames of its view (the cursor moves, the
     tab does not)."""
-    st, sp = slot.staff, slot.sp
-    y0 = int(round(st.lines[0] + bar.dy - ABOVE * sp))
-    y1 = int(round(st.lines[-1] + bar.dy + BELOW * sp))
+    on = slot.lines_at(bar.dy, bar.scale)
+    sp = slot.sp * bar.scale
+    y0 = int(round(on[0] - ABOVE * sp))
+    y1 = int(round(on[-1] + BELOW * sp))
     stack = []
     for f in np.unique(np.linspace(view.f0, view.f1, n).astype(int)):
         cap.set(cv2.CAP_PROP_POS_FRAMES, int(f))
