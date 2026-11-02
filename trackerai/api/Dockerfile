@@ -3,7 +3,7 @@
 #
 # Build context: the repo root (`docker build -f trackerai/api/Dockerfile .`), for packages/.
 
-FROM python:3.13-slim
+FROM python:3.14-slim
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 TZ=Europe/Amsterdam
 RUN apt-get update && apt-get install -y --no-install-recommends tzdata && rm -rf /var/lib/apt/lists/*
 WORKDIR /app

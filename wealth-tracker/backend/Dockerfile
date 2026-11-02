@@ -7,7 +7,7 @@
 # file lists what goes in.
 # Runtime state (per-user SQLite DBs, uploads, auth_config.yaml) is bind-
 # mounted at runtime, same as the Streamlit image.
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
