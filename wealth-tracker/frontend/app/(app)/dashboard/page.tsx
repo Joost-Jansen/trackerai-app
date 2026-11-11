@@ -34,7 +34,9 @@ import {
   type SinceVisit,
   type SparklinePoint,
   type Summary,
+  type Snapshot,
   type ValueHistory,
+  type WhatIfComparison,
   availableRanges,
   intradayAsValuePoints,
   rangeBreakdown,
@@ -50,6 +52,7 @@ import BreakdownList from "@/components/BreakdownList";
 import ChartHeadline from "@trackerai/ui/charts/ChartHeadline";
 import InfoPopover from "@trackerai/ui/components/InfoPopover";
 import ValueChart from "@/components/dashboard/ValueChart";
+import WhatIfPicker from "@/components/dashboard/WhatIfPicker";
 import Sparkline from "@/components/dashboard/Sparkline";
 import HBars from "@/components/charts/HBars";
 import { NewsTag } from "@/components/news/NewsList";
@@ -59,6 +62,8 @@ import { tr, trx } from "@/lib/i18n";
 function Skeleton({ className = "h-40" }: { className?: string }) {
   return <div className={`animate-pulse rounded ${className}`} style={{ background: "var(--surface-inset)" }} />;
 }
+
+const SNAPSHOT_KEY = "wealth:dashboard-snapshot";
 
 export default function DashboardPage() {
   const summaryQ = useQuery({
@@ -112,8 +117,51 @@ export default function DashboardPage() {
   // tooltip would cover the line you are reading.
   const [probe, setProbe] = useState<Probe | null>(null);
 
-  // The same array until the query changes: the memos below depend on it.
-  const dailyPoints = useMemo(() => valueHistoryQ.data?.points ?? [], [valueHistoryQ.data]);
+  // A stored portfolio drawn next to your own (WhatIfPicker), remembered in this
+  // browser. Nothing is lost when that storage is unavailable: the line is off.
+  const [snapshotId, setSnapshotId] = useState<number | null>(() => {
+    try {
+      const v = window.localStorage.getItem(SNAPSHOT_KEY);
+      return v ? Number(v) : null;
+    } catch {
+      return null;
+    }
+  });
+  const snapshotsQ = useQuery({
+    queryKey: ["what-if-snapshots"],
+    queryFn: () => api.get<{ snapshots: Snapshot[] }>("/api/what-if/snapshots"),
+  });
+  const snapshots = useMemo(() => snapshotsQ.data?.snapshots ?? [], [snapshotsQ.data]);
+  const chosenSnapshot = snapshots.find((x) => x.id === snapshotId) ?? null;
+  const compareQ = useQuery({
+    queryKey: ["what-if-compare", chosenSnapshot?.id],
+    queryFn: () => api.get<WhatIfComparison>(`/api/what-if/compare?snapshot=${chosenSnapshot!.id}`),
+    enabled: chosenSnapshot !== null,
+  });
+  const comparison = chosenSnapshot && compareQ.data?.snapshot.id === chosenSnapshot.id ? compareQ.data : null;
+
+  // The same array until the query changes: the memos below depend on it. With a
+  // snapshot chosen each day from its date on also carries `kept`.
+  const dailyPoints = useMemo(() => {
+    const points = valueHistoryQ.data?.points ?? [];
+    if (!comparison || comparison.points.length === 0) return points;
+    const kept = new Map(comparison.points.map((p) => [p.d, p.kept]));
+    return points.map((p) => (kept.has(p.d) ? { ...p, kept: kept.get(p.d) } : p));
+  }, [valueHistoryQ.data, comparison]);
+
+  function chooseSnapshot(next: Snapshot | null) {
+    setSnapshotId(next?.id ?? null);
+    try {
+      if (next) window.localStorage.setItem(SNAPSHOT_KEY, String(next.id));
+      else window.localStorage.removeItem(SNAPSHOT_KEY);
+    } catch {
+      // private window or blocked storage: the choice just isn't remembered
+    }
+    // From the snapshot's day: before it there is nothing to compare.
+    const last = valueHistoryQ.data?.points.at(-1)?.d;
+    if (next && last && next.date < last) setZoom({ from: next.date, to: last.slice(0, 10) });
+    else if (!next) setZoom(null);
+  }
   const lastDaily = dailyPoints.length > 0 ? dailyPoints[dailyPoints.length - 1] : null;
 
   // Which buttons this history can live up to, and the chosen period set back
@@ -228,7 +276,12 @@ export default function DashboardPage() {
       : probe?.kind === "point"
         ? {
             big: fmtEuro(probe.point.value),
-            primary: <>{trx("deposited {0}", fmtEuro(probe.point.invested))}</>,
+            primary: (
+              <>
+                {trx("deposited {0}", fmtEuro(probe.point.invested))}
+                {probe.point.kept !== undefined && <> · {tr("kept {0}", fmtEuro(probe.point.kept))}</>}
+              </>
+            ),
             secondary: probeLabel(probe.point.d),
           }
         : {
@@ -444,7 +497,31 @@ export default function DashboardPage() {
                   onProbe={setProbe}
                   onSelect={setZoom}
                   onReset={zoom ? () => setZoom(null) : undefined}
+                  keptLabel={chosenSnapshot?.name}
                 />
+                {comparison?.summary && (
+                  // Both gains with the deposits since the snapshot taken out, so the
+                  // difference is what the trading since then earned or cost.
+                  <p className="text-[12.5px] leading-relaxed text-ink-muted">
+                    {trx(
+                      "Since {0}, prices only: your portfolio {1}, {2} kept {3}. Difference {4}.",
+                      fmtDayMonthYear(comparison.summary.start),
+                      <SignedValue key="a" value={comparison.summary.actual_gain} />,
+                      <span key="n">{chosenSnapshot!.name}</span>,
+                      <SignedValue key="k" value={comparison.summary.kept_gain} />,
+                      <SignedValue key="d" value={comparison.summary.difference} />,
+                    )}
+                    {comparison.estimated.length > 0 && (
+                      <> {tr("Without price history: {0}.", comparison.estimated.map((e) => e.name).join(", "))}</>
+                    )}
+                  </p>
+                )}
+                {chosenSnapshot && compareQ.data?.unavailable && (
+                  <p className="text-[11.5px] text-ink-muted">
+                    {tr("The comparison needs the price history, which could not be fetched.")}
+                  </p>
+                )}
+                <WhatIfPicker snapshots={snapshots} chosen={chosenSnapshot?.id ?? null} onChoose={chooseSnapshot} />
                 {/* Which part of the line is filled in. Often empty, and often harmless when it
                     isn't — a fund from last month has no history from 2019 — but a replaced
                     position draws a flat stretch that can't be told apart from a real one, so it

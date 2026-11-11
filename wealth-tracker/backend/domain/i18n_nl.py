@@ -238,4 +238,11 @@ NL: dict[str, str] = {
     "This account uses other trackers too: the administrator of all trackers manages it.": "Dit account gebruikt ook andere trackers: de beheerder van alle trackers beheert het.",
     "You had a login here with this name: enter its password to bring your data along.": "Je had hier een login met deze naam: vul het wachtwoord daarvan in om je gegevens mee te nemen.",
     "Choose a password of at most {0} characters.": "Kies een wachtwoord van hoogstens {0} tekens.",
+    "A date is needed.": "Er is een datum nodig.",
+    "Not a date: {0}": "Geen datum: {0}",
+    "That date is in the future.": "Die datum ligt in de toekomst.",
+    "Portfolio of {0}": "Portefeuille van {0}",
+    "There were no holdings at the end of {0}.": "Aan het eind van {0} waren er geen posities.",
+    "At most {0} snapshots; delete one first.": "Hooguit {0} momentopnames; verwijder er eerst een.",
+    "No such snapshot.": "Deze momentopname bestaat niet.",
 }

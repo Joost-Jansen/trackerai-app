@@ -44,7 +44,8 @@ class CurrentUser:
 # category's name, group and type, the month layout and the other settings of
 # Spending and Net worth, a balance on an account and a manual transaction; and
 # refreshing what comes in by itself (prices, and the bank connection the user set
-# up in the browser), so an agent works with today's figures.
+# up in the browser), so an agent works with today's figures; and storing or
+# deleting a portfolio snapshot (what_if.py), which changes no figure.
 # Everything not listed here (uploads, deleting transactions, categories or
 # accounts, creating accounts or categories, bank connections, admin) stays
 # browser-only. A "read" token changes nothing at all.
@@ -65,6 +66,8 @@ AGENT_WRITES = [
     ("POST", re.compile(r"^/api/bank-transactions$")),  # a manual transaction
     ("POST", re.compile(r"^/api/prices/refresh$")),
     ("POST", re.compile(r"^/api/connections/enablebanking/fetch$")),
+    ("POST", re.compile(r"^/api/what-if/snapshots$")),
+    ("DELETE", re.compile(r"^/api/what-if/snapshots/\d+$")),
 ]
 # Never for an agent, not even to read: account and token management (export,
 # deletion, two-step login), admin, and the bank connection (its keys and
@@ -212,6 +215,7 @@ EXAMPLE_PATHS = (
     "/api/rebalancing",
     "/api/returns",
     "/api/spending",
+    "/api/what-if",
 )
 
 
