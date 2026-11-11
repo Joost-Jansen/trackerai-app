@@ -119,11 +119,29 @@ def test_the_placeholder_hash_is_not_a_usable_password(client):
 # --- Session invalidation ------------------------------------------------
 
 
+def _me_with(client, cookies: dict):
+    """GET /api/auth/me carrying only `cookies`, the way another browser would.
+
+    Not `client.get(..., cookies=...)`: since httpx2 2.16 the client's own jar
+    wins over cookies passed per request, so the request would carry the
+    session the client holds now instead of the copied one.
+    """
+    own = list(client.cookies.jar)  # the cookies themselves, with their domain, so they come back as they were
+    client.cookies.clear()
+    client.cookies.update(cookies)
+    try:
+        return client.get("/api/auth/me")
+    finally:
+        client.cookies.clear()
+        for cookie in own:
+            client.cookies.jar.set_cookie(cookie)
+
+
 def test_changing_your_password_signs_out_other_sessions(client):
     """The cookie a thief copied must stop working once the password changes."""
     assert _login(client).status_code == 200
     stolen = dict(client.cookies)
-    assert client.get("/api/auth/me", cookies=stolen).status_code == 200
+    assert _me_with(client, stolen).status_code == 200
 
     # Second (must be a later whole second than the login: `iat` and
     # `pw_changed_at` are both unix seconds).
@@ -136,7 +154,7 @@ def test_changing_your_password_signs_out_other_sessions(client):
         == 200
     )
 
-    assert client.get("/api/auth/me", cookies=stolen).status_code == 401
+    assert _me_with(client, stolen).status_code == 401
 
 
 def test_the_session_that_changed_the_password_stays_signed_in(client):
@@ -163,7 +181,7 @@ def test_an_admin_reset_signs_the_target_out_everywhere(client, tmp_path):
 
     assert _login(client).status_code == 200
     alice_cookie = dict(client.cookies)
-    assert client.get("/api/auth/me", cookies=alice_cookie).status_code == 200
+    assert _me_with(client, alice_cookie).status_code == 200
 
     time.sleep(1.1)
     client.cookies.clear()
@@ -173,7 +191,7 @@ def test_an_admin_reset_signs_the_target_out_everywhere(client, tmp_path):
     alice = accounts.by_username("alice")["id"]
     assert client.post(f"/api/trackerai/admin/accounts/{alice}/reset-password").status_code == 200
 
-    assert client.get("/api/auth/me", cookies=alice_cookie).status_code == 401
+    assert _me_with(client, alice_cookie).status_code == 401
 
 
 def test_an_account_without_the_new_field_still_works(client):

@@ -1,9 +1,9 @@
 # Pinned to exact versions (tested together); upgrade on purpose, run the tests, then bump here and in ../requirements.txt.
-fastapi==0.144.0
+fastapi==0.161.1
 uvicorn[standard]==0.54.0
 bcrypt==5.0.0
 PyJWT==2.15.1
-SQLAlchemy==2.1.5
+SQLAlchemy==2.1.6
 psycopg[binary]==3.3.6
 # Garmin connection and sync run inside web since multi-user (api/connections.py, api/sync_runner.py)
 garminconnect==0.3.19
