@@ -37,6 +37,12 @@ import { trueMinus } from "@trackerai/ui/lib/typography";
 import { tr, trx } from "@/lib/i18n";
 import { availableRanges, sliceByRange, type Range } from "@/lib/dashboard";
 import { fmtEu } from "@/lib/format";
+import { keptLine, type IndexPoint } from "@/lib/kept-line";
+import { tradeDays, type TradeTransaction } from "@/lib/trade-days";
+import { useChosenSnapshot } from "@/lib/use-snapshot";
+import type { Snapshot } from "@/lib/dashboard";
+import { tradeNote } from "@/components/charts/trade-note";
+import WhatIfPicker from "@/components/dashboard/WhatIfPicker";
 
 type RangeStat = {
   label: string;
@@ -61,7 +67,7 @@ type Returns = {
 
 type Series = {
   label: string;
-  kind: "portfolio" | "benchmark";
+  kind: "portfolio" | "benchmark" | "kept";
   points: { d: string; v: number }[];
 };
 
@@ -81,9 +87,21 @@ type BenchmarkSeries = {
 // cycled — two lines of the same colour in one chart is worse than one line less.
 const BENCHMARK_COLOURS = ["var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
+type KeptIndex = {
+  snapshot: { id: number | null; name: string | null; date: string };
+  points: IndexPoint[];
+  estimated: { isin: string; name: string; base: string }[];
+  excluded: string[];
+};
+
 function toLineSeries(chart: Chart, { fillPortfolio = false } = {}): LineSeries[] {
   let benchmark = 0;
   return chart.series.map((s) => {
+    if (s.kind === "kept") {
+      // A stored portfolio kept since its day: slate, as on Today, and outside the
+      // indices' order, so switching a snapshot on never recolours an index.
+      return { label: s.label, points: s.points, colour: "var(--chart-5)", width: 1.75 };
+    }
     if (s.kind === "portfolio") {
       return {
         label: s.label,
@@ -215,6 +233,21 @@ export default function ReturnPage() {
     queryFn: () => api.get<BenchmarkSeries>(`/api/benchmarks/series?exclude_bonds=${excludeBonds}`),
     retry: false,
   });
+  // A stored portfolio kept since its day, as one more line (the same choice as on Today).
+  const { snapshots, chosen, choose: chooseSnapshot } = useChosenSnapshot();
+  const kq = useQuery({
+    queryKey: ["what-if-index", chosen?.id, excludeBonds],
+    queryFn: () => api.get<KeptIndex>(`/api/what-if/index?snapshot=${chosen!.id}&exclude_bonds=${excludeBonds}`),
+    enabled: chosen !== null,
+    retry: false,
+  });
+  const kept = chosen && kq.data?.snapshot.id === chosen.id ? kq.data : null;
+  // The days you bought or sold, marked under the comparison chart.
+  const tq = useQuery({
+    queryKey: ["transactions"],
+    queryFn: () => api.get<{ transactions: TradeTransaction[] }>("/api/transactions"),
+  });
+  const trades = tradeDays(tq.data?.transactions ?? []);
 
   if (me.isLoading || (canSeeReturns && q.isLoading) || bq.isLoading) {
     return <div className="h-72 animate-pulse rounded" style={{ background: "var(--surface-inset)" }} />;
@@ -244,6 +277,12 @@ export default function ReturnPage() {
   const label = labels.includes(rangeLabel) ? rangeLabel : "All";
   const sliced = days.length >= 2 ? sliceByRange(days, label as Range) : days;
   const period: ZoomWindow = zoom ?? { from: sliced[0]?.d ?? "", to: days[days.length - 1]?.d ?? "" };
+  // From the snapshot's day, as on Today: before it the two lines are one.
+  const pickSnapshot = (next: Snapshot | null) => {
+    chooseSnapshot(next);
+    const last = days[days.length - 1]?.d;
+    if (next && last && next.date < last) setZoom({ from: next.date, to: last });
+  };
   const choose = (r: string) => {
     setZoom(null);
     setRangeLabel(r);
@@ -262,7 +301,14 @@ export default function ReturnPage() {
   const pending = !!zoom && !!data && !custom;
   const gaps = data ? data.gaps.filter((g) => g.to >= period.from && g.from <= period.to) : [];
 
-  const indexed = bench ? zoomed(bench.indexed, period, "index") : null;
+  const indexedOnly = bench ? zoomed(bench.indexed, period, "index") : null;
+  // The kept line after the zoom and not before: it has to leave your own line on
+  // the snapshot's day, and the rebasing to 100 would start it at 100 instead.
+  const keptPoints = indexedOnly && kept ? keptLine(indexedOnly.series.find((x) => x.kind === "portfolio")?.points ?? [], kept.points) : [];
+  const indexed =
+    indexedOnly && chosen && keptPoints.length >= 2
+      ? { ...indexedOnly, series: [...indexedOnly.series, { label: chosen.name, kind: "kept" as const, points: keptPoints }] }
+      : indexedOnly;
   const rolling = bench ? zoomed(bench.rolling, period, null) : null;
   const shown = (series: LineSeries[]) => series.filter((s) => !hidden.has(s.label));
   const benchmarks = bench ? toLineSeries(bench.indexed).filter((_, i) => bench.indexed.series[i].kind === "benchmark") : [];
@@ -417,7 +463,23 @@ export default function ReturnPage() {
             dateAxis
             onSelect={setZoom}
             onReset={zoom ? () => setZoom(null) : undefined}
+            marks={trades.map((t) => ({ d: t.d, strong: t.kind === "sell", note: tradeNote(t) }))}
           />
+          <WhatIfPicker snapshots={snapshots} chosen={chosen?.id ?? null} onChoose={pickSnapshot} label={tr("Kept portfolio")} />
+          {chosen && kept && (
+            <p className="max-w-measure text-xs leading-relaxed text-ink-muted">
+              {keptPoints.length >= 2
+                ? tr(
+                    "{0}: what you held at the end of {1}, kept without trading, dividends reinvested. It leaves your line on that day.",
+                    chosen.name,
+                    fmtDayMonthYear(chosen.date),
+                  )
+                : tr("{0} starts after this period.", chosen.name)}
+              {kept.excluded.length > 0 && <> {tr("Bonds left out: {0}.", kept.excluded.join(", "))}</>}
+              {kept.estimated.length > 0 && <> {tr("Without price history: {0}.", kept.estimated.map((e) => e.name).join(", "))}</>}
+            </p>
+          )}
+          {chosen && kq.isError && <p className="text-xs text-ink-muted">{tr("The kept portfolio could not be calculated right now.")}</p>}
           {gaps.length > 0 && (
             <p className="max-w-measure text-xs leading-relaxed text-ink-muted">
               {trx(

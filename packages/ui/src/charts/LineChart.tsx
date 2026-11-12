@@ -23,7 +23,7 @@
 // without being distorted. That is exactly what makes the name labels at the end
 // of each line possible.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { niceTicks } from "../lib/chartScale";
 import { dayMonth } from "../lib/dates";
 import { tickFractions } from "../lib/dateTicks";
@@ -49,6 +49,15 @@ export type ZoomWindow = { from: string; to: string };
 export type Reference = { value: number; colour: string; label: string; dash?: string };
 const NO_REFS: Reference[] = [];
 
+/**
+ * A day to mark on the date axis, such as a day you traded: a short tick under the
+ * plot, in the first line's colour when `strong` and faint otherwise. Pointing at
+ * that day adds its `note` to the readout. A mark between two dates of the chart
+ * sits on the next one; a mark outside the chart is left out.
+ */
+export type ChartMark = { d: string; strong?: boolean; note: ReactNode };
+const NO_MARKS: ChartMark[] = [];
+
 // On the right a gutter for the y-labels, at the bottom a row for the dates.
 const PAD = { top: 14, right: 52, bottom: 20 };
 
@@ -72,6 +81,7 @@ export default function LineChart({
   dateAxis = false,
   onSelect,
   onReset,
+  marks = NO_MARKS,
 }: {
   series: LineSeries[];
   /** Dotted line at this value, for example 100 (index) or 0 (%). */
@@ -96,6 +106,8 @@ export default function LineChart({
   onSelect?: (window: ZoomWindow) => void;
   /** Double-click: back to the period from before the dragging. */
   onReset?: () => void;
+  /** Days to mark along the bottom, with a note for the readout (ChartMark). */
+  marks?: ChartMark[];
 }) {
   const tr = useTr();
   const locale = useUiLocale();
@@ -190,6 +202,14 @@ export default function LineChart({
       acc.push({ ...r, y: Math.max(r.y, floor) });
       return acc;
     }, []);
+
+  // Each mark on the index of its day, or of the first date after it.
+  const marked = new Map<number, ChartMark[]>();
+  for (const m of marks) {
+    if (m.d < dates[0] || m.d > dates[dates.length - 1]) continue;
+    const i = dates.findIndex((d) => d >= m.d);
+    marked.set(i, [...(marked.get(i) ?? []), m]);
+  }
 
   const hoveredDate = hover !== null ? dates[hover] : null;
   // What each series stood at on the pointed day. A series without a point on that
@@ -332,6 +352,28 @@ export default function LineChart({
           </g>
         )}
 
+        {marked.size > 0 && (
+          <g aria-hidden="true">
+            {[...marked.entries()].map(([i, ms]) => {
+              const strong = ms.some((m) => m.strong);
+              const on = hover === i;
+              return (
+                <line
+                  key={i}
+                  x1={x(i)}
+                  x2={x(i)}
+                  y1={PAD.top + plotH + 2}
+                  y2={PAD.top + plotH + (on ? 8 : 6)}
+                  stroke={strong ? (series[0]?.colour ?? "var(--chart-1)") : "var(--text-faint)"}
+                  strokeOpacity={strong || on ? 1 : 0.6}
+                  strokeWidth={strong || on ? 1.75 : 1.5}
+                  strokeLinecap="round"
+                />
+              );
+            })}
+          </g>
+        )}
+
         {/* The stretch being dragged over. */}
         {dragging && (
           <rect
@@ -403,6 +445,12 @@ export default function LineChart({
               <div key={s.label}>
                 {series.length > 1 ? `${s.label} · ` : ""}
                 {trueMinus(format(point.v))}
+              </div>
+            ))}
+          {!dragging &&
+            (marked.get(hover) ?? []).map((m, i) => (
+              <div key={`mark-${i}`} style={{ color: "var(--text-on-ink-muted)", maxWidth: 260, whiteSpace: "normal" }}>
+                {m.note}
               </div>
             ))}
         </div>

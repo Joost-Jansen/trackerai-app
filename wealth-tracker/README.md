@@ -325,8 +325,8 @@ worth page, `net_worth.split` in `backend/domain/money/net_worth.py` mirrors `fr
 `get_spending`, `get_budget`, `list_transactions`, `get_unlabelled`, `list_categories` (with type, role and locks),
 `get_fixed_costs`, `get_settings` (month layout, shared-costs category), `list_accounts`, and for "what if I had
 kept it": `get_holdings_at` (the holdings at the end of any past day, rebuilt from the transactions), `list_snapshots`
-and `compare_portfolio` (the real portfolio next to a snapshot's holdings kept since its day; deposits since then count
-for both as cash, so the difference is what the trading did; `backend/domain/portfolio/what_if.py`).
+and `compare_portfolio` (the real portfolio next to a snapshot's holdings kept since its day; money invested since then
+buys the old mix in the kept one, so the difference is what the switch did; `backend/domain/portfolio/what_if.py`).
 
 With the bookkeeping scope also: `refresh_data` (refreshes prices and fetches through the bank connection, as the
 Update button does; the connection itself stays browser-only), `label_transactions`, `set_budget`, `add_category_rule`, `delete_rule`,

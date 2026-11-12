@@ -66,15 +66,64 @@ def test_kept_line_starts_on_the_real_one_and_the_difference_is_the_trading():
     p = {x["d"]: x for x in r["points"]}
     assert list(p) == ["2026-03-01", "2026-03-02", "2026-03-03"]
     assert p["2026-03-01"]["kept"] == p["2026-03-01"]["actual"] == 1700
-    # 10 × 110 + 5 × 104 = 1620, plus the euro of deposit since the start
-    assert p["2026-03-03"]["kept"] == 1621
+    # The euro deposited on the 2nd buys the old mix at that day's prices (1700 worth),
+    # so every holding grows by 1/1700: (10 × 110 + 5 × 104) × 1701/1700.
+    assert p["2026-03-03"]["kept"] == 1620.95
     s = r["summary"]
     assert s["deposited_since"] == 1
     assert s["actual_gain"] == 119  # 1820 − 1700 − 1
-    assert s["kept_gain"] == -80  # 1620 − 1700
-    assert s["difference"] == 199
+    assert s["kept_gain"] == -80.05  # 1620.95 − 1700 − 1
+    assert s["difference"] == 199.05
     by = {h["isin"]: h for h in r["holdings"]}
     assert by["OLD"]["change_eur"] == -100 and by["KEEP"]["change_eur"] == 20
+
+
+def test_money_put_in_later_buys_the_old_mix_instead_of_sitting_as_cash():
+    holdings = [{"isin": "A", "name": "A", "quantity": 10, "cost_eur": 1000}]
+    closes = {"A": [("2026-03-01", 100.0), ("2026-03-02", 110.0), ("2026-03-03", 121.0)]}
+    actual = _points([("2026-03-01", 1000, 1000), ("2026-03-02", 2100, 2000), ("2026-03-03", 2310, 2000)])
+    r = what_if.compare(actual, holdings, D(2026, 3, 1), closes)
+    p = {x["d"]: x["kept"] for x in r["points"]}
+    # 1000 euros at 110 buys 9.0909 more; 19.0909 × 121 = 2310, not 1210 + 1000 in cash.
+    assert p == {"2026-03-01": 1000, "2026-03-02": 2100, "2026-03-03": 2310}
+    assert r["summary"]["difference"] == 0
+
+
+def test_money_taken_out_later_sells_the_old_mix_in_proportion():
+    holdings = [{"isin": "A", "name": "A", "quantity": 10, "cost_eur": 1000}, {"isin": "B", "name": "B", "quantity": 10, "cost_eur": 1000}]
+    closes = {"A": [("2026-03-01", 100.0), ("2026-03-03", 200.0)], "B": [("2026-03-01", 100.0), ("2026-03-03", 100.0)]}
+    actual = _points([("2026-03-01", 2000, 2000), ("2026-03-02", 1000, 1000), ("2026-03-03", 1500, 1000)])
+    r = what_if.compare(actual, holdings, D(2026, 3, 1), closes)
+    # Half taken out on the 2nd: 5 A and 5 B are left, worth 5 × 200 + 5 × 100 on the 3rd.
+    assert [x["kept"] for x in r["points"]] == [2000, 1000, 1500]
+
+
+def test_growth_is_the_kept_holdings_value_against_the_start_day():
+    holdings = [{"isin": "A", "name": "A", "quantity": 2, "cost_eur": 100}, {"isin": "B", "name": "B", "quantity": 1, "cost_eur": 100}]
+    closes = {
+        "A": [("2026-02-27", 50.0), ("2026-03-02", 60.0), ("2026-03-03", 55.0)],
+        "B": [("2026-02-27", 100.0), ("2026-03-03", 130.0)],
+    }
+    g = what_if.growth(holdings, D(2026, 3, 1), closes)
+    # The start is a Sunday: Friday's closes carry (2 × 50 + 100 = 200).
+    assert g["points"] == [
+        {"d": "2026-03-01", "v": 1.0},
+        {"d": "2026-03-02", "v": 1.1},  # 2 × 60 + 100
+        {"d": "2026-03-03", "v": 1.2},  # 2 × 55 + 130
+    ]
+    assert g["estimated"] == []
+
+
+def test_growth_names_a_holding_without_history_and_keeps_it_flat():
+    holdings = [{"isin": "A", "name": "A", "quantity": 1, "cost_eur": 100}, {"isin": "X", "name": "Fund X", "quantity": 1, "cost_eur": 100}]
+    closes = {"A": [("2026-03-01", 100.0), ("2026-03-02", 300.0)]}
+    g = what_if.growth(holdings, D(2026, 3, 1), closes)
+    assert [p["v"] for p in g["points"]] == [1.0, 2.0]  # (300 + 100) / (100 + 100)
+    assert g["estimated"] == [{"isin": "X", "name": "Fund X", "base": "purchase_price"}]
+
+
+def test_growth_without_any_history_is_empty():
+    assert what_if.growth([{"isin": "X", "name": "X", "quantity": 1, "cost_eur": 1}], D(2026, 3, 1), {})["points"] == []
 
 
 def test_today_is_valued_at_the_live_price_like_the_real_line():
@@ -204,3 +253,24 @@ def test_mcp_tools(client, offline):
     assert _call(reader, "compare_portfolio", {})["isError"]
     assert not _call(writer, "delete_snapshot", {"id": saved["id"]}).get("isError")
     assert json.loads(_call(reader, "list_snapshots")["content"][0]["text"])["snapshots"] == []
+
+
+def test_kept_index_endpoint(client, offline, monkeypatch):
+    from domain.portfolio import etf_holdings
+
+    _login(client)
+    _upload(client)
+    snap = client.post("/api/what-if/snapshots", json={"date": "2026-03-06", "name": "Both"}).json()
+    r = client.get("/api/what-if/index", params={"snapshot": snap["id"]})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["snapshot"]["name"] == "Both"
+    assert body["points"][0] == {"d": "2026-03-06", "v": 1.0}
+    assert body["excluded"] == []
+
+    # With bonds left out, a bond in the snapshot leaves the kept line too.
+    monkeypatch.setattr(etf_holdings, "bond_isins", lambda conn, positions: {"IE00B4L5Y983"})
+    body = client.get("/api/what-if/index", params={"snapshot": snap["id"], "exclude_bonds": "true"}).json()
+    assert body["excluded"] == ["World"]
+    assert body["points"][0]["v"] == 1.0
+    assert client.get("/api/what-if/index").status_code == 400

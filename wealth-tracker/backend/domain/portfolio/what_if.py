@@ -17,16 +17,24 @@ uploaded again, and an assistant can find "the portfolio before the switch" by
 name.
 
 How the two lines stay comparable. The real line keeps moving with money you put
-in or take out after *start*; the kept portfolio did not trade. So the kept line
-gets the same net money as cash, without return:
+in or take out after *start*. The kept portfolio gets the same money, invested
+the way it was: on a day the value card's "Deposited" line (buys minus sells,
+costs included) goes up by D, the kept portfolio buys its own mix for D at that
+day's prices, so every holding grows by the same factor; when it goes down it
+sells in the same proportion.
 
-    kept(t) = Σ quantity × close(t)  +  (deposited(t) − deposited(start))
+    kept(t) = s(t) × Σ quantity × close(t),   s(t) = s(t−1) × (V + D) / V
 
-where deposited is the value card's "Deposited" line (buys minus sells, costs
-included). On the day of *start* both lines are the same number. After it, the
-gap between them is exactly what the trading since then earned or cost —
-transaction costs included, since a buy's cost raises deposited but not the
-value. Dividends are left out of both, as on the value card.
+with V the kept value that day before the money. Money parked as cash at the
+broker is in neither line, because neither line counts cash. On the day of
+*start* both lines are the same number; after it the gap is what the switch did,
+not what new money earned in only one of them (as cash without return, it would
+make every later deposit count for the new portfolio).
+
+  - growth(holdings, start, closes)
+        The kept holdings' value relative to the start day, without any money in
+        or out: the line the Returns tab sets next to its time-weighted return and
+        the indices, which have no deposits in them either.
 """
 
 from __future__ import annotations
@@ -121,15 +129,17 @@ def compare(
         return h["cost_eur"] / h["quantity"] if h["quantity"] else 0.0
 
     out = []
+    scale = 1.0
+    previous = base_invested
     for p in points:
-        kept = sum(h["quantity"] * price(h, p["d"]) for h in holdings)
-        out.append(
-            {
-                "d": p["d"],
-                "actual": round(p["value"], 2),
-                "kept": round(kept + p["invested"] - base_invested, 2),
-            }
-        )
+        value = scale * sum(h["quantity"] * price(h, p["d"]) for h in holdings)
+        money = p["invested"] - previous
+        previous = p["invested"]
+        if money and value > 0:
+            # Buy (or sell) the kept mix in proportion, at this day's prices.
+            scale *= max(value + money, 0.0) / value
+            value = max(value + money, 0.0)
+        out.append({"d": p["d"], "actual": round(p["value"], 2), "kept": round(value, 2)})
     a, b = out[0], out[-1]
     # On the start day the kept line is the real value, by construction; the
     # holdings' own value is what the start is measured from.
@@ -171,13 +181,56 @@ def compare(
             "actual_gain": actual_gain,
             "kept_gain": kept_gain,
             "difference": round(actual_gain - kept_gain, 2),
-            # The real portfolio over what was there at the start plus half of what was
-            # deposited since (simple Dietz: money that came in halfway was invested for
-            # about half the time). The kept one over its start value: it got no new money
-            # into its holdings, only beside them as cash.
+            # Both over what was there at the start plus half of what was deposited
+            # since (simple Dietz: money that came in halfway was invested for about
+            # half the time). Both got the same money, so the same yardstick.
             "actual_pct": pct(actual_gain, a["actual"] + max(deposited, 0) / 2),
-            "kept_pct": pct(kept_gain, start_value),
+            "kept_pct": pct(kept_gain, start_value + max(deposited, 0) / 2),
         },
         "holdings": per_holding,
         "estimated": [{"isin": i, "name": names.get(i, i), "base": base} for i, base in sorted(estimated.items())],
+    }
+
+
+def growth(holdings: list[dict], start: datetime.date, closes: dict[str, list[tuple[str, float]]]) -> dict:
+    """{points: [{d, v}], estimated}: the kept holdings' value over the start day's.
+
+    v is 1.0 on *start* and follows every day any holding has a close, up to the
+    last one. No money goes in or out, so this is the kept portfolio's return
+    as such. With adjusted closes (dividends reinvested) it is on the same basis
+    as a time-weighted return and a total-return index.
+
+    A holding without any close stays at its cost per share and is named in
+    `estimated`; without a single close there is no line at all.
+    """
+    first = start.isoformat()
+    if not any(closes.get(h["isin"]) for h in holdings):
+        return {"points": [], "estimated": []}
+    estimated = {}
+
+    def price(h: dict, day: str) -> float:
+        p = _price_on(closes.get(h["isin"], []), day)
+        if p is not None:
+            return p
+        if not closes.get(h["isin"]):
+            estimated[h["isin"]] = "purchase_price"
+        else:
+            # Listed only after the start: its first close stands in before that.
+            p = closes[h["isin"]][0][1]
+            estimated[h["isin"]] = "first_close"
+            return p
+        return h["cost_eur"] / h["quantity"] if h["quantity"] else 0.0
+
+    def value(day: str) -> float:
+        return sum(h["quantity"] * price(h, day) for h in holdings)
+
+    base = value(first)
+    if base <= 0:
+        return {"points": [], "estimated": []}
+    days = sorted({d for h in holdings for d, _ in closes.get(h["isin"], []) if d > first})
+    points = [{"d": first, "v": 1.0}] + [{"d": d, "v": round(value(d) / base, 6)} for d in days]
+    names = {h["isin"]: h["name"] for h in holdings}
+    return {
+        "points": points,
+        "estimated": [{"isin": i, "name": names.get(i, i), "base": b} for i, b in sorted(estimated.items())],
     }

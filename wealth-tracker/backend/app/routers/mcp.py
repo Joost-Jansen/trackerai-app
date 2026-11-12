@@ -169,7 +169,7 @@ READ_TOOLS = [
     },
     {
         "name": "compare_portfolio",
-        "description": "What if the user had kept an earlier portfolio: from a snapshot's day (or any date) to today, the real portfolio next to the one they had then, kept without trading. Money deposited or withdrawn since then counts for both, as cash, so the difference is what the trading since then earned or cost (transaction costs included; dividends left out). Returns summary (gain in euro and % of both, the difference), what each kept holding did, and the daily values (by default only one per week; points='all' for every day).",
+        "description": "What if the user had kept an earlier portfolio: from a snapshot's day (or any date) to today, the real portfolio next to the one they had then, kept without trading. Money invested or withdrawn since then counts for both: in the kept portfolio it buys (or sells) the old mix in its weights of that day, so the difference is what the switch earned or cost, not what new money did in only one of them (dividends left out). Returns summary (gain in euro and % of both, the difference), what each kept holding did, and the daily values (by default only one per week; points='all' for every day).",
         "inputSchema": _obj(
             {
                 "snapshot": {"type": "integer", "description": "Snapshot id (list_snapshots)"},
