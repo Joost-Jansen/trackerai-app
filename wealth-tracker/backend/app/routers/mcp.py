@@ -157,6 +157,27 @@ READ_TOOLS = [
             ["account"],
         ),
     },
+    {
+        "name": "get_holdings_at",
+        "description": "The portfolio as it was at the end of a past day, rebuilt from the stored transactions: per holding the quantity, cost basis, price and value on that day (the last close on or before it), weight then, and the value of the same quantity today. Use it to see what the user held before a switch.",
+        "inputSchema": _obj({"date": {"type": "string", "description": "ISO date"}}, ["date"]),
+    },
+    {
+        "name": "list_snapshots",
+        "description": "Stored portfolio snapshots: a name, the day and the holdings (quantity and cost) at the end of that day. Each has an id for compare_portfolio.",
+        "inputSchema": _obj(),
+    },
+    {
+        "name": "compare_portfolio",
+        "description": "What if the user had kept an earlier portfolio: from a snapshot's day (or any date) to today, the real portfolio next to the one they had then, kept without trading. Money deposited or withdrawn since then counts for both, as cash, so the difference is what the trading since then earned or cost (transaction costs included; dividends left out). Returns summary (gain in euro and % of both, the difference), what each kept holding did, and the daily values (by default only one per week; points='all' for every day).",
+        "inputSchema": _obj(
+            {
+                "snapshot": {"type": "integer", "description": "Snapshot id (list_snapshots)"},
+                "date": {"type": "string", "description": "Or an ISO date: the holdings at the end of that day"},
+                "points": {"type": "string", "enum": ["weekly", "all", "none"], "default": "weekly"},
+            }
+        ),
+    },
 ]
 
 WRITE_TOOLS = [
@@ -324,11 +345,27 @@ WRITE_TOOLS = [
             ["account", "amount", "name"],
         ),
     },
+    {
+        "name": "save_snapshot",
+        "description": "Store the portfolio as it was at the end of a day under a name (e.g. 'Before the switch'), so it can be compared with later and shows on the dashboard's value chart. The holdings are rebuilt from the transactions and stored, so the snapshot survives a new upload.",
+        "inputSchema": _obj(
+            {
+                "date": {"type": "string", "description": "ISO date"},
+                "name": {"type": "string", "description": "Short name (default: the date)"},
+            },
+            ["date"],
+        ),
+    },
+    {
+        "name": "delete_snapshot",
+        "description": "Delete a stored portfolio snapshot by id (list_snapshots). Only when the user asked for it.",
+        "inputSchema": _obj({"id": {"type": "integer"}}, ["id"]),
+    },
 ]
 
 WRITE_NAMES = {t["name"] for t in WRITE_TOOLS}
 # Writes that delete or overwrite what was there: an assistant should ask first.
-DESTRUCTIVE_NAMES = {"delete_rule", "delete_balance", "rename_category", "move_category", "set_balance"}
+DESTRUCTIVE_NAMES = {"delete_rule", "delete_balance", "delete_snapshot", "rename_category", "move_category", "set_balance"}
 
 # Only for an admin's token: feedback from all users (routers/feedback.py). A
 # token otherwise never gets admin rights; this is the one exception, kept
@@ -697,6 +734,28 @@ class Server:
                 }
             )
 
+        if name == "get_holdings_at":
+            when = str(args.get("date") or "")
+            date.fromisoformat(when)
+            return _dump(await self._api("GET", "/api/what-if/holdings", params={"date": when}))
+
+        if name == "list_snapshots":
+            return _dump(await self._api("GET", "/api/what-if/snapshots"))
+
+        if name == "compare_portfolio":
+            if args.get("snapshot") is None and not args.get("date"):
+                raise ToolError("Give a snapshot id (list_snapshots) or a date.")
+            params = {"snapshot": args.get("snapshot"), "date": None if args.get("snapshot") is not None else args.get("date")}
+            r = await self._api("GET", "/api/what-if/compare", params=params)
+            pts = r.get("points") or []
+            mode = args.get("points") or "weekly"
+            if mode == "none":
+                pts = []
+            elif mode == "weekly" and pts:
+                # Every 7th day from the start, and always the last one.
+                pts = [p for i, p in enumerate(pts) if i % 7 == 0 or i == len(pts) - 1]
+            return _dump({**r, "points": pts})
+
         if name == "get_net_worth":
             v = await self._api("GET", "/api/net-worth")
             return _dump(
@@ -975,6 +1034,14 @@ class Server:
                     },
                 }
             )
+
+        if name == "save_snapshot":
+            when = str(args.get("date") or "")
+            date.fromisoformat(when)
+            return _dump(await self._api("POST", "/api/what-if/snapshots", body={"date": when, "name": args.get("name")}))
+
+        if name == "delete_snapshot":
+            return _dump(await self._api("DELETE", f"/api/what-if/snapshots/{int(args['id'])}"))
 
         if name == "add_transaction":
             account = await self._account(args.get("account"))

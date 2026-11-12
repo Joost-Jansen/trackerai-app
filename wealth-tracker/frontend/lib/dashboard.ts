@@ -64,13 +64,50 @@ export type Summary = {
 export type SparklinePoint = { d: string; v: number };
 
 /** A day on the own-portfolio value chart, all in EUR. */
-export type ValuePoint = { d: string; invested: number; value: number; value_divs: number };
+/**
+ * `kept`: what the portfolio of a snapshot would be worth that day had you kept it
+ *  (plus what you deposited since, as cash). Only on the days from the snapshot on,
+ *  and only while one is chosen on the value card (WhatIfPicker).
+ */
+export type ValuePoint = { d: string; invested: number; value: number; value_divs: number; kept?: number };
 
 /**
  * A holding whose line is a stand-in rather than a measurement, and what it
  *  stood in with ("huidige price" / "aankoopprijs").
  */
 export type EstimatedHolding = { isin: string; name: string; base: string };
+
+/** A portfolio as it was on a day, stored under a name (backend routers/what_if.py). */
+export type Snapshot = {
+  id: number;
+  name: string;
+  date: string;
+  holdings: { isin: string; name: string; quantity: number; cost_eur: number }[];
+  total_cost: number;
+};
+
+/** The real portfolio next to a snapshot kept since its day (/api/what-if/compare). */
+export type WhatIfComparison = {
+  snapshot: { id: number | null; name: string | null; date: string };
+  points: { d: string; actual: number; kept: number }[];
+  summary: {
+    start: string;
+    end: string;
+    actual_start: number;
+    actual_end: number;
+    kept_start: number;
+    kept_end: number;
+    deposited_since: number;
+    actual_gain: number;
+    kept_gain: number;
+    difference: number;
+    actual_pct: number | null;
+    kept_pct: number | null;
+  } | null;
+  holdings: { isin: string; name: string; value_start: number; value_end: number; change_eur: number; change_pct: number | null }[];
+  estimated: EstimatedHolding[];
+  unavailable?: boolean;
+};
 
 export type ValueHistory = {
   points: ValuePoint[];

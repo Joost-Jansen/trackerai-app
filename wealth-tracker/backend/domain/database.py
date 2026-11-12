@@ -478,6 +478,20 @@ def init_db(conn: sqlite3.Connection) -> None:
         )
     """)
 
+    # A portfolio as it was on a day, kept under a name to compare today's with
+    # ("before the switch"). The holdings are stored, not only the date: a later
+    # upload can replace the transactions they were replayed from, and the
+    # comparison should still mean what it meant. See portfolio/what_if.py.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS portfolio_snapshots (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            name        TEXT NOT NULL,
+            taken_on    TEXT NOT NULL,    -- ISO date: the holdings at the end of this day
+            holdings    TEXT NOT NULL,    -- JSON [{isin, name, quantity, cost_eur}]
+            created_at  TEXT NOT NULL     -- ISO timestamp
+        )
+    """)
+
     # Publication dates a company has already reported on, kept because the
     # source forgets them. Yahoo's calendar carries exactly one earnings date
     # per ticker — the next one — so the day a company reports, its date starts
@@ -1434,6 +1448,40 @@ def insert_visit(conn: sqlite3.Connection, started_at: str, last_value: float | 
         )
     """)
     conn.commit()
+
+
+def _snapshot_row(row) -> dict:
+    out = dict(row)
+    out["holdings"] = json.loads(out["holdings"])
+    return out
+
+
+def list_portfolio_snapshots(conn: sqlite3.Connection) -> list[dict]:
+    """Every stored snapshot, oldest day first."""
+    rows = conn.execute("SELECT id, name, taken_on, holdings, created_at FROM portfolio_snapshots ORDER BY taken_on, id").fetchall()
+    return [_snapshot_row(r) for r in rows]
+
+
+def load_portfolio_snapshot(conn: sqlite3.Connection, snapshot_id: int) -> dict | None:
+    row = conn.execute("SELECT id, name, taken_on, holdings, created_at FROM portfolio_snapshots WHERE id = ?", (snapshot_id,)).fetchone()
+    return _snapshot_row(row) if row else None
+
+
+def insert_portfolio_snapshot(conn: sqlite3.Connection, name: str, taken_on: str, holdings: list[dict], created_at: str) -> int:
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO portfolio_snapshots (name, taken_on, holdings, created_at) VALUES (?, ?, ?, ?)",
+        (name, taken_on, json.dumps(holdings, ensure_ascii=False), created_at),
+    )
+    conn.commit()
+    return int(cursor.lastrowid)
+
+
+def delete_portfolio_snapshot(conn: sqlite3.Connection, snapshot_id: int) -> bool:
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM portfolio_snapshots WHERE id = ?", (snapshot_id,))
+    conn.commit()
+    return cursor.rowcount > 0
 
 
 def touch_visit(conn: sqlite3.Connection, visit_id: int, last_seen_at: str, last_value: float | None) -> None:

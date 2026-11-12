@@ -24,6 +24,9 @@
 //     between two points, like the Aandelen app. On a desktop, letting go of the
 //     drag zooms the page in on that stretch (`onSelect`), as on Net worth.
 //  4. Dates along the bottom at round moments (lib/date-ticks.ts).
+//  5. A third line when a snapshot is chosen (WhatIfPicker): the portfolio of that
+//     day, kept. It starts where the snapshot does and lies on Value there, so the
+//     gap that opens up after it is what the trading since then did.
 //
 // What it reads out does not float over the drawing. In a card this short a
 // tooltip covers the very line it describes, so the chart reports what is under
@@ -47,15 +50,17 @@ const W = 620;
 const H = 188;
 const PATH_Y = 12;
 
-type Key = "value" | "invested";
+type Key = "value" | "invested" | "kept";
 
-const SERIES: {
+type Series = {
   key: Key;
   label: string;
   colour: string;
   dash?: string;
   width: number;
-}[] = [
+};
+
+const SERIES: Series[] = [
   // Meridian's order of importance: series 1 (terracotta) is always the user's own
   // data, series 2 (walnut black, dashed) is always what you measure it against.
   { key: "value", label: tr("Value"), colour: "var(--chart-1)", width: 1.75 },
@@ -73,6 +78,7 @@ export default function ValueChart({
   range,
   intraday = false,
   baseline = null,
+  keptLabel,
   onProbe,
   onSelect,
   onReset,
@@ -92,6 +98,8 @@ export default function ValueChart({
    *  loss, because it starts at the opening price.
    */
   baseline?: number | null;
+  /** The name of the third line, when the points carry `kept` (a chosen snapshot). */
+  keptLabel?: string;
   /**
    * What is being pointed at right now, or null as soon as the finger is lifted.
    *  The card puts this in its own header; drawing it over the line here would
@@ -135,16 +143,25 @@ export default function ValueChart({
     setSpan(null);
   }, [range]);
 
-  const shown = useMemo<Record<Key, boolean>>(() => {
-    return { value: true, invested: !SHORT_RANGES.includes(range), ...override };
-  }, [range, override]);
+  const hasKept = points.some((p) => p.kept !== undefined);
+  const series = useMemo<Series[]>(
+    () =>
+      hasKept
+        ? [...SERIES, { key: "kept", label: keptLabel ?? tr("Kept portfolio"), colour: "var(--chart-3)", dash: "5 4", width: 1.75 }]
+        : SERIES,
+    [hasKept, keptLabel],
+  );
 
-  const visible = SERIES.filter((s) => shown[s.key]);
+  const shown = useMemo<Record<Key, boolean>>(() => {
+    return { value: true, invested: !SHORT_RANGES.includes(range), kept: hasKept, ...override };
+  }, [range, override, hasKept]);
+
+  const visible = series.filter((s) => shown[s.key]);
 
   const model = useMemo(() => {
     if (points.length < 2) return null;
-    const keys = SERIES.filter((s) => shown[s.key]).map((s) => s.key);
-    const values = points.flatMap((p) => keys.map((k) => p[k]));
+    const keys = series.filter((s) => shown[s.key]).map((s) => s.key);
+    const values = points.flatMap((p) => keys.map((k) => p[k])).filter((v): v is number => v !== undefined);
     // The previous close line should fall within view, otherwise the day measures
     // itself against something you cannot see.
     if (baseline !== null) values.push(baseline);
@@ -157,7 +174,7 @@ export default function ValueChart({
     const max = hi + half;
     const y = (v: number) => PATH_Y + (1 - (v - min) / (max - min)) * (H - 2 * PATH_Y);
     return { min, max, y, ticks: niceTicks(min, max) };
-  }, [points, shown, baseline]);
+  }, [points, shown, baseline, series]);
 
   // Before the early return below: a hook after it would make the number of hooks change when the series
   // grows from one point to two, which React refuses.
@@ -214,7 +231,13 @@ export default function ValueChart({
     !intraday && new Date(points[points.length - 1].d).getTime() - new Date(points[0].d).getTime() > 400 * 24 * 3600 * 1000;
   const xLabel = intraday ? (d: string) => fmtIntradayLabel(d, points[points.length - 1].d) : spansYears ? fmtDayMonthYear : fmtDayMonth;
 
-  const path = (key: Key) => points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(p[key]).toFixed(1)}`).join(" ");
+  // A line starts at its first point with a value: `kept` only exists from the snapshot's day on.
+  const path = (key: Key) =>
+    points
+      .map((p, i) => [p[key], i] as const)
+      .filter(([v]) => v !== undefined)
+      .map(([v, i], j) => `${j === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(v as number).toFixed(1)}`)
+      .join(" ");
 
   const last = points[points.length - 1];
   const mid = points[Math.floor((points.length - 1) / 2)];
@@ -229,7 +252,8 @@ export default function ValueChart({
   // viewBox units and only become a percentage when placed.
   const LABEL_GAP = 15;
   const endLabels = visible
-    .map((s) => ({ key: s.key, label: s.label, colour: s.colour, y: y(last[s.key]) - 9 }))
+    .filter((s) => last[s.key] !== undefined)
+    .map((s) => ({ key: s.key, label: s.label, colour: s.colour, y: y(last[s.key] as number) - 9 }))
     .sort((a, b) => a.y - b.y)
     // Een reduce en geen map: het tweede label moet onder het *verschoven*
     // eerste komen. Waarde en Ingelegd liggen bij een jonge portefeuille vlak op
@@ -365,7 +389,7 @@ export default function ValueChart({
               )}
               {/* In fixed order and not in that of `visible`, so Value always lies on top of
                   Deposited. */}
-              {[...SERIES]
+              {[...series]
                 .reverse()
                 .filter((s) => shown[s.key])
                 .map((s) => (
@@ -391,18 +415,20 @@ export default function ValueChart({
               [measured.from, measured.to].map((i) => (
                 <g key={i}>
                   <line x1={x(i)} y1="0" x2={x(i)} y2={H} stroke="var(--chart-1)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                  {visible.map((s) => (
-                    <circle
-                      key={s.key}
-                      cx={x(i)}
-                      cy={y(points[i][s.key])}
-                      r="4"
-                      fill={s.colour}
-                      stroke="var(--surface-page)"
-                      strokeWidth="2"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  ))}
+                  {visible
+                    .filter((s) => points[i][s.key] !== undefined)
+                    .map((s) => (
+                      <circle
+                        key={s.key}
+                        cx={x(i)}
+                        cy={y(points[i][s.key] as number)}
+                        r="4"
+                        fill={s.colour}
+                        stroke="var(--surface-page)"
+                        strokeWidth="2"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    ))}
                 </g>
               ))}
 
@@ -471,7 +497,7 @@ export default function ValueChart({
       {/* The legend is also the on/off switch: the y axis scales to what is on. The last visible
           line can't be turned off — an empty chart is not a usable state. */}
       <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
-        {SERIES.map((s) => {
+        {series.map((s) => {
           const on = shown[s.key];
           const onlyOne = on && visible.length === 1;
           return (

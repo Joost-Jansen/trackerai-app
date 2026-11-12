@@ -37,6 +37,7 @@ from app.routers import (
     returns,
     spending,
     uploads,
+    what_if,
 )
 from domain import db, i18n
 from trackerai_accounts import install as install_accounts
@@ -199,6 +200,7 @@ app.include_router(accounts.router)
 app.include_router(returns.router)
 app.include_router(uploads.router)
 app.include_router(net_worth.router)
+app.include_router(what_if.router)
 
 
 @app.get("/api/health")

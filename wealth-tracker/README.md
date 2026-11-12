@@ -323,12 +323,16 @@ Tools to read: `get_overview`, `get_portfolio`, `get_returns`, `get_dividends`, 
 `get_net_worth_split` (per month or period: Saved, Market, Bank & cash with its detail, Debt; the same split as the Net
 worth page, `net_worth.split` in `backend/domain/money/net_worth.py` mirrors `frontend/lib/net-worth-bridge.ts`),
 `get_spending`, `get_budget`, `list_transactions`, `get_unlabelled`, `list_categories` (with type, role and locks),
-`get_fixed_costs`, `get_settings` (month layout, shared-costs category), `list_accounts`.
+`get_fixed_costs`, `get_settings` (month layout, shared-costs category), `list_accounts`, and for "what if I had
+kept it": `get_holdings_at` (the holdings at the end of any past day, rebuilt from the transactions), `list_snapshots`
+and `compare_portfolio` (the real portfolio next to a snapshot's holdings kept since its day; deposits since then count
+for both as cash, so the difference is what the trading did; `backend/domain/portfolio/what_if.py`).
 
 With the bookkeeping scope also: `refresh_data` (refreshes prices and fetches through the bank connection, as the
 Update button does; the connection itself stays browser-only), `label_transactions`, `set_budget`, `add_category_rule`, `delete_rule`,
 `set_category_type`, `rename_category`, `move_category`, `set_month_layout`, `set_shared_costs_category`,
-`set_fixed_cost`, `set_balance` and `add_transaction` (positive amount = expense, negative = income). Each tool calls the existing endpoint in-process with the
+`set_fixed_cost`, `set_balance`, `add_transaction` (positive amount = expense, negative = income), and
+`save_snapshot` / `delete_snapshot` (a named portfolio of a day, stored, also drawn on the dashboard's value chart). Each tool calls the existing endpoint in-process with the
 token, so the same per-account isolation and beta flags apply. Only a SHA-256 of a token is stored; account numbers
 reach the assistant as their last four characters only. Revoke a token on the same page.
 
