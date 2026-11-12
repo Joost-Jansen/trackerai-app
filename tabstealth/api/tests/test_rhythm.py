@@ -41,3 +41,16 @@ def test_every_tick_count_splits_into_written_durations():
         parts = split_ticks(ticks)
         assert sum(p[0] for p in parts) == ticks
         assert all(p[0] in allowed for p in parts)
+
+
+def test_a_lesson_counts_its_beats_from_the_note_spacing():
+    from tabreader.assemble import lesson_beats
+    from tabreader.parse import Column, PageMeasure
+
+    def bar(n: int, w: int = 480) -> PageMeasure:  # n notes, evenly spaced (as the score spaces even notes)
+        return PageMeasure(1, 0, w, True, [Column(i * w / n, []) for i in range(n)])
+
+    # a waltz: six eighths, or three quarters (a dotted half and two quarters spaced as such) a bar
+    assert lesson_beats([bar(6), bar(3), bar(6), bar(3)]) == 3
+    # four or eight to a bar
+    assert lesson_beats([bar(8), bar(4), bar(8), bar(4)]) == 4

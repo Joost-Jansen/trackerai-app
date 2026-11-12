@@ -1,10 +1,10 @@
 """Where the playback is, in one frame of a tab line, whatever the video uses to show it.
 
 Tab ink is black or grey on light paper; what shows the playback is coloured. Seen so far: a thin blue line over
-the staff (with the whole bar tinted yellow), a pale green band in a red box around the beat, and the notes being
-played turning blue. So: look at the coloured pixels per hue. A narrow coloured column as tall as the staff is the
-cursor (a line or a band up to 2.5 staff spaces; a whole tinted bar is far wider); without one, a cluster of
-coloured notes is.
+the staff (with the whole bar tinted yellow), a pale green band in a red box around the beat, the notes being
+played turning blue, and (in lessons) a pink box around the bar on the notation staff above the tab. So: look at the
+coloured pixels per hue. A narrow coloured column as tall as the staff is the cursor (a line or a band up to 2.5 staff
+spaces; a whole tinted bar is far wider); without one, a cluster of coloured notes is; without those, a box above.
 """
 
 import cv2
@@ -83,3 +83,20 @@ def find_cursor(band: np.ndarray, top: float, bottom: float, sp: float, static: 
     x = max(score)[1]
     near = np.abs(xs - x) < 0.6 * sp
     return float(np.average(xs[near], weights=ws[near]))
+
+
+def find_box(above: np.ndarray, sp: float) -> float:
+    """Where a coloured box over the staff above the tab line starts, or NaN: lessons with standard notation above
+    the tab box in the bar being taught there. `above`: a crop of what is above one tab line. Only on paper (above
+    a tab line there may be the video instead), and a box at least 4 staff spaces tall and at most 20 wide."""
+    a, b, light = _chroma(above)
+    if (light > 180).mean() < 0.7:
+        return float("nan")
+    tinted = (np.hypot(a, b) > TINT) & (light > 90)
+    cols = tinted.sum(axis=0) > 4 * sp
+    edges = np.flatnonzero(np.diff(np.r_[0, cols.astype(np.int8), 0]))
+    runs = [(lo, hi) for lo, hi in zip(edges[::2], edges[1::2]) if sp <= hi - lo <= 20 * sp]
+    if not runs:
+        return float("nan")
+    lo, _ = max(runs, key=lambda r: tinted[:, r[0] : r[1]].sum())
+    return float(lo + 0.5 * sp)  # the bar it boxes starts here: just inside, so the position falls in that bar
