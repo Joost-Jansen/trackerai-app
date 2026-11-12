@@ -57,13 +57,14 @@ import Sparkline from "@/components/dashboard/Sparkline";
 import HBars from "@/components/charts/HBars";
 import { NewsTag } from "@/components/news/NewsList";
 import { cadenceLabel, partLabel } from "@/lib/dashboard";
+import { tradeDays, type TradeTransaction } from "@/lib/trade-days";
+import { useChosenSnapshot } from "@/lib/use-snapshot";
+import { tradeNote } from "@/components/charts/trade-note";
 import { tr, trx } from "@/lib/i18n";
 
 function Skeleton({ className = "h-40" }: { className?: string }) {
   return <div className={`animate-pulse rounded ${className}`} style={{ background: "var(--surface-inset)" }} />;
 }
-
-const SNAPSHOT_KEY = "wealth:dashboard-snapshot";
 
 export default function DashboardPage() {
   const summaryQ = useQuery({
@@ -117,28 +118,23 @@ export default function DashboardPage() {
   // tooltip would cover the line you are reading.
   const [probe, setProbe] = useState<Probe | null>(null);
 
-  // A stored portfolio drawn next to your own (WhatIfPicker), remembered in this
-  // browser. Nothing is lost when that storage is unavailable: the line is off.
-  const [snapshotId, setSnapshotId] = useState<number | null>(() => {
-    try {
-      const v = window.localStorage.getItem(SNAPSHOT_KEY);
-      return v ? Number(v) : null;
-    } catch {
-      return null;
-    }
-  });
-  const snapshotsQ = useQuery({
-    queryKey: ["what-if-snapshots"],
-    queryFn: () => api.get<{ snapshots: Snapshot[] }>("/api/what-if/snapshots"),
-  });
-  const snapshots = useMemo(() => snapshotsQ.data?.snapshots ?? [], [snapshotsQ.data]);
-  const chosenSnapshot = snapshots.find((x) => x.id === snapshotId) ?? null;
+  // A stored portfolio drawn next to your own (WhatIfPicker); the same choice as on Returns.
+  const { snapshots, chosen: chosenSnapshot, choose: setChosenSnapshot } = useChosenSnapshot();
   const compareQ = useQuery({
     queryKey: ["what-if-compare", chosenSnapshot?.id],
     queryFn: () => api.get<WhatIfComparison>(`/api/what-if/compare?snapshot=${chosenSnapshot!.id}`),
     enabled: chosenSnapshot !== null,
   });
   const comparison = chosenSnapshot && compareQ.data?.snapshot.id === chosenSnapshot.id ? compareQ.data : null;
+
+  // The days you bought or sold, marked under the chart; pointing at one says what.
+  const transactionsQ = useQuery({
+    queryKey: ["transactions"],
+    queryFn: () => api.get<{ transactions: TradeTransaction[] }>("/api/transactions"),
+  });
+  const trades = useMemo(() => tradeDays(transactionsQ.data?.transactions ?? []), [transactionsQ.data]);
+  const tradeMarks = useMemo(() => trades.map((t) => ({ d: t.d, strong: t.kind === "sell" })), [trades]);
+  const tradesOn = useMemo(() => new Map(trades.map((t) => [t.d, t])), [trades]);
 
   // The same array until the query changes: the memos below depend on it. With a
   // snapshot chosen each day from its date on also carries `kept`.
@@ -150,13 +146,7 @@ export default function DashboardPage() {
   }, [valueHistoryQ.data, comparison]);
 
   function chooseSnapshot(next: Snapshot | null) {
-    setSnapshotId(next?.id ?? null);
-    try {
-      if (next) window.localStorage.setItem(SNAPSHOT_KEY, String(next.id));
-      else window.localStorage.removeItem(SNAPSHOT_KEY);
-    } catch {
-      // private window or blocked storage: the choice just isn't remembered
-    }
+    setChosenSnapshot(next);
     // From the snapshot's day: before it there is nothing to compare.
     const last = valueHistoryQ.data?.points.at(-1)?.d;
     if (next && last && next.date < last) setZoom({ from: next.date, to: last.slice(0, 10) });
@@ -282,7 +272,12 @@ export default function DashboardPage() {
                 {probe.point.kept !== undefined && <> · {tr("kept {0}", fmtEuro(probe.point.kept))}</>}
               </>
             ),
-            secondary: probeLabel(probe.point.d),
+            secondary: (
+              <>
+                {probeLabel(probe.point.d)}
+                {tradesOn.has(probe.point.d.slice(0, 10)) && <> · {tradeNote(tradesOn.get(probe.point.d.slice(0, 10))!)}</>}
+              </>
+            ),
           }
         : {
             big: fmtEuro(cardFigures.end),
@@ -498,10 +493,12 @@ export default function DashboardPage() {
                   onSelect={setZoom}
                   onReset={zoom ? () => setZoom(null) : undefined}
                   keptLabel={chosenSnapshot?.name}
+                  marks={tradeMarks}
                 />
                 {comparison?.summary && (
-                  // Both gains with the deposits since the snapshot taken out, so the
-                  // difference is what the trading since then earned or cost.
+                  // Both gains with the deposits since the snapshot taken out. In the kept
+                  // portfolio those deposits bought the old mix, so the difference is what
+                  // the switch did.
                   <p className="text-[12.5px] leading-relaxed text-ink-muted">
                     {trx(
                       "Since {0}, prices only: your portfolio {1}, {2} kept {3}. Difference {4}.",
@@ -510,7 +507,13 @@ export default function DashboardPage() {
                       <span key="n">{chosenSnapshot!.name}</span>,
                       <SignedValue key="k" value={comparison.summary.kept_gain} />,
                       <SignedValue key="d" value={comparison.summary.difference} />,
-                    )}
+                    )}{" "}
+                    <InfoPopover label={tr("Explanation kept portfolio")}>
+                      {tr(
+                        "Money you invested after {0} counts for both lines: in the kept portfolio it buys the old holdings in their weights of that day. So the difference is what the switch did, not what new money did in only one of them.",
+                        fmtDayMonthYear(comparison.summary.start),
+                      )}
+                    </InfoPopover>
                     {comparison.estimated.length > 0 && (
                       <> {tr("Without price history: {0}.", comparison.estimated.map((e) => e.name).join(", "))}</>
                     )}

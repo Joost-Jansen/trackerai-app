@@ -2054,4 +2054,12 @@ export const nl: Record<string, string> = {
   "Since {0}, prices only: your portfolio {1}, {2} kept {3}. Difference {4}.": "Sinds {0}, alleen koersen: je portefeuille {1}, {2} behouden {3}. Verschil {4}.",
   "Without price history: {0}.": "Zonder koershistorie: {0}.",
   "The comparison needs the price history, which could not be fetched.": "De vergelijking heeft de koershistorie nodig, en die kon niet worden opgehaald.",
+  "sold {0} ({1})": "verkocht {0} ({1})",
+  "bought {0} ({1})": "gekocht {0} ({1})",
+  "Explanation kept portfolio": "Uitleg behouden portefeuille",
+  "Money you invested after {0} counts for both lines: in the kept portfolio it buys the old holdings in their weights of that day. So the difference is what the switch did, not what new money did in only one of them.": "Geld dat je na {0} hebt ingelegd telt voor beide lijnen: in de behouden portefeuille koopt het de oude posities in hun verhouding van die dag. Het verschil is dus wat de wissel deed, niet wat nieuw geld in maar één van beide deed.",
+  "{0}: what you held at the end of {1}, kept without trading, dividends reinvested. It leaves your line on that day.": "{0}: wat je aan het eind van {1} had, aangehouden zonder te handelen, dividend herbelegd. De lijn gaat op die dag van de jouwe af.",
+  "{0} starts after this period.": "{0} begint na deze periode.",
+  "Bonds left out: {0}.": "Obligaties weggelaten: {0}.",
+  "The kept portfolio could not be calculated right now.": "De behouden portefeuille kan nu niet worden berekend.",
 };

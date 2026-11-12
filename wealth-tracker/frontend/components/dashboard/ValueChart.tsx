@@ -79,6 +79,7 @@ export default function ValueChart({
   intraday = false,
   baseline = null,
   keptLabel,
+  marks,
   onProbe,
   onSelect,
   onReset,
@@ -100,6 +101,13 @@ export default function ValueChart({
   baseline?: number | null;
   /** The name of the third line, when the points carry `kept` (a chosen snapshot). */
   keptLabel?: string;
+  /**
+   * Days to mark under the plot (the days you traded): a short tick, in the value
+   *  line's colour when `strong` (a day with a sale) and faint otherwise. What was
+   *  traded goes in the card header with the rest of the pointed day (onProbe).
+   *  Not on intraday bars.
+   */
+  marks?: { d: string; strong?: boolean }[];
   /**
    * What is being pointed at right now, or null as soon as the finger is lifted.
    *  The card puts this in its own header; drawing it over the line here would
@@ -147,7 +155,7 @@ export default function ValueChart({
   const series = useMemo<Series[]>(
     () =>
       hasKept
-        ? [...SERIES, { key: "kept", label: keptLabel ?? tr("Kept portfolio"), colour: "var(--chart-3)", dash: "5 4", width: 1.75 }]
+        ? [...SERIES, { key: "kept", label: keptLabel ?? tr("Kept portfolio"), colour: "var(--chart-5)", dash: "5 4", width: 1.75 }]
         : SERIES,
     [hasKept, keptLabel],
   );
@@ -465,6 +473,34 @@ export default function ValueChart({
             ))}
           </div>
         </div>
+
+        {!intraday && marks && marks.length > 0 && (
+          // A row of its own between the plot and the dates: in the svg the ticks would
+          // stretch with its viewBox, and under the dates they would read as underlining.
+          <div className="pointer-events-none relative mt-0.5 h-1.5" aria-hidden="true">
+            {(() => {
+              const days = points.map((p) => p.d.slice(0, 10));
+              const at = new Map<number, boolean>();
+              for (const m of marks) {
+                if (m.d < days[0] || m.d > days[days.length - 1]) continue;
+                const i = days.findIndex((d) => d >= m.d);
+                at.set(i, (at.get(i) ?? false) || !!m.strong);
+              }
+              return [...at.entries()].map(([i, strong]) => (
+                <span
+                  key={i}
+                  className="absolute top-0 w-[1.5px] -translate-x-1/2 rounded-full"
+                  style={{
+                    left: `${(i / (points.length - 1)) * 100}%`,
+                    height: hover === i ? 6 : 5,
+                    background: strong ? "var(--chart-1)" : "var(--text-faint)",
+                    opacity: strong || hover === i ? 1 : 0.6,
+                  }}
+                />
+              ));
+            })()}
+          </div>
+        )}
 
         {zooms && dragging && measured ? (
           <div className="mt-1 h-4 text-xs text-ink-muted">{tr("let go to show this period")}</div>

@@ -25,10 +25,13 @@ export default function WhatIfPicker({
   snapshots,
   chosen,
   onChoose,
+  label,
 }: {
   snapshots: Snapshot[];
   chosen: number | null;
   onChoose: (snapshot: Snapshot | null) => void;
+  /** What the choice is called; "Compare with" by default. */
+  label?: string;
 }) {
   const qc = useQueryClient();
   const [adding, setAdding] = useState(false);
@@ -66,7 +69,7 @@ export default function WhatIfPicker({
     <div className="mt-3 flex flex-col gap-2 text-xs">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <label className="inline-flex items-center gap-1.5 text-ink-muted">
-          {tr("Compare with")}
+          {label ?? tr("Compare with")}
           <select
             value={chosen ?? ""}
             onChange={(e) => onChoose(snapshots.find((s) => String(s.id) === e.target.value) ?? null)}

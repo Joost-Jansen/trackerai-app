@@ -67,16 +67,37 @@ def compare(
     period, and `holdings` what each kept holding did.
     """
     bundle = load_portfolio(conn)
+    day, holdings, meta = _chosen(conn, bundle, snapshot, date)
+    return {"snapshot": meta, **svc.compare(conn, bundle, holdings, day)}
+
+
+@router.get("/index")
+def index(
+    snapshot: int | None = Query(None, description="A stored snapshot's id"),
+    date: str | None = Query(None, description="Or an ISO date: the holdings at the end of it, without storing them"),
+    exclude_bonds: bool = Query(False, description="Leave the snapshot's bond funds out, as the Returns tab can"),
+    conn: sqlite3.Connection = Depends(get_db),
+):
+    """The kept portfolio's growth since the snapshot's date, 1.0 on that day.
+
+    Dividends reinvested and no money in or out: the basis of the Returns tab's
+    time-weighted return and indices, which draws it next to them. `excluded`
+    names the bond funds left out.
+    """
+    bundle = load_portfolio(conn)
+    day, holdings, meta = _chosen(conn, bundle, snapshot, date)
+    return {"snapshot": meta, **svc.kept_index(conn, bundle, holdings, day, exclude_bonds=exclude_bonds)}
+
+
+def _chosen(conn: sqlite3.Connection, bundle, snapshot: int | None, date: str | None):
+    """(day, holdings, {id, name, date}) of a stored snapshot, or of a date's holdings."""
     if snapshot is not None:
         s = svc.get_snapshot(conn, snapshot)
         if not s:
             raise HTTPException(status.HTTP_404_NOT_FOUND, tr("No such snapshot."))
-        day, holdings, meta = svc.parse_day(s["date"]), s["holdings"], {"id": s["id"], "name": s["name"], "date": s["date"]}
-    else:
-        try:
-            day = svc.parse_day(date)
-        except svc.BadRequest as e:
-            raise _bad(e) from e
-        holdings = what_if.holdings_on(bundle.transactions, day)
-        meta = {"id": None, "name": None, "date": day.isoformat()}
-    return {"snapshot": meta, **svc.compare(conn, bundle, holdings, day)}
+        return svc.parse_day(s["date"]), s["holdings"], {"id": s["id"], "name": s["name"], "date": s["date"]}
+    try:
+        day = svc.parse_day(date)
+    except svc.BadRequest as e:
+        raise _bad(e) from e
+    return day, what_if.holdings_on(bundle.transactions, day), {"id": None, "name": None, "date": day.isoformat()}

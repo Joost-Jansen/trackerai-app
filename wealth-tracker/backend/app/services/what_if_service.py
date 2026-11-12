@@ -11,8 +11,8 @@ from app.services import dashboard_service
 from app.services.portfolio_service import PortfolioBundle
 from domain import database
 from domain.i18n import tr
+from domain.portfolio import etf_holdings, what_if
 from domain.portfolio import series as charts
-from domain.portfolio import what_if
 
 _CLOSES_TTL_SECONDS = 3600
 MAX_SNAPSHOTS = 50
@@ -117,6 +117,25 @@ def compare(conn: sqlite3.Connection, bundle: PortfolioBundle, holdings: list[di
     closes = _closes(conn, bundle.prices, [h["isin"] for h in holdings], start)
     live = {h["isin"]: p for h in holdings if (p := _eur_price(bundle.prices, h["isin"])) is not None}
     return what_if.compare(history.get("points") or [], holdings, start, closes, live)
+
+
+def kept_index(
+    conn: sqlite3.Connection, bundle: PortfolioBundle, holdings: list[dict], start: datetime.date, *, exclude_bonds: bool
+) -> dict:
+    """The kept holdings' growth since *start* (what_if.growth), bond funds left out on request.
+
+    Bonds are told apart as the Returns tab tells them apart (etf_holdings.bond_isins),
+    so with its "Leave bonds out" on, both its lines leave out the same funds.
+    """
+    excluded: list[str] = []
+    if exclude_bonds:
+        bonds = etf_holdings.bond_isins(
+            conn, [{"isin": h["isin"], "ticker": (bundle.prices.get(h["isin"]) or {}).get("ticker")} for h in holdings]
+        )
+        excluded = [h["name"] for h in holdings if h["isin"] in bonds]
+        holdings = [h for h in holdings if h["isin"] not in bonds]
+    closes = _closes(conn, bundle.prices, [h["isin"] for h in holdings], start)
+    return {**what_if.growth(holdings, start, closes), "excluded": excluded}
 
 
 # ── Snapshots ──────────────────────────────────────────────────────────────
