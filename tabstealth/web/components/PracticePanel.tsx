@@ -3,8 +3,9 @@
 // Practice settings next to the video: loop a bar range, the speed trainer, count-in and metronome (lib/practice.ts).
 // Shown when its icon next to the speed is selected (TabStudio).
 
+import { useState } from "react";
 import { Switch } from "@trackerai/ui/ds/Field";
-import type { Practice } from "@/lib/practice";
+import { typedBar, type Practice } from "@/lib/practice";
 import { useT } from "@/lib/i18n";
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -29,7 +30,6 @@ export default function PracticePanel({
 }) {
   const t = useT();
   const set = (patch: Partial<Practice>) => onChange((p) => ({ ...p, ...patch }));
-  const bar = (v: string) => Math.min(Math.max(1, Number(v) || 1), Math.max(1, bars));
   const num = "ds-input !h-8 w-14 text-center text-xs";
   const sel = "ds-input !h-8 !px-1 text-xs";
   return (
@@ -38,21 +38,9 @@ export default function PracticePanel({
       <div className="flex flex-wrap items-center gap-2">
         <Switch checked={value.loop} onChange={(on) => set({ loop: on })} label={t.practice.loop} />
         <span className="text-xs text-ink-muted">{t.practice.bars}</span>
-        <input
-          className={num}
-          inputMode="numeric"
-          value={value.from}
-          aria-label={t.practice.from}
-          onChange={(e) => set({ from: bar(e.target.value) })}
-        />
+        <BarField className={num} value={value.from} bars={bars} label={t.practice.from} onChange={(from) => set({ from })} />
         <span className="text-xs text-ink-muted">–</span>
-        <input
-          className={num}
-          inputMode="numeric"
-          value={value.to}
-          aria-label={t.practice.to}
-          onChange={(e) => set({ to: bar(e.target.value) })}
-        />
+        <BarField className={num} value={value.to} bars={bars} label={t.practice.to} onChange={(to) => set({ to })} />
         {selectedBar && (
           <button
             type="button"
@@ -101,6 +89,42 @@ export default function PracticePanel({
         <Switch checked={value.metronome} onChange={(on) => set({ metronome: on })} label={t.practice.metronome} />
       </div>
     </section>
+  );
+}
+
+/** A bar number field that can be emptied while typing (backspace, then the new number); left empty, it is bar 1. */
+function BarField({
+  value,
+  bars,
+  label,
+  className,
+  onChange,
+}: {
+  value: number;
+  bars: number;
+  label: string;
+  className: string;
+  onChange: (bar: number) => void;
+}) {
+  const [text, setText] = useState<string | null>(null); // what is typed, while the field has focus
+  return (
+    <input
+      className={className}
+      inputMode="numeric"
+      value={text ?? String(value)}
+      aria-label={label}
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => {
+        setText(e.target.value);
+        const bar = typedBar(e.target.value, bars);
+        if (bar !== null) onChange(bar);
+      }}
+      onBlur={() => {
+        if (text !== null && typedBar(text, bars) === null) onChange(1);
+        setText(null);
+      }}
+      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+    />
   );
 }
 
