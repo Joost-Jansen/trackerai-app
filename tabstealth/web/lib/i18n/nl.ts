@@ -170,7 +170,7 @@ export const nl = {
     bars: "maat",
     from: "Van maat",
     to: "Tot en met maat",
-    fromSelected: (bar: number) => `vanaf maat ${bar}`,
+    fromSelected: (bar: number) => `herhaal maat ${bar}`,
     passes: (n: number) => `${n}× gespeeld`,
     trainer: "Tempotrainer",
     start: "Begintempo",
@@ -300,7 +300,7 @@ export const nl = {
       "Klopt een noot niet? Klik op de slag en verbeter per snaar de fret, de voorslag en de technieken (hamer-on, slide, overbinding, palm mute en meer), en voor de slag de aanslag, het akkoord en de sectie. De eerste aanpassing bewaart de originele omzetting, die je altijd terug kunt zetten. Opnieuw omzetten overschrijft een aangepaste tab niet.",
     practice: "Oefenen",
     practiceText:
-      "Met de herhaalknop naast de geluidskeuze herhaal je een stuk; in Oefenen kies je de maten, een tempotrainer die elke keer iets sneller gaat, aftellen en een metronoom. De tijd die je speelt komt vanzelf in Oefenen in het menu.",
+      "De herhaalknop naast de geluidskeuze herhaalt de maat die je aanklikte (of die nu speelt); shift-klik op een andere maat om tot daar te herhalen. In Oefenen kies je de maten, een tempotrainer die elke keer iets sneller gaat, aftellen en een metronoom. De tijd die je speelt komt vanzelf in Oefenen in het menu.",
     review: "Nakijken",
     reviewText:
       "Waar de omzetting twijfelde staat de maat in Nakijken, met de reden. Ga erheen, luister met de herhaling aan, verbeter het in de editor en vink de maat af.",

@@ -166,7 +166,7 @@ export const en: Messages = {
     bars: "bar",
     from: "From bar",
     to: "To bar",
-    fromSelected: (bar: number) => `from bar ${bar}`,
+    fromSelected: (bar: number) => `loop bar ${bar}`,
     passes: (n: number) => `${n}× played`,
     trainer: "Speed trainer",
     start: "Start speed",
@@ -294,7 +294,7 @@ export const en: Messages = {
       "A note wrong? Click the beat and correct, per string, the fret, the grace note and the techniques (hammer-on, slide, tie, palm mute and more), and for the beat the strum, the chord and the section. Your first edit keeps the original conversion, which you can always restore. Converting again never overwrites an edited tab.",
     practice: "Practising",
     practiceText:
-      "The loop button next to the sound switch repeats a stretch; under Practice you choose the bars, a speed trainer that gets a little faster every pass, a count-in and a metronome. The time you play shows up by itself under Practice in the menu.",
+      "The loop button next to the sound switch repeats the bar you clicked (or the one playing); shift-click another bar to loop up to it. Under Practice you choose the bars, a speed trainer that gets a little faster every pass, a count-in and a metronome. The time you play shows up by itself under Practice in the menu.",
     review: "Review",
     reviewText:
       "Where the conversion was unsure, the bar is listed under Review with the reason. Go there, listen with the loop on, fix it in the editor and tick it off.",

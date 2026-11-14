@@ -45,7 +45,7 @@ export default function PracticePanel({
           <button
             type="button"
             className="text-xs font-semibold text-brand hover:underline"
-            onClick={() => set({ from: selectedBar, to: Math.max(selectedBar, value.to), loop: true })}
+            onClick={() => set({ from: selectedBar, to: selectedBar, loop: true })}
           >
             {t.practice.fromSelected(selectedBar)}
           </button>
