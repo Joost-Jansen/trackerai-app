@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { barAt, beatAt, DEFAULT_PRACTICE, nextSpeed, rangeTicks } from "./practice.ts";
+import { barAt, beatAt, DEFAULT_PRACTICE, nextSpeed, rangeTicks, typedBar } from "./practice.ts";
 
 const bars = [0, 1, 2, 3, 4].map((i) => ({ start: i * 3840, duration: 3840 }));
 
@@ -27,4 +27,12 @@ test("bars and beats for the metronome", () => {
   assert.equal(barAt(bars, 3840), 1);
   assert.equal(barAt(bars, 99999), 4);
   assert.deepEqual(beatAt(bars, 3840 + 960 * 2 + 5, 960), { bar: 1, beat: 2 });
+});
+
+test("a typed bar number: empty while typing, within the song", () => {
+  assert.equal(typedBar("", 20), null); // emptied with backspace: no bar yet
+  assert.equal(typedBar("12", 20), 12);
+  assert.equal(typedBar("99", 20), 20);
+  assert.equal(typedBar("0", 20), 1);
+  assert.equal(typedBar("1a2", 20), 12);
 });

@@ -28,6 +28,13 @@ export const DEFAULT_PRACTICE: Practice = {
   metronome: false,
 };
 
+/** A bar number from what was typed (digits only), within the song; null while the field is empty. */
+export function typedBar(text: string, bars: number): number | null {
+  const digits = text.replace(/\D/g, "");
+  if (!digits) return null;
+  return Math.min(Math.max(1, Number(digits)), Math.max(1, bars));
+}
+
 /** The loop range in ticks, or null when the bars do not exist. */
 export function rangeTicks(bars: BarTicks[], from: number, to: number): { startTick: number; endTick: number } | null {
   const a = Math.max(1, Math.min(from, to));

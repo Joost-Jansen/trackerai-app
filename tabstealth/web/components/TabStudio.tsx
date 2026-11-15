@@ -129,6 +129,9 @@ export default function TabStudio({ vid }: { vid: string }) {
   const [hands, setHands] = useState(false); // full video by default: its own tab strip stays visible
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<Selected | null>(null);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+  const shiftDown = useRef(false); // shift held on the last click in the tab: that click extends the loop
   const [box, setBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -175,6 +178,10 @@ export default function TabStudio({ vid }: { vid: string }) {
   // ── alphaTab ───────────────────────────────────────────────────────────────
   useEffect(() => {
     let alive = true;
+    // alphaTab's beat click does not say whether shift was held: note it as the click goes in
+    const el = sheet.current;
+    const noteShift = (e: PointerEvent) => (shiftDown.current = e.shiftKey);
+    el?.addEventListener("pointerdown", noteShift, true);
     void loadAlphaTab().then((alphaTab) => {
       if (!alive || !sheet.current) return;
       const a = new alphaTab.AlphaTabApi(sheet.current, {
@@ -232,6 +239,17 @@ export default function TabStudio({ vid }: { vid: string }) {
         if (Math.abs(yt.current.getCurrentTime() - target) > 0.25) yt.current.seekTo(target, true);
       });
       a.beatMouseDown.on((beat) => {
+        if (shiftDown.current) {
+          // shift-click: loop up to this bar, from the loop or else from the bar selected before
+          const bar = mainBeat(beat).voice.bar.index + 1;
+          const before = selectedRef.current;
+          setPractice((p) => {
+            const [a0, a1] = p.loop ? [p.from, p.to] : [before ? before.bar + 1 : bar, before ? before.bar + 1 : bar];
+            return { ...p, loop: true, from: Math.min(a0, a1, bar), to: Math.max(a0, a1, bar) };
+          });
+          select(beat);
+          return; // it only sets the loop: playback stays where it is
+        }
         select(beat);
         const p = yt.current;
         if (sourceRef.current === "video" && clock.current && p?.seekTo) {
@@ -245,6 +263,7 @@ export default function TabStudio({ vid }: { vid: string }) {
     });
     return () => {
       alive = false;
+      el?.removeEventListener("pointerdown", noteShift, true);
       at.current?.destroy();
       at.current = null;
     };
@@ -392,6 +411,14 @@ export default function TabStudio({ vid }: { vid: string }) {
       p.seekTo(clock.current.tickToTime(tick), true);
       if (!wasPlaying) p.pauseVideo();
     }
+  };
+
+  /** The loop button: loop the selected bar, or else the bar playing now; again: stop looping. The Practice switch
+   * loops the bars chosen there instead. */
+  const toggleLoop = () => {
+    if (practiceRef.current.loop) return setPractice((p) => ({ ...p, loop: false }));
+    const bar = selected ? selected.bar + 1 : barAt(bars.current, at.current?.tickPosition ?? 0) + 1;
+    setPractice((p) => ({ ...p, loop: true, from: bar, to: bar }));
   };
 
   /** One pass through the loop: count it, and let the trainer speed up. */
@@ -734,7 +761,7 @@ export default function TabStudio({ vid }: { vid: string }) {
         title={
           practice.loop ? t.practice.loopOn(Math.min(practice.from, practice.to), Math.max(practice.from, practice.to)) : t.practice.loop
         }
-        onClick={() => setPractice((p) => ({ ...p, loop: !p.loop }))}
+        onClick={toggleLoop}
         className={`ds-btn ds-btn--sm !px-2 ${practice.loop ? "ds-btn--secondary !border-brand !text-brand" : "ds-btn--secondary"}`}
       >
         <RepeatIcon className="h-[15px] w-[15px]" />
