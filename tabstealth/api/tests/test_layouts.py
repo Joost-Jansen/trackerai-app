@@ -121,3 +121,45 @@ def test_a_faint_bar_line_found_in_some_frames_only_stays_one_page():
     # a page that only shares bar positions with the one before is another page
     other = [View(0, 99, line([1, 2])), View(100, 199, line([3, 4]))]
     assert len(steady_pages(other, 27.0)) == 2
+
+
+def test_a_staff_drawn_partly_in_light_grey_is_found(tmp_path):
+    # Kenneth Acoustic's "Close to You": the lower staff lines are light grey (about 200 on white), too light for the
+    # first staff finder; the converter then found no staff at all
+    from tabreader.scan import detect_staff, scan
+
+    path = str(tmp_path / "v.mp4")
+    out = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), 10, (1920, 1080))
+    for _ in range(12):
+        fr = np.full((1080, 1920, 3), 255, np.uint8)
+        fr[:780] = 90  # the video above the strip
+        for k, y in enumerate(range(894, 1035, 28)):  # six lines
+            cv2.line(fr, (0, y), (1650, y), (180, 180, 180) if k < 2 else (205, 205, 205), 2)
+        out.write(fr)
+    out.release()
+    staff = detect_staff(path, samples=6)
+    assert abs(staff.lines[0] - 894) <= 1.5
+    assert abs(staff.spacing - 28) < 1
+    # and the scan sees the strip on screen in every frame (it judged the lines too light, so no views at all)
+    assert scan(path, staff, progress=False)["present"].all()
+
+
+def test_a_dark_blue_cursor_moving_over_the_tab_keeps_it_one_view(tmp_path):
+    # Close to You: a 7 px dark blue cursor moves every other frame; in the frame signature it made every frame a new
+    # view, so no view lasted and nothing was read
+    from tabreader.layout import Staff
+    from tabreader.pages import stable_runs
+    from tabreader.scan import scan
+
+    path = str(tmp_path / "v.mp4")
+    out = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), 10, (1280, 720))
+    for f in range(30):
+        fr = np.full((720, 1280, 3), 255, np.uint8)
+        for y in range(560, 701, 28):
+            cv2.line(fr, (0, y), (1100, y), (60, 60, 60), 2)
+        x = 200 + 7 * (f // 2)
+        cv2.rectangle(fr, (x, 530), (x + 6, 700), (200, 40, 30), -1)  # BGR: dark blue
+        out.write(fr)
+    out.release()
+    staff = Staff(lines=[560.0, 588.0, 616.0, 644.0, 672.0, 700.0], x0=0, x1=1100)
+    assert len(stable_runs(scan(path, staff, progress=False))) == 1

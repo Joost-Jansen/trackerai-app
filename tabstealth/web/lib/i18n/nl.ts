@@ -28,6 +28,14 @@ export const nl = {
   library: {
     title: "Bibliotheek",
     lead: "Tabs uit video's: speel ze af naast de video, in hetzelfde tempo, en pas ze aan waar het niet klopt.",
+    notes: {
+      title: "Notities",
+      hint: "Alles wat je kwijt wilt, zoals nummers die je kunt spelen zonder video hier. Wordt vanzelf bewaard.",
+      placeholder: "Gitaarnummers\nHotel California - Eagles\n\nNog willen leren:\nAutumn Leaves",
+      saving: "Bewaren…",
+      saved: "Bewaard",
+      failed: "Niet bewaard, probeer het nog eens",
+    },
     empty: "Nog geen nummers. Plak hieronder een YouTube-link om te beginnen.",
     addTitle: "Toevoegen",
     addLabel: "Link naar een video of afspeellijst",

@@ -1,7 +1,7 @@
 "use client";
 
 // The library: every converted song (search, filters, sorting, favourites), adding a YouTube link (a video or a whole
-// playlist), and the conversions running.
+// playlist), the conversions running, and your own notes.
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -15,6 +15,7 @@ import { EmptyState, Tag } from "@trackerai/ui/ds/Feedback";
 import { api, ApiError, STATUSES, type Job, type Song } from "@/lib/api";
 import { allTags, daysAgo, itemHref, matches, SORTS, sortSongs, type Filter, type Sort } from "@/lib/library";
 import { useT } from "@/lib/i18n";
+import NotesCard from "@/components/NotesCard";
 
 const YT = /^(https?:\/\/(www\.|m\.|music\.)?(youtube\.com|youtu\.be)\/\S+|[\w-]{11})$/;
 
@@ -356,6 +357,8 @@ export default function LibraryPage() {
           ))}
         </div>
       )}
+
+      <NotesCard />
     </div>
   );
 }

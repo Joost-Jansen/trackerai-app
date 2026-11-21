@@ -338,6 +338,9 @@ def test_song_and_artist_come_out_of_any_title_style():
     assert split_title("Stop This Train Guitar Cover John Mayer \N{GUITAR}|Tabs + Chords|", "x") == ("Stop This Train", "John Mayer")
     lesson = "Mia and Sebastian's Theme (La La Land) - Full Tutorial with TAB - Classical Guitar"
     assert split_title(lesson, "Robert Lunn") == ("Mia and Sebastian's Theme (La La Land)", "")
+    # the cover words in brackets between song and player
+    title = "Je Te Laisserai Des Mots (Guitar cover, tabs) Emilia Morawska"
+    assert split_title(title, "Emcia Guitar Channel") == ("Je Te Laisserai Des Mots", "Emilia Morawska")
 
 
 def login(lib, name):
@@ -409,3 +412,45 @@ def test_importing_a_library_export(library, tmp_path):
     assert c.get("/api/songs/pdf-0123456789/pdf").content.startswith(b"%PDF")
     assert c.get("/api/practice").json()["total_seconds"] == 120
     assert c.post("/api/library/import", content=b"not a zip").status_code == 400
+
+
+def test_a_download_youtube_refuses_is_tried_again(monkeypatch, tmp_path):
+    # YouTube sometimes answers 403 for a moment; the same download works a little later
+    import subprocess
+
+    from tabreader import cli
+
+    answers = [
+        subprocess.CompletedProcess([], 1, "", "ERROR: unable to download video data: HTTP Error 403: Forbidden"),
+        subprocess.CompletedProcess([], 0, "", ""),
+    ]
+    monkeypatch.setattr(cli, "yt", lambda args, cookies: answers.pop(0))
+    waits = []
+    cli.download_video(tmp_path / "video.mp4", "https://youtu.be/x", None, lambda m: None, wait=waits.append)
+    assert not answers and len(waits) == 1
+
+    # any other error, or still 403 after a few tries, fails with yt-dlp's message
+    monkeypatch.setattr(cli, "yt", lambda args, cookies: subprocess.CompletedProcess([], 1, "", "ERROR: Video unavailable"))
+    with pytest.raises(RuntimeError, match="Video unavailable"):
+        cli.download_video(tmp_path / "video.mp4", "https://youtu.be/x", None, lambda m: None, wait=waits.append)
+    forbidden = subprocess.CompletedProcess([], 1, "", "ERROR: HTTP Error 403: Forbidden")
+    monkeypatch.setattr(cli, "yt", lambda args, cookies: forbidden)
+    with pytest.raises(RuntimeError, match="403"):
+        cli.download_video(tmp_path / "video.mp4", "https://youtu.be/x", None, lambda m: None, wait=waits.append)
+
+
+def test_notes_are_one_free_text_of_your_own(library):
+    # songs you can play without a video for them: a list in your own words, with headings as you like
+    assert library.c.get("/api/notes").json() == {"text": ""}
+    text = "Guitar songs\nHotel California - the Eagles\n\nStill to learn:\nAutumn leaves"
+    assert library.c.put("/api/notes", json={"text": text}).json() == {"text": text}
+    assert library.c.get("/api/notes").json() == {"text": text}
+    assert library.c.put("/api/notes", json={"text": "x" * 20_001}).status_code == 422  # a list, not a book
+
+    bob, accounts, anna = login(library, "bob")
+    accounts.set_app(anna, accounts.by_username("bob")["id"], "tabstealth", enabled=True)
+    assert bob.get("/api/notes").json() == {"text": ""}  # anna's notes are hers
+    assert TestClient(library.c.app).get("/api/notes").status_code == 401
+    # and they go with the account
+    db.delete_user(library.engine, library.uid)
+    assert db.get_notes(library.engine, library.uid) == ""

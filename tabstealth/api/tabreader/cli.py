@@ -61,6 +61,20 @@ def yt(args: list[str], cookies: str | None) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
+def download_video(video: Path, url: str, cookies: str | None, log, wait=time.sleep, tries: int = 3) -> None:
+    """Download the video. YouTube sometimes refuses one for a moment (HTTP 403) that works a little later: then
+    wait and try again, a few times."""
+    for attempt in range(1, tries + 1):
+        r = yt(["-q", "-f", VIDEO_FORMAT, "-o", str(video), url], cookies)
+        if r.returncode == 0:
+            return
+        err = (r.stderr.strip().splitlines() or ["yt-dlp failed"])[-1]
+        if "403" not in err or attempt == tries:
+            raise RuntimeError(err)
+        log(f"  YouTube refused the download (403), trying again ({attempt + 1} of {tries})")
+        wait(10 * attempt)
+
+
 def playlist_ids(url: str, cookies: str | None) -> list[tuple[str, str]]:
     r = yt(["--flat-playlist", "--print", "%(id)s\t%(title)s", url], cookies)
     if r.returncode != 0:
@@ -91,8 +105,9 @@ def split_title(title: str, channel: str = "") -> tuple[str, str]:
     # "Song - Full Tutorial with TAB - Classical Guitar": leave out the parts that are only about the video
     parts = [p for p in main.split(" - ") if FILLER.sub(" ", NOISE.sub(" ", p)).strip(" -,()")]
     main = " - ".join(parts) or main
-    if " - " not in main and (m := re.search(r"\b(guitar )?cover\b", main, re.I)):
-        song, artist = main[: m.start()], main[m.end() :]  # "Stop This Train Guitar Cover John Mayer"
+    # "Stop This Train Guitar Cover John Mayer", "Je Te Laisserai Des Mots (Guitar cover, tabs) Emilia Morawska"
+    if " - " not in main and (m := re.search(r"\([^()]*\bcover\b[^()]*\)|\b(guitar )?cover\b", main, re.I)):
+        song, artist = main[: m.start()], main[m.end() :]
     elif " - " in main:
         a, b = main.split(" - ", 1)
         song, artist = (a, b) if "kenneth" in channel.lower() or not channel else (b, a)
@@ -293,9 +308,7 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool, forc
     def download() -> None:
         if not video.exists():
             log("  downloading video")
-            r = yt(["-q", "-f", VIDEO_FORMAT, "-o", str(video), url], cookies)
-            if r.returncode != 0:
-                raise RuntimeError(r.stderr.strip().splitlines()[-1])
+            download_video(video, url, cookies, log)
 
     clf = Classifier()
     layout = choose_layout(work, video, download, force, log)

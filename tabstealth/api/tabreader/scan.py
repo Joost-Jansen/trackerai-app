@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import cv2
 import numpy as np
 
-from .layout import Staff, find_staff, ink_mask
+from .layout import Staff, find_staff, find_staffs, ink_mask
 
 SIG_DOWN = 4  # signature downsampling factor
 
@@ -34,28 +34,41 @@ def strip_region(staff: Staff, frame_h: int) -> Region:
 
 
 def detect_staff(video: str, samples: int = 40) -> Staff:
-    """Robust staff geometry: median over frames sampled across the video."""
-    cap = cv2.VideoCapture(video)
-    n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    found = []
-    for i in np.linspace(n * 0.05, n * 0.95, samples).astype(int):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, int(i))
-        ok, fr = cap.read()
-        if ok and (s := find_staff(fr)):
-            found.append(s)
-    cap.release()
+    """Robust staff geometry: median over frames sampled across the video. Staff lines partly in light grey are too
+    light for find_staff; then the lowest staff find_staffs sees (which is how the strip was chosen in the first
+    place). find_staff stays first, so the songs it reads keep exactly the same geometry."""
+
+    def sample(find) -> list[Staff]:
+        cap = cv2.VideoCapture(video)
+        n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        found = []
+        for i in np.linspace(n * 0.05, n * 0.95, samples).astype(int):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(i))
+            ok, fr = cap.read()
+            if ok and (s := find(fr)):
+                found.append(s)
+        cap.release()
+        return found
+
+    found, line_ink = sample(find_staff), 185
+    if not found:
+        found, line_ink = sample(lambda fr: (find_staffs(fr) or [None])[-1]), 215  # find_staffs' own ink limit
     if not found:
         raise RuntimeError("no tab staff found in video")
     lines = np.median([s.lines for s in found], axis=0).tolist()
     x1 = int(np.median([s.x1 for s in found]))
-    return Staff(lines=lines, x0=0, x1=x1)
+    return Staff(lines=lines, x0=0, x1=x1, line_ink=line_ink)
+
+
+def is_cursor(crop: np.ndarray) -> np.ndarray:
+    """Pixels of the blue playback cursor's colour."""
+    b, r = crop[..., 0].astype(int), crop[..., 2].astype(int)
+    return (b - r > 25) & (b > 150)
 
 
 def cursor_x(crop: np.ndarray) -> float:
     """x of the blue playback cursor in the crop, or NaN."""
-    b, g, r = (crop[..., i].astype(int) for i in range(3))
-    blue = (b - r > 25) & (b > 150)
-    col = blue.sum(axis=0)
+    col = is_cursor(crop).sum(axis=0)
     if col.max() < crop.shape[0] * 0.4:
         return np.nan
     xs = np.where(col >= col.max() * 0.6)[0]
@@ -93,7 +106,7 @@ def scan(video: str, staff: Staff | None = None, progress: bool = True) -> dict:
         if not ok:
             break
         crop = fr[reg.y0 : reg.y1, reg.x0 : reg.x1]
-        ink = ink_mask(crop, 185)
+        ink = ink_mask(crop, staff.line_ink)
         # staff present if most of the 6 line rows are mostly inked
         cov = [ink[max(0, y - 1) : y + 2].max(axis=0).mean() for y in line_rows]
         gaps = [ink[(a + b) // 2].mean() for a, b in zip(line_rows, line_rows[1:])]
@@ -102,7 +115,10 @@ def scan(video: str, staff: Staff | None = None, progress: bool = True) -> dict:
         a, b = highlight_span(crop)
         hl0.append(a)
         hl1.append(b)
-        sig = cv2.resize(ink_mask(crop, 140), None, fx=1 / SIG_DOWN, fy=1 / SIG_DOWN, interpolation=cv2.INTER_AREA)
+        # the signature is the tab, not the cursor: a dark blue cursor would make every frame differ from the last
+        sig_ink = ink_mask(crop, 140)
+        sig_ink[is_cursor(crop)] = 0
+        sig = cv2.resize(sig_ink, None, fx=1 / SIG_DOWN, fy=1 / SIG_DOWN, interpolation=cv2.INTER_AREA)
         sigs.append(np.packbits(sig > 0))
         if present[-1]:
             lab = fr[lab_y0:lab_y1, :lab_x1]

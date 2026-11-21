@@ -11,6 +11,7 @@ class Staff:
     lines: list[float]  # y of string 1 (high e) .. string 6 (low E), in full-frame px
     x0: int  # left end of the staff lines
     x1: int  # right end of the staff lines (chord box starts after this)
+    line_ink: int = 185  # grey below which a pixel counts as staff line (lighter for staffs drawn in light grey)
 
     @property
     def spacing(self) -> float:
