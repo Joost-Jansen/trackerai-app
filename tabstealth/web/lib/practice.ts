@@ -2,7 +2,7 @@
 // Bars are alphaTab master bars ({ start, duration } in MIDI ticks, 960 per quarter); bar numbers are 1-based.
 
 import type { BarTicks } from "./sync.ts";
-import { nearestRate } from "./sync.ts";
+import { VIDEO_STEP, videoRate } from "./sync.ts";
 
 export type Practice = {
   loop: boolean;
@@ -43,15 +43,35 @@ export function rangeTicks(bars: BarTicks[], from: number, to: number): { startT
   return { startTick: bars[a - 1].start, endTick: bars[b - 1].start + bars[b - 1].duration };
 }
 
-/** The speed for the next pass. The video only plays YouTube's own speeds (quarter steps), the tab any speed. */
+/** The speed for the next pass. The tab plays any speed; the video steps at least YouTube's 5%. */
 export function nextSpeed(current: number, p: Practice, source: "video" | "tab"): number {
   if (source === "video") {
-    const rates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
-    const now = nearestRate(current);
-    const up = rates.find((r) => r > now + 1e-9) ?? now;
-    return Math.min(up, Math.max(nearestRate(p.target), now));
+    const now = videoRate(current);
+    const target = videoRate(p.target);
+    if (now >= target) return now;
+    return Math.min(target, videoRate(now + Math.max(p.step, VIDEO_STEP)));
   }
   return Math.round(Math.min(p.target, current + p.step) * 100) / 100;
+}
+
+/** The video's loop, every frame while it plays: at the end of the range jump back to its start. One pass per jump:
+ * after a seek the player may report the old time for a while (longer while it loads), so the next jump waits until
+ * the video has been back inside the loop. A jump that did not take is tried again after 1.5 s, without a pass. */
+export function videoLoop(
+  s: { armed: boolean; lastJump: number },
+  time: number,
+  end: number,
+  now: number,
+): { jump: boolean; pass: boolean } {
+  if (time < end - 0.03) {
+    s.armed = true;
+    return { jump: false, pass: false };
+  }
+  if (!s.armed && now - s.lastJump < 1500) return { jump: false, pass: false };
+  const pass = s.armed;
+  s.armed = false;
+  s.lastJump = now;
+  return { jump: true, pass };
 }
 
 /** Index of the bar that contains `tick` (the last bar for anything after the end). */

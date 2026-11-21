@@ -46,9 +46,13 @@ export function makeClock(timing: Timing, bars: BarTicks[]): Clock {
   return { tickToTime, timeToTick };
 }
 
-/** YouTube plays only these speeds; the nearest one to the tab's speed. */
-export function nearestRate(speed: number, rates: number[] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]): number {
-  return rates.reduce((best, r) => (Math.abs(r - speed) < Math.abs(best - speed) ? r : best), rates[0]);
+/** YouTube's smallest speed step: it plays 25% to 200% in steps of 5% and rounds anything finer down. */
+export const VIDEO_STEP = 0.05;
+
+/** The speed YouTube plays for `speed`: the nearest step of 5%, within 25% and 200%. */
+export function videoRate(speed: number): number {
+  // whole twentieths, divided last: 0.9 exactly, since YouTube rounds 0.8999… down to 0.85
+  return Math.min(2, Math.max(0.25, Math.round(speed * 20) / 20));
 }
 
 /** alphaTab counts strings from the lowest (thickest) up; Guitar Pro and the API count from the high e down. */
