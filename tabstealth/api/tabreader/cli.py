@@ -61,6 +61,20 @@ def yt(args: list[str], cookies: str | None) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
+def download_video(video: Path, url: str, cookies: str | None, log, wait=time.sleep, tries: int = 3) -> None:
+    """Download the video. YouTube sometimes refuses one for a moment (HTTP 403) that works a little later: then
+    wait and try again, a few times."""
+    for attempt in range(1, tries + 1):
+        r = yt(["-q", "-f", VIDEO_FORMAT, "-o", str(video), url], cookies)
+        if r.returncode == 0:
+            return
+        err = (r.stderr.strip().splitlines() or ["yt-dlp failed"])[-1]
+        if "403" not in err or attempt == tries:
+            raise RuntimeError(err)
+        log(f"  YouTube refused the download (403), trying again ({attempt + 1} of {tries})")
+        wait(10 * attempt)
+
+
 def playlist_ids(url: str, cookies: str | None) -> list[tuple[str, str]]:
     r = yt(["--flat-playlist", "--print", "%(id)s\t%(title)s", url], cookies)
     if r.returncode != 0:
@@ -293,9 +307,7 @@ def convert(vid: str, out_dir: Path, cookies: str | None, keep_video: bool, forc
     def download() -> None:
         if not video.exists():
             log("  downloading video")
-            r = yt(["-q", "-f", VIDEO_FORMAT, "-o", str(video), url], cookies)
-            if r.returncode != 0:
-                raise RuntimeError(r.stderr.strip().splitlines()[-1])
+            download_video(video, url, cookies, log)
 
     clf = Classifier()
     layout = choose_layout(work, video, download, force, log)

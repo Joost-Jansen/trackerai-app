@@ -409,3 +409,29 @@ def test_importing_a_library_export(library, tmp_path):
     assert c.get("/api/songs/pdf-0123456789/pdf").content.startswith(b"%PDF")
     assert c.get("/api/practice").json()["total_seconds"] == 120
     assert c.post("/api/library/import", content=b"not a zip").status_code == 400
+
+
+def test_a_download_youtube_refuses_is_tried_again(monkeypatch, tmp_path):
+    # YouTube sometimes answers 403 for a moment; the same download works a little later
+    import subprocess
+
+    from tabreader import cli
+
+    answers = [
+        subprocess.CompletedProcess([], 1, "", "ERROR: unable to download video data: HTTP Error 403: Forbidden"),
+        subprocess.CompletedProcess([], 0, "", ""),
+    ]
+    monkeypatch.setattr(cli, "yt", lambda args, cookies: answers.pop(0))
+    waits = []
+    cli.download_video(tmp_path / "video.mp4", "https://youtu.be/x", None, lambda m: None, wait=waits.append)
+    assert not answers and len(waits) == 1
+
+    # any other error, or still 403 after a few tries, fails with yt-dlp's message
+    monkeypatch.setattr(cli, "yt", lambda args, cookies: subprocess.CompletedProcess([], 1, "", "ERROR: Video unavailable"))
+    with pytest.raises(RuntimeError, match="Video unavailable"):
+        cli.download_video(tmp_path / "video.mp4", "https://youtu.be/x", None, lambda m: None, wait=waits.append)
+    forbidden = subprocess.CompletedProcess([], 1, "", "ERROR: HTTP Error 403: Forbidden")
+    monkeypatch.setattr(cli, "yt", lambda args, cookies: forbidden)
+    with pytest.raises(RuntimeError, match="403"):
+        cli.download_video(tmp_path / "video.mp4", "https://youtu.be/x", None, lambda m: None, wait=waits.append)
+

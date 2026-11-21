@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import cv2
 import numpy as np
 
-from .layout import Staff, find_staff, ink_mask
+from .layout import Staff, find_staff, find_staffs, ink_mask
 
 SIG_DOWN = 4  # signature downsampling factor
 
@@ -34,16 +34,23 @@ def strip_region(staff: Staff, frame_h: int) -> Region:
 
 
 def detect_staff(video: str, samples: int = 40) -> Staff:
-    """Robust staff geometry: median over frames sampled across the video."""
-    cap = cv2.VideoCapture(video)
-    n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    found = []
-    for i in np.linspace(n * 0.05, n * 0.95, samples).astype(int):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, int(i))
-        ok, fr = cap.read()
-        if ok and (s := find_staff(fr)):
-            found.append(s)
-    cap.release()
+    """Robust staff geometry: median over frames sampled across the video. Staff lines partly in light grey are too
+    light for find_staff; then the lowest staff find_staffs sees (which is how the strip was chosen in the first
+    place). find_staff stays first, so the songs it reads keep exactly the same geometry."""
+
+    def sample(find) -> list[Staff]:
+        cap = cv2.VideoCapture(video)
+        n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        found = []
+        for i in np.linspace(n * 0.05, n * 0.95, samples).astype(int):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(i))
+            ok, fr = cap.read()
+            if ok and (s := find(fr)):
+                found.append(s)
+        cap.release()
+        return found
+
+    found = sample(find_staff) or sample(lambda fr: (find_staffs(fr) or [None])[-1])
     if not found:
         raise RuntimeError("no tab staff found in video")
     lines = np.median([s.lines for s in found], axis=0).tolist()
