@@ -54,6 +54,26 @@ export function nextSpeed(current: number, p: Practice, source: "video" | "tab")
   return Math.round(Math.min(p.target, current + p.step) * 100) / 100;
 }
 
+/** The video's loop, every frame while it plays: at the end of the range jump back to its start. One pass per jump:
+ * after a seek the player may report the old time for a while (longer while it loads), so the next jump waits until
+ * the video has been back inside the loop. A jump that did not take is tried again after 1.5 s, without a pass. */
+export function videoLoop(
+  s: { armed: boolean; lastJump: number },
+  time: number,
+  end: number,
+  now: number,
+): { jump: boolean; pass: boolean } {
+  if (time < end - 0.03) {
+    s.armed = true;
+    return { jump: false, pass: false };
+  }
+  if (!s.armed && now - s.lastJump < 1500) return { jump: false, pass: false };
+  const pass = s.armed;
+  s.armed = false;
+  s.lastJump = now;
+  return { jump: true, pass };
+}
+
 /** Index of the bar that contains `tick` (the last bar for anything after the end). */
 export function barAt(bars: BarTicks[], tick: number): number {
   let lo = 0;

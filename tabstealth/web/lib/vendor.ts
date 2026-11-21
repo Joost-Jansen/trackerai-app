@@ -55,6 +55,7 @@ export type AtApi = {
   renderFinished: AtEvent<unknown>;
   playerStateChanged: AtEvent<{ state: number }>;
   playerPositionChanged: AtEvent<{ currentTick: number; isSeek: boolean }>;
+  playerFinished: AtEvent<void>;
   beatMouseDown: AtEvent<AtBeat>;
   load(url: string): void;
   render(): void;

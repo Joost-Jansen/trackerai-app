@@ -54,7 +54,7 @@ import BeatEditor from "@/components/BeatEditor";
 import SongChips from "@/components/SongChips";
 import PracticePanel, { PERCENTS } from "@/components/PracticePanel";
 import ReviewPanel, { type ReviewItem } from "@/components/ReviewPanel";
-import { barAt, beatAt as beatOf, DEFAULT_PRACTICE, nextSpeed, rangeTicks, type Practice } from "@/lib/practice";
+import { barAt, beatAt as beatOf, DEFAULT_PRACTICE, nextSpeed, rangeTicks, videoLoop, type Practice } from "@/lib/practice";
 import { click, countIn } from "@/lib/click";
 import { localDay } from "@/lib/library";
 import type { AtApi, AtBeat, YtPlayer } from "@/lib/vendor";
@@ -227,12 +227,13 @@ export default function TabStudio({ vid }: { vid: string }) {
         setPlaying(on);
         if (!on) yt.current?.pauseVideo?.();
       });
-      // Tab plays: keep the (muted) video at the same moment. A jump back to the loop's start is one pass.
-      let lastTick = 0;
+      // Tab plays: each time it reaches the end of the loop is one pass. (alphaTab's jump back to the start comes as a
+      // seek, like any other, so the positions can't tell.)
+      a.playerFinished.on(() => {
+        if (sourceRef.current === "tab" && practiceRef.current.loop) onPass();
+      });
+      // and keep the (muted) video at the same moment
       a.playerPositionChanged.on((e) => {
-        // a jump you make yourself (isSeek) is not a pass
-        if (sourceRef.current === "tab" && practiceRef.current.loop && !e.isSeek && e.currentTick + 960 < lastTick) onPass();
-        lastTick = e.currentTick;
         if (sourceRef.current !== "tab" || a.playerState !== 1 || !clock.current || !yt.current?.getCurrentTime) return;
         const target = clock.current.tickToTime(e.currentTick);
         if (yt.current.getPlayerState() !== YT_PLAYING) yt.current.playVideo();
@@ -296,7 +297,7 @@ export default function TabStudio({ vid }: { vid: string }) {
     // Video plays: move the tab cursor along with its clock (about 15 times a second is smooth enough), loop the
     // range and click the metronome.
     let lastBeat = "";
-    let lastWrap = 0;
+    const loop = { armed: true, lastJump: 0 };
     const follow = (now: number) => {
       raf = requestAnimationFrame(follow);
       keepInView(now);
@@ -307,11 +308,10 @@ export default function TabStudio({ vid }: { vid: string }) {
       if (c && bars.current.length) {
         const time = p.getCurrentTime();
         const range = pr.loop ? rangeTicks(bars.current, pr.from, pr.to) : null;
-        // just after the seek the player still reports the old time for a frame: count one pass per jump
-        if (range && time >= c.tickToTime(range.endTick) - 0.03 && now - lastWrap > 300) {
-          lastWrap = now;
+        const step = range ? videoLoop(loop, time, c.tickToTime(range.endTick), now) : null;
+        if (range && step?.jump) {
           p.seekTo(c.tickToTime(range.startTick), true);
-          onPass();
+          if (step.pass) onPass();
         }
         if (pr.metronome) {
           const b = beatOf(bars.current, c.timeToTick(time), (960 * 4) / meter.current.denominator);
