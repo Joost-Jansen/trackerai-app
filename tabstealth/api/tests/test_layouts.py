@@ -142,3 +142,24 @@ def test_a_staff_drawn_partly_in_light_grey_is_found(tmp_path):
     assert abs(staff.spacing - 28) < 1
     # and the scan sees the strip on screen in every frame (it judged the lines too light, so no views at all)
     assert scan(path, staff, progress=False)["present"].all()
+
+
+def test_a_dark_blue_cursor_moving_over_the_tab_keeps_it_one_view(tmp_path):
+    # Close to You: a 7 px dark blue cursor moves every other frame; in the frame signature it made every frame a new
+    # view, so no view lasted and nothing was read
+    from tabreader.layout import Staff
+    from tabreader.pages import stable_runs
+    from tabreader.scan import scan
+
+    path = str(tmp_path / "v.mp4")
+    out = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), 10, (1280, 720))
+    for f in range(30):
+        fr = np.full((720, 1280, 3), 255, np.uint8)
+        for y in range(560, 701, 28):
+            cv2.line(fr, (0, y), (1100, y), (60, 60, 60), 2)
+        x = 200 + 7 * (f // 2)
+        cv2.rectangle(fr, (x, 530), (x + 6, 700), (200, 40, 30), -1)  # BGR: dark blue
+        out.write(fr)
+    out.release()
+    staff = Staff(lines=[560.0, 588.0, 616.0, 644.0, 672.0, 700.0], x0=0, x1=1100)
+    assert len(stable_runs(scan(path, staff, progress=False))) == 1

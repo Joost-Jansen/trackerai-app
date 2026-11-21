@@ -60,11 +60,15 @@ def detect_staff(video: str, samples: int = 40) -> Staff:
     return Staff(lines=lines, x0=0, x1=x1, line_ink=line_ink)
 
 
+def is_cursor(crop: np.ndarray) -> np.ndarray:
+    """Pixels of the blue playback cursor's colour."""
+    b, r = crop[..., 0].astype(int), crop[..., 2].astype(int)
+    return (b - r > 25) & (b > 150)
+
+
 def cursor_x(crop: np.ndarray) -> float:
     """x of the blue playback cursor in the crop, or NaN."""
-    b, g, r = (crop[..., i].astype(int) for i in range(3))
-    blue = (b - r > 25) & (b > 150)
-    col = blue.sum(axis=0)
+    col = is_cursor(crop).sum(axis=0)
     if col.max() < crop.shape[0] * 0.4:
         return np.nan
     xs = np.where(col >= col.max() * 0.6)[0]
@@ -111,7 +115,10 @@ def scan(video: str, staff: Staff | None = None, progress: bool = True) -> dict:
         a, b = highlight_span(crop)
         hl0.append(a)
         hl1.append(b)
-        sig = cv2.resize(ink_mask(crop, 140), None, fx=1 / SIG_DOWN, fy=1 / SIG_DOWN, interpolation=cv2.INTER_AREA)
+        # the signature is the tab, not the cursor: a dark blue cursor would make every frame differ from the last
+        sig_ink = ink_mask(crop, 140)
+        sig_ink[is_cursor(crop)] = 0
+        sig = cv2.resize(sig_ink, None, fx=1 / SIG_DOWN, fy=1 / SIG_DOWN, interpolation=cv2.INTER_AREA)
         sigs.append(np.packbits(sig > 0))
         if present[-1]:
             lab = fr[lab_y0:lab_y1, :lab_x1]
