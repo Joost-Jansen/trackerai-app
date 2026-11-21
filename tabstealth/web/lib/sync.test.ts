@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { gpString, makeClock, nearestRate } from "./sync.ts";
+import { gpString, makeClock, videoRate } from "./sync.ts";
 
 const bars = [0, 1, 2, 3].map((i) => ({ start: i * 3840, duration: 3840 }));
 const timing = { video: "x", measure_starts: [4, 7.3, 10.6, 13.9], measure_seconds: 3.3 };
@@ -24,8 +24,14 @@ test("time to tick is the inverse, and clamps before the first bar", () => {
 });
 
 test("YouTube speed and string numbering helpers", () => {
-  assert.equal(nearestRate(0.8), 0.75);
-  assert.equal(nearestRate(1), 1);
+  // YouTube plays 25% to 200% in steps of 5% (it rounds anything finer down): 90% is 90%, not 100%
+  assert.equal(videoRate(0.9), 0.9);
+  assert.equal(videoRate(0.85 + 0.05), 0.9);
+  assert.equal(videoRate(0.62), 0.6);
+  assert.equal(videoRate(0.63), 0.65);
+  assert.equal(videoRate(1), 1);
+  assert.equal(videoRate(0.1), 0.25);
+  assert.equal(videoRate(3), 2);
   assert.equal(gpString(6), 1);
   assert.equal(gpString(1), 6);
 });

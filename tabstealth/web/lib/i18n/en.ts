@@ -175,7 +175,8 @@ export const en: Messages = {
     stepBy: (p: string) => `+${p} per pass`,
     target: "Target speed",
     upTo: (p: string) => `up to ${p}`,
-    videoSteps: "With the video's sound the speed moves in steps of 25%: those are YouTube's speeds. With the tab's sound any step works.",
+    videoSteps:
+      "With the video's sound the speed goes up at least 5% per pass: YouTube's smallest step. With the tab's sound any step works.",
     countIn: "Count-in",
     metronome: "Metronome",
   },

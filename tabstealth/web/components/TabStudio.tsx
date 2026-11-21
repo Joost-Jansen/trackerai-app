@@ -34,7 +34,7 @@ import {
   StopIcon,
   VideoIcon,
 } from "@trackerai/ui/icons";
-import { makeClock, nearestRate, type BarTicks, type Clock, type Timing } from "@/lib/sync";
+import { makeClock, videoRate, type BarTicks, type Clock, type Timing } from "@/lib/sync";
 import {
   beatAtGpIndex,
   emptyNote,
@@ -389,7 +389,7 @@ export default function TabStudio({ vid }: { vid: string }) {
       }
     }
     if (pr.countIn) {
-      const bpm = meter.current.tempo * nearestRate(speedRef.current) * (meter.current.denominator / 4);
+      const bpm = meter.current.tempo * videoRate(speedRef.current) * (meter.current.denominator / 4);
       cancelCount.current = countIn(meter.current.numerator, bpm, () => {
         cancelCount.current = null;
         p.playVideo();
@@ -452,7 +452,7 @@ export default function TabStudio({ vid }: { vid: string }) {
   useEffect(() => {
     speedRef.current = speed;
     if (at.current) at.current.playbackSpeed = speed;
-    yt.current?.setPlaybackRate?.(nearestRate(speed));
+    yt.current?.setPlaybackRate?.(videoRate(speed));
   }, [speed]);
 
   // ── practice log ───────────────────────────────────────────────────────────
@@ -866,7 +866,7 @@ export default function TabStudio({ vid }: { vid: string }) {
               title={t.song.speed}
               className="!h-8 !w-auto"
             >
-              {PERCENTS.map((s) => (
+              {(PERCENTS.includes(speed) ? PERCENTS : [...PERCENTS, speed].sort((a, b) => a - b)).map((s) => (
                 <option key={s} value={s}>
                   {Math.round(s * 100)}%
                 </option>

@@ -180,7 +180,7 @@ export const nl = {
     target: "Doeltempo",
     upTo: (p: string) => `tot ${p}`,
     videoSteps:
-      "Met het geluid van de video gaat het tempo in stappen van 25%: dat zijn de snelheden van YouTube. Met het geluid van de tab kan elke stap.",
+      "Met het geluid van de video gaat het tempo per keer minstens 5% omhoog: de kleinste stap van YouTube. Met het geluid van de tab kan elke stap.",
     countIn: "Aftellen",
     metronome: "Metronoom",
   },

@@ -16,9 +16,16 @@ test("the trainer speeds up per pass up to the target", () => {
   assert.equal(nextSpeed(0.6, p, "tab"), 0.65);
   assert.equal(nextSpeed(0.78, p, "tab"), 0.8);
   assert.equal(nextSpeed(0.8, p, "tab"), 0.8);
-  // the video only has quarter steps
-  assert.equal(nextSpeed(0.5, { ...p, target: 1 }, "video"), 0.75);
-  assert.equal(nextSpeed(1, { ...p, target: 1 }, "video"), 1);
+  // the video steps like the tab, up to and including the last steps before 100%
+  const v = { ...p, target: 1 };
+  assert.equal(nextSpeed(0.75, v, "video"), 0.8);
+  assert.equal(nextSpeed(0.85, v, "video"), 0.9);
+  assert.equal(nextSpeed(0.9, v, "video"), 0.95);
+  assert.equal(nextSpeed(0.95, v, "video"), 1);
+  assert.equal(nextSpeed(1, v, "video"), 1);
+  // YouTube's smallest step is 5%: a 2% step becomes 5% there, a 10% step stays 10%
+  assert.equal(nextSpeed(0.6, { ...v, step: 0.02 }, "video"), 0.65);
+  assert.equal(nextSpeed(0.6, { ...v, step: 0.1 }, "video"), 0.7);
 });
 
 test("bars and beats for the metronome", () => {

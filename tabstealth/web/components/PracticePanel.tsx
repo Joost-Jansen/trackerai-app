@@ -82,7 +82,7 @@ export default function PracticePanel({
           ))}
         </select>
       </div>
-      {value.trainer && source === "video" && <p className="text-xs text-ink-muted">{t.practice.videoSteps}</p>}
+      {value.trainer && source === "video" && value.step < 0.05 && <p className="text-xs text-ink-muted">{t.practice.videoSteps}</p>}
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <Switch checked={value.countIn} onChange={(on) => set({ countIn: on })} label={t.practice.countIn} />
