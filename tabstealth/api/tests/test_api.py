@@ -338,6 +338,9 @@ def test_song_and_artist_come_out_of_any_title_style():
     assert split_title("Stop This Train Guitar Cover John Mayer \N{GUITAR}|Tabs + Chords|", "x") == ("Stop This Train", "John Mayer")
     lesson = "Mia and Sebastian's Theme (La La Land) - Full Tutorial with TAB - Classical Guitar"
     assert split_title(lesson, "Robert Lunn") == ("Mia and Sebastian's Theme (La La Land)", "")
+    # the cover words in brackets between song and player
+    title = "Je Te Laisserai Des Mots (Guitar cover, tabs) Emilia Morawska"
+    assert split_title(title, "Emcia Guitar Channel") == ("Je Te Laisserai Des Mots", "Emilia Morawska")
 
 
 def login(lib, name):

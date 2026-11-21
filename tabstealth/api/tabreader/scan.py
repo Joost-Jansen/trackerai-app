@@ -50,12 +50,14 @@ def detect_staff(video: str, samples: int = 40) -> Staff:
         cap.release()
         return found
 
-    found = sample(find_staff) or sample(lambda fr: (find_staffs(fr) or [None])[-1])
+    found, line_ink = sample(find_staff), 185
+    if not found:
+        found, line_ink = sample(lambda fr: (find_staffs(fr) or [None])[-1]), 215  # find_staffs' own ink limit
     if not found:
         raise RuntimeError("no tab staff found in video")
     lines = np.median([s.lines for s in found], axis=0).tolist()
     x1 = int(np.median([s.x1 for s in found]))
-    return Staff(lines=lines, x0=0, x1=x1)
+    return Staff(lines=lines, x0=0, x1=x1, line_ink=line_ink)
 
 
 def cursor_x(crop: np.ndarray) -> float:
@@ -100,7 +102,7 @@ def scan(video: str, staff: Staff | None = None, progress: bool = True) -> dict:
         if not ok:
             break
         crop = fr[reg.y0 : reg.y1, reg.x0 : reg.x1]
-        ink = ink_mask(crop, 185)
+        ink = ink_mask(crop, staff.line_ink)
         # staff present if most of the 6 line rows are mostly inked
         cov = [ink[max(0, y - 1) : y + 2].max(axis=0).mean() for y in line_rows]
         gaps = [ink[(a + b) // 2].mean() for a, b in zip(line_rows, line_rows[1:])]

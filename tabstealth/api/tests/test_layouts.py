@@ -126,7 +126,7 @@ def test_a_faint_bar_line_found_in_some_frames_only_stays_one_page():
 def test_a_staff_drawn_partly_in_light_grey_is_found(tmp_path):
     # Kenneth Acoustic's "Close to You": the lower staff lines are light grey (about 200 on white), too light for the
     # first staff finder; the converter then found no staff at all
-    from tabreader.scan import detect_staff
+    from tabreader.scan import detect_staff, scan
 
     path = str(tmp_path / "v.mp4")
     out = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), 10, (1920, 1080))
@@ -140,3 +140,5 @@ def test_a_staff_drawn_partly_in_light_grey_is_found(tmp_path):
     staff = detect_staff(path, samples=6)
     assert abs(staff.lines[0] - 894) <= 1.5
     assert abs(staff.spacing - 28) < 1
+    # and the scan sees the strip on screen in every frame (it judged the lines too light, so no views at all)
+    assert scan(path, staff, progress=False)["present"].all()

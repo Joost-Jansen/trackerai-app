@@ -105,8 +105,9 @@ def split_title(title: str, channel: str = "") -> tuple[str, str]:
     # "Song - Full Tutorial with TAB - Classical Guitar": leave out the parts that are only about the video
     parts = [p for p in main.split(" - ") if FILLER.sub(" ", NOISE.sub(" ", p)).strip(" -,()")]
     main = " - ".join(parts) or main
-    if " - " not in main and (m := re.search(r"\b(guitar )?cover\b", main, re.I)):
-        song, artist = main[: m.start()], main[m.end() :]  # "Stop This Train Guitar Cover John Mayer"
+    # "Stop This Train Guitar Cover John Mayer", "Je Te Laisserai Des Mots (Guitar cover, tabs) Emilia Morawska"
+    if " - " not in main and (m := re.search(r"\([^()]*\bcover\b[^()]*\)|\b(guitar )?cover\b", main, re.I)):
+        song, artist = main[: m.start()], main[m.end() :]
     elif " - " in main:
         a, b = main.split(" - ", 1)
         song, artist = (a, b) if "kenneth" in channel.lower() or not channel else (b, a)
