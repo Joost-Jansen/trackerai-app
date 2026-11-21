@@ -28,6 +28,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Table,
+    Text,
     create_engine,
     delete,
     func,
@@ -35,6 +36,7 @@ from sqlalchemy import (
     select,
     update,
 )
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Engine
 
 meta = MetaData()
@@ -99,6 +101,15 @@ practice = Table(
     Column("whole_song", Boolean, nullable=False, default=False),
 )
 
+# your own notes: one free text, e.g. songs you can play that have no video here
+notes = Table(
+    "notes",
+    meta,
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("text", Text, nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+)
+
 HISTORY_MAX = 100  # undo steps kept per song
 
 # the song fields the library list shows (the files stay out of it)
@@ -135,7 +146,7 @@ def user_for_account(engine: Engine, account_id: int) -> int:
 
 
 def delete_user(engine: Engine, user_id: int) -> None:
-    """Everything of a user: songs and practice go with the user row (cascade), the history by hand."""
+    """Everything of a user: songs, practice and notes go with the user row (cascade), the history by hand."""
     with engine.begin() as c:
         c.execute(delete(history).where(history.c.user_id == user_id))
         c.execute(delete(users).where(users.c.id == user_id))
@@ -260,3 +271,17 @@ def has_practice(engine: Engine, user_id: int, entry: dict) -> bool:
     cond = [practice.c.user_id == user_id] + [practice.c[k] == v for k, v in entry.items() if k != "bars"]
     with engine.connect() as c:
         return c.execute(select(func.count()).where(*cond)).scalar() > 0
+
+
+# ── notes ──────────────────────────────────────────────────────────────────────
+
+
+def get_notes(engine: Engine, user_id: int) -> str:
+    with engine.connect() as c:
+        return c.execute(select(notes.c.text).where(notes.c.user_id == user_id)).scalar() or ""
+
+
+def put_notes(engine: Engine, user_id: int, text: str) -> None:
+    row = {"text": text, "updated_at": now()}
+    with engine.begin() as c:  # one statement, so two saves at once can't both insert
+        c.execute(pg_insert(notes).values(user_id=user_id, **row).on_conflict_do_update(index_elements=[notes.c.user_id], set_=row))

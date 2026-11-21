@@ -28,6 +28,14 @@ export const en: Messages = {
   library: {
     title: "Library",
     lead: "Tabs from videos: play them next to the video, in time, and fix them where they are wrong.",
+    notes: {
+      title: "Notes",
+      hint: "Anything you want to keep, such as songs you can play without a video here. Saved as you type.",
+      placeholder: "Guitar songs\nHotel California - Eagles\n\nStill to learn:\nAutumn Leaves",
+      saving: "Saving…",
+      saved: "Saved",
+      failed: "Not saved, try again",
+    },
     empty: "No songs yet. Paste a YouTube link below to start.",
     addTitle: "Add to the library",
     addLabel: "Link to a video or playlist",

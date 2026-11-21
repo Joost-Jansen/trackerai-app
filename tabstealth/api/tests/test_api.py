@@ -435,3 +435,19 @@ def test_a_download_youtube_refuses_is_tried_again(monkeypatch, tmp_path):
     with pytest.raises(RuntimeError, match="403"):
         cli.download_video(tmp_path / "video.mp4", "https://youtu.be/x", None, lambda m: None, wait=waits.append)
 
+
+def test_notes_are_one_free_text_of_your_own(library):
+    # songs you can play without a video for them: a list in your own words, with headings as you like
+    assert library.c.get("/api/notes").json() == {"text": ""}
+    text = "Guitar songs\nHotel California - the Eagles\n\nStill to learn:\nAutumn leaves"
+    assert library.c.put("/api/notes", json={"text": text}).json() == {"text": text}
+    assert library.c.get("/api/notes").json() == {"text": text}
+    assert library.c.put("/api/notes", json={"text": "x" * 20_001}).status_code == 422  # a list, not a book
+
+    bob, accounts, anna = login(library, "bob")
+    accounts.set_app(anna, accounts.by_username("bob")["id"], "tabstealth", enabled=True)
+    assert bob.get("/api/notes").json() == {"text": ""}  # anna's notes are hers
+    assert TestClient(library.c.app).get("/api/notes").status_code == 401
+    # and they go with the account
+    db.delete_user(library.engine, library.uid)
+    assert db.get_notes(library.engine, library.uid) == ""

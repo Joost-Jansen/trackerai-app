@@ -117,6 +117,10 @@ class PracticeIn(BaseModel):
     whole_song: bool = False  # played from the start to the end at this speed
 
 
+class NotesIn(BaseModel):
+    text: str = Field(max_length=20_000)
+
+
 class ReanalyseIn(BaseModel):
     overwrite_edits: bool = False
 
@@ -713,6 +717,15 @@ def create_app(engine=None, accounts: Accounts | None = None, jobs: Jobs | None 
         entry["bars"] = list(entry["bars"]) if entry["bars"] else None
         db.add_practice(engine, uid, entry)
         return {"ok": True}
+
+    @app.get("/api/notes")
+    def get_notes(uid: int = Depends(user)):
+        return {"text": db.get_notes(engine, uid)}
+
+    @app.put("/api/notes")
+    def put_notes(body: NotesIn, uid: int = Depends(user)):
+        db.put_notes(engine, uid, body.text)
+        return {"text": body.text}
 
     @app.get("/api/practice")
     def practice(today: str | None = None, uid: int = Depends(user)):
