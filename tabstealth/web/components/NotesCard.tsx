@@ -69,7 +69,8 @@ export default function NotesCard() {
     >
       <p className="mb-2 text-xs text-ink-muted">{t.library.notes.hint}</p>
       <textarea
-        className="ds-input w-full resize-y py-2 text-sm leading-relaxed"
+        // ds-input is a one-line field (a fixed height): here the rows decide, growing with the text
+        className="ds-input !h-auto w-full resize-y py-2 text-sm leading-relaxed"
         aria-label={t.library.notes.title}
         placeholder={t.library.notes.placeholder}
         rows={rows}
